@@ -30,6 +30,7 @@ import datetime as _dt
 import hashlib
 import inspect
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -802,6 +803,83 @@ def _code_closure_signature(*names):
     return _files_signature(_local_code_closure(*names))["sha256"]
 
 
+def _source_sync_extra_pad_nets(cfg):
+    """Parse explicit board-only electrical lands for source normalization."""
+    raw = (getattr(cfg, "params", {}) or {}).get(
+        "source_sync_extra_pad_nets", {}) or {}
+    if not isinstance(raw, dict):
+        raise PipelineBlocked(
+            "source_sync_extra_pad_nets must be a REF.PAD-to-net mapping")
+    parsed = {}
+    for refpad, net in raw.items():
+        try:
+            ref, pad = str(refpad).rsplit(".", 1)
+        except ValueError as exc:
+            raise PipelineBlocked(
+                "invalid source_sync_extra_pad_nets key %r" % refpad) from exc
+        if not ref or not pad or not str(net):
+            raise PipelineBlocked(
+                "invalid source_sync_extra_pad_nets entry %r" % refpad)
+        parsed[(ref, pad)] = str(net)
+    return parsed
+
+
+def _normalize_schematic_first_source(cfg, canonical_board, out_dir):
+    """Create an electrically current, copper-free replacement input.
+
+    This is opt-in board policy for a current schematic-first staging PCB.  It
+    never edits the manifest PCB: the current hierarchy is synchronized into a
+    journal-owned working copy, obsolete non-mechanical references are removed,
+    and the ordinary intake gate must then prove the normalized copy.
+    """
+    import cec_sync_pcb_from_schematic as sync
+
+    canonical_board = Path(canonical_board).resolve()
+    work_dir = Path(out_dir).resolve() / "00-source-normalized"
+    work_board = work_dir / "board.kicad_pcb"
+    copied = _copy_sidecars(canonical_board, work_board, cfg=cfg)
+    extra_pad_nets = _source_sync_extra_pad_nets(cfg)
+    first = sync.synchronize(
+        str(cfg.sch), str(work_board), remove_refs=(),
+        rip_all_copper=True, extra_pad_nets=extra_pad_nets,
+        add_missing=True, replace_mismatched_footprints=True)
+    retired = tuple(first.get("unexpected_board_refs") or ())
+    final = first
+    if retired:
+        final = sync.synchronize(
+            str(cfg.sch), str(work_board), remove_refs=retired,
+            rip_all_copper=True, extra_pad_nets=extra_pad_nets,
+            add_missing=True, replace_mismatched_footprints=True)
+    ok = not (
+        final.get("unexpected_board_refs")
+        or final.get("missing_schematic_refs")
+    )
+    report_path = work_dir / "source-normalization.json"
+    report = {
+        "schema": 1,
+        "ok": ok,
+        "mode": "schematic_first_working_copy",
+        "canonical_board": str(canonical_board),
+        "board": str(work_board),
+        "schematic": str(Path(cfg.sch).resolve()),
+        "copper_disposition": "working_copy_ripped_for_replacement",
+        "first_pass": first,
+        "retired_refs": list(retired),
+        "final": final,
+    }
+    atomic_json(report_path, report)
+    return {
+        "ok": ok,
+        "board": str(work_board),
+        "report": str(report_path),
+        "retired_refs": list(retired),
+        "added_refs": list(first.get("added_refs") or ()),
+        "replaced_footprints": list(
+            first.get("replaced_footprints") or ()),
+        "_artifacts": copied + [str(report_path)],
+    }
+
+
 def _source_intake(cfg, input_board, report_path, *, allow_derived_input=False):
     import cec_beta_electrical_audit
     import cec_beta_manifest
@@ -1452,6 +1530,13 @@ def _placement_priority_route_gate(evidence, *, applicable=True):
         "evidence_key": [
             int(evidence.get(field, 0) or 0) for field, _term in terms],
     }
+
+
+def _preserve_admitted_priority_placement(cfg, gate):
+    """Return whether an already admitted placement is a stable boundary."""
+    return bool(
+        (gate or {}).get("ok")
+        and not cfg.params.get("placement_optimize_feasible_routes", False))
 
 
 def _compact_priority_repair_round_history(report):
@@ -2283,6 +2368,67 @@ def _continued_edge_follow_policy(input_board, source_outline,
         return policy, provenance
 
 
+def _replacement_source_outline(cfg, source):
+    """Resolve the fixed-outline seed for replacement placement.
+
+    A current schematic-first board can legitimately carry a footprint staging
+    PCB before its first layout pass.  Such a file has no Edge.Cuts, so its
+    footprint bounding box is not a mechanical authority.  Admit it only when
+    the board's current policy explicitly declares ``bootstrap_outline_mm``;
+    otherwise fail closed instead of guessing or borrowing an old candidate.
+    """
+    width = float(getattr(source, "W", 0.0) or 0.0)
+    height = float(getattr(source, "H", 0.0) or 0.0)
+    if width > 1e-6 and height > 1e-6:
+        return source, {
+            "mode": "edge_cuts",
+            "outline_mm": [width, height],
+            "origin_mm": [float(getattr(source, "x0", 0.0) or 0.0),
+                          float(getattr(source, "y0", 0.0) or 0.0)],
+        }
+
+    declared = (getattr(cfg, "params", {}) or {}).get(
+        "bootstrap_outline_mm")
+    if (not isinstance(declared, (tuple, list)) or len(declared) != 2):
+        raise PipelineBlocked(
+            "replacement placement source has no Edge.Cuts and the current "
+            "board policy declares no bootstrap_outline_mm")
+    try:
+        width, height = (float(declared[0]), float(declared[1]))
+    except (TypeError, ValueError) as exc:
+        raise PipelineBlocked(
+            "bootstrap_outline_mm must contain two numeric dimensions") from exc
+    if (not math.isfinite(width) or not math.isfinite(height)
+            or width <= 0.0 or height <= 0.0):
+        raise PipelineBlocked(
+            "bootstrap_outline_mm dimensions must be finite and positive")
+
+    origin = (getattr(cfg, "params", {}) or {}).get(
+        "bootstrap_outline_origin_mm", (0.0, 0.0))
+    if (not isinstance(origin, (tuple, list)) or len(origin) != 2):
+        raise PipelineBlocked(
+            "bootstrap_outline_origin_mm must contain two numeric coordinates")
+    try:
+        x0, y0 = (float(origin[0]), float(origin[1]))
+    except (TypeError, ValueError) as exc:
+        raise PipelineBlocked(
+            "bootstrap_outline_origin_mm must contain two numeric coordinates") \
+            from exc
+    if not math.isfinite(x0) or not math.isfinite(y0):
+        raise PipelineBlocked(
+            "bootstrap_outline_origin_mm coordinates must be finite")
+
+    resolved = copy.copy(source)
+    resolved.W, resolved.H = width, height
+    resolved.x0, resolved.y0 = x0, y0
+    return resolved, {
+        "mode": "declared_bootstrap",
+        "outline_mm": [width, height],
+        "origin_mm": [x0, y0],
+        "policy_key": "bootstrap_outline_mm",
+    }
+
+
 def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
                      seeds, workers, craft_trials, craft_rounds,
                      craft_epochs, completion_report=None):
@@ -2293,9 +2439,19 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
     output_board = Path(output_board).resolve()
     if replace:
         cec_search_policy.bounded_placement_plan(strategies, seeds)
-        source = synth.read_placement(str(input_board))
+        source = synth.read_placement(
+            str(input_board), allow_missing_outline=True)
+        source, source_outline = _replacement_source_outline(cfg, source)
         outline_policy = dict(
             cfg.params.get("outline_compaction") or {})
+        if source_outline.get("mode") == "declared_bootstrap":
+            # There is no incumbent mechanical placement to preserve.  Trying
+            # to rehydrate the outline-less staging cloud would both fail the
+            # reader and give arbitrary source-sync coordinates design weight.
+            # Fresh strategies still receive the complete current netlist and
+            # every declared outline candidate.
+            outline_policy["include_incremental"] = False
+            outline_policy["include_fresh_placement"] = True
         edge_follow_policy, edge_follow_membership = (
             _continued_edge_follow_policy(
                 input_board, (source.W, source.H), outline_policy))
@@ -2424,19 +2580,53 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
         # proxy.  This closes the old seam where the right algorithms ran but a
         # lower-HPWL board with failed bypass cells was selected anyway.
         selection_rows = []
+        selection_evaluation = None
         with tempfile.TemporaryDirectory(
                 prefix="cec-full-placement-rank-") as work:
+            jobs = []
             for index, candidate in enumerate(candidates):
                 candidate_path = Path(work) / ("%03d.kicad_pcb" % index)
                 variant_cfg, follow = candidate_context[id(candidate)]
-                synth.materialize(candidate, variant_cfg,
-                                  str(candidate_path))
-                evidence = synth.placement_craft_evidence(
-                    str(candidate_path), cfg=variant_cfg)
+                jobs.append({
+                    "candidate": candidate,
+                    "cfg": variant_cfg,
+                    "path": str(candidate_path),
+                    # Final candidate ranking retains the full diagnostic
+                    # evidence used by the former serial implementation.
+                    "relief_diagnostics": True,
+                    "physical_evidence": True,
+                })
+            # Exact electrical and physical verdicts are independent by
+            # candidate.  Reuse the bounded, recyclable spawn pool used by
+            # craft repair so native KiCad allocations cannot accumulate in
+            # the coordinator.  Results are returned in input order, keeping
+            # deterministic ranking byte-for-byte independent of scheduling.
+            evaluation_owner = copy.copy(cfg)
+            evaluation_owner.params = dict(cfg.params)
+            if workers is not None:
+                evaluation_owner.params["placement_craft_eval_workers"] = \
+                    max(1, int(workers))
+            evaluated, selection_evaluation = \
+                synth._evaluate_placement_craft_trials(
+                    evaluation_owner, jobs)
+            print("  [place] exact finalist evaluation: %d candidates, "
+                  "%d workers, %d generations" % (
+                      len(evaluated),
+                      int(selection_evaluation.get("workers", 0) or 0),
+                      int(selection_evaluation.get(
+                          "worker_generations", 0) or 0)), flush=True)
+            for index, (candidate, result) in enumerate(zip(
+                    candidates, evaluated)):
+                variant_cfg, follow = candidate_context[id(candidate)]
+                if not result.get("ok"):
+                    raise RuntimeError(
+                        "exact placement candidate %d failed closed: %s" % (
+                            index, result.get("error") or
+                            "missing worker evidence"))
+                evidence = result["evidence"]
                 key = synth.placement_craft_key(evidence)
-                pads = synth._oracle_pads_in_bounds(str(candidate_path))
-                courtyards = synth._oracle_courtyard_overlaps(
-                    str(candidate_path))
+                pads = result["pads"]
+                courtyards = result["courtyards"]
                 physical_key = (
                     0 if pads.get("ok") else 1,
                     len(courtyards.get("violations") or ()),
@@ -2494,6 +2684,7 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
         ]
         placement = {
             "mode": "route-aware-replacement",
+            "source_outline": source_outline,
             "strategy": best.strat,
             "seed": best.seed,
             "placement_signature": _candidate_position_signature(best),
@@ -2512,6 +2703,7 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
             "selected_outline_area_mm2": round(best.W * best.H, 3),
             "outline_compaction": outline_follow,
             "selection_craft": initial_craft,
+            "selection_evaluation": selection_evaluation,
             "selection_candidates": [
                 {
                     "strategy": row[5].strat, "seed": row[5].seed,
@@ -2722,8 +2914,51 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
                    "no_priority_route_placement_policy"),
     }
     priority_evidence = {}
+    priority_baseline_gate = {}
+    preserve_admitted_placement = False
     if (pre_route_physical_ok and route_authority.get("ok")
             and priority_applicable):
+        import cec_route_preflight
+
+        # A certified placement is a stable pipeline boundary.  Re-running
+        # placement must not rotate or translate otherwise legal parts merely
+        # to improve a secondary congestion score: that invalidates the exact
+        # route certificate consumed by the next stage and makes resume
+        # nondeterministic.  Boards that explicitly want post-admission
+        # optimization can opt in; the generic default is byte-stable reuse.
+        priority_evidence = _measure_placement_priority_routes(
+            cfg, output_board)
+        priority_baseline_gate = _placement_priority_route_gate(
+            priority_evidence, applicable=True)
+        preserve_admitted_placement = _preserve_admitted_priority_placement(
+            cfg, priority_baseline_gate)
+    if preserve_admitted_placement:
+        stable_key = tuple(
+            cec_route_preflight.placement_evidence_key(priority_evidence))
+        priority_repair = {
+            "schema": 2,
+            "ok": True,
+            "changed": False,
+            "accepted_count": 0,
+            "applicable": True,
+            "reason": "already_feasible_stable",
+            "baseline_key": list(stable_key),
+            "result_key": list(stable_key),
+            "result_evidence": priority_evidence,
+            "cooptimization": {
+                "schema": 1,
+                "rounds_requested": max(1, int(cfg.params.get(
+                    "placement_power_route_coopt_rounds", 2) or 2)),
+                "rounds_run": 0,
+                "selected_round": 0,
+                "selected_key": list(stable_key),
+                "stop_reason": "already_feasible_stable",
+                "repetition_guard": True,
+                "strict_post_authority_selection": True,
+            },
+        }
+    elif (pre_route_physical_ok and route_authority.get("ok")
+          and priority_applicable):
         # Placement and exact pours are mutually dependent.  A placement move
         # can clear a declared pair against the old reservations and then lose
         # it when the power authority is regenerated for the new coordinates.
@@ -2731,8 +2966,6 @@ def _placement_stage(cfg, input_board, output_board, *, replace, strategies,
         # a fresh exact power freeze and exact critical-route measurement.
         # Keep the best *post-authority* state, and bound/repetition-guard the
         # search so unattended waves cannot oscillate.
-        import cec_route_preflight
-
         coopt_rounds = max(1, int(cfg.params.get(
             "placement_power_route_coopt_rounds", 2) or 2))
         coopt_history = []
@@ -3773,6 +4006,7 @@ def run_full_pipeline(
         raise FileNotFoundError(
             "no current placement board; pass --input-board explicitly"
         )
+    canonical_input_board = input_board
     cfg, route_authority = synth.config_with_board_route_authority(
         cfg, str(input_board))
     if route_authority.get("applicable") and not route_authority.get("ok"):
@@ -3784,12 +4018,44 @@ def run_full_pipeline(
     board_identity = _board_identity(cfg)
     journal = StageJournal(out_dir / "pipeline-state.json", board_identity,
                            resume=resume)
+    source_normalization = None
+    if (replace_placement and bool(cfg.params.get(
+            "schematic_first_normalization", False))):
+        canonical_manifest_board = Path(cfg.pcb).resolve()
+        if canonical_input_board != canonical_manifest_board:
+            raise PipelineBlocked(
+                "schematic-first source normalization requires the current "
+                "manifest PCB, not a derived input")
+        canonical_signature = _files_signature(
+            _source_files(cfg, canonical_input_board))
+        source_normalization = journal.run(
+            "source_normalization",
+            digest_value({
+                "source": canonical_signature["sha256"],
+                "board": board_identity,
+                "policy": cfg.params,
+                "code": _code_closure_signature(
+                    "cec_sync_pcb_from_schematic.py"),
+                "coordinator": _callable_signature(
+                    _normalize_schematic_first_source),
+            }),
+            lambda: _normalize_schematic_first_source(
+                cfg, canonical_input_board, out_dir),
+        )
+        if not source_normalization.get("ok"):
+            raise PipelineBlocked(
+                "schematic-first source normalization refused; see %s" %
+                source_normalization.get("report"))
+        input_board = Path(source_normalization["board"]).resolve()
     source_signature = _files_signature(_source_files(cfg, input_board))
     common = {
         "source": source_signature["sha256"],
         "board": board_identity,
         "policy": cfg.params,
         "route_authority": route_authority,
+        "source_normalization": (
+            digest_value(source_normalization)
+            if source_normalization is not None else None),
         "completion_evidence": (
             digest_value(completion_report)
             if completion_report is not None else None),
@@ -3806,7 +4072,9 @@ def run_full_pipeline(
         lambda: {
             **_source_intake(
                 cfg, input_board, intake_path,
-                allow_derived_input=allow_derived_input),
+                allow_derived_input=(
+                    allow_derived_input
+                    or source_normalization is not None)),
             "route_authority": route_authority,
             "report": str(intake_path), "_artifacts": [str(intake_path)],
         },

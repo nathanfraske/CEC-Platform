@@ -143,6 +143,31 @@ class XfcnTerminalContractTest(unittest.TestCase):
                 pinned_refs=before)
         self.assertEqual(before, anchors)
 
+    def test_qualified_atx_interface_macro_translates_without_repacking(self):
+        plan = contract.PROJECTS["atx-main"]
+        before = contract.power_path_anchor_placements(plan)
+        placed = contract.centered_interface_anchor_placements(
+            plan, 86.0, terminal_edge_y_mm=0.9)
+
+        self.assertAlmostEqual(
+            (min(row[0] for row in placed.values())
+             + max(row[0] for row in placed.values())) / 2.0,
+            43.0)
+        self.assertAlmostEqual(
+            min(placed[ref][1] for ref in plan["refs"]), 0.9)
+        for left, right in zip(sorted(before), sorted(placed)):
+            self.assertEqual(left, right)
+        refs = sorted(before)
+        for a, b in zip(refs, refs[1:]):
+            self.assertAlmostEqual(
+                placed[b][0] - placed[a][0],
+                before[b][0] - before[a][0])
+            self.assertAlmostEqual(
+                placed[b][1] - placed[a][1],
+                before[b][1] - before[a][1])
+            self.assertEqual(placed[a][2], before[a][2])
+        self.assertEqual(placed[refs[-1]][2], before[refs[-1]][2])
+
     def test_pcie_source_has_no_pre_route_current_slabs(self):
         import pcbnew
 

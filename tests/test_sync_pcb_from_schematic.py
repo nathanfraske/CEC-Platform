@@ -125,6 +125,7 @@ class TestSyncPcbFromSchematic(unittest.TestCase):
                     item for item in blocks
                     if f'(property "Reference" "{ref}"' in item)
                 self.assertIn("(net ", block)
+                self.assertIn('(path "/', block)
             self.assertEqual(len(positions), len(set(positions)))
 
 

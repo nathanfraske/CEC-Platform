@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "board": "atx-24pin-rev3",
+  "params": {
+    "bootstrap_outline_mm": [
+      86.0,
+      95.0
+    ],
+    "schematic_first_normalization": true,
+    "qualified_interface_anchor": {
+      "provider": "cec_xfcn_contract",
+      "project": "atx-main",
+      "edge": "top",
+      "terminal_edge_y_mm": 0.9
+    },
+    "automatic_pin_escape_tier": true,
+    "pre_route_craft_admission": true,
+    "decoupler_cell_pre_route": true,
+    "post_route_corner_chamfer": true,
+    "post_route_teardrops": "release",
+    "certificate_repair": true
+  }
+}

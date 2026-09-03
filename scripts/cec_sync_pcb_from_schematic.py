@@ -95,6 +95,29 @@ def _place_new_footprint(board, footprint, pad_nets, already_missing):
     bounds = tuple(value / 1e6 for value in (
         edge.GetX(), edge.GetY(), edge.GetX() + edge.GetWidth(),
         edge.GetY() + edge.GetHeight()))
+    bounded_by_outline = (
+        bounds[2] - bounds[0] > 1e-6
+        and bounds[3] - bounds[1] > 1e-6
+    )
+    if not bounded_by_outline:
+        # A schematic-first staging PCB may intentionally have no Edge.Cuts.
+        # Its existing footprint cloud is placement provenance only, not a
+        # mechanical outline.  Give newly materialized parts a deterministic
+        # non-overlapping staging canvas around that cloud; the replacement
+        # placer must later bind an explicit outline policy before manufacture.
+        staging_boxes = [
+            _box_mm(other) for other in board.GetFootprints()
+            if other.GetReference() != ref
+        ]
+        if staging_boxes:
+            bounds = (
+                min(box[0] for box in staging_boxes) - 10.0,
+                min(box[1] for box in staging_boxes) - 10.0,
+                max(box[2] for box in staging_boxes) + 10.0,
+                max(box[3] for box in staging_boxes) + 10.0,
+            )
+        else:
+            bounds = (0.0, 0.0, 100.0, 100.0)
     if by_net:
         # The least-populated signal/rail is the most local owner hint.
         peers = min(by_net.values(), key=lambda rows: (len(rows), rows))
@@ -110,8 +133,11 @@ def _place_new_footprint(board, footprint, pad_nets, already_missing):
         footprint.SetPosition(pcbnew.VECTOR2I(int(round(x * 1e6)),
                                               int(round(y * 1e6))))
         box = _box_mm(footprint)
-        if (box[0] < bounds[0] + 0.25 or box[1] < bounds[1] + 0.25 or
-                box[2] > bounds[2] - 0.25 or box[3] > bounds[3] - 0.25):
+        if (bounded_by_outline and
+                (box[0] < bounds[0] + 0.25 or
+                 box[1] < bounds[1] + 0.25 or
+                 box[2] > bounds[2] - 0.25 or
+                 box[3] > bounds[3] - 0.25)):
             continue
         if any(_overlap(box, _box_mm(other)) for other in others):
             continue
@@ -154,6 +180,8 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     """
     pad_nets, schematic_refs = _schematic_pad_nets(schematic)
     inventory = cec_sch_gates.inventory(schematic)
+    schematic_paths = (
+        cec_pcb_reconcile.symbol_paths(schematic) if add_missing else {})
     # KiCad's exported netlist may include PWR_FLAG and power-symbol records,
     # but they are connectivity annotations rather than PCB footprints.
     schematic_refs = {
@@ -284,6 +312,11 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
         pending = set(missing)
         for ref in sorted(missing, key=lambda item: (-pin_count(item), item)):
             footprint = _load_missing_footprint(board, ref, inventory[ref])
+            path = schematic_paths.get(ref)
+            if not path:
+                raise RuntimeError(
+                    f"schematic instance path unavailable for added footprint {ref}")
+            footprint.SetPath(pcbnew.KIID_PATH(path))
             for pad in footprint.Pads():
                 expected = pad_nets.get((ref, pad.GetNumber()))
                 if expected is not None:

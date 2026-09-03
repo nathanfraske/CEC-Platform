@@ -10827,13 +10827,19 @@ def _via_spot_clear(board, at, dia_nm, clearance_nm, exempt_codes, *,
     return True
 
 
-def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_codes):
+def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm,
+                       sense_codes, *, foreign_cache=None):
     """True iff a single straight F.Cu segment S->T (width width_nm) has NO FOREIGN-net copper
     within clearance_nm on layer_id. FOREIGN = any pad/track/via whose net code is NOT in
     sense_codes (the set of all _HI/_LO Kelvin-pair codes -- so the partner sense leg and the
     tap's own net never count, only GND/+3V3/signal/power foreign copper does). Uses the SAME
     GetEffectiveShape().Collide() geometry KiCad DRC uses, so a PASS here is DRC-clean for copper
     clearance on this segment -- the guard that lets the tap REFUSE rather than lay a shorting stub."""
+    if foreign_cache is not None:
+        zones, copper = _foreign_shape_indexes(
+            board, layer_id, sense_codes, cache=foreign_cache)
+        return _snapshot_foreign_clear(
+            S, T, width_nm, clearance_nm, zones, copper)
     seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
     # Pipeline-owned laid pours are reserved copper, not ordinary zones whose
     # filler may be casually antipadded. Freerouting sees their outlines as
@@ -11456,6 +11462,52 @@ def _canonical_tap_path(S, T, ux, uy, *, run_pref_mm=0.9, run_min_mm=0.3, gap_mm
     return path if len(path) >= 3 else None
 
 
+def _canonical_tap_paths(S, T, ux, uy, *, run_pref_mm=0.9,
+                         run_min_mm=0.3, gap_mm=None):
+    """Return a deterministic, bounded family of textbook Kelvin paths.
+
+    A canonical tap has one topology: leave the shunt pad along its package
+    normal, make one lateral move, then approach the sense input along that
+    same normal.  The former implementation tried only a 0.9 mm first leg.
+    That turned a legal cell into a placement refusal whenever an adjacent pin
+    happened to occupy that single channel, even though a shorter or longer
+    first leg preserved exactly the same datasheet topology.
+
+    Keep the legacy preference first for stable output, then probe a small set
+    of manufacturing-grid-friendly runs and axial fractions.  Point sequences
+    are de-duplicated after the ordinary gap/axial caps in
+    :func:`_canonical_tap_path`; this is intentionally not the unrestricted
+    dogleg ladder used by legacy boards.
+    """
+    ax = (T.x - S.x) / MM
+    ay = (T.y - S.y) / MM
+    axial_mm = ax * ux + ay * uy
+    if axial_mm <= run_min_mm:
+        return []
+
+    run_preferences = [
+        float(run_pref_mm), float(run_min_mm),
+        0.45, 0.60, 0.75, 1.20, 1.50, 2.00, 2.50, 3.00,
+        axial_mm * 0.25, axial_mm * 0.50, axial_mm * 0.75,
+        max(float(run_min_mm), axial_mm - float(run_min_mm)),
+    ]
+    paths, seen = [], set()
+    for preferred in run_preferences:
+        if preferred < run_min_mm:
+            continue
+        path = _canonical_tap_path(
+            S, T, ux, uy, run_pref_mm=preferred,
+            run_min_mm=run_min_mm, gap_mm=gap_mm)
+        if path is None:
+            continue
+        signature = tuple((point.x, point.y) for point in path)
+        if signature in seen:
+            continue
+        seen.add(signature)
+        paths.append(path)
+    return paths
+
+
 def _dogleg_candidates(S, T):
     """Candidate 2-3 leg orthogonal paths S->..->T for a REFUSED straight tap, nearest-to-straight
     first: the two L-bends, then channel doglegs that run the long axis at a fraction of the
@@ -12003,23 +12055,47 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25,
                 # the sense IC. Preferred over the direct diagonal whenever it guards
                 # clean; falls through to straight, then doglegs, then refusal.
                 _gap = math.hypot((other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM)
-                canon = _canonical_tap_path(S, T, _ux, _uy, gap_mm=_gap)
-                canon_pending = (
-                    _tap_pending_collider(
-                        canon, nc, lay_id, pending, _nm(width), clr_nm)
-                    if canon is not None else None)
-                if canon is not None:
-                    legs = list(zip(canon, canon[1:]))
-                    if all(a != b for a, b in legs) and \
-                       all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
-                                              sense_codes) and
-                           _tap_pair_overlap_clear(
-                               board, a, b, _nm(width), lay_id, nc,
-                               sense_codes, clearance_nm=clr_nm)
-                           for a, b in legs) and not canon_pending \
-                            and future_power_clear(canon, net, lay_id):
-                        pending.append((canon, nc, net, lbl + " (canonical)", lay_id))
-                        continue
+                canonical_paths = (
+                    _canonical_tap_paths(
+                        S, T, _ux, _uy, gap_mm=_gap)
+                    if locked_mode else
+                    [_canonical_tap_path(
+                        S, T, _ux, _uy, gap_mm=_gap)])
+                canonical_paths = [path for path in canonical_paths
+                                   if path is not None]
+                canon = canonical_paths[0] if canonical_paths else None
+                canonical_attempts = []
+                canonical_selected = None
+                for index, candidate in enumerate(canonical_paths):
+                    legs = list(zip(candidate, candidate[1:]))
+                    clear = (
+                        all(a != b for a, b in legs)
+                        and all(
+                            _tap_foreign_clear(
+                                board, a, b, _nm(width), lay_id,
+                                clr_nm, sense_codes)
+                            and _tap_pair_overlap_clear(
+                                board, a, b, _nm(width), lay_id, nc,
+                                sense_codes, clearance_nm=clr_nm)
+                            for a, b in legs)
+                        and not _tap_pending_collider(
+                            candidate, nc, lay_id, pending,
+                            _nm(width), clr_nm)
+                        and future_power_clear(candidate, net, lay_id))
+                    if clear:
+                        canonical_selected = candidate
+                        break
+                    canonical_attempts.append(_tap_path_refusal_certificate(
+                        board, candidate, _nm(width), lay_id, clr_nm,
+                        sense_codes, nc,
+                        path_kind=("canonical" if index == 0 else
+                                   "canonical-alt-%02d" % index),
+                        pending=pending, reservations=avoid,
+                        own_net=net))
+                if canonical_selected is not None:
+                    pending.append((canonical_selected, nc, net,
+                                    lbl + " (canonical)", lay_id))
+                    continue
                 if locked_mode:
                     # CANONICAL-OR-REFUSE (owner ruling 2026-07-25): on a pair with
                     # locked copper (stamped cell / rails / precision) the diagonal
@@ -12027,16 +12103,22 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25,
                     # blocking item so the pour/placement rung fixes the real
                     # conflict instead of this pass papering over it with bent
                     # copper on the owner's shunt-zoom renders.
-                    attempt = _tap_path_refusal_certificate(
-                        board, canon, _nm(width), lay_id, clr_nm,
-                        sense_codes, nc, path_kind="canonical",
-                        pending=pending, reservations=avoid,
-                        own_net=net)
+                    if not canonical_attempts:
+                        canonical_attempts.append(
+                            _tap_path_refusal_certificate(
+                                board, None, _nm(width), lay_id, clr_nm,
+                                sense_codes, nc, path_kind="canonical",
+                                pending=pending, reservations=avoid,
+                                own_net=net))
+                    named_attempt = next(
+                        (row for row in canonical_attempts
+                         if row.get("blocked_legs")),
+                        canonical_attempts[0])
                     if canon is None:
                         why = ("no canonical geometry (IC not inward of the shunt "
                                "pad's inner edge)")
                     else:
-                        why = (attempt.get("reason") or canon_pending or
+                        why = (named_attempt.get("reason") or
                                "canonical leg blocked (collider unresolved)")
                     reason = lbl + " CANONICAL-REFUSED: " + why
                     refused.setdefault(net, []).append(reason)
@@ -12045,7 +12127,8 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25,
                         target_ref=r, target_pad=p.GetPadName(),
                         source_position=pc, tap_start=S,
                         target_position=T, mode="canonical_locked",
-                        attempts=[attempt], inward_vector=(_ux, _uy))
+                        attempts=canonical_attempts,
+                        inward_vector=(_ux, _uy))
                     continue
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
                 if (_tap_foreign_clear(

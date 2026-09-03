@@ -76,6 +76,40 @@ class PrecisionSerializationTests(unittest.TestCase):
 
 
 class PrecisionFlowThroughTests(unittest.TestCase):
+    def test_pair_schedule_routes_multidrop_before_shorter_flow_through(self):
+        multidrop = {"name": "BUS", "p": "BUS_P", "n": "BUS_N"}
+        flow = {"name": "USB", "p": "USB_P", "n": "USB_N"}
+        plan = {
+            "terminals": ["A", "B", "C", "D"],
+            "edges": [
+                {"layers": ["F.Cu", "B.Cu"]},
+                {"layers": ["F.Cu"]},
+                {"layers": ["F.Cu", "B.Cu"]},
+            ],
+        }
+        with mock.patch.object(
+                precision, "_flow_through_pair_legs",
+                side_effect=lambda _board, pair: (
+                    ([(0, 1)], ["X"]) if pair is flow else None)), \
+                mock.patch.object(
+                    precision, "_multidrop_pair_plan",
+                    side_effect=lambda _board, pair: (
+                        plan if pair is multidrop else None)), \
+                mock.patch.object(
+                    precision, "_pair_route_span",
+                    side_effect=lambda _board, pair: (
+                        80.0 if pair is multidrop else 20.0)):
+            scheduled, evidence = precision._scheduled_coupled_pairs(
+                object(), [flow, multidrop])
+
+        self.assertEqual(scheduled, [multidrop, flow])
+        self.assertEqual(evidence[0]["topology"], "multidrop")
+        self.assertEqual(evidence[0]["constrained_edge_count"], 1)
+        self.assertEqual(evidence[1]["topology"], "flow-through")
+        self.assertTrue(all(row["ordering_policy"] ==
+                            "topology-constrained-first"
+                            for row in evidence))
+
     def test_precision_emitter_refuses_raw_diagonal(self):
         import pcbnew
 
@@ -713,6 +747,52 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         self.assertEqual(
             precision._fair_subdeadline(120.0, 1, now=20.0), 120.0)
 
+    def test_multidrop_betweenness_routes_backbone_before_leaf_drop(self):
+        edges = [
+            {"a": "A", "b": "B"}, {"a": "B", "b": "C"},
+            {"a": "C", "b": "D"}, {"a": "D", "b": "E"},
+            {"a": "C", "b": "DROP"},
+        ]
+
+        scores = precision._multidrop_edge_betweenness(edges)
+
+        self.assertEqual(scores[("B", "C")], 8)
+        self.assertEqual(scores[("C", "D")], 8)
+        self.assertEqual(scores[("C", "DROP")], 5)
+        self.assertGreater(scores[("B", "C")], scores[("A", "B")])
+
+    def test_dissimilar_pth_pair_fields_are_scarce_interface_transitions(self):
+        ports = {
+            "J1": {"through": True, "p": (0.0, -2.0),
+                   "n": (0.0, 2.0)},
+            "J2": {"through": True, "p": (10.0, -0.5),
+                   "n": (10.0, 0.5)},
+            "U1": {"through": False, "p": (20.0, -0.5),
+                   "n": (20.0, 0.5)},
+        }
+
+        transformed = precision._multidrop_edge_interface_difficulty(
+            {"a": "J1", "b": "J2"}, ports)
+        package_leaf = precision._multidrop_edge_interface_difficulty(
+            {"a": "J2", "b": "U1"}, ports)
+
+        self.assertTrue(transformed["pth_transition"])
+        self.assertTrue(transformed["constrained"])
+        self.assertGreater(transformed["score"], 0.0)
+        self.assertEqual(transformed["pitch_ratio"], 4.0)
+        self.assertFalse(package_leaf["constrained"])
+        self.assertEqual(precision._multidrop_edge_attempt_seconds(
+            {"a": "J1", "b": "J2", "layers": ["B.Cu", "In2.Cu"]},
+            ports), 60.0)
+        self.assertEqual(precision._multidrop_edge_attempt_seconds(
+            {"a": "J2", "b": "U1", "layers": ["B.Cu", "In2.Cu"]},
+            ports), 30.0)
+        self.assertEqual(precision._multidrop_edge_attempt_seconds(
+            {"a": "J2", "b": "U1", "layers": ["F.Cu"]}, ports), 60.0)
+        self.assertEqual(precision._multidrop_edge_attempt_seconds(
+            {"a": "J2", "b": "U1", "layers": ["F.Cu"]}, ports,
+            forced=True), 90.0)
+
     def test_dissimilar_pin_fields_reduce_to_aligned_octilinear_portals(self):
         plan = precision._paired_portal_candidates(
             (0.0, -2.0), (0.0, 2.0),
@@ -754,6 +834,42 @@ class PrecisionFlowThroughTests(unittest.TestCase):
                 row = plan["by_sign"][sign][side][0]
                 self.assertAlmostEqual(
                     precision._dist(row["p"], row["n"]), 0.70)
+
+    def test_pair_portals_include_exact_reverse_launch_without_lane_swap(self):
+        plan = precision._paired_portal_candidates(
+            (0.0, -2.0), (0.0, 2.0),
+            (20.0, -0.5), (20.0, 0.5),
+            width=0.25, gap=0.20)
+
+        for sign in (1, -1):
+            start_rows = plan["by_sign"][sign]["start"]
+            end_rows = plan["by_sign"][sign]["end"]
+            start_forward = next(
+                row for row in start_rows
+                if row["lateral_mm"] == 0.0
+                and not row["reverse_launch"])
+            start_reverse = next(
+                row for row in start_rows
+                if row["lead_mm"] == start_forward["lead_mm"]
+                and row["lateral_mm"] == 0.0
+                and row["reverse_launch"])
+            end_forward = next(
+                row for row in end_rows
+                if row["lateral_mm"] == 0.0
+                and not row["reverse_launch"])
+            self.assertGreater(start_forward["center"][0], 0.0)
+            self.assertLess(start_reverse["center"][0], 0.0)
+            self.assertEqual(start_forward["route_heading"], (1.0, 0.0))
+            self.assertEqual(start_reverse["route_heading"], (-1.0, -0.0))
+            # Reversing only the launch also reverses its local left/right
+            # frame.  The end portal retains the same traversal-frame P/N
+            # ordering, so the shared ribbon can turn around the package
+            # without requesting a crossover.
+            forward_lane = start_forward["p"][1] - start_forward["n"][1]
+            reverse_lane = start_reverse["p"][1] - start_reverse["n"][1]
+            end_lane = end_forward["p"][1] - end_forward["n"][1]
+            self.assertLess(forward_lane * reverse_lane, 0.0)
+            self.assertGreater(forward_lane * end_lane, 0.0)
 
     def test_return_via_search_prefers_flank_then_package_side(self):
         axis = (1.0, 0.0)
@@ -1604,6 +1720,26 @@ class PrecisionFlowThroughTests(unittest.TestCase):
 
         self.assertEqual(report["selected_layers"], ["B.Cu", "B.Cu"])
 
+    def test_dissimilar_pth_transition_prefers_available_inner_signal_layer(self):
+        plan = {
+            "preferred_signal_layers": ["B.Cu", "F.Cu", "In2.Cu"],
+            "ports": {
+                "J1": {"through": True, "p": (0.0, -2.0),
+                       "n": (0.0, 2.0)},
+                "J2": {"through": True, "p": (10.0, -0.5),
+                       "n": (10.0, 0.5)},
+            },
+        }
+        edges = [{
+            "a": "J1", "b": "J2", "length_mm": 10.0,
+            "layers": ["B.Cu", "F.Cu", "In2.Cu"],
+        }]
+
+        report = precision._assign_multidrop_edge_layers(plan, edges)
+
+        self.assertEqual(report["selected_layers"], ["In2.Cu"])
+        self.assertEqual(report["score"]["interface_outer_layer_cost"], 0)
+
     def test_pth_edge_fallback_uses_only_endpoint_conflict_free_layers(self):
         target = {"a": "B", "b": "C", "selected_layer": "F.Cu",
                   "layers": ["F.Cu", "In2.Cu", "B.Cu"]}
@@ -1989,6 +2125,53 @@ class PrecisionFlowThroughTests(unittest.TestCase):
         # The same-member trace is not the partner and remains reusable.
         self.assertTrue(precision._partner_tracks_clear(
             Board(), (0.0, 0.0), (2.0, 0.0), 200000, 0, 3))
+
+    def test_existing_partner_copper_snapshot_uses_indexed_clearance(self):
+        indexed = {"rows": (), "cell": 2_000_000,
+                   "buckets": {}, "global": (), "max_clearance": 0}
+        with mock.patch.object(
+                precision.cec_fr, "_snapshot_foreign_clear",
+                return_value=True) as clear:
+            self.assertTrue(precision._partner_tracks_clear(
+                object(), (0.0, 0.0), (2.0, 0.0), 200000, 0, 2,
+                clearance_nm=200000, partner_shapes=indexed))
+        clear.assert_called_once()
+        self.assertEqual(clear.call_args.args[3], 199999)
+
+    def test_paired_stub_indexes_partner_tracks_once_per_member(self):
+        class Board:
+            def GetLayerID(self, _layer):
+                return 0
+
+            def GetLayerName(self, _layer):
+                return "F.Cu"
+
+            def GetNetcodeFromNetname(self, name):
+                return {"P": 1, "N": 2}[name]
+
+            def Zones(self):
+                return []
+
+            def GetFootprints(self):
+                return []
+
+            def GetTracks(self):
+                return []
+
+        cache = {}
+        pair = {"name": "BUS", "p": "P", "n": "N",
+                "width": 0.25, "gap": 0.20}
+        endpoints = ((0.0, 0.0), (2.0, 0.0),
+                     (0.0, 0.45), (2.0, 0.45))
+        with mock.patch.object(precision.cec_fr, "_edge_leg_clear",
+                               return_value=True), \
+                mock.patch.object(precision, "_lay", return_value=[1]):
+            report = precision._route_paired_stub(
+                Board(), pair, endpoints, partner_shape_cache=cache)
+
+        self.assertNotIn("refused", report)
+        self.assertIn(("tracks", 0, 1), cache)
+        self.assertIn(("tracks", 0, 2), cache)
 
 
 if __name__ == "__main__":

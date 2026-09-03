@@ -909,9 +909,13 @@ _MEZZ_SEGMENTS = {
 # mating seats.  The Hub is physically reflected about X for the face-to-face
 # dead-bug assembly, so both its offsets and connector angles are conjugated.
 _MEZZ_SIDES = {
-    "atx-24pin-rev3": {"mirror_x": False, "assembly_dc": (0.0, 0.0)},
+    "atx-24pin-rev3": {
+        "mirror_x": False, "assembly_dc": (0.0, 0.0),
+        "nominal_outline": cec_mezz.STACK["atx_outline_mm"],
+    },
     "hub-standard-rev2": {"mirror_x": True,
-                          "assembly_dc": cec_mezz.STACK["hub_assembly_dc_mm"]},
+                          "assembly_dc": cec_mezz.STACK["hub_assembly_dc_mm"],
+                          "nominal_outline": cec_mezz.STACK["hub_outline_mm"]},
 }
 
 
@@ -971,10 +975,15 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
     x0, y0, x1, y1 = _edge_bbox(board)
     side = _mezz_side(by_ref, path)
     if side:
-        # Size sweeps derive their mating pins from the candidate W/H.  Check
-        # against that board's actual outline center; a compiled-in nominal
-        # size made every legitimate shrink candidate fail this gate.
-        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        # The connector/lug seats belong to the ratified assembly datum, not
+        # to the mutable laminate perimeter.  Compaction and bounded fallback
+        # growth keep the outline origin fixed; deriving these seats from the
+        # candidate W/H moved a physically mated interface whenever the
+        # placer tested a different board size.  Use the declared nominal
+        # frame at the live outline origin.  Pads-in-bounds independently
+        # rejects any shrink that would cut into the fixed hardware.
+        nominal_w, nominal_h = map(float, side["nominal_outline"])
+        cx, cy = x0 + nominal_w / 2.0, y0 + nominal_h / 2.0
         mirror_x = bool(side["mirror_x"])
         ax, ay = side.get("assembly_dc", (0.0, 0.0))
     else:

@@ -49,7 +49,14 @@ def _amps_for(nets):
     return 10.0
 
 
-def plan_bands(items, j3_bot, *, y0_off=2.5):
+def _sink_priority(rl):
+    """Critical-first ordering for terminal-side rail collectors."""
+    xs = [q[2] for q in rl.get("tb", ())] + [rl["lo"][0]]
+    span = max(xs) - min(xs) if xs else 0.0
+    return (-span, -float(rl.get("amps", 0.0)), rl["rs"])
+
+
+def plan_bands(items, j3_bot, *, y0_off=2.5, widest_first=False):
     """Greedy interval-packed BAND rows (shared by the lay and the placement
     keepouts -- one geometry, two consumers). *items* = [{key, w, x_lo, x_hi}];
     x-spans on a shared row must clear each other by the TRACKS' half-widths +
@@ -57,15 +64,26 @@ def plan_bands(items, j3_bot, *, y0_off=2.5):
     multi-mm tracks is copper-on-copper). Returns ({key: band_center_y},
     total_depth).
 
-    Row order: NARROWEST span first => the WIDEST bands land on the LOWEST
-    rows (closest to the shunts). Measured consequence (first alt lay,
+    Source-row order defaults to NARROWEST span first => the WIDEST bands land
+    on the LOWEST rows (closest to the shunts). Measured consequence (first alt lay,
     2026-07-19): pin drops descend from the J3 field to their own row -- with
     a full-width band (3V3 spans the whole connector) on the TOP row, every
     other rail's drops crossed it on the same alt layer and refused;
     widest-lowest means a rail's drops stop at their row before reaching any
-    wider band."""
+    wider band.
+
+    Sink collectors use ``widest_first=True``. Their drops run in the
+    opposite direction (shunt toward terminal edge), so the topological rule
+    is the conjugate: the widest collector must occupy the edge-most row.
+    Narrower descents then terminate before reaching it instead of forcing a
+    horizontal crossing on every available trunk layer.
+    """
     ranks, assign = [], {}
-    for it in sorted(items, key=lambda q: ((q["x_hi"] - q["x_lo"]), q["key"])):
+    def _order(q):
+        span = q["x_hi"] - q["x_lo"]
+        return ((-span if widest_first else span), q["key"])
+
+    for it in sorted(items, key=_order):
         hw = it["w"] / 2.0
         for ri, occ in enumerate(ranks):
             if all(it["x_hi"] + hw + w_o / 2.0 + 1.0 <= a
@@ -165,7 +183,8 @@ def _plan_rail_chains_forward(rails, j3_bot, *, alt=False):
     for tag in ("alt", "back"):
         sub = [it for it in _sink_items if body_of.get(it["key"], "alt") == tag]
         if sub:
-            ys, _d = plan_bands(sub, 0.0, y0_off=0.0)
+            ys, _d = plan_bands(sub, 0.0, y0_off=0.0,
+                                widest_first=True)
             _sink_ys.update(ys)
     out = {}
     for rank, rl in enumerate(rails):
@@ -218,8 +237,19 @@ def _plan_rail_chains_forward(rails, j3_bot, *, alt=False):
         # (2026-07-19: the full-width face drop grazed a neighbor cell's cap
         # at 2.8 vs 3.75mm; per-joint share needs ~2mm at the 2oz class).
         band2 = max(lyy + 1.5, tb_y - 2.0 - _sink_ys.get(rl["rs"], 1.0))
+        # A monolithic multi-leg terminal is not a row of independent blade
+        # tabs.  Keep the full-rail-width collection band beyond its physical
+        # body/courtyard, then use one current-sharing neck per solder leg.
+        # This prevents a wide trunk from occupying the narrow foreign-net
+        # gaps inside a compact screw-terminal field.
+        if rl.get("tb_escape_y") is not None:
+            band2 = min(band2, float(rl["tb_escape_y"]))
         txs = [q[2] for q in rl["tb"]] + [lx]
-        dwt = max(2.0, w / max(1, len(rl["tb"])))
+        terminal_refs = {q[0] for q in rl["tb"]}
+        if len(terminal_refs) == 1 and len(rl["tb"]) > 1:
+            dwt = max(0.8, min(2.0, w / len(rl["tb"])))
+        else:
+            dwt = max(2.0, w / max(1, len(rl["tb"])))
         if not alt:
             _mid = min(lyy + 3.0, band2)         # pad-width tail off the LO pad
             snk = [(lx, lyy, lx, _mid, sw, "face"),   # (mirror of the src clamp)
@@ -269,6 +299,8 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
                    for p in rl.get("j3", ())]
         q["tb"] = [tuple(list(p[:3]) + [-p[3]] + list(p[4:]))
                   for p in rl.get("tb", ())]
+        if rl.get("tb_escape_y") is not None:
+            q["tb_escape_y"] = -float(rl["tb_escape_y"])
         return q
 
     rrails = [_ry(rl) for rl in rails]
@@ -399,6 +431,39 @@ def discover_rails(board):
                max(p.GetSize().x, p.GetSize().y) / (2 * MM),
                p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
               for r, p in pads_by_net[snk] if r.startswith("TB")]
+        tb_refs = {row[0] for row in tb}
+        tb_boxes = []
+        for other in board.GetFootprints():
+            if other.GetReference() not in tb_refs:
+                continue
+            # Footprint bounding boxes can include reference/value text at the
+            # library origin, which is not a physical terminal boundary (and
+            # can put the escape band tens of millimetres outside the body).
+            # Prefer the assembly courtyard; pad copper is the deterministic
+            # fail-safe for generated/minimal footprints without one.
+            cy_layer = board.GetLayerID(
+                "B.CrtYd" if other.IsFlipped() else "F.CrtYd")
+            courtyard = other.GetCourtyard(cy_layer)
+            if courtyard is not None and not courtyard.IsEmpty():
+                box = courtyard.BBox()
+                tb_boxes.append((box.GetTop() / MM, box.GetBottom() / MM))
+                continue
+            opads = list(other.Pads())
+            if opads:
+                tb_boxes.append((
+                    min(p.GetBoundingBox().GetTop() for p in opads) / MM,
+                    max(p.GetBoundingBox().GetBottom() for p in opads) / MM,
+                ))
+        tb_escape_y = None
+        if tb_boxes and tb:
+            # Move away from the connector edge toward the shunt.  The body
+            # bbox is the physical boundary; 0.75 mm includes copper radius
+            # and the ordinary foreign-net clearance used by the guard.
+            terminal_mean_y = sum(row[3] for row in tb) / len(tb)
+            if terminal_mean_y < lo_p.GetPosition().y / MM:
+                tb_escape_y = max(row[1] for row in tb_boxes) + 0.75
+            else:
+                tb_escape_y = min(row[0] for row in tb_boxes) - 0.75
         rails.append({
             "rs": ref, "src_net": src, "snk_net": snk,
             "amps": _amps_for(nets), "face": face,
@@ -409,6 +474,7 @@ def discover_rails(board):
             # and grazes the sense cell's own parts; probe: U65V1 3.5mm off a
             # 6mm stub)
             "pad_w": max(hi_p.GetSize().x, hi_p.GetSize().y) / MM,
+            "tb_escape_y": tb_escape_y,
             "j3": sorted(j3, key=lambda q: q[1]), "tb": sorted(tb, key=lambda q: q[2]),
         })
     rails.sort(key=lambda rl: rl["hi"][0])                     # rank by shunt column
@@ -416,7 +482,7 @@ def discover_rails(board):
 
 
 def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
-                    mirror_bcu=False):
+                    mirror_bcu=False, escape_layers=()):
     """Lay the per-rail force copper LOCKED. Returns {rs: report|'REFUSED: ...'}.
     *alt_layer* (e.g. "In2.Cu", the board-class inner POWER-ROUTING layer -- In1
     stays the solid GND plane per the owner's 2026-07-19 ruling): plan in ALT
@@ -429,6 +495,10 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     layer_id = {"F.Cu": board.GetLayerID("F.Cu"), "B.Cu": board.GetLayerID("B.Cu")}
     alt_id = board.GetLayerID(alt_layer) if alt_layer else -1
     alt_on = alt_id >= 0
+    _escape_layers = tuple(
+        ln for ln in dict.fromkeys(escape_layers or ())
+        if ln not in {"F.Cu", "B.Cu", alt_layer}
+        and board.GetLayerID(ln) >= 0)
     netmap = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
     pads = []                                                  # foreign-guard universe
@@ -453,7 +523,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         else:
             _ln = board.GetLayerName(_t0.GetLayer())
             _tag0 = ("alt" if _ln == _alt_ln
-                     else ("back" if _ln == "B.Cu" else "face"))
+                     else ("back" if _ln == "B.Cu"
+                           else ("face" if _ln == "F.Cu" else _ln)))
             _s0, _e0 = _t0.GetStart(), _t0.GetEnd()
             laid_segs.append((_t0.GetNetname() or "", _s0.x / MM, _s0.y / MM,
                               _e0.x / MM, _e0.y / MM, _t0.GetWidth() / MM, _tag0))
@@ -467,7 +538,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             for ref, net, px, py, half, tht in pads:
                 if net in own_nets or ref.startswith(tuple(skip_refs) or ("\0",)):
                     continue
-                if tag in ("alt", "back") and not tht:
+                if tag != "face" and not tht:
                     continue
                 if _seg_pt_d2(px, py, x1, y1, x2, y2) < (w / 2 + half + 0.25) ** 2:
                     return ("%s [%s] at (%.1f,%.1f) vs plan (%.1f,%.1f)-(%.1f,%.1f)"
@@ -542,7 +613,22 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     def _layer_of(tag, face_ly):
         if tag == "back":
             return layer_id["B.Cu"]
-        return alt_id if (tag == "alt" and alt_on) else face_ly
+        if tag == "alt" and alt_on:
+            return alt_id
+        if tag not in {"face", "alt"}:
+            lid = board.GetLayerID(tag)
+            if lid >= 0:
+                return lid
+        return face_ly
+
+    def _tag_layer(tag, face_name):
+        if tag == "alt" and alt_on:
+            return alt_layer
+        if tag == "back":
+            return "B.Cu"
+        if tag not in {"face", "alt"}:
+            return tag
+        return face_name
 
     def _commit(net, plan, face_ly):
         for (x1, y1, x2, y2, w, tag) in plan:
@@ -612,7 +698,14 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     report = {}
     _twin_cands = []          # (rs, net, seg, face_ly) -- committed pass 2
     _patch_pours = []         # rectangular landing-zone dicts (add_power_pours)
-    for rank, rl in enumerate(rails):
+    # Commit dominant collectors first.  The collider is intentionally
+    # asymmetric: copper already accepted owns its corridor and later rails
+    # adapt.  Therefore lexical/shunt-X order can strand a wide collector
+    # behind several narrow descents even when the inverse order is routable.
+    # This is the power-copper equivalent of critical-net-first detailed
+    # routing: largest terminal interval, then current, then reference for a
+    # deterministic tie break.
+    for rank, rl in enumerate(sorted(rails, key=_sink_priority)):
         _ch = chains[rl["rs"]]
         w = _ch["w"]
         face_ly = layer_id[rl["face"]]
@@ -717,6 +810,17 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             _back_src = [(x1, y1, x2, y2, w2, (_other0 if tg == _body0 else tg))
                          for (x1, y1, x2, y2, w2, tg) in _respan(list(_ch["src"]))]
             _src_variants.append((_back_src, _src_arr, _other0))
+            # Remaining profile-declared routing layers are genuine escape
+            # resources too.  They are supplied by the central stackup
+            # authority, never guessed here; through pickups and through-via
+            # arrays make the transition legal without blind/buried vias.
+            for _extra0 in _escape_layers:
+                _extra_src = [
+                    (x1, y1, x2, y2, w2,
+                     (_extra0 if tg == _body0 else tg))
+                    for (x1, y1, x2, y2, w2, tg)
+                    in _respan(list(_ch["src"]))]
+                _src_variants.append((_extra_src, _src_arr, _extra0))
         col, spine, arr_sites = "no plan", None, []
         _drops_tag = None
         _vreasons = []                       # per-variant refusal trace (audit:
@@ -753,6 +857,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                 print("[force-rails] %s (%s) REFUSED: %s"
                       % (rl["rs"], rl["src_net"], col), flush=True)
             continue
+        _source_tag = next((s[5] for s in spine if s[5] != "face"), "face")
+        _source_layer = _tag_layer(_source_tag, rl["face"])
         picked, dropped = 0, []
         for _tpn in _ch.get("trimmed", ()):
             dropped.append("J3.%s [trimmed: >18mm span outlier]" % _tpn)
@@ -796,12 +902,16 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         snk = list(_ch["snk"])
         c3 = _collide(snk, own_snk, skip_refs=("FID",))
         _snk_arr_on = True
+        _snk_layer = _tag_layer(
+            next((s[5] for s in snk if s[5] != "face"), "face"),
+            rl["face"])
         if c3 and alt_on:
             _snk_face = [(x1, y1, x2, y2, w2, "face")
                          for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
             c3b = _collide(_snk_face, own_snk, skip_refs=("FID",))
             if c3b is None:
                 snk, c3, _snk_arr_on = _snk_face, None, False
+                _snk_layer = rl["face"]
             else:
                 # THIRD ESCAPE TIER: the rail's OTHER layer (via-around rung;
                 # TB barrels pierce, the LO-stub array bonds)
@@ -812,8 +922,24 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                 c3c = _collide(_snk_back, own_snk, skip_refs=("FID",))
                 if c3c is None:
                     snk, c3 = _snk_back, None
+                    _snk_layer = _tag_layer(_oth1, rl["face"])
                 else:
-                    c3 = c3 + "; face retry: " + c3b + "; back retry: " + c3c
+                    _snk_reasons = [c3, "face retry: " + c3b,
+                                    "back retry: " + c3c]
+                    for _extra1 in _escape_layers:
+                        _snk_extra = [
+                            (x1, y1, x2, y2, w2,
+                             (_extra1 if _tg == _bod1 else _tg))
+                            for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
+                        _c3x = _collide(
+                            _snk_extra, own_snk, skip_refs=("FID",))
+                        if _c3x is None:
+                            snk, c3 = _snk_extra, None
+                            _snk_layer = _extra1
+                            break
+                        _snk_reasons.append("%s retry: %s" % (_extra1, _c3x))
+                    if c3 is not None:
+                        c3 = "; ".join(_snk_reasons)
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
             if verbose:
@@ -844,9 +970,11 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         if not _snk_arr_on:          # face-staggered sink: no layer transition,
             arr_sites = [(n, s_) for (n, s_) in arr_sites   # its array would dangle
                          if n != rl["snk_net"]]
-        _bodyl = _ch.get("body", "alt")
-        _alt_name = (alt_layer if _bodyl == "alt" else "B.Cu")
         for (a_net, s_) in arr_sites:
+            _alt_name = (_source_layer if a_net == rl["src_net"]
+                         else _snk_layer)
+            if _alt_name == rl["face"]:
+                _alt_name = None
             _commit_array(a_net, s_, face_ly, face_name=rl["face"],
                           alt_name=_alt_name)
         n_arr = sum(len(s_) for _n2, s_ in arr_sites)
@@ -855,6 +983,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                             "vias": n_arr, "alt": alt_on,
                             "bcu_twins": _bcu_twins,
                             "w": w, "face": rl["face"],
+                            "source_layer": _source_layer,
+                            "sink_layer": _snk_layer,
                             "dropped_pins": dropped}
         if verbose:
             print("[force-rails] %s %s->%s laid: %d segs + %d array via(s), "
@@ -883,7 +1013,8 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     return report
 
 
-def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
+def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False,
+                           laid_report=None):
     """THE POUR COMPILER (§2.1/§2.4 of docs/pour-strategy-refinement-2026-07-19.md,
     owner GO "do the pour compiler... so it's done instead of deferred"): compile
     the rail plan into WIDENED same-net pour ASKS that ride the PourPlan sidecar
@@ -904,15 +1035,36 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
     exempts this provenance (deliberate plan-derived copper, not the geometric
     deriver's mega-pour class)."""
     asks = []
+    laid_report = laid_report or {}
+
+    def _planned_layer(body):
+        if body == "alt" and alt_layer:
+            return alt_layer
+        if body == "back":
+            return "B.Cu"
+        return "F.Cu"
+
+    def _uniq(*layers):
+        return tuple(dict.fromkeys(ln for ln in layers if ln))
+
+    def _mirror(layer):
+        return (alt_layer or "B.Cu") if layer == "B.Cu" else "B.Cu"
+
     for rl in rails:
         ch = chains.get(rl["rs"]) or {}
         w = float(ch.get("w", 1.5))
         band_y = float(ch.get("band_y", 0.0))
-        # regions follow the rail's PRIMARY layer (per-rail 2-coloring)
+        # Regions follow the ACTUALLY LAID source/sink layer.  The guarded lay
+        # may move one side to another profile-approved routing layer; pour
+        # widening must not silently revert to the ideal-plan layer.
         _body = ch.get("body", "alt")
-        _blayer = (alt_layer if (_body == "alt" and alt_layer)
-                   else ("B.Cu" if _body == "back" else None))
-        layers_src = ("F.Cu",) + ((_blayer,) if _blayer else ())
+        _rr = laid_report.get(rl["rs"], {})
+        if not isinstance(_rr, dict):
+            _rr = {}
+        _base_layer = _planned_layer(_body)
+        _src_layer = _rr.get("source_layer") or _base_layer
+        _snk_layer = _rr.get("sink_layer") or _base_layer
+        layers_src = _uniq("F.Cu", _src_layer)
         # 1. J3 pickup flood
         if rl["j3"]:
             xs = [q[1] for q in rl["j3"]]
@@ -936,9 +1088,8 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
             # the shunt pad + its outboard via row so the sink flood BONDS there)
             reg = (min(txs) - 2.2, min(band2 - w / 2.0 - 3.0, min(tys) - 1.2),
                    max(txs) + 2.2, max(tys) + 1.2)
-            _mirr = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
-            lset = layers_src + ((_mirr,) if mirror_bcu and _mirr not in layers_src
-                                 else ())
+            lset = _uniq("F.Cu", _snk_layer,
+                         _mirror(_snk_layer) if mirror_bcu else None)
             for ln in lset:
                 asks.append({"net": rl["snk_net"], "region_hint": reg,
                              "layers": (ln,), "priority": 3,
@@ -946,21 +1097,25 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
         # 3. trunk widen -- EVERY non-face trunk seg, src AND snk (owner
         # 2026-07-20: rectangular pours over the whole trunk so the spine
         # tracks read as clean rectangles on the final board)
-        segs = [s for s in (list(ch.get("src") or ()) + list(ch.get("snk") or ()))
-                if s[5] != "face"
-                and (abs(s[2] - s[0]) > 2.0 or abs(s[3] - s[1]) > 2.0)]
-        for (x1, y1, x2, y2, w2, _tg) in segs:
-            if abs(x2 - x1) >= abs(y2 - y1):     # horizontal run
-                reg = (min(x1, x2) - 0.5, min(y1, y2) - w2,
-                       max(x1, x2) + 0.5, max(y1, y2) + w2)
-            else:                                # vertical run
-                reg = (min(x1, x2) - w2, min(y1, y2) - 0.5,
-                       max(x1, x2) + w2, max(y1, y2) + 0.5)
-            _mirr2 = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
-            lset = ((_blayer,) if _blayer else ("F.Cu",)) \
-                + ((_mirr2,) if mirror_bcu and _mirr2 != _blayer else ())
-            for ln in lset:
-                asks.append({"net": rl["src_net"], "region_hint": reg,
-                             "layers": (ln,), "priority": 3,
-                             "provenance": "rail_compiler"})
+        for _net, _segments, _actual_layer in (
+                (rl["src_net"], ch.get("src") or (), _src_layer),
+                (rl["snk_net"], ch.get("snk") or (), _snk_layer)):
+            segs = [s for s in _segments
+                    if s[5] != "face"
+                    and (abs(s[2] - s[0]) > 2.0
+                         or abs(s[3] - s[1]) > 2.0)]
+            for (x1, y1, x2, y2, w2, _tg) in segs:
+                if abs(x2 - x1) >= abs(y2 - y1):  # horizontal run
+                    reg = (min(x1, x2) - 0.5, min(y1, y2) - w2,
+                           max(x1, x2) + 0.5, max(y1, y2) + w2)
+                else:                             # vertical run
+                    reg = (min(x1, x2) - w2, min(y1, y2) - 0.5,
+                           max(x1, x2) + w2, max(y1, y2) + 0.5)
+                lset = _uniq(
+                    _actual_layer,
+                    _mirror(_actual_layer) if mirror_bcu else None)
+                for ln in lset:
+                    asks.append({"net": _net, "region_hint": reg,
+                                 "layers": (ln,), "priority": 3,
+                                 "provenance": "rail_compiler"})
     return asks

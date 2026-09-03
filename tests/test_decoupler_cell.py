@@ -1189,6 +1189,8 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertTrue(all(item.IsLocked() for item in result["items"]))
         self.assertIn("In2.Cu", result["layers"])
         bridge.assert_called_once()
+        self.assertIsInstance(
+            bridge.call_args.kwargs.get("foreign_cache"), dict)
 
     def test_supply_link_rejects_guarded_but_nonlocal_path_before_mutation(self):
         board, _assignment = self._board()
@@ -1351,11 +1353,12 @@ class DecouplerCellTests(unittest.TestCase):
 
         with mock.patch.object(
                 cell.cec_fr, "_tap_foreign_clear",
-                side_effect=pad_limited_clear), \
+                side_effect=pad_limited_clear) as tap_clear, \
                 mock.patch.object(
                     cell.cec_fr, "_edge_leg_clear", return_value=True), \
                 mock.patch.object(
-                    cell.cec_fr, "_via_spot_clear", return_value=True), \
+                    cell.cec_fr, "_via_spot_clear",
+                    return_value=True) as via_clear, \
                 mock.patch.object(
                     cell.cec_fr, "_tap_pair_overlap_clear",
                     return_value=True), \
@@ -1375,6 +1378,13 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(
             report["endpoint_neckdown"]["group"],
             cell.ENDPOINT_NECKDOWN_GROUP)
+        caches = [call.kwargs.get("foreign_cache")
+                  for call in tap_clear.call_args_list]
+        caches += [call.kwargs.get("foreign_cache")
+                   for call in via_clear.call_args_list]
+        self.assertTrue(caches)
+        self.assertTrue(all(isinstance(cache, dict) for cache in caches))
+        self.assertEqual(len({id(cache) for cache in caches}), 1)
 
     def test_ground_plane_access_owns_every_smd_ground_terminal(self):
         board, _assignment = self._board()

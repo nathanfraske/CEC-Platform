@@ -374,6 +374,32 @@ class TestSortKey(unittest.TestCase):
             if previous is not None:
                 os.environ[key] = previous
 
+    def test_spawn_pair_probe_installs_payload_budget_and_restores_env(self):
+        key = "CEC_PRECISION_PAIR_TIMEOUT"
+        previous = os.environ.pop(key, None)
+        seen = []
+
+        def fake_probe(*_args, **_kwargs):
+            seen.append(os.environ.get(key))
+            return {"pairs": []}
+
+        try:
+            with mock.patch(
+                    "cec_route_preflight.compile_route_reservations",
+                    return_value={"enabled": False}), mock.patch(
+                    "cec_route_preflight.probe_critical_pairs",
+                    side_effect=fake_probe):
+                result = sp._critical_pair_probe_analyze({
+                    "slot": 3, "path": "fixture.kicad_pcb",
+                    "pair_timeout_s": 45,
+                })
+            self.assertIsNone(result["error"])
+            self.assertEqual(seen, ["45.0"])
+            self.assertNotIn(key, os.environ)
+        finally:
+            if previous is not None:
+                os.environ[key] = previous
+
     def test_access_move_specs_prioritize_named_movable_blocker(self):
         candidate = self._cand(0, 0, 3.0, 0.0)
         candidate.P = {"U11": (5, 5, 0), "R37": (6, 5, 0),
@@ -395,6 +421,23 @@ class TestSortKey(unittest.TestCase):
         self.assertLess(blocker_moves.index("pin_blocker_relief"),
                         blocker_moves.index("rotate_90"))
         self.assertNotIn("J1", {move["ref"] for move in moves})
+
+    def test_access_move_specs_never_move_blueprint_copper_datum(self):
+        candidate = self._cand(0, 0, 3.0, 0.0)
+        candidate.P = {"U65V1": (5, 5, 0), "R37": (8, 5, 0)}
+        evidence = {"pin_access_blocked": [{
+            "ref": "U65V1", "x": 5, "y": 5, "critical": True,
+            "blocked_options": [{"direction": "E", "layers": [{
+                "layer": "F.Cu", "blockers": []}]}],
+        }]}
+        cfg = SimpleNamespace(
+            pins={}, params={"blueprint_cells": [{
+                "ref_map": {"U65V1": "U65V1"},
+            }]})
+
+        moves = sp._route_access_move_specs(candidate, evidence, cfg)
+
+        self.assertNotIn("U65V1", {move["ref"] for move in moves})
 
     def test_direct_access_failure_excludes_unrelated_global_pressure_refs(self):
         candidate = self._cand(0, 0, 3.0, 0.0)
@@ -607,6 +650,46 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual({row["station"] for row in selected_station}, {
             "R11|R12", "U2"})
 
+    def test_failed_multidrop_edge_targets_only_its_endpoint_stations(self):
+        candidate = self._cand(0, 0, 3.0, 0.0)
+        candidate.P = {
+            "J2": (10, 10, 0), "U2": (25, 10, 0),
+            "R11": (40, 20, 0), "R12": (40, 22, 90),
+        }
+        evidence = {
+            "critical_pair_refs": ["J2", "U2", "R11", "R12"],
+            "critical_pair_refused": [{
+                "name": "CAN", "p": "/CAN_H", "n": "/CAN_L",
+                "failure_certificate": {
+                    "classification": ["layered_trunk_edge_refused"],
+                    "failed_edge": ["J2", "U2"],
+                },
+                "endpoint_stations": [
+                    {"id": "J2", "physical_refs": ["J2"],
+                     "center": [10, 10]},
+                    {"id": "U2", "physical_refs": ["U2"],
+                     "center": [25, 10]},
+                    {"id": "R11|R12",
+                     "physical_refs": ["R11", "R12"],
+                     "center": [40, 21]},
+                ],
+            }],
+        }
+
+        moves = sp._route_access_move_specs(
+            candidate, evidence,
+            SimpleNamespace(pins={}, params={}))
+        station_moves = [row for row in moves
+                         if row["kind"] ==
+                         "pair_endpoint_station_shift"]
+
+        self.assertTrue(station_moves)
+        self.assertEqual({row["station"] for row in station_moves}, {"U2"})
+        self.assertTrue(all(row["target_station"] == "J2"
+                            for row in station_moves))
+        self.assertFalse(any(
+            row.get("ref") in {"R11", "R12"} for row in moves))
+
     def test_pair_failure_certificate_drives_rigid_portal_moves_first(self):
         candidate = self._cand(0, 0, 3.0, 0.0)
         candidate.P = {
@@ -728,6 +811,11 @@ class TestSortKey(unittest.TestCase):
         self.assertAlmostEqual(
             math.dist(rotation["placements"]["R11"][:2],
                       rotation["placements"]["R12"][:2]), 2.0)
+        rotation_groups = {
+            row["rotation_deg"]: row["budget_group"]
+            for row in station_moves
+            if row["kind"] == "pair_endpoint_station_rotation"}
+        self.assertEqual(len(set(rotation_groups.values())), 3)
 
         pin_flip = next(row for row in station_moves
                         if row["kind"] ==
@@ -749,6 +837,10 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual(
             compound["pair_failure_witness"]["reason"],
             "pair_pin_flip_lane_alignment")
+        self.assertEqual(len({
+            row["budget_group"] for row in station_moves
+            if row["kind"] ==
+            "pair_endpoint_member_pin_flip_lane_alignment"}), 1)
 
     def test_power_replan_budget_prefers_causal_pair_witness(self):
         rows = [
@@ -1556,6 +1648,33 @@ class TestIndependentDecouplerBatches(unittest.TestCase):
 
 
 class TestRailToRailBypassPlacementAuthority(unittest.TestCase):
+    def test_package_normal_escape_lane_uses_pad_row_normal(self):
+        self.assertEqual(
+            sp._package_normal_escape_lane((10.0, 10.0), (10.25, 11.15)),
+            ((10.25, 11.15), (10.25, 13.65)))
+        self.assertEqual(
+            sp._package_normal_escape_lane((10.0, 10.0), (8.8, 10.25)),
+            ((8.8, 10.25), (6.300000000000001, 10.25)))
+
+    def test_reference_affinity_caps_are_reserved_before_greedy_matching(self):
+        nl = _nl({
+            "U4": ("TLV7011DBVR", "Package_TO_SOT_SMD:SOT-23-5"),
+            "U8": ("TLV7011DBVR", "Package_TO_SOT_SMD:SOT-23-5"),
+            "C8": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+            "C62": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+        }, {
+            "GND": [("U4", "2"), ("U8", "2"),
+                    ("C8", "2"), ("C62", "2")],
+            "+3V3": [("U4", "5"), ("U8", "5"),
+                     ("C8", "1"), ("C62", "1")],
+        })
+
+        owned = sp._device_bypass_specs(
+            nl, {"C8", "C62"}, ["U4", "U8"])
+
+        self.assertEqual(owned["C8"]["owner"], "U8")
+        self.assertEqual(owned["C62"]["owner"], "U4")
+
     def test_tja1051_vio_to_vcc_cap_is_owned_before_placement(self):
         nl = _nl({
             "U2": ("TJA1051T/3", "Package_SO:SOIC-8"),

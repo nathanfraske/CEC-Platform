@@ -97,6 +97,7 @@ class RoutePreflightTest(unittest.TestCase):
             "pairs": {"routed": [], "refused": [{
                 "name": "CAN", "p": "/CAN_H", "n": "/CAN_L",
                 "refused": "detour", "endpoint_stations": stations,
+                "failed_edge": ["U2", "R11|R12"],
             }]},
         }
         precision._pads_on_net.return_value = []
@@ -110,6 +111,8 @@ class RoutePreflightTest(unittest.TestCase):
 
         self.assertEqual(result["refused"][0]["endpoint_stations"],
                          stations)
+        self.assertEqual(result["refused"][0]["failed_edge"],
+                         ["U2", "R11|R12"])
         compact = rp.compact_placement_evidence({
             "critical_routes": result})
         self.assertEqual(

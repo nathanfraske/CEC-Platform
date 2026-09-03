@@ -34,19 +34,22 @@ RAIL_TO_RAIL_DEVICE_RULES = (
 
 
 def reference_affinity(cap_ref, owner_ref):
-    """Whether two reference designators declare the same numbered cell.
+    """Whether two reference designators declare the same named cell.
 
-    C30 beside U30 is a common schematic convention and the placement side of
-    the pipeline has always used it as its strongest deterministic ownership
-    tie-break.  Keep the rule deliberately narrow: both refs must end in the
-    same decimal number.  Callers additionally apply it only to single-supply
-    owners; a multi-rail selector such as U4 cannot unambiguously own C4 by
-    name alone.  Boards without this convention continue to use the ordinary
-    topology/value/distance matcher.
+    C30/U30 and C65VSB1/U65VSB1 are common schematic conventions.  Comparing
+    only the trailing decimal incorrectly aliases every repeated ``*V1`` or
+    ``*A1`` channel and lets geometrically identical rail capacitors swap
+    owners.  Strip only the alphabetic component-class prefix and require the
+    complete remaining alphanumeric cell key to match.  Callers additionally
+    apply this only to single-supply owners; boards without the convention
+    continue to use the ordinary topology/value/distance matcher.
     """
-    cap = re.search(r"(\d+)$", str(cap_ref or ""))
-    owner = re.search(r"(\d+)$", str(owner_ref or ""))
-    return bool(cap and owner and cap.group(1) == owner.group(1))
+    cap = re.fullmatch(r"[A-Za-z]+([0-9][A-Za-z0-9_]*)",
+                       str(cap_ref or ""))
+    owner = re.fullmatch(r"[A-Za-z]+([0-9][A-Za-z0-9_]*)",
+                         str(owner_ref or ""))
+    return bool(cap and owner
+                and cap.group(1).upper() == owner.group(1).upper())
 
 
 def local_bypass_technology(value, footprint):

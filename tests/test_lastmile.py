@@ -1913,6 +1913,10 @@ class TestLastmile(unittest.TestCase):
                 actual = cec_fr._snapshot_foreign_clear(
                     start, end, int(0.2e6), int(0.2e6), zones, copper)
                 self.assertEqual(actual, expected)
+                indexed = cec_fr._tap_foreign_clear(
+                    board, start, end, int(0.2e6), pcbnew.F_Cu,
+                    int(0.2e6), {code}, foreign_cache={})
+                self.assertEqual(indexed, expected)
 
     def test_maze_shape_snapshot_honors_stricter_zone_local_clearance(self):
         import pcbnew

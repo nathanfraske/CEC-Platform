@@ -1390,8 +1390,14 @@ class Placement:
     y0: float = 0.0
 
 
-def read_placement(board_path):
-    """Read a real placement off a .kicad_pcb via pcbnew (positions, courtyards, pad nets)."""
+def read_placement(board_path, *, allow_missing_outline=False):
+    """Read a real placement off a .kicad_pcb via pcbnew.
+
+    Missing Edge.Cuts remain a hard error by default.  A schematic-first
+    replacement flow may request a zero-sized unresolved outline so its caller
+    can bind an explicit board-policy bootstrap contract; footprint extents are
+    deliberately never substituted for mechanical authority.
+    """
     import pcbnew
     import cec_board_geometry
     b = pcbnew.LoadBoard(board_path)
@@ -1415,7 +1421,12 @@ def read_placement(board_path):
             if nn:
                 pp = pad.GetPosition()
                 pads_by_net[nn].append((pp.x / _MM, pp.y / _MM))
-    x0, y0, x1, y1 = cec_board_geometry.outline_bbox_mm(b)
+    try:
+        x0, y0, x1, y1 = cec_board_geometry.outline_bbox_mm(b)
+    except ValueError:
+        if not allow_missing_outline:
+            raise
+        x0 = y0 = x1 = y1 = 0.0
     return Placement(pos=pos, pads_by_net=dict(pads_by_net), value=value,
                      W=x1 - x0, H=y1 - y0, x0=x0, y0=y0)
 
@@ -2207,6 +2218,20 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
     owner_requirement_count = defaultdict(int)
     for req in requirements:
         owner_requirement_count[req["ref"]] += 1
+    # Reserve every exact reference-affinity capacitor before the greedy
+    # matching order runs.  Otherwise an earlier common-rail device can take
+    # C8 simply because it is numerically nearer, leaving U8 with C62; the
+    # board checker correctly preserves C8/U8 and then disagrees with the
+    # placer.  This is the same maximum-cardinality ownership boundary used
+    # by the post-placement checker.
+    reserved_caps = {
+        cap["ref"]
+        for index, req in enumerate(requirements)
+        for cap in compatible[index]
+        if (owner_requirement_count[req["ref"]] == 1
+            and cec_device_bypass.reference_affinity(
+                cap["ref"], req["ref"]))
+    }
     # Tight manufacturer limits and scarce-value requirements are assigned
     # first. Schematic reference affinity is only a deterministic tie-break.
     order = sorted(range(len(requirements)), key=lambda i: (
@@ -2214,7 +2239,15 @@ def _device_bypass_specs(nl, passives, ic_refs, *, project_max_mm=3.5):
         requirements[i]["rail"], requirements[i]["ref"], requirements[i]["pin"]))
     for i in order:
         req = requirements[i]
-        avail = [c for c in compatible[i] if c["ref"] not in used]
+        affinity = [
+            cap for cap in compatible[i]
+            if (cap["ref"] not in used
+                and owner_requirement_count[req["ref"]] == 1
+                and cec_device_bypass.reference_affinity(
+                    cap["ref"], req["ref"]))]
+        avail = affinity or [
+            cap for cap in compatible[i]
+            if cap["ref"] not in used and cap["ref"] not in reserved_caps]
         if not avail:
             continue
         cap = min(avail, key=lambda c: (
@@ -2425,6 +2458,25 @@ def _pad_outward_alignment(owner_position, owner_pad, follower_point):
     if on <= 1e-9 or fn <= 1e-9:
         return 0.0
     return max(-1.0, min(1.0, (ox * fx + oy * fy) / (on * fn)))
+
+
+def _package_normal_escape_lane(owner_position, owner_pad, *, length=2.5):
+    """Return a short axis-normal escape lane for one perimeter pad.
+
+    The centre-to-pad vector is oblique for pads near the end of a package
+    row, but copper still leaves through that row's package-edge normal.  A
+    radial reservation can therefore miss the real escape and let another
+    local cell strand the pin.  The dominant axis recovers the package normal
+    without footprint-, refdes-, net-, or board-specific metadata.
+    """
+    start = (float(owner_pad[0]), float(owner_pad[1]))
+    dx = start[0] - float(owner_position[0])
+    dy = start[1] - float(owner_position[1])
+    if abs(dx) >= abs(dy) and abs(dx) > 1e-9:
+        return start, (start[0] + math.copysign(float(length), dx), start[1])
+    if abs(dy) > 1e-9:
+        return start, (start[0], start[1] + math.copysign(float(length), dy))
+    return None
 
 
 def _segment_avoids_pad_disks(start, end, obstacles):
@@ -5306,7 +5358,9 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None,
                                pitch=float(_p.get("blade_pitch", _BLADE_PITCH_MM)),
                                gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)), H=H,
                                pinned_refs=pinned_refs)
-        if _shared_row:
+        if (_shared_row and not any(
+                (ref.startswith("TB") or ref.startswith("J_SIG"))
+                and ref in pinned_refs for ref in anchors)):
             # ROW REALIGN TO THE FINAL COLUMNS (owner criss-cross catch 2026-07-24:
             # the row's ORDER was already monotone but every group sat ~5mm off
             # its shunt column -- the row seats EARLY on J3 targets while the
@@ -7362,6 +7416,144 @@ def _pourfirst_seen_position_contract(params, comps):
     return out
 
 
+def _bind_declared_interface_anchors(cfg, width, height):
+    """Bind a reviewed rigid interface macro to the candidate outline."""
+    declaration = (cfg.params or {}).get("qualified_interface_anchor")
+    if not declaration:
+        return {}
+    if not isinstance(declaration, dict):
+        raise ValueError("qualified_interface_anchor must be a mapping")
+    provider = str(declaration.get("provider") or "")
+    project = str(declaration.get("project") or "")
+    edge = str(declaration.get("edge") or "").lower()
+    if provider != "cec_xfcn_contract":
+        raise ValueError(
+            "unsupported qualified interface provider %r" % provider)
+    if edge != "top":
+        raise ValueError(
+            "qualified XFCN interface edge must currently be 'top'")
+    del height
+    import cec_xfcn_contract
+    plan = cec_xfcn_contract.PROJECTS.get(project)
+    if plan is None:
+        raise ValueError("unknown qualified XFCN project %r" % project)
+    anchors = cec_xfcn_contract.centered_interface_anchor_placements(
+        plan, width,
+        terminal_edge_y_mm=float(declaration.get(
+            "terminal_edge_y_mm", 0.9)))
+    cfg.pins = {**dict(cfg.pins or {}), **anchors}
+    return anchors
+
+
+def _declared_blueprint_stamps(cfg, positions):
+    """Resolve portable blueprint stamps from policy and live anchor poses.
+
+    In-memory synthesis used to be the only place that carried these stamps.
+    Rehydrating a published placement therefore lost the cell contract, and a
+    continuation could neither re-lay nor prove the qualified internal copper.
+    Recompute the same affine stamp from declarative policy and the current
+    anchor pose so every materialization and resumed wave has equal authority.
+    """
+    cells = (getattr(cfg, "params", None) or {}).get(
+        "blueprint_cells") or ()
+    if not cells:
+        return []
+    import cec_cell_extract
+
+    stamps = []
+    for cell in cells:
+        template = cell.get("template")
+        template_source = (str(template) if isinstance(template, str)
+                           else str((template or {}).get("meta", {}).get(
+                               "generator") or "inline-blueprint"))
+        if isinstance(template, str):
+            with open(template, encoding="utf-8") as source:
+                template = json.load(source)
+        if cell.get("ideal_internal", True):
+            template = cec_cell_extract.synthesize_ideal_internal(
+                template, width=float(cell.get("ideal_width", 0.2)))
+        ref_map = dict(cell.get("ref_map") or {})
+        net_map = cell.get("net_map")
+        if net_map is None and cell.get("cable_index") is not None:
+            net_map = cec_cell_extract.net_map_for_index(
+                template, int(cell["cable_index"]))
+        seat_rotation = 0.0
+        if cell.get("anchor_at") is not None:
+            at_mm = tuple(map(float, cell["anchor_at"][:2]))
+        else:
+            anchor = str(cell.get("anchor_ref") or "")
+            if anchor not in positions:
+                continue
+            live = positions[anchor]
+            at_mm = (float(live[0]), float(live[1]))
+            if len(live) > 2:
+                seat_rotation = float(live[2])
+        rotation = float(
+            cell["rot"] if cell.get("rot") is not None
+            else seat_rotation)
+        stamps.append({
+            "template": template, "at_mm": list(at_mm),
+            "rot": rotation, "ref_map": ref_map,
+            "net_map": net_map, "template_source": template_source,
+        })
+    return stamps
+
+
+def _declared_blueprint_refs(cfg):
+    """Return every live ref owned by a declared rigid blueprint cell.
+
+    Blueprint members move as a qualified cluster through their anchor
+    contract.  Advertising an individual member to local placement repair is
+    both wasted search and unsafe: the exact materializer must reject that
+    candidate because its internal copper no longer matches the qualified
+    affine stamp.
+    """
+    refs = set()
+    for cell in ((getattr(cfg, "params", None) or {}).get(
+            "blueprint_cells") or ()):
+        refs.update(str(ref) for ref in (cell.get("ref_map") or {}).values())
+    return refs
+
+
+def _placement_move_violates_authority(
+        moved_refs, *, absolute_immovable=(), constrained=(),
+        declared_slides=(), current_positions=None):
+    """True when a proposed transform exceeds its placement authority.
+
+    An explicitly declared slide may relax an anchor constraint, but it can
+    never relax an absolute contract such as a qualified blueprint member or
+    a caller-declared immutable reference.
+    """
+    refs = set(moved_refs or ())
+    if current_positions is not None and isinstance(moved_refs, dict):
+        # Atomic cell proposals deliberately carry the anchor/owner pose even
+        # when only follower passives move.  Placement authority protects a
+        # transform, not the presence of a reference in a transaction.  Treat
+        # equivalent angles (0/360, -90/270) as the same transform and retain
+        # a strict tolerance for every real translation or rotation.
+        refs = set()
+        for ref, proposed in moved_refs.items():
+            current = current_positions.get(ref)
+            if current is None:
+                refs.add(ref)
+                continue
+            px = float(proposed[0]) if len(proposed) > 0 else 0.0
+            py = float(proposed[1]) if len(proposed) > 1 else 0.0
+            cx = float(current[0]) if len(current) > 0 else 0.0
+            cy = float(current[1]) if len(current) > 1 else 0.0
+            pa = float(proposed[2]) if len(proposed) > 2 else 0.0
+            ca = float(current[2]) if len(current) > 2 else 0.0
+            angular_delta = abs((pa - ca + 180.0) % 360.0 - 180.0)
+            if (abs(px - cx) > 1.0e-9 or abs(py - cy) > 1.0e-9
+                    or angular_delta > 1.0e-9):
+                refs.add(ref)
+    absolute = set(absolute_immovable or ())
+    fixed = set(constrained or ())
+    slides = set(declared_slides or ())
+    return any(ref in absolute or (ref in fixed and ref not in slides)
+               for ref in refs)
+
+
 def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True,
               eval_gates=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
@@ -7387,6 +7579,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     import cec_pcb
     from cec_passes import Pass, PassLadder
     cfg = Config(**cfg_dict)
+    _bind_declared_interface_anchors(cfg, W, H)
     nl = View(cfg).nl
     # ANTENNA KEEPOUT: honoured by default for DRC-consistency with the materialized footprint.
     # When the board declares wireless-unpopulated (respect_antenna_keepout: False -- the 24-pin
@@ -7421,6 +7614,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
     _intent_locked = set()      # p10 near()/order() seats -- locked so p12 never undoes them
     _bypass_locked = set()      # pad-level device bypass/switch-cell seats
+    _device_bypass_invocations = 0  # first pass claims space before ordinary followers
     _rigid_cell_refs = set()    # admitted pour/service owner cells; downstream passes preserve them
     _pourfirst_locked_refs = set()  # positions consumed by frozen copper; immutable until re-solve
     _pin_orient_changes = {}    # final pad-topology rotations (centres unchanged)
@@ -8609,13 +8803,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 a_ = _cx._to_global(*tr_["start_rel_mm"], ax_, ay_, rot_)
                 b_ = _cx._to_global(*tr_["end_rel_mm"], ax_, ay_, rot_)
                 h_ = float(tr_.get("width_mm", 0.2)) / 2.0 + margin
-                out.append(("__BPCOPPER__", min(a_[0], b_[0]) - h_,
+                role_ = str(tr_.get("net_role") or "")
+                net_ = str((_st.get("net_map") or {}).get(role_, role_))
+                out.append(("__BPCOPPER__:" + net_, min(a_[0], b_[0]) - h_,
                             max(a_[0], b_[0]) + h_, min(a_[1], b_[1]) - h_,
                             max(a_[1], b_[1]) + h_))
             for v_ in t_.get("vias", []):
                 q_ = _cx._to_global(*v_["at_rel_mm"], ax_, ay_, rot_)
                 h_ = float(v_.get("dia_mm", 0.8)) / 2.0 + margin
-                out.append(("__BPCOPPER__", q_[0] - h_, q_[0] + h_,
+                role_ = str(v_.get("net_role") or "")
+                net_ = str((_st.get("net_map") or {}).get(role_, role_))
+                out.append(("__BPCOPPER__:" + net_, q_[0] - h_, q_[0] + h_,
                             q_[1] - h_, q_[1] + h_))
         return out
 
@@ -8719,11 +8917,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # allowing a mezzanine connector into copper that materialize()
             # then quite correctly refused.
             tbs = []
+            _tb_body_boxes = []
+            _seen_tb_bodies = set()
             for _r2, _p2 in nl.nets.get(c["lo"], []):
                 _tp = pos_of(_r2)
                 if not (_r2.startswith("TB") and _tp and _r2 in comps):
                     continue
                 _trot = _tp[2] if len(_tp) > 2 else 0.0
+                if _r2 not in _seen_tb_bodies:
+                    _tcx, _tcy, _thw, _thh = _courtyard_info(
+                        comps[_r2], _trot)
+                    _tb_body_boxes.append((
+                        _tp[1] + _tcy - _thh,
+                        _tp[1] + _tcy + _thh))
+                    _seen_tb_bodies.add(_r2)
                 try:
                     _tx, _ty = cec_pcb.pad_global(
                         _r2, _p2, {_r2: (_tp[0], _tp[1], _trot)}, comps)
@@ -8732,6 +8939,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 except Exception:                           # noqa: BLE001
                     _tx, _ty, _thalf = _tp[0], _tp[1], 1.2
                 tbs.append((_r2, _p2, _tx, _ty, _thalf, True))
+            _tb_escape_y = None
+            if _tb_body_boxes and tbs:
+                _tb_mean_y = sum(row[3] for row in tbs) / len(tbs)
+                if _tb_mean_y < _lo_p[1]:
+                    _tb_escape_y = max(
+                        row[1] for row in _tb_body_boxes) + 0.75
+                else:
+                    _tb_escape_y = min(
+                        row[0] for row in _tb_body_boxes) - 0.75
             try:
                 _spad_w = max(cec_pcb.local_pad_sizes(comps[c["shunt"]])[_hi_num])
             except Exception:                               # noqa: BLE001
@@ -8739,6 +8955,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             rails_data.append({"rs": c["shunt"], "src_net": c["hi"], "snk_net": c["lo"],
                                "amps": amps, "hi": tuple(_hi_p), "lo": tuple(_lo_p),
                                "pad_w": _spad_w,
+                               "tb_escape_y": _tb_escape_y,
                                "j3": sorted(j3pads, key=lambda q: q[1]),
                                "tb": sorted(tbs, key=lambda q: q[2])})
         _alt_on = bool(cfg.params.get("rail_alt_layer"))
@@ -9852,11 +10069,33 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         matching constraint checkers.
         """
         nonlocal P, _bypass_locked, _bypass_refused, _anchor_local_refs
+        nonlocal _device_bypass_invocations
         import cec_device_bypass
 
         locked = set(getattr(_state, "locked", None) or ())
+        _device_bypass_invocations += 1
+        claim_scarce_space = _device_bypass_invocations == 1
         assignments = _device_bypass_specs(
             nl, passives, [r for r in ics if not r.startswith("SW")])
+        early_local_refs = {
+            row[0] for row in _local_signal_followers(
+                nl, spec or {}, passives)}
+
+        # The early device-cell pass intentionally runs before the ordinary
+        # cluster stamp.  Seed only its selected bypass members from the
+        # already-learned owner-relative macro offsets so the exact pad-aware
+        # constructor can claim scarce local space first.  The later retry sees
+        # every follower in P already and this block is inert.
+        for owner, offsets in (cluster_offsets or {}).items():
+            if owner not in P:
+                continue
+            ox, oy, orot = P[owner]
+            for cap, (dx, dy, crot) in offsets.items():
+                if ((cap not in assignments and cap not in early_local_refs)
+                        or cap in P or cap not in comps):
+                    continue
+                rdx, rdy = cec_pcb._rot(dx, dy, orot)
+                P[cap] = (ox + rdx, oy + rdy, (crot + orot) % 360.0)
 
         pin_net = {(r, str(p)): net for net, nodes in nl.nets.items()
                    for r, p in nodes}
@@ -9891,10 +10130,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # Reserve the authored copper segments themselves instead: a cap may
         # enter its owner's cell, but cannot make materialize refuse locked
         # internal copper.
+        blueprint_copper = _blueprint_copper_boxes(margin=0.20)
         avoid_named = (list(_pour_boxes or ())
                        + _force_rail_boxes(lambda d: P.get(d) or anchors.get(d))
                        + _force_corridor_boxes(lambda d: P.get(d) or anchors.get(d))
-                       + _blueprint_copper_boxes()
                        )
         # p9b runs after p8 and can replace the exact positions p8 just
         # legalized.  Omitting the current-derived pour boxes here allowed a
@@ -9925,12 +10164,24 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             return (len(fields) == 3 and fields[0] == "pair-escape"
                     and fields[1] == str(ref))
 
-        def clear(box, skip, margin=0.15, reservation_owner=None):
+        def clear(box, skip, margin=0.15, reservation_owner=None,
+                  required_refs=()):
+            required_refs = set(required_refs or ())
             x0, x1, y0, y1 = box
             if x0 < 0.90 or x1 > W - 0.90 or y0 < 0.90 or y1 > H - 0.90:
                 return False
             for ref, other in boxes.items():
                 if ref in skip:
+                    continue
+                # On the constructive first pass, electrically selected
+                # device cells outrank ordinary movable placement.  Ignore a
+                # lower-priority provisional seat here; the normal legality
+                # passes will re-seat that still-unlocked part around the
+                # newly locked cell.  Hard/blueprint/pour locks and device
+                # cells already admitted during this same pass remain real
+                # obstacles.  The late retry is fully collision-strict.
+                if (claim_scarce_space and ref not in required_refs
+                        and ref not in locked and ref not in _bypass_locked):
                     continue
                 if (x0 - margin < other[1] and x1 + margin > other[0]
                         and y0 - margin < other[3] and y1 + margin > other[2]):
@@ -10011,6 +10262,32 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 out.append((cx - hx, cx + hx, cy - hy, cy + hy))
             return out
 
+        def pads_clear_blueprint_copper(ref, pos):
+            """Check land copper, not a component courtyard, against cell tracks.
+
+            Board traces routinely pass beneath a component's solder-mask-
+            covered body, so rejecting a whole courtyard over authored copper
+            creates false no-seat results.  Actual pads still need clearance
+            from every foreign-net locked segment; same-net contact is legal.
+            """
+            geometries = cec_pcb.local_pad_geometries(comps[ref])
+            for pin, (lx, ly, sx, sy, prot) in geometries.items():
+                dx, dy = cec_pcb._rot(lx, ly, pos[2])
+                cx, cy = pos[0] + dx, pos[1] + dy
+                angle = math.radians(pos[2] + prot)
+                ca, sa = abs(math.cos(angle)), abs(math.sin(angle))
+                hx = 0.5 * sx * ca + 0.5 * sy * sa
+                hy = 0.5 * sx * sa + 0.5 * sy * ca
+                pad_box = (cx - hx, cx + hx, cy - hy, cy + hy)
+                pad_net = pin_net.get((ref, str(pin)))
+                for name, x0, x1, y0, y1 in blueprint_copper:
+                    copper_net = str(name).split(":", 1)[1]
+                    if pad_net and pad_net == copper_net:
+                        continue
+                    if overlaps(pad_box, (x0, x1, y0, y1), margin=0.0):
+                        return False
+            return True
+
         def preserves_private_pin_escapes(owner, owner_pos, follower, follower_pos):
             """Do not let a support part seal a low-fanout signal pin row.
 
@@ -10027,15 +10304,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 if not (2 <= len(members) <= 3
                         and any(r in passives for r in members if r != owner)):
                     continue
-                start = pad_at(owner, pin, owner_pos)
-                dx, dy = start[0] - owner_pos[0], start[1] - owner_pos[1]
-                norm = math.hypot(dx, dy)
-                if norm <= 1e-9:
+                lane = _package_normal_escape_lane(
+                    owner_pos, pad_at(owner, pin, owner_pos))
+                if lane is None:
                     continue
-                end = (start[0] + 2.5 * dx / norm,
-                       start[1] + 2.5 * dy / norm)
+                start, end = lane
+                follower_obstacles = foreign_pad_boxes(
+                    follower, follower_pos, net)
+                if not _segment_avoids_pad_boxes(
+                        start, end, follower_obstacles):
+                    return False
                 obstacles = (foreign_pad_boxes(owner, owner_pos, net)
-                             + foreign_pad_boxes(follower, follower_pos, net))
+                             + follower_obstacles)
                 if not math.isfinite(_pad_box_path_length(
                         start, end, obstacles, max_lane_offset=1.5)):
                     return False
@@ -10099,6 +10379,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             for other in boxes:
                 if other in (cap, owner) or other not in comps:
                     continue
+                if (claim_scarce_space and other not in locked
+                        and other not in _bypass_locked):
+                    continue
                 obstacles.extend(foreign_pad_boxes(
                     other, P[other], rail))
             obstacles.extend(foreign_pad_boxes(owner, owner_pos, rail))
@@ -10155,10 +10438,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             target = pad_at(owner, req["pin"], P[owner])
             owner_position = P[owner]
             owner_box = part_box(owner, P[owner])
-            owner_clear_of_avoid = not any(
-                overlaps(owner_box, obstacle, margin=0.10)
-                for name, *obstacle in avoid_named
-                if not reservation_owned_by(name, owner))
+            # A stamped/frozen cell owner is the datum that created its own
+            # force-corridor reservation, so it cannot be rejected for
+            # occupying that reservation.  Movable owners remain subject to
+            # every unrelated hard corridor.
+            owner_clear_of_avoid = (
+                owner in _bp_refs or owner in _pourfirst_locked_refs or not any(
+                    overlaps(owner_box, obstacle, margin=0.10)
+                    for name, *obstacle in avoid_named
+                    if not reservation_owned_by(name, owner)))
             owner_gnd = ([pad_at(owner, req["return_pin"], P[owner])]
                          if req.get("return_pin") else ground_points(owner))
             owner_sibling_pads = sibling_pad_obstacles(
@@ -10174,7 +10462,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 current_dist = math.hypot(current_pad[0] - target[0],
                                           current_pad[1] - target[1])
                 if current_dist <= req["max_mm"] + 1e-9:
-                    _bypass_locked.add(cap)
+                    # A bypass seat is a two-body electrical cell.  Locking
+                    # only the capacitor lets a later generic orientation or
+                    # compaction pass move its owner away and silently
+                    # invalidate the admitted pin-to-pin loop.
+                    _bypass_locked.update((owner, cap))
                 else:
                     refused.append(
                         f"{cap}->{owner}.{req['pin']}: locked at "
@@ -10183,6 +10475,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             step = 0.25
             n = int(math.ceil(req["max_mm"] / step))
             trials = []
+            trial_reject = {"grid": 0, "body": 0, "cell_copper": 0,
+                            "pin_escape": 0, "local_route": 0}
             for rot in (0.0, 90.0, 180.0, 270.0):
                 local = cec_pcb.local_pads(comps[cap]).get(cap_pin, (0.0, 0.0))
                 pdx, pdy = cec_pcb._rot(local[0], local[1], rot)
@@ -10192,11 +10486,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                         pdist = math.hypot(ox, oy)
                         if pdist > req["max_mm"] + 1e-9:
                             continue
+                        trial_reject["grid"] += 1
                         pos = (target[0] + ox - pdx, target[1] + oy - pdy, rot)
                         box = part_box(cap, pos)
-                        if not clear(box, {cap}, margin=0.10):
+                        if not clear(box, {cap}, margin=0.10,
+                                     required_refs={owner}):
+                            trial_reject["body"] += 1
+                            continue
+                        if not pads_clear_blueprint_copper(cap, pos):
+                            trial_reject["cell_copper"] += 1
                             continue
                         if not preserves_private_pin_escapes(owner, P[owner], cap, pos):
+                            trial_reject["pin_escape"] += 1
                             continue
                         gdist = 0.0
                         if owner_gnd and gnd_pin:
@@ -10242,7 +10543,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             # hide a slightly farther package-exterior seat whose copper lane
             # is actually open.
             trials.sort(key=lambda row: row[0])
-            chosen = list(trials[:32])
+            chosen = list(trials[:128])
             identities = {(row[1], row[3]) for row in chosen}
             directional = set()
             for row in trials:
@@ -10264,6 +10565,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 path_length = bypass_loop_path_length(
                     cap, req, P[owner], pos, target, pad_point)
                 if not math.isfinite(path_length):
+                    trial_reject["local_route"] += 1
                     continue
                 # The detailed guarded path, not centre-to-centre distance,
                 # decides between otherwise legal placements.  Evaluate the
@@ -10293,11 +10595,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 current_path = bypass_loop_path_length(
                     cap, req, P[owner], P[cap], target, current_pad)
                 if (current_dist <= req["max_mm"] + 1e-9
-                        and clear(current_box, {cap}, margin=0.10)
+                        and clear(current_box, {cap}, margin=0.10,
+                                  required_refs={owner})
+                        and pads_clear_blueprint_copper(cap, P[cap])
                         and owner_clear_of_avoid
                         and math.isfinite(current_path)):
                     boxes[cap] = current_box
-                    _bypass_locked.add(cap)
+                    _bypass_locked.update((owner, cap))
                     continue
 
                 # Dense boards sometimes need the tiny owner and its cap to
@@ -10321,6 +10625,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                             if not clear(obox, {owner, cap}, margin=0.15,
                                          reservation_owner=owner):
                                 continue
+                            if not pads_clear_blueprint_copper(owner, opos):
+                                continue
                             otarget = pad_at(owner, req["pin"], opos)
                             ognd = ([pad_at(owner, req["return_pin"], opos)]
                                     if req.get("return_pin") else
@@ -10342,6 +10648,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                                         cbox = part_box(cap, cpos)
                                         if (not clear(cbox, {owner, cap}, margin=0.10)
                                                 or overlaps(cbox, obox, margin=0.10)):
+                                            continue
+                                        if not pads_clear_blueprint_copper(cap, cpos):
                                             continue
                                         if not preserves_private_pin_escapes(
                                                 owner, opos, cap, cpos):
@@ -10386,10 +10694,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                             joint_target, joint_cap_pad)):
                         joint = None
                 if joint is None:
-                    if clear(current_box, {cap}, margin=0.10):
+                    if clear(current_box, {cap}, margin=0.10,
+                             required_refs={owner}):
                         boxes[cap] = current_box
                     refused.append(
-                        f"{cap}->{owner}.{req['pin']}: no legal <= {req['max_mm']}mm seat")
+                        f"{cap}->{owner}.{req['pin']}: no legal <= {req['max_mm']}mm seat "
+                        f"[{','.join(f'{key}={value}' for key, value in trial_reject.items())}]")
                     continue
                 P[owner], boxes[owner] = joint[1], joint[2]
                 P[cap], boxes[cap] = joint[3], joint[4]
@@ -10397,7 +10707,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 continue
             P[cap] = best[1]
             boxes[cap] = best[2]
-            _bypass_locked.add(cap)
+            _bypass_locked.update((owner, cap))
 
         # Compact TLV62569 SW->inductor->output-cap loop.  The search uses
         # actual pad offsets/courtyards and keeps every other component fixed.
@@ -10436,7 +10746,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if not caps:
                 refused.append(f"{buck}: no unassigned >=10uF output cap")
                 continue
-            cap, cap_pin, cap_gnd = sorted(caps)[0]
+            # A rail may have many >=10 uF capacitors. Prefer the one authored
+            # in the regulator's schematic sheet; a lexical reference sort
+            # previously pulled an MCU bulk capacitor into the buck switch
+            # cell merely because C11 sorts before C3. Connectivity remains
+            # the hard qualifier and deterministic ref order is the fallback
+            # when hierarchy metadata is absent.
+            owner_sheet = str(nl.comps[buck].props.get("Sheetfile") or "")
+            caps.sort(key=lambda row: (
+                0 if owner_sheet and str(
+                    nl.comps[row[0]].props.get("Sheetfile") or "")
+                == owner_sheet else 1,
+                row[0], row[1], row[2],
+            ))
+            cap, cap_pin, cap_gnd = caps[0]
             sw_target = pad_at(buck, "3", P[buck])
             old_l, old_c = P[ind], P[cap]
             grid = 0.50
@@ -10539,15 +10862,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if identity in seen_local_pins:
                 continue
             seen_local_pins.add(identity)
-            start = pad_at(lane_owner, lane_pin, P[lane_owner])
-            dx = start[0] - P[lane_owner][0]
-            dy = start[1] - P[lane_owner][1]
-            if abs(dx) >= abs(dy) and abs(dx) > 1e-9:
-                end = (start[0] + math.copysign(2.5, dx), start[1])
-            elif abs(dy) > 1e-9:
-                end = (start[0], start[1] + math.copysign(2.5, dy))
-            else:
+            lane = _package_normal_escape_lane(
+                P[lane_owner], pad_at(lane_owner, lane_pin, P[lane_owner]))
+            if lane is None:
                 continue
+            start, end = lane
             local_escape_lanes[lane_owner].append(
                 (lane_pin, lane_net, start, end))
 
@@ -10945,17 +11264,24 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
 
     def _p10b_pin_orient(_state):
         nonlocal P, _pin_orient_changes
+        # Device cells admitted by p6b/p9b are electrically atomic through
+        # the rest of the ladder.  A late pad-topology cleanup may optimize
+        # other parts, but rotating either the owner or its follower changes
+        # the certified pad geometry and can reopen the local loop.
+        _ladder_locked = set(getattr(_state, "locked", None) or ())
         _two_terminal_changes = _pin_aware_two_terminal_orientations(
             nl, comps, P,
             [ref for ref in passives
              if ref not in _pourfirst_locked_refs
-             and ref not in _anchor_local_refs],
+             and ref not in _anchor_local_refs
+             and ref not in _ladder_locked],
             W, H, clearance=0.25,
             drop_antenna=drop_antenna, back_refs=(_back or ()),
             avoid_boxes=cfg.params.get("pourfirst_avoid_boxes") or ())
         _flow_changes = _flow_through_pair_orientations(
             nl, comps, P, W, H,
             protected_refs=(set(_anchor_local_refs)
+                            | _ladder_locked
                             | set((anchors or {}).keys())
                             | set((cfg.pins or {}).keys())
                             | set((cfg.params.get("anchor_pins") or {}).keys())),
@@ -11310,6 +11636,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
              doc="relative-place macros by connectivity + build the corridor veto model"),
         Pass("p6_anneal", _p6_anneal, phase="P7",
              doc="anneal macro blocks to escape the greedy minimum + legalize"),
+        # Scarce pad-local space belongs to the electrically strongest cells.
+        # Seat and lock selected-device bypass/switch/programming cells before
+        # ordinary passive followers consume that space.  The same constructor
+        # remains later in the ladder as a bounded retry after final legality;
+        # it certifies already-locked good seats and only works on residuals.
+        Pass("p6b_device_cells_first", _p9b_device_bypass, phase="P5",
+             locks_out=lambda _s: sorted(_bypass_locked),
+             doc="construct exact selected-device pad cells before ordinary passive stamping"),
         Pass("p7_stamps", _p7_stamps, phase="P5",
              # NEVER LOCK AN OVERLAPPING SEAT (2026-07-23 truthful-courtyard chain
              # collapse: legalize_pack parks at LEAST-overlap when nothing fits and
@@ -11579,7 +11913,15 @@ def _critical_pair_probe_analyze(payload):
     """Spawn-safe exact critical-route probe for a placement microvariant."""
     import cec_route_preflight
     started = time.monotonic()
+    previous_timeout = os.environ.get("CEC_PRECISION_PAIR_TIMEOUT")
     try:
+        # ``spawn`` workers may be created after the coordinator's scoped
+        # placement environment has been restored.  Carry the disposable
+        # microvariant budget explicitly; production routing never supplies
+        # this payload field and retains its independent high-effort limit.
+        if payload.get("pair_timeout_s") is not None:
+            os.environ["CEC_PRECISION_PAIR_TIMEOUT"] = str(max(
+                5.0, float(payload["pair_timeout_s"])))
         reservations = cec_route_preflight.compile_route_reservations(
             payload["path"])
         pair_report = cec_route_preflight.probe_critical_pairs(
@@ -11594,6 +11936,11 @@ def _critical_pair_probe_analyze(payload):
     except Exception as exc:                              # noqa: BLE001
         pair_report = None
         error = "%s: %s" % (type(exc).__name__, exc)
+    finally:
+        if previous_timeout is None:
+            os.environ.pop("CEC_PRECISION_PAIR_TIMEOUT", None)
+        else:
+            os.environ["CEC_PRECISION_PAIR_TIMEOUT"] = previous_timeout
     return {
         "slot": int(payload["slot"]),
         "pair_report": pair_report,
@@ -11743,6 +12090,24 @@ def rerank_route_preflight(cfg, candidates, *, topk=0, grid_mm=1.0,
     return probed + ordered[k:]
 
 
+def _placement_repair_immutable_refs(cfg):
+    """Refs whose placement is structural input to downstream geometry.
+
+    Besides explicit board pins, a blueprint ref is part of a rigid affine
+    cell whose pre-routed copper is materialized at that exact pose.  Moving
+    one member in a local route-repair proposal can never be admissible: it
+    invalidates the cell before it can improve the reported obstruction.
+    """
+    immutable = set(getattr(cfg, "pins", {}) or ())
+    params = getattr(cfg, "params", {}) or {}
+    immutable.update(str(ref) for ref in (
+        params.get("placement_immutable_refs") or ()) if ref)
+    for cell in params.get("blueprint_cells") or ():
+        immutable.update(str(ref) for ref in (
+            (cell.get("ref_map") or {}).values()) if ref)
+    return immutable
+
+
 def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
                              shift_mm=(0.25, 0.5, 1.0, 1.5, 2.0)):
     """Deterministic local moves named by blocked-pin obstruction evidence."""
@@ -11759,12 +12124,37 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
         return owner_by_member.get(str(ref), str(ref))
 
     blocked = list((evidence or {}).get("pin_access_blocked") or ())
-    fixed = set(getattr(cfg, "pins", {}) or ())
+    fixed = _placement_repair_immutable_refs(cfg)
     owners = {str(row.get("ref", "")) for row in blocked}
     critical_owners = {str(row.get("ref", "")) for row in blocked
                        if row.get("critical")}
     pair_refs = [str(ref) for ref in
                  ((evidence or {}).get("critical_pair_refs") or ())]
+    failed_pair_endpoint_refs = []
+    for refusal in ((evidence or {}).get("critical_pair_refused") or ()):
+        certificate = refusal.get("failure_certificate") or {}
+        failed_ids = {
+            str(value) for value in
+            (refusal.get("failed_edge")
+             or certificate.get("failed_edge") or ()) if value}
+        if not failed_ids:
+            continue
+        for station in refusal.get("endpoint_stations") or ():
+            if str(station.get("id") or "") not in failed_ids:
+                continue
+            for ref in station.get("physical_refs") or ():
+                ref = str(ref)
+                if ref and ref not in failed_pair_endpoint_refs:
+                    failed_pair_endpoint_refs.append(ref)
+    # A multidrop refusal is edge-local.  The compact pair summary also names
+    # every terminal on the bus, but moving a remote receptacle/terminator
+    # cannot repair the certified failed edge and used to consume generic
+    # rotation slots after the edge-directed station moves.  Restrict the
+    # ordinary endpoint neighborhood to the failed edge when that identity is
+    # available; retain all endpoints for legacy two-terminal evidence.
+    if failed_pair_endpoint_refs:
+        failed_set = set(failed_pair_endpoint_refs)
+        pair_refs = [ref for ref in pair_refs if ref in failed_set]
     pair_blocker_refs = [complete_cell_root(ref) for ref in
                          ((evidence or {}).get(
                              "critical_pair_blocker_refs") or ())]
@@ -12468,9 +12858,17 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
                     if isinstance(contact, dict)),
                 "flow": bool(set(refs_in_station) & flow_refs),
             })
+        failure_certificate = dict(
+            refused.get("failure_certificate") or {})
+        failed_edge = tuple(
+            str(station_id) for station_id in
+            (refused.get("failed_edge")
+             or failure_certificate.get("failed_edge") or ())
+            if station_id)
         station_rows.append((
             str(refused.get("name") or "pair"), usable,
-            dict(refused.get("failure_certificate") or {})))
+            failure_certificate,
+            failed_edge))
 
     params = getattr(cfg, "params", {}) or {}
     configured_station_steps = params.get(
@@ -12482,7 +12880,20 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
         "pair_endpoint_peer_ring_mm", (4.0, 6.0, 8.0))
     peer_ring_radii = sorted({
         max(1.0, float(value)) for value in configured_peer_ring})
-    for pair_name, stations, failure_certificate in station_rows:
+    for pair_name, stations, failure_certificate, failed_edge in station_rows:
+        # A multidrop refusal is an edge-local certificate.  If the precision
+        # router names the failed station-to-station edge, spend the bounded
+        # placement neighborhood only on those endpoint stations.  Treating
+        # every station on the bus as equally causal made a J6C-U2 failure
+        # repeatedly move a remote terminator merely because that station had
+        # two packages and sorted first.  Fall back to the full station set
+        # only for legacy refusals that do not identify an edge.
+        failed_edge_set = set(failed_edge)
+        edge_stations = [
+            station for station in stations
+            if station["id"] in failed_edge_set]
+        active_stations = (
+            edge_stations if len(edge_stations) >= 2 else stations)
         failure_vectors_by_station = defaultdict(list)
         certificate_endpoints = (
             failure_certificate.get("endpoints") or {})
@@ -12495,12 +12906,13 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
             endpoint_row = certificate_endpoints.get(endpoint) or {}
             center = endpoint_row.get("center_mm")
             vector = hint.get("vector")
-            if (not stations or not isinstance(center, (list, tuple))
+            if (not active_stations
+                    or not isinstance(center, (list, tuple))
                     or len(center) < 2
                     or not isinstance(vector, (list, tuple))
                     or len(vector) < 2):
                 continue
-            station = min(stations, key=lambda row: math.hypot(
+            station = min(active_stations, key=lambda row: math.hypot(
                 row["center"][0] - float(center[0]),
                 row["center"][1] - float(center[1])))
             failure_vectors_by_station[station["id"]].append({
@@ -12518,15 +12930,17 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
         # retain them at the front while still generating a rigid neighborhood
         # for a one-package opposite endpoint.
         for station in sorted(
-                stations, key=lambda row: (-len(row["refs"]), row["id"])):
+                active_stations,
+                key=lambda row: (-len(row["refs"]), row["id"])):
             station_refs = tuple(station["refs"])
             if (station["flow"]
                     or any(not movable(ref) for ref in station_refs)):
                 continue
-            alternatives = [row for row in stations
+            alternatives = [row for row in active_stations
                             if row is not station and not row["flow"]]
             if not alternatives:
-                alternatives = [row for row in stations if row is not station]
+                alternatives = [row for row in active_stations
+                                if row is not station]
             if not alternatives:
                 continue
             target = min(alternatives, key=lambda row: math.hypot(
@@ -12617,8 +13031,8 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
                 endpoint_station_moves.append({
                     "ref": primary,
                     "refs": list(expanded_refs),
-                    "budget_group": "pair-station:%s:%s" % (
-                        pair_name, station["id"]),
+                    "budget_group": "pair-station-rotation:%s:%s:%d" % (
+                        pair_name, station["id"], int(round(delta_deg))),
                     "kind": "pair_endpoint_station_rotation",
                     "pair": pair_name,
                     "station": station["id"],
@@ -12772,9 +13186,8 @@ def _route_access_move_specs(candidate, evidence, cfg, *, groups=None,
                                         "ref": primary,
                                         "refs": list(expanded_refs),
                                         "budget_group":
-                                            "pair-pin-lane:%s:%s:%s:runway-%.3f" % (
-                                                pair_name, station["id"], ref,
-                                                runway),
+                                            "pair-pin-lane:%s:%s:%s" % (
+                                                pair_name, station["id"], ref),
                                         "kind":
                                             "pair_endpoint_member_pin_flip_lane_alignment",
                                         "pair": pair_name,
@@ -13507,7 +13920,7 @@ def repair_route_preflight(cfg, candidate, *, max_trials=24, full_evals=4,
         baseline_overlap_pairs = _overlap_pairs(
             baseline.P, comps, drop_antenna=drop_antenna,
             back_refs=baseline.back_refs)
-        fixed_refs = set(getattr(cfg, "pins", {}) or ())
+        fixed_refs = _placement_repair_immutable_refs(cfg)
         protected_route_roots = set(anchors) | set(shunts)
 
         def route_macro_movable(ref):
@@ -13877,7 +14290,9 @@ def repair_route_preflight(cfg, candidate, *, max_trials=24, full_evals=4,
                  # The cheap probe asks whether the currently refused pair
                  # improved. Already-clean independent pairs are rechecked by
                  # the complete finalist authority before adoption.
-                 "include_pair_names": refused_pair_names or None}
+                 "include_pair_names": refused_pair_names or None,
+                 "pair_timeout_s": float(cfg.params.get(
+                     "placement_route_pair_timeout_s", 120.0) or 120.0)}
                 for row in pending_pair_probes]
             phase_started = time.monotonic()
             if probe_workers <= 1:
@@ -14003,6 +14418,93 @@ def repair_route_preflight(cfg, candidate, *, max_trials=24, full_evals=4,
                 craft, baseline_craft,
                 (move.get("placements") or {
                     move["ref"]: move["position"]}))
+            # A topology-improving endpoint orientation can invalidate the
+            # old tangent seats of its bypass followers even though the new
+            # package pose is exactly what makes the critical route feasible.
+            # Rejecting that useful orientation before the existing generic
+            # craft solver gets one bounded chance to re-seat those passives
+            # makes placement and routing optimize incompatible snapshots.
+            # Co-repair only an already measured critical-route improvement,
+            # keep every route-moved part immovable, and then rebuild both
+            # craft and full route authority below.  This is not a waiver: a
+            # failed/non-monotonic craft repair remains a hard rejection.
+            route_improved = int(pair_refused) < int(base_critical_refused)
+            if (blocking_regressed and route_improved
+                    and not stale_power_conflicts):
+                moved_refs = tuple(sorted(
+                    (move.get("placements") or {
+                        move["ref"]: move["position"]})))
+                co_started = time.monotonic()
+                try:
+                    co_trials = max(0, int(cfg.params.get(
+                        "placement_route_craft_co_repair_trials", 16) or 0))
+                    if co_trials:
+                        co_candidate, co_report = repair_placement_craft(
+                            cfg, trial, max_trials=co_trials, rounds=1,
+                            immovable_refs=moved_refs)
+                        timings["finalist_craft_co_repair"] += (
+                            time.monotonic() - co_started)
+                        co_row = {
+                            "move_index": int(move_index),
+                            "kind": str(move.get("kind") or ""),
+                            "immovable_refs": list(moved_refs),
+                            "ok": bool(co_report.get("ok")),
+                            "changed": bool(co_report.get("changed")),
+                            "accepted_count": int(
+                                co_report.get("accepted_count", 0) or 0),
+                            "stop_reason": co_report.get("stop_reason"),
+                            "result_key": list(
+                                co_report.get("result_key") or ()),
+                        }
+                        if co_report.get("ok"):
+                            original_positions = dict(trial.P)
+                            trial = co_candidate
+                            changed_positions = {
+                                ref: trial.P[ref]
+                                for ref in trial.P
+                                if ref not in original_positions
+                                or any(abs(float(a) - float(b)) > 1.0e-9
+                                       for a, b in zip(
+                                           trial.P[ref],
+                                           original_positions[ref]))}
+                            merged_placements = dict(
+                                move.get("placements") or {
+                                    move["ref"]: move["position"]})
+                            merged_placements.update(changed_positions)
+                            move = dict(move)
+                            move["placements"] = merged_placements
+                            move["refs"] = sorted(merged_placements)
+                            move["craft_co_repair"] = co_row
+                            materialize(trial, cfg, path)
+                            craft = placement_craft_evidence(
+                                path, cfg=cfg)
+                            bypass = craft["decoupler"]
+                            blocking_regressed = (
+                                placement_craft_blocking_key(craft) >
+                                placement_craft_blocking_key(
+                                    baseline_craft))
+                            stale_power_conflicts = (
+                                stale_power_only_craft_conflicts(
+                                    craft, baseline_craft,
+                                    merged_placements))
+                            co_row["changed_refs"] = sorted(
+                                changed_positions)
+                            co_row["certified_key"] = list(
+                                placement_craft_key(craft))
+                        report.setdefault(
+                            "finalist_craft_co_repair", []).append(co_row)
+                except Exception as exc:                 # noqa: BLE001
+                    timings["finalist_craft_co_repair"] += max(
+                        0.0, time.monotonic() - co_started)
+                    report.setdefault(
+                        "finalist_craft_co_repair", []).append({
+                            "move_index": int(move_index),
+                            "kind": str(move.get("kind") or ""),
+                            "immovable_refs": list(moved_refs),
+                            "ok": False,
+                            "error": "%s: %s" % (
+                                type(exc).__name__, exc),
+                        })
             if blocking_regressed and stale_power_conflicts:
                 # The route cure is physically/craft legal except against
                 # copper compiled for the old placement. Do not probe or rank
@@ -15180,6 +15682,67 @@ def _decoupler_return_gate(return_rail, supply_mm, return_mm, tangent,
     }
 
 
+def _decoupler_proximity_gate(
+        return_rail, supply_mm, return_mm, tangent, supply_access, *,
+        supply_excess_max_mm=0.25, loop_excess_max_mm=0.25):
+    """Grade pin proximity against the realized return topology.
+
+    With ordinary surface return routing, keep the supply leg independently
+    close to the package-derived tangent optimum.  When both the capacitor
+    return land and the owner's ground land have qualified via-in-pad returns,
+    the physically relevant local objective is the complete supply-plus-return
+    loop.  Requiring the isolated minimum of each leg simultaneously can be
+    geometrically impossible on opposite-edge packages and leaves a valid,
+    near-optimal loop permanently uncloseable.
+
+    The via-in-pad relaxation is deliberately narrow: both endpoints must be
+    certified by the pre-route cell planner and the loop may exceed the exact
+    courtyard-tangent optimum by only the existing bounded loop margin.
+    """
+    best_loop = (tangent or {}).get("best_loop") or {}
+    ideal_supply = best_loop.get("supply_mm")
+    ideal_loop = best_loop.get("loop_proxy_mm")
+    supply_excess = (
+        max(0.0, float(supply_mm) - float(ideal_supply))
+        if supply_mm is not None and ideal_supply is not None else None)
+    cap_return = (supply_access or {}).get("ground_return") or {}
+    owner_return = (supply_access or {}).get("owner_ground_return") or {}
+    dual_via_in_pad = (
+        _is_gnd_net(return_rail)
+        and cap_return.get("status") == "via-in-pad"
+        and owner_return.get("status") == "via-in-pad")
+    if (dual_via_in_pad and supply_mm is not None
+            and return_mm is not None and ideal_loop is not None):
+        loop_mm = float(supply_mm) + float(return_mm)
+        excess = max(0.0, loop_mm - float(ideal_loop))
+        return {
+            "bad": excess > float(loop_excess_max_mm) + 1e-9,
+            "mode": "dual_via_in_pad_complete_loop",
+            "excess_mm": excess,
+            "limit_mm": float(loop_excess_max_mm),
+            "supply_excess_mm": supply_excess,
+            "ideal_supply_mm": (float(ideal_supply)
+                                 if ideal_supply is not None else None),
+            "ideal_loop_mm": float(ideal_loop),
+            "loop_mm": loop_mm,
+        }
+    return {
+        "bad": (supply_excess is None or
+                supply_excess > float(supply_excess_max_mm) + 1e-9),
+        "mode": "isolated_tangent_supply",
+        "excess_mm": supply_excess,
+        "limit_mm": float(supply_excess_max_mm),
+        "supply_excess_mm": supply_excess,
+        "ideal_supply_mm": (float(ideal_supply)
+                             if ideal_supply is not None else None),
+        "ideal_loop_mm": (float(ideal_loop)
+                          if ideal_loop is not None else None),
+        "loop_mm": (float(supply_mm) + float(return_mm)
+                    if supply_mm is not None and return_mm is not None
+                    else None),
+    }
+
+
 def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
     """Placement gate using one-to-one, selected-device bypass ownership.
 
@@ -15317,15 +15880,14 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             "supply_mm")
         absolute_supply_mm = ((tangent or {}).get("best_supply") or {}).get(
             "supply_mm")
-        supply_excess_mm = (max(
-            0.0, float(item.get("distance_mm") or 0.0)
-            - float(ideal_supply_mm))
-            if ideal_supply_mm is not None else None)
-        proximity_bad = (supply_excess_mm is not None
-                         and supply_excess_mm >
-                         supply_excess_max_mm + 1e-9)
         supply_row = supply_by_cell.get((
             req.get("ref"), str(req.get("pin")), item.get("cap_ref"))) or {}
+        proximity_gate = _decoupler_proximity_gate(
+            return_rail, item.get("distance_mm"), ground_mm, tangent,
+            supply_row, supply_excess_max_mm=supply_excess_max_mm,
+            loop_excess_max_mm=loop_excess_max_mm)
+        supply_excess_mm = proximity_gate["supply_excess_mm"]
+        proximity_bad = bool(proximity_gate["bad"])
         supply_bad = supply_row.get("status") == "refused"
         detail = {
             "cap_ref": item.get("cap_ref"),
@@ -15361,6 +15923,11 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
             # consume an unbounded placement budget.
             "actionable": bool(ground_bad or supply_bad or proximity_bad),
             "pin_proximity_ok": not proximity_bad,
+            "pin_proximity_mode": proximity_gate["mode"],
+            "pin_proximity_excess_mm": (
+                round(float(proximity_gate["excess_mm"]), 3)
+                if proximity_gate["excess_mm"] is not None else None),
+            "pin_proximity_excess_limit_mm": proximity_gate["limit_mm"],
             "ideal_supply_distance_mm": (
                 round(float(ideal_supply_mm), 3)
                 if ideal_supply_mm is not None else None),
@@ -15401,10 +15968,12 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=3.5):
         if proximity_bad:
             violations.append((
                 item.get("cap_ref") or "unassigned-cap",
-                "%s.%s[%s] pin-proximity excess %.2fmm > %.2fmm" % (
+                "%s.%s[%s] %s proximity excess %.2fmm > %.2fmm" % (
                     req.get("ref"), req.get("pin"), req.get("rail"),
-                    supply_excess_mm, supply_excess_max_mm),
-                round(float(supply_excess_mm), 2),
+                    proximity_gate["mode"],
+                    proximity_gate["excess_mm"],
+                    proximity_gate["limit_mm"]),
+                round(float(proximity_gate["excess_mm"]), 2),
             ))
         if supply_bad:
             violations.append((
@@ -17168,6 +17737,29 @@ def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
             "details": details[:10], "limit_mm": float(max_mm)}
 
 
+def _placement_stranded_refs(evidence):
+    """Return stable component identities from stranded-part evidence.
+
+    Placement admission must compare *which* components failed, not only the
+    violation count. Otherwise a repair may exchange two local-cell defects
+    for one newly orphaned part and look lexicographically better even though
+    the resulting board cannot close. Prefer structured details and retain a
+    tuple/list fallback for older cached evidence.
+    """
+    stranded = (evidence or {}).get("stranded") or {}
+    refs = {
+        str(row.get("ref") or "")
+        for row in stranded.get("details") or ()
+        if isinstance(row, dict) and row.get("ref")
+    }
+    for violation in stranded.get("violations") or ():
+        if isinstance(violation, (tuple, list)) and violation:
+            refs.add(str(violation[0]))
+        elif isinstance(violation, dict) and violation.get("ref"):
+            refs.add(str(violation["ref"]))
+    return frozenset(ref for ref in refs if ref)
+
+
 def _critical_terminal_order_evidence(nl, comps, placements, *, clearance=0.25):
     """Prove the direct topology of generic HI/LO terminal pairs.
 
@@ -17510,6 +18102,149 @@ def _placement_craft_file_digest(path):
     return digest.hexdigest()
 
 
+def _blueprint_cell_report_path(board_path):
+    path = str(board_path or "")
+    suffix = ".kicad_pcb"
+    return (path[:-len(suffix)] if path.endswith(suffix) else path) + \
+        ".cellreport.json"
+
+
+def _blueprint_cell_craft_evidence(placed_board_path, cfg=None):
+    """Read exact blueprint-cell lay/refusal evidence fail closed.
+
+    Blueprint copper is part of a qualified local topology, not an optional
+    router hint.  Materialization previously printed whole-cell refusals but
+    placement ranking could still accept the pose, allowing ordinary locality
+    improvements to destroy pre-routed cells.  The sidecar makes that result a
+    portable, cacheable admission term analogous to force-rail evidence.
+    """
+    expected = bool(cfg is not None and
+                    (getattr(cfg, "params", None) or {}).get(
+                        "blueprint_cells"))
+    if not expected:
+        return {"schema": 1, "ok": True, "applicable": False,
+                "total": 0, "laid": 0, "refused": []}
+    if not os.path.isfile(str(placed_board_path)):
+        return {"schema": 1, "ok": True, "applicable": False,
+                "total": 0, "laid": 0, "refused": [],
+                "note": "materialized board unavailable in test adapter"}
+    report_path = _blueprint_cell_report_path(placed_board_path)
+    if not os.path.isfile(report_path):
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": len((getattr(cfg, "params", None) or {}).get(
+                    "blueprint_cells") or ()),
+                "laid": 0, "refused": [],
+                "error": "blueprint-cell report missing",
+                "report": report_path}
+    try:
+        with open(report_path, encoding="utf-8") as source:
+            report = json.load(source)
+    except Exception as exc:                              # noqa: BLE001
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": 0, "laid": 0, "refused": [],
+                "error": "blueprint-cell report unreadable: %s" % exc,
+                "report": report_path}
+    total = int(report.get("total") or 0)
+    laid = int(report.get("laid") or 0)
+    refused = list(report.get("refused") or ())
+    identity_ok = (report.get("schema") == 1 and
+                   str(report.get("board") or "") ==
+                   os.path.basename(str(placed_board_path)))
+    if not identity_ok:
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": total, "laid": laid, "refused": refused,
+                "error": "blueprint-cell report identity mismatch",
+                "report": report_path}
+    return {"schema": 1, "ok": bool(laid >= total and not refused),
+            "applicable": True, "total": total, "laid": laid,
+            "refused": refused, "locked_segments": int(
+                report.get("locked_segments") or 0),
+            "report": report_path}
+
+
+def _force_rail_craft_evidence(placed_board_path, cfg=None):
+    """Read exact force-rail lay/refusal evidence fail closed."""
+    expected = bool(cfg is not None and
+                    (getattr(cfg, "params", None) or {}).get("force_rails"))
+    if not expected:
+        return {"schema": 1, "ok": True, "applicable": False,
+                "total": 0, "laid": 0, "refused": {}}
+    if not os.path.isfile(str(placed_board_path)):
+        return {"schema": 1, "ok": True, "applicable": False,
+                "total": 0, "laid": 0, "refused": {},
+                "note": "materialized board unavailable in test adapter"}
+    stem = (str(placed_board_path)[:-len(".kicad_pcb")]
+            if str(placed_board_path).endswith(".kicad_pcb")
+            else os.path.splitext(str(placed_board_path))[0])
+    report_path = stem + ".railreport.json"
+    if not os.path.isfile(report_path):
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": 1, "laid": 0, "refused": {},
+                "error": "force-rail report missing",
+                "report": report_path}
+    try:
+        with open(report_path, encoding="utf-8") as source:
+            report = json.load(source)
+    except Exception as exc:                              # noqa: BLE001
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": 1, "laid": 0, "refused": {},
+                "error": "force-rail report unreadable: %s" % exc,
+                "report": report_path}
+    total = int(report.get("total") or 0)
+    laid = int(report.get("laid") or 0)
+    refused = dict(report.get("refused") or {})
+    identity_ok = (report.get("schema") == 1 and
+                   str(report.get("board") or "") ==
+                   os.path.basename(str(placed_board_path)))
+    if not identity_ok:
+        return {"schema": 1, "ok": False, "applicable": True,
+                "total": total, "laid": laid, "refused": refused,
+                "error": "force-rail report identity mismatch",
+                "report": report_path}
+    return {"schema": 1, "ok": bool(laid >= total and not refused),
+            "applicable": True, "total": total, "laid": laid,
+            "refused": refused, "report": report_path}
+
+
+def _compact_switch_cell_craft_evidence(placed_board_path, cfg=None):
+    """Promote the ratified buck switch-cell constraint into placement craft.
+
+    The generic stranded-part radius is intentionally broad and cannot stand
+    in for a high-di/dt SW-to-inductor-to-output-cap loop.  Reuse the shared
+    hard constraint here so placement repair and final release grade the same
+    physical requirement.
+    """
+    if not os.path.isfile(str(placed_board_path)):
+        return {"schema": 1, "ok": True, "applicable": False,
+                "violations": [],
+                "note": "materialized board unavailable"}
+    import cec_constraints
+    import pcbnew
+
+    board = pcbnew.LoadBoard(str(placed_board_path))
+    result = cec_constraints.CHECKERS[
+        "buck-switch-cell-placement"](board, str(placed_board_path), {})
+    status = result[0]
+    detail = str(result[1] if len(result) > 1 else "")
+    if status is None:
+        return {"schema": 1, "ok": True, "applicable": False,
+                "violations": [], "detail": detail}
+    failures = []
+    if status is False:
+        body = detail.split(":", 1)[-1]
+        for text in (item.strip() for item in body.split(";")):
+            if not text:
+                continue
+            distances = [float(value) for value in re.findall(
+                r"([0-9]+(?:\.[0-9]+)?)mm", text)]
+            failures.append({
+                "detail": text,
+                "distance_mm": max(distances) if distances else None,
+            })
+    return {"schema": 1, "ok": status is True, "applicable": True,
+            "violations": failures, "detail": detail}
+
+
 def _placement_craft_cache_key(
         placed_board_path, cfg=None, *, relief_diagnostics=True):
     """Fingerprint exact board and policy inputs to placement evidence.
@@ -17524,8 +18259,16 @@ def _placement_craft_cache_key(
     if board_digest is None:
         return None
     diagnostic_mode = bool(relief_diagnostics)
+    cell_report_digest = _placement_craft_file_digest(
+        _blueprint_cell_report_path(placed_board_path))
+    stem = (str(placed_board_path)[:-len(".kicad_pcb")]
+            if str(placed_board_path).endswith(".kicad_pcb")
+            else os.path.splitext(str(placed_board_path))[0])
+    rail_report_digest = _placement_craft_file_digest(
+        stem + ".railreport.json")
     if cfg is None:
-        return (board_digest, None, diagnostic_mode)
+        return (board_digest, cell_report_digest, rail_report_digest,
+                None, diagnostic_mode)
     authority_path = (getattr(cfg, "net", None)
                       if _placement_craft_file_digest(
                           getattr(cfg, "net", None)) is not None
@@ -17541,7 +18284,8 @@ def _placement_craft_cache_key(
     encoded = json.dumps(
         policy, sort_keys=True, separators=(",", ":"), default=str
     ).encode("utf-8")
-    return (board_digest, hashlib.sha256(encoded).hexdigest(), diagnostic_mode)
+    return (board_digest, cell_report_digest, rail_report_digest,
+            hashlib.sha256(encoded).hexdigest(), diagnostic_mode)
 
 
 def placement_craft_cache_stats():
@@ -17608,6 +18352,28 @@ def _placement_craft_evidence_uncached(
     evidence = {"schema": 1, "board": os.path.basename(str(placed_board_path))}
     errors = []
     try:
+        evidence["blueprint_cell"] = _blueprint_cell_craft_evidence(
+            placed_board_path, cfg=cfg)
+        if evidence["blueprint_cell"].get("error"):
+            errors.append("blueprint_cell")
+    except Exception as exc:                              # noqa: BLE001
+        evidence["blueprint_cell"] = {
+            "schema": 1, "ok": False, "applicable": True,
+            "total": 0, "laid": 0, "refused": [],
+            "error": "%s: %s" % (type(exc).__name__, exc)}
+        errors.append("blueprint_cell")
+    try:
+        evidence["force_rail"] = _force_rail_craft_evidence(
+            placed_board_path, cfg=cfg)
+        if evidence["force_rail"].get("error"):
+            errors.append("force_rail")
+    except Exception as exc:                              # noqa: BLE001
+        evidence["force_rail"] = {
+            "schema": 1, "ok": False, "applicable": True,
+            "total": 1, "laid": 0, "refused": {},
+            "error": "%s: %s" % (type(exc).__name__, exc)}
+        errors.append("force_rail")
+    try:
         evidence["decoupler"] = _decoupler_craft_evidence(
             placed_board_path, cfg=cfg)
     except Exception as exc:                              # noqa: BLE001
@@ -17622,6 +18388,15 @@ def _placement_craft_evidence_uncached(
             "ok": False, "violations": [], "details": [],
             "error": "%s: %s" % (type(exc).__name__, exc)}
         errors.append("stranded")
+    try:
+        evidence["switch_cell"] = _compact_switch_cell_craft_evidence(
+            placed_board_path, cfg=cfg)
+    except Exception as exc:                              # noqa: BLE001
+        evidence["switch_cell"] = {
+            "schema": 1, "ok": False, "applicable": True,
+            "violations": [],
+            "error": "%s: %s" % (type(exc).__name__, exc)}
+        errors.append("switch_cell")
     try:
         if os.path.isfile(placed_board_path):
             evidence["detection_cell"] = _oracle_comparator_adjacency(
@@ -17725,8 +18500,11 @@ def _placement_craft_evidence_uncached(
 
     evidence["errors"] = errors
     evidence["ok"] = (not errors
+                      and bool(evidence["blueprint_cell"].get("ok"))
+                      and bool(evidence["force_rail"].get("ok"))
                       and bool(evidence["decoupler"].get("ok"))
                       and bool(evidence["stranded"].get("ok"))
+                      and bool(evidence["switch_cell"].get("ok"))
                       and bool(evidence["detection_cell"].get("ok"))
                       and bool(evidence["pair_launch"].get("ok"))
                       and bool(evidence["critical_terminal_order"].get("ok"))
@@ -17790,9 +18568,9 @@ def placement_craft_admission(evidence, *, allow_route_access_repair=False):
     other_blockers = []
     if evidence.get("errors"):
         other_blockers.append("placement evidence error")
-    for key in ("stranded", "detection_cell", "pair_launch",
+    for key in ("stranded", "switch_cell", "detection_cell", "pair_launch",
                 "critical_terminal_order", "pour_territory",
-                "power_body_clearance"):
+                "power_body_clearance", "blueprint_cell", "force_rail"):
         if key in evidence and not bool((evidence.get(key) or {}).get("ok")):
             other_blockers.append("%s placement evidence failed" % key)
 
@@ -17899,11 +18677,14 @@ def placement_craft_key(evidence):
     evidence = evidence if isinstance(evidence, dict) else {}
     decoupler = evidence.get("decoupler") or {}
     stranded = evidence.get("stranded") or {}
+    switch_cell = evidence.get("switch_cell") or {}
     pair_launch = evidence.get("pair_launch") or {}
     critical_order = evidence.get("critical_terminal_order") or {}
     detection_cell = evidence.get("detection_cell") or {}
     pour_territory = evidence.get("pour_territory") or {}
     power_body = evidence.get("power_body_clearance") or {}
+    blueprint_cell = evidence.get("blueprint_cell") or {}
+    force_rail = evidence.get("force_rail") or {}
     errors = len(evidence.get("errors") or ())
     if not evidence:
         errors = max(1, errors)
@@ -17911,6 +18692,7 @@ def placement_craft_key(evidence):
     stranded_rows = list(stranded.get("details") or ())
     decouple_violations = list(decoupler.get("violations") or ())
     stranded_violations = list(stranded.get("violations") or ())
+    switch_cell_violations = list(switch_cell.get("violations") or ())
     pair_violations = list(pair_launch.get("violations") or ())
     critical_violations = list(critical_order.get("violations") or ())
     detection_violations = list(detection_cell.get("violations") or ())
@@ -17920,6 +18702,8 @@ def placement_craft_key(evidence):
     if decoupler.get("error"):
         errors += 1
     if stranded.get("error"):
+        errors += 1
+    if switch_cell.get("error"):
         errors += 1
     if pair_launch.get("error"):
         errors += 1
@@ -17934,6 +18718,20 @@ def placement_craft_key(evidence):
         # them so a move which restores one of several via-field escapes is a
         # monotonic improvement instead of tying the same generic error bit.
         errors += max(1, len(power_body.get("planner_failures") or {}))
+    if blueprint_cell.get("error") and "blueprint_cell" not in (
+            evidence.get("errors") or ()):
+        errors += 1
+    if force_rail.get("error") and "force_rail" not in (
+            evidence.get("errors") or ()):
+        errors += 1
+    blueprint_refused = max(
+        len(blueprint_cell.get("refused") or ()),
+        max(0, int(blueprint_cell.get("total") or 0)
+            - int(blueprint_cell.get("laid") or 0)))
+    force_rail_refused = max(
+        len(force_rail.get("refused") or {}),
+        max(0, int(force_rail.get("total") or 0)
+            - int(force_rail.get("laid") or 0)))
     worst_decouple = max(
         [float(row.get("loop_proxy_mm") or row.get("distance_mm") or 0.0)
          for row in decouple_rows]
@@ -17988,16 +18786,20 @@ def placement_craft_key(evidence):
 
     worst_stranded = max(
         [float(row.get("distance_mm") or 0.0) for row in stranded_rows]
+        + [float(row.get("distance_mm") or 0.0)
+           for row in switch_cell_violations
+           if isinstance(row, dict)]
         + [0.0])
     # Full-population margin is a clean-board optimization, never a reason to
     # continue an unresolved blocker loop.
     polish_worst = worst_decouple if not decouple_violations else 0.0
     polish_total = total_decouple if not decouple_violations else 0.0
-    return (int(errors), len(territory_violations) + len(body_violations),
+    return (int(errors) + blueprint_refused + force_rail_refused,
+            len(territory_violations) + len(body_violations),
             len(pair_violations), len(critical_violations),
             len(detection_violations),
             missing_assignments, len(decouple_violations),
-            len(stranded_violations),
+            len(stranded_violations) + len(switch_cell_violations),
             _placement_craft_metric_mm(active_worst),
             _placement_craft_metric_mm(active_total),
             _placement_craft_metric_mm(
@@ -18140,24 +18942,32 @@ def placement_craft_blocker_certificate(evidence, last_round=None):
 
     last_round = last_round if isinstance(last_round, dict) else {}
     stranded = evidence.get("stranded") or {}
+    switch_cell = evidence.get("switch_cell") or {}
     pair_launch = evidence.get("pair_launch") or {}
     critical_order = evidence.get("critical_terminal_order") or {}
     detection_cell = evidence.get("detection_cell") or {}
     pour_territory = evidence.get("pour_territory") or {}
     power_body = evidence.get("power_body_clearance") or {}
+    blueprint_cell = evidence.get("blueprint_cell") or {}
+    force_rail = evidence.get("force_rail") or {}
     evidence_errors = list(evidence.get("errors") or ())
     stranded_violations = list(stranded.get("violations") or ())
+    switch_cell_violations = list(switch_cell.get("violations") or ())
     pair_violations = list(pair_launch.get("violations") or ())
     critical_violations = list(critical_order.get("violations") or ())
     detection_violations = list(detection_cell.get("violations") or ())
     territory_violations = list(pour_territory.get("violations") or ())
     body_violations = list(power_body.get("violations") or ())
     planner_failures = dict(power_body.get("planner_failures") or {})
+    blueprint_refusals = list(blueprint_cell.get("refused") or ())
+    force_rail_refusals = dict(force_rail.get("refused") or {})
     overlap_count = int(last_round.get("baseline_overlap") or 0)
     if evidence_errors:
         required_stages.add("placement_evidence")
     if stranded_violations:
         required_stages.add("component_locality")
+    if switch_cell_violations or switch_cell.get("error"):
+        required_stages.add("switch_cell_placement")
     if pair_violations:
         required_stages.add("critical_pair_launch")
     if critical_violations:
@@ -18166,6 +18976,10 @@ def placement_craft_blocker_certificate(evidence, last_round=None):
         required_stages.add("detection_cell_placement")
     if territory_violations or body_violations:
         required_stages.add("power_territory_placement")
+    if blueprint_refusals:
+        required_stages.add("blueprint_cell_placement")
+    if force_rail_refusals:
+        required_stages.add("force_rail_placement")
     via_field_failures = {
         net: failure for net, failure in planner_failures.items()
         if ((failure.get("planner_bottleneck") or {}).get("kind") ==
@@ -18186,11 +19000,14 @@ def placement_craft_blocker_certificate(evidence, last_round=None):
         "active_decoupler_count": len(violation_rows),
         "active_decouplers": active,
         "stranded_violations": stranded_violations,
+        "switch_cell_violations": switch_cell_violations,
         "pair_launch_violations": pair_violations,
         "critical_terminal_order_violations": critical_violations,
         "detection_cell_violations": detection_violations,
         "power_territory_violations": territory_violations,
         "power_body_clearance_violations": body_violations,
+        "blueprint_cell_refusals": blueprint_refusals,
+        "force_rail_refusals": force_rail_refusals,
         "power_via_field_failures": via_field_failures,
         "power_corridor_failures": corridor_failures,
         "collision_blockers": list(last_round.get("blocking_refs") or ()),
@@ -18200,9 +19017,11 @@ def placement_craft_blocker_certificate(evidence, last_round=None):
             "no_monotonic_legal_improvement"),
         "upstream_action_required": bool(
             evidence_errors or overlap_count or violation_rows or
-            stranded_violations or pair_violations or critical_violations or
+            stranded_violations or switch_cell_violations or
+            pair_violations or critical_violations or
             detection_violations or territory_violations or
-            body_violations or planner_failures),
+            body_violations or planner_failures or blueprint_refusals or
+            force_rail_refusals),
         "required_stages": sorted(required_stages),
     }
 
@@ -18469,6 +19288,326 @@ def _select_local_cell_placements(
         states[:max(1, int(max_variants))]]
 
 
+def _compact_switch_cell_dependencies(nl):
+    """Return topology-owned followers for supported compact buck cells.
+
+    Placement creates a TLV62569 SW->L->Cout cell using actual pad geometry.
+    Later evidence-directed bypass repair is allowed to move the regulator;
+    without this ownership map it can leave the inductor/output capacitor at
+    their old coordinates and silently destroy an already-qualified switch
+    loop.  Resolve followers from connectivity and value requirements rather
+    than board names or reference-number exceptions.
+    """
+    import cec_device_bypass
+
+    pin_net = {(str(ref), str(pin)): str(net)
+               for net, nodes in nl.nets.items()
+               for ref, pin in nodes}
+    dependencies = {}
+    for owner, comp in sorted(nl.comps.items()):
+        if "TLV62569" not in str(comp.value or "").upper():
+            continue
+        switch_net = pin_net.get((str(owner), "3"))
+        if not switch_net:
+            continue
+        inductors = []
+        for ref in nl.comps:
+            if not str(ref).startswith("L"):
+                continue
+            nodes = [(str(pin), str(net)) for net, members in nl.nets.items()
+                     for node_ref, pin in members
+                     if str(node_ref) == str(ref)]
+            switch_pins = [pin for pin, net in nodes
+                           if net == switch_net]
+            other = [(pin, net) for pin, net in nodes
+                     if net != switch_net and net]
+            if len(nodes) == 2 and len(switch_pins) == 1 and len(other) == 1:
+                inductors.append((str(ref), other[0][1]))
+        if not inductors:
+            continue
+        inductor, output_net = sorted(inductors)[0]
+        output_caps = []
+        for ref, follower in nl.comps.items():
+            if not str(ref).startswith("C"):
+                continue
+            nodes = [(str(pin), str(net)) for net, members in nl.nets.items()
+                     for node_ref, pin in members
+                     if str(node_ref) == str(ref)]
+            has_output = any(net == output_net for _pin, net in nodes)
+            has_ground = any(_is_gnd_net(net) for _pin, net in nodes)
+            farads = cec_device_bypass.capacitance_f(follower.value)
+            if (len(nodes) == 2 and has_output and has_ground
+                    and farads is not None and farads + 1e-15 >= 10e-6):
+                output_caps.append(str(ref))
+        if output_caps:
+            owner_sheet = str(comp.props.get("Sheetfile") or "")
+            output_caps.sort(key=lambda ref: (
+                0 if owner_sheet and str(
+                    nl.comps[ref].props.get("Sheetfile") or "")
+                == owner_sheet else 1,
+                ref,
+            ))
+            dependencies[str(owner)] = (
+                str(inductor), output_caps[0])
+    return dependencies
+
+
+def _compact_switch_cell_move_specs(
+        cfg, candidate, comps, *, immovable=(), max_specs=16):
+    """Generate exact-evaluated SW-L-Cout macro reseats from topology.
+
+    The initial placer already understands this cell, but a resumed board or
+    later locality repair can separate one follower.  Reconstruct a bounded
+    pad-level search from the live netlist and real courtyards so continuation
+    has the same repair language as fresh placement.  No board/ref coordinate
+    is encoded and every proposal still faces full exact craft admission.
+    """
+    import cec_pcb
+
+    nl = View(cfg).nl
+    dependencies = _compact_switch_cell_dependencies(nl)
+    if not dependencies:
+        return []
+    fixed = {str(ref) for ref in (immovable or ())}
+    pin_net = {(str(ref), str(pin)): str(net)
+               for net, nodes in nl.nets.items()
+               for ref, pin in nodes}
+    back = set(getattr(candidate, "back_refs", ()) or ())
+
+    def pad_at(ref, pin, position):
+        local = cec_pcb.local_pads(comps[ref]).get(str(pin))
+        if local is None:
+            return float(position[0]), float(position[1])
+        dx, dy = cec_pcb._rot(local[0], local[1], position[2])
+        return float(position[0]) + dx, float(position[1]) + dy
+
+    def bbox(ref, position):
+        return cec_pcb.courtyard_bbox(comps[ref], *position)
+
+    def overlaps(left, right, margin=0.05):
+        return (left[0] - margin < right[1]
+                and left[1] + margin > right[0]
+                and left[2] - margin < right[3]
+                and left[3] + margin > right[2])
+
+    moves = []
+    for owner, followers in sorted(dependencies.items()):
+        inductor, capacitor = followers
+        cluster = {owner, inductor, capacitor}
+        if (not cluster.issubset(candidate.P)
+                or not cluster.issubset(comps)
+                or inductor in fixed or capacitor in fixed):
+            continue
+        sw_net = pin_net.get((owner, "3"))
+        if not sw_net:
+            continue
+        ind_nodes = [(pin, net) for (ref, pin), net in pin_net.items()
+                     if ref == inductor]
+        in_pin = next((pin for pin, net in ind_nodes
+                       if net == sw_net), None)
+        other = next(((pin, net) for pin, net in ind_nodes
+                      if net != sw_net and net), None)
+        if not in_pin or not other:
+            continue
+        out_pin, out_net = other
+        cap_nodes = [(pin, net) for (ref, pin), net in pin_net.items()
+                     if ref == capacitor]
+        cap_pin = next((pin for pin, net in cap_nodes
+                        if net == out_net), None)
+        cap_ground = next((pin for pin, net in cap_nodes
+                           if _is_gnd_net(net)), None)
+        if not cap_pin or not cap_ground:
+            continue
+
+        fixed_boxes = {
+            ref: bbox(ref, position)
+            for ref, position in candidate.P.items()
+            if ref not in {inductor, capacitor} and ref in comps
+        }
+
+        def seat(ref, position):
+            box = bbox(ref, position)
+            if (box[0] < 0.0 or box[1] > candidate.W
+                    or box[2] < 0.0 or box[3] > candidate.H):
+                return None
+            blockers = set()
+            for other_ref, other_box in fixed_boxes.items():
+                if ((ref in back) == (other_ref in back)
+                        and overlaps(box, other_box)):
+                    # The owning package is part of the loop geometry and can
+                    # never be treated as an evictable obstruction.  Only a
+                    # small ordinary passive neighborhood may be handed to
+                    # the downstream bounded macro legalizer.
+                    if (other_ref == owner or other_ref in fixed
+                            or not re.match(r"^(?:C|R|L|D|F|TH)",
+                                            str(other_ref))):
+                        return None
+                    blockers.add(str(other_ref))
+                    if len(blockers) > 3:
+                        return None
+            return box, blockers
+
+        sw_target = pad_at(owner, "3", candidate.P[owner])
+        old_l = candidate.P[inductor]
+        old_c = candidate.P[capacitor]
+        step = 0.50
+        l_trials = []
+        for rotation in (0.0, 90.0, 180.0, 270.0):
+            local = cec_pcb.local_pads(comps[inductor]).get(
+                str(in_pin), (0.0, 0.0))
+            pdx, pdy = cec_pcb._rot(local[0], local[1], rotation)
+            for ix in range(-6, 7):
+                for iy in range(-6, 7):
+                    distance = math.hypot(ix * step, iy * step)
+                    if distance > 3.0 + 1e-9:
+                        continue
+                    position = (sw_target[0] + ix * step - pdx,
+                                sw_target[1] + iy * step - pdy,
+                                rotation)
+                    seated = seat(inductor, position)
+                    if seated is None:
+                        continue
+                    box, blockers = seated
+                    movement = math.hypot(
+                        position[0] - old_l[0], position[1] - old_l[1])
+                    l_trials.append((len(blockers),
+                                     distance + 0.005 * movement,
+                                     position, box, blockers))
+        l_trials.sort(key=lambda row: (row[0], row[1]))
+        finalists = {}
+        for _l_blocker_count, _l_score, l_position, l_box, \
+                l_blockers in l_trials[:128]:
+            l_output = pad_at(inductor, out_pin, l_position)
+            sw_distance = math.hypot(*(
+                left - right for left, right in zip(
+                    pad_at(inductor, in_pin, l_position), sw_target)))
+            for rotation in (0.0, 90.0, 180.0, 270.0):
+                local = cec_pcb.local_pads(comps[capacitor]).get(
+                    str(cap_pin), (0.0, 0.0))
+                pdx, pdy = cec_pcb._rot(local[0], local[1], rotation)
+                for ix in range(-7, 8):
+                    for iy in range(-7, 8):
+                        lc_distance = math.hypot(ix * step, iy * step)
+                        if lc_distance > 3.5 + 1e-9:
+                            continue
+                        position = (l_output[0] + ix * step - pdx,
+                                    l_output[1] + iy * step - pdy,
+                                    rotation)
+                        seated = seat(capacitor, position)
+                        if seated is None:
+                            continue
+                        box, cap_blockers = seated
+                        if overlaps(l_box, box):
+                            continue
+                        blockers = set(l_blockers) | set(cap_blockers)
+                        if len(blockers) > 3:
+                            continue
+                        movement = math.hypot(
+                            position[0] - old_c[0],
+                            position[1] - old_c[1])
+                        score = (len(blockers),
+                                 round(sw_distance + lc_distance
+                                       + 0.005 * movement, 6),
+                                 round(sw_distance, 6),
+                                 round(lc_distance, 6),
+                                 l_position, position)
+                        signature = tuple(round(float(value), 6)
+                                          for value in (*l_position,
+                                                        *position))
+                        if (signature not in finalists
+                                or score < finalists[signature][0]):
+                            finalists[signature] = (score, l_position,
+                                                     position,
+                                                     sorted(blockers))
+        ranked = sorted(finalists.values(), key=lambda row: row[0])
+        # The shortest loop can be obstructed by one physically large part,
+        # while the next orthogonal escape is obstructed by a tiny local
+        # bypass that the bounded macro legalizer can safely reseat. Taking
+        # only the first N scores repeatedly hides that entire escape family.
+        # Allocate the finite exact-evaluation budget across blocker identity
+        # and dominant launch direction, then keep each family's best-ranked
+        # members. This is topology/geometry diversity, not board-specific
+        # reference handling.
+        groups = {}
+        order = []
+        owner_position = candidate.P[owner]
+        for row in ranked:
+            _score, l_position, _c_position, blockers = row
+            dx = float(l_position[0]) - float(owner_position[0])
+            dy = float(l_position[1]) - float(owner_position[1])
+            if abs(dx) >= abs(dy):
+                direction = "right" if dx >= 0.0 else "left"
+            else:
+                direction = "below" if dy >= 0.0 else "above"
+            group = (tuple(blockers), direction)
+            if group not in groups:
+                groups[group] = []
+                order.append(group)
+            groups[group].append(row)
+        quota = _bounded_move_group_quotas(
+            groups, order, max(0, int(max_specs)))
+        selected = []
+        for group in order:
+            selected.extend(groups[group][:quota[group]])
+        selected.sort(key=lambda row: row[0])
+        for score, l_position, c_position, blockers in selected:
+            moves.append({
+                "kind": "compact_switch_cell_reseat",
+                "ref": owner, "owner_ref": owner,
+                "followers": [inductor, capacitor],
+                "external_blockers": blockers,
+                "placements": {
+                    inductor: l_position,
+                    capacitor: c_position,
+                },
+                "position": candidate.P[owner],
+                "switch_cell_rank": list(score[:4]),
+                "budget_priority": 0,
+                "priority_basis": "hard_switch_cell_placement",
+            })
+    moves.sort(key=lambda move: (
+        tuple(move.get("switch_cell_rank") or ()),
+        str(move.get("owner_ref") or "")))
+    return moves[:max(0, int(max_specs))]
+
+
+def _expand_topology_coupled_move(move, candidate, dependencies,
+                                  *, immovable=()):
+    """Carry compact-cell followers through an owning-package transform."""
+    row = dict(move)
+    placements = dict(row.get("placements") or {
+        row["ref"]: row["position"]})
+    owner = str(row.get("owner_ref") or row.get("ref") or "")
+    followers = tuple(dependencies.get(owner) or ())
+    if (owner not in placements or owner not in candidate.P or not followers
+            or any(ref not in candidate.P for ref in followers)
+            or any(ref in set(immovable or ()) for ref in followers)):
+        return row
+    old_owner = candidate.P[owner]
+    new_owner = placements[owner]
+    delta = (float(new_owner[2]) - float(old_owner[2])) % 360.0
+    angle = math.radians(delta)
+    cosine, sine = math.cos(angle), math.sin(angle)
+    carried = []
+    for ref in followers:
+        if ref in placements:
+            continue
+        old = candidate.P[ref]
+        rel_x = float(old[0]) - float(old_owner[0])
+        rel_y = float(old[1]) - float(old_owner[1])
+        placements[ref] = (
+            float(new_owner[0]) + rel_x * cosine + rel_y * sine,
+            float(new_owner[1]) - rel_x * sine + rel_y * cosine,
+            (float(old[2]) + delta) % 360.0,
+        )
+        carried.append(ref)
+    if carried:
+        row["placements"] = placements
+        row["topology_coupled_refs"] = sorted(carried)
+        row["topology_coupling"] = "compact-switch-cell"
+    return row
+
+
 def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                                 drop_antenna=False,
                                 allow_owner_translation=True):
@@ -18494,8 +19633,6 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
     def add(move):
         placements = dict(move.get("placements") or {
             move["ref"]: move["position"]})
-        if any(ref in fixed for ref in placements):
-            return
         # Incremental waves rehydrate the last admitted incumbent.  A joint
         # cell solver can legitimately rediscover that exact arrangement as
         # its first-ranked option; evaluating it again spends a scarce exact
@@ -18508,6 +19645,18 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
             delta = ((float(value[2]) - float(incumbent[2]) + 180.0)
                      % 360.0) - 180.0
             return abs(delta) <= 1e-6
+
+        # An immutable owner may still anchor a collective follower repair.
+        # Atomic proposals include that owner's unchanged transform so their
+        # geometry is self-contained; only a *material* transform of a fixed
+        # ref violates authority.  This mirrors the final admission guard and
+        # lets route-critical ICs keep their certified pose while their bypass
+        # capacitors are re-packed around the newly exposed pins.
+        if any(ref in fixed and (
+                ref not in candidate.P
+                or not same_position(value, candidate.P[ref]))
+                for ref, value in placements.items()):
+            return
 
         if placements and all(
                 ref in candidate.P
@@ -18526,8 +19675,8 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
         moves.append(move)
 
     for owner, owner_rows in sorted(by_owner.items()):
-        if owner in fixed or not any(row.get("actionable")
-                                     for row in owner_rows):
+        owner_fixed = owner in fixed
+        if not any(row.get("actionable") for row in owner_rows):
             continue
         ox, oy, owner_rotation = candidate.P[owner]
         caps = sorted({row.get("cap_ref") for row in owner_rows
@@ -18542,6 +19691,8 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
         # the IC, so it could never express a professional "leave the QFN,
         # rotate/repack its bypasses" repair.
         for delta in (0.0, 180.0, 90.0, 270.0):
+            if owner_fixed and abs(delta) > 1e-9:
+                continue
             rotation = (owner_rotation + delta) % 360.0
             if abs(delta) > 1e-9:
                 add({
@@ -18690,6 +19841,77 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
                          round(tangent_loop, 6), -1.0,
                          tangent_index, round(new_rotation, 6)),
                         (tx, ty, new_rotation)))
+
+                # Two valid bypass seats on the same package edge can overlap
+                # even though each cap's independent tangent menu is ideal.
+                # Add a bounded owner-local lattice for multi-cap cells, then
+                # let the existing courtyard-aware beam pick a collision-free
+                # joint assignment.  This mirrors a designer sliding both
+                # capacitors along the pin row instead of repeatedly evicting
+                # one into the other's only enumerated seat.
+                if (len(owner_rows) > 1
+                        and any(item.get("actionable")
+                                for item in owner_rows)):
+                    supply_bound = float(
+                        row.get("absolute_min_supply_distance_mm")
+                        if row.get("absolute_min_supply_distance_mm")
+                        is not None else
+                        (ideal_supply if ideal_supply is not None else 0.0))
+                    supply_bound += supply_limit
+                    if supply_bound > 0.0:
+                        lattice_step = 0.25
+                        lattice_span = 3.5
+                        lattice_n = int(round(
+                            lattice_span / lattice_step))
+                        for cap_delta in (delta, delta + 180.0,
+                                          delta + 90.0,
+                                          delta + 270.0):
+                            cap_angle = math.radians(cap_delta)
+                            cap_cosine, cap_sine = (
+                                math.cos(cap_angle), math.sin(cap_angle))
+                            rail_x = (rail_offset[0] * cap_cosine
+                                      + rail_offset[1] * cap_sine)
+                            rail_y = (-rail_offset[0] * cap_sine
+                                      + rail_offset[1] * cap_cosine)
+                            ground_x = (ground_offset[0] * cap_cosine
+                                        + ground_offset[1] * cap_sine)
+                            ground_y = (-ground_offset[0] * cap_sine
+                                        + ground_offset[1] * cap_cosine)
+                            new_rotation = (
+                                cap_rotation + cap_delta) % 360.0
+                            for ix in range(-lattice_n,
+                                            lattice_n + 1):
+                                for iy in range(-lattice_n,
+                                                lattice_n + 1):
+                                    nx = ox + ix * lattice_step
+                                    ny = oy + iy * lattice_step
+                                    supply_distance = math.hypot(
+                                        nx + rail_x - target_supply[0],
+                                        ny + rail_y - target_supply[1])
+                                    if supply_distance > supply_bound + 1e-9:
+                                        continue
+                                    ground_distance = min(math.hypot(
+                                        nx + ground_x - gx,
+                                        ny + ground_y - gy)
+                                        for gx, gy in targets_ground)
+                                    loop_proxy = (supply_distance
+                                                  + ground_distance)
+                                    if return_mode == \
+                                            "rail_to_rail_tangent_loop":
+                                        return_bound = float(
+                                            ideal_loop
+                                            if ideal_loop is not None
+                                            else loop_proxy) + return_limit
+                                        if loop_proxy > return_bound + 1e-9:
+                                            continue
+                                    elif (ground_distance
+                                          > return_limit + 1e-9):
+                                        continue
+                                    options.append((
+                                        (0.0, round(loop_proxy, 6),
+                                         -0.5, ix, iy,
+                                         round(new_rotation, 6)),
+                                        (nx, ny, new_rotation)))
                 cap_deltas = (delta, delta + 180.0,
                               delta + 90.0, delta + 270.0)
                 for cap_delta in cap_deltas:
@@ -18991,7 +20213,7 @@ def _decoupler_owner_move_specs(candidate, rows, *, immovable=(), comps=None,
         # centre.  The recursive call disables this family, so the search is
         # structurally bounded and every returned move still faces exact
         # courtyard, outline, critical-order, and full craft-key admission.
-        if (allow_owner_translation and comps is not None
+        if (allow_owner_translation and not owner_fixed and comps is not None
                 and any(row.get("actionable") and (
                     row.get("supply_access_ok") is False
                     or row.get("supply_access_reason")
@@ -21536,15 +22758,64 @@ def _placement_craft_move_specs(candidate, evidence, *,
         ux, uy = dx / norm, dy / norm
         px, py = -uy, ux
         moves = []
-        for fraction in (0.20, 0.30, 0.40, 0.50):
-            for offset in (0.0, 2.0, -2.0, 4.0, -4.0):
-                moves.append({
-                    "kind": "stranded_rejoin", "ref": ref,
-                    "owner_ref": nearest,
-                    "position": (x + dx * fraction + px * offset,
-                                 y + dy * fraction + py * offset,
-                                 rotation),
-                })
+        measured_gap = row.get("distance_mm")
+        limit = float(row.get("limit_mm") or 22.0)
+        if measured_gap is not None:
+            # Move by the measured PAD-EDGE deficit, not a fixed fraction of
+            # centre distance.  The old 0.20-first ordering spent a bounded
+            # wave on visibly insufficient moves for large bulk parts, while
+            # the actually useful 0.50 candidate never entered the trial
+            # budget.  Retain 2 mm of closure margin and bracket the measured
+            # transform so collision legalization has nearby alternatives.
+            travel = max(0.0, float(measured_gap) - max(0.0, limit - 2.0))
+            target = max(0.05, min(0.90, travel / norm))
+            fraction_menu = (
+                target, min(0.90, target + 0.12),
+                max(0.05, target - 0.12), 0.65, 0.50, 0.80, 0.35, 0.20)
+        else:
+            fraction_menu = (0.50, 0.65, 0.35, 0.80, 0.20)
+        fractions = []
+        for fraction in fraction_menu:
+            if not any(abs(fraction - old) <= 1e-6 for old in fractions):
+                fractions.append(float(fraction))
+        lateral = 2.0
+        if comps is not None and ref in comps:
+            try:
+                import cec_pcb
+                box = cec_pcb.courtyard_bbox(
+                    comps[ref], *candidate.P[ref],
+                    drop_keepout=(drop_antenna and
+                                  _trimmable_rf(comps[ref])))
+                short_side = min(float(box[1]) - float(box[0]),
+                                 float(box[3]) - float(box[2]))
+                lateral = max(2.0, min(8.0, short_side / 2.0 + 0.5))
+            except Exception:                       # noqa: BLE001
+                pass
+        offsets = (0.0, lateral, -lateral,
+                   2.0 * lateral, -2.0 * lateral)
+        rotations = (rotation, (rotation + 90.0) % 360.0,
+                     (rotation + 270.0) % 360.0,
+                     (rotation + 180.0) % 360.0)
+        for fraction in fractions:
+            # Try the measured translation with lateral clearance variants
+            # before spending budget on body rotations.  This keeps small
+            # ordinary passives low-disruption while still giving a large
+            # polarized/bulk package orientation freedom when needed.
+            for trial_rotation in rotations:
+                for offset in offsets:
+                    predicted_gap = (None if measured_gap is None else max(
+                        0.0, float(measured_gap) - norm * fraction))
+                    moves.append({
+                        "kind": "stranded_rejoin", "ref": ref,
+                        "owner_ref": nearest,
+                        "measured_fraction": round(fraction, 6),
+                        "predicted_gap_mm": (
+                            round(predicted_gap, 3)
+                            if predicted_gap is not None else None),
+                        "position": (x + dx * fraction + px * offset,
+                                     y + dy * fraction + py * offset,
+                                     trial_rotation),
+                    })
         families.append(moves)
     stages = set(required_stages or ())
     # Independent failed local cells need not consume one ten-minute exact
@@ -21637,6 +22908,8 @@ def placement_candidate_from_board(cfg, board_path, *, allow_routed=False):
                 "respect_antenna_keepout", True) is False),
             back_refs=back_refs),
         proxy=placement_proxy(placement), back_refs=back_refs)
+    candidate.blueprint_stamps = _declared_blueprint_stamps(
+        cfg, candidate.P)
     candidate.source_board = os.path.abspath(board_path)
     candidate.source_had_routed_copper = bool(routed)
     return candidate
@@ -22135,8 +23408,20 @@ def _placement_craft_trial_worker(payload):
         # Shapely configuration-space rebuilds per proposal.
         evidence = placement_craft_evidence(
             payload["path"], cfg=payload["cfg"],
-            relief_diagnostics=False)
-        return {"ok": True, "evidence": evidence}
+            relief_diagnostics=bool(
+                payload.get("relief_diagnostics", False)))
+        result = {"ok": True, "evidence": evidence}
+        if payload.get("physical_evidence"):
+            # Candidate selection needs exact physical legality alongside the
+            # electrical craft verdict.  Measure both in this disposable
+            # process while the materialized board is already warm; loading
+            # every candidate again in the coordinator would restore the
+            # serial KiCad bottleneck and retain native allocations there.
+            result.update({
+                "pads": _oracle_pads_in_bounds(payload["path"]),
+                "courtyards": _oracle_courtyard_overlaps(payload["path"]),
+            })
+        return result
     except Exception as exc:                         # noqa: BLE001
         return {
             "ok": False,
@@ -23043,6 +24328,7 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
     final_evidence = None
     nl = View(cfg).nl
     comps = _fp_of(nl)
+    switch_cell_dependencies = _compact_switch_cell_dependencies(nl)
     nets_by_ref = defaultdict(set)
     for net, nodes in nl.nets.items():
         for ref, _pad in nodes:
@@ -23060,8 +24346,17 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
         (cfg.params.get("anchor_local_placements") or {}).keys())
     for group in cfg.params.get("rigid_groups") or ():
         constrained.update((group.get("offsets") or {}).keys())
-    immovable = set(constrained)
-    immovable.update(str(ref) for ref in (immovable_refs or ()))
+    # ``hard_immovable`` is a materialization contract, not merely a move
+    # generator hint.  Every proposal family (including overlap separation)
+    # and every locally legalized variant must honor it.  In particular, a
+    # blueprint member may move only through its qualified rigid-cell anchor;
+    # moving one member independently invalidates the cell's internal copper.
+    absolute_immovable = set(
+        str(ref) for ref in (immovable_refs or ()))
+    absolute_immovable.update(_declared_blueprint_refs(cfg))
+    hard_immovable = set(constrained)
+    hard_immovable.update(absolute_immovable)
+    immovable = set(hard_immovable)
     immovable.update(ref for ref in candidate.P
                      if ref.startswith(("H", "FID", "LOGO")))
 
@@ -23104,6 +24399,8 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
             final_overlap = baseline_overlap
             baseline_key = placement_craft_repair_key(
                 baseline_evidence, baseline_overlap)
+            baseline_stranded_refs = _placement_stranded_refs(
+                baseline_evidence)
             row = {"round": round_index + 1,
                    "baseline_key": list(baseline_key),
                    "baseline_craft_key": list(
@@ -23162,7 +24459,7 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 # may yield minimally to a fixed electrical component. The
                 # broader ``immovable`` set still protects it from ordinary
                 # decoupler/stranded-part optimization below.
-                current, baseline_pairs, comps, immovable=constrained,
+                current, baseline_pairs, comps, immovable=hard_immovable,
                 drop_antenna=drop_antenna)
             baseline_certificate = placement_craft_blocker_certificate(
                 baseline_evidence)
@@ -23177,17 +24474,32 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 drop_antenna=drop_antenna,
                 required_stages=dispatched_stages,
                 policy_params=cfg.params)
+            switch_cell_moves = []
+            if "switch_cell_placement" in dispatched_stages:
+                switch_cell_moves = _compact_switch_cell_move_specs(
+                    cfg, current, comps, immovable=immovable,
+                    max_specs=min(16, max_trials))
             proposal_counts = defaultdict(int)
-            for proposal in overlap_moves + electrical_moves:
+            for proposal in (overlap_moves + switch_cell_moves
+                             + electrical_moves):
                 proposal_counts[str(proposal.get("kind") or "unknown")] += 1
             row["proposal_count_by_kind"] = dict(sorted(
                 proposal_counts.items()))
             selected_moves = _bounded_diverse_move_specs(
                 overlap_moves, min(max_trials, len(overlap_moves)))
             selected_moves.extend(_bounded_diverse_move_specs(
+                switch_cell_moves, max_trials - len(selected_moves)))
+            selected_moves.extend(_bounded_diverse_move_specs(
                 electrical_moves, max_trials - len(selected_moves)))
+            selected_moves = [
+                _expand_topology_coupled_move(
+                    move, current, switch_cell_dependencies,
+                    immovable=immovable)
+                for move in selected_moves
+            ]
             row["proposal_population"] = int(
-                len(overlap_moves) + len(electrical_moves))
+                len(overlap_moves) + len(switch_cell_moves)
+                + len(electrical_moves))
             row["selection_policy"] = "blocker_fair_full_extent"
             for index, move in enumerate(selected_moves):
                 row["attempted"] += 1
@@ -23202,10 +24514,13 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                     ref: move["position"]})
                 declared_slides = set(
                     move.get("declared_constrained_refs") or ())
-                if any(moved_ref in constrained
-                       and moved_ref not in declared_slides
-                       for moved_ref in placements):
-                    rejection_counts["explicitly_constrained"] += 1
+                if _placement_move_violates_authority(
+                        placements,
+                        absolute_immovable=absolute_immovable,
+                        constrained=constrained,
+                        declared_slides=declared_slides,
+                        current_positions=current.P):
+                    rejection_counts["hard_immovable"] += 1
                     continue
                 variants = [(placements, None, None)]
 
@@ -23283,6 +24598,7 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                          "power_corridor_relief_cell_reseat"
                          and move.get("escape_basis") == "diagonal")
                         or move_kind in {
+                            "compact_switch_cell_reseat",
                             "power_corridor_relief_envelope_reseat",
                             "power_corridor_relief_joint_envelope_pack",
                         })
@@ -23337,6 +24653,14 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 for variant_index, (variant, evicted, tangent_side) in enumerate(variants):
                     row["variant_attempted"] = int(
                         row.get("variant_attempted", 0)) + 1
+                    if _placement_move_violates_authority(
+                            variant,
+                            absolute_immovable=absolute_immovable,
+                            constrained=constrained,
+                            declared_slides=declared_slides,
+                            current_positions=current.P):
+                        rejection_counts["hard_immovable_variant"] += 1
+                        continue
                     trial = copy.copy(current)
                     trial.P = dict(current.P)
                     trial.P.update(variant)
@@ -23445,6 +24769,9 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                     rejection_counts["materialize_or_evidence"] += 1
                     continue
                 kind = str(move.get("kind") or "unknown")
+                new_stranded_refs = sorted(
+                    _placement_stranded_refs(evidence)
+                    - baseline_stranded_refs)
                 family = kind
                 if move.get("escape_basis"):
                     family = "%s:%s" % (
@@ -23472,6 +24799,7 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                         "stranded_violations": list(
                             (evidence.get("stranded") or {}).get(
                                 "violations") or ()),
+                        "new_stranded_refs": list(new_stranded_refs),
                         "pair_launch_violations": list(
                             (evidence.get("pair_launch") or {}).get(
                                 "violations") or ()),
@@ -23493,6 +24821,14 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 if (family_previous is None
                         or key < tuple(family_previous["key"])):
                     best_evaluated_by_family[family] = diagnostic_record()
+                # Identity is a hard monotonic invariant. A lower aggregate
+                # count may never be purchased by orphaning a component that
+                # was electrically local in the incumbent.
+                if new_stranded_refs:
+                    rejection_counts["new_stranded_ref"] += 1
+                    for stranded_ref in new_stranded_refs:
+                        blocker_hits[stranded_ref] += 1
+                    continue
                 transition = _placement_atomic_multirail_transition(
                     baseline_evidence, evidence, move)
                 if (key >= baseline_key and item.get("atomic_primary")
@@ -23732,6 +25068,15 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 except Exception:                       # noqa: BLE001
                     rejection_counts[
                         "atomic_materialize_or_evidence"] += 1
+                    continue
+                new_stranded_refs = sorted(
+                    _placement_stranded_refs(evidence)
+                    - baseline_stranded_refs)
+                if new_stranded_refs:
+                    rejection_counts[
+                        "atomic_new_stranded_ref"] += 1
+                    for stranded_ref in new_stranded_refs:
+                        blocker_hits[stranded_ref] += 1
                     continue
                 if atomic_best_key is None or key < atomic_best_key:
                     atomic_best_key = key
@@ -24060,6 +25405,15 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                     rejection_counts[
                         "atomic_grandchild_materialize_or_evidence"] += 1
                     continue
+                new_stranded_refs = sorted(
+                    _placement_stranded_refs(evidence)
+                    - baseline_stranded_refs)
+                if new_stranded_refs:
+                    rejection_counts[
+                        "atomic_grandchild_new_stranded_ref"] += 1
+                    for stranded_ref in new_stranded_refs:
+                        blocker_hits[stranded_ref] += 1
+                    continue
                 if grandchild_best_key is None or key < grandchild_best_key:
                     grandchild_best_key = key
                     grandchild_best_record = {
@@ -24159,6 +25513,15 @@ def repair_placement_craft(cfg, candidate, *, max_trials=24, rounds=2,
                 except Exception:                       # noqa: BLE001
                     rejection_counts[
                         "compound_materialize_or_evidence"] += 1
+                    continue
+                new_stranded_refs = sorted(
+                    _placement_stranded_refs(evidence)
+                    - baseline_stranded_refs)
+                if new_stranded_refs:
+                    rejection_counts[
+                        "compound_new_stranded_ref"] += 1
+                    for stranded_ref in new_stranded_refs:
+                        blocker_hits[stranded_ref] += 1
                     continue
                 if key >= baseline_key:
                     rejection_counts["compound_not_monotonic"] += 1
@@ -32006,6 +33369,211 @@ def _ensure_netlist_path(cfg):
     return out
 
 
+def _lay_declared_blueprint_cells(cand, cfg, out):
+    """Lay and certify declarative rigid-cell copper on an existing board."""
+    stamps = _declared_blueprint_stamps(cfg, cand.P)
+    if not stamps:
+        stamps = list(getattr(cand, "blueprint_stamps", None) or ())
+    report_path = _blueprint_cell_report_path(out)
+    try:
+        os.unlink(report_path)
+    except OSError:
+        pass
+    if not stamps:
+        return None
+
+    import cec_cell_extract
+    import pcbnew
+
+    board = pcbnew.LoadBoard(out)
+    footprints = {fp.GetReference(): fp for fp in board.GetFootprints()}
+    locked_segments = laid_cells = 0
+    refused_rows = []
+    for index, stamp in enumerate(stamps):
+        expected, _ = cec_cell_extract.stamp(
+            stamp["template"], at_mm=tuple(stamp["at_mm"]),
+            rot=float(stamp.get("rot", 0.0)),
+            ref_map=stamp.get("ref_map") or {},
+            net_map=stamp.get("net_map"))
+        mismatches = []
+        for ref, (x, y, rotation, flipped) in sorted(expected.items()):
+            footprint = footprints.get(ref)
+            if footprint is None:
+                mismatches.append("%s missing" % ref)
+                continue
+            live = footprint.GetPosition()
+            dx = abs(live.x / 1e6 - float(x))
+            dy = abs(live.y / 1e6 - float(y))
+            dr = abs(((footprint.GetOrientationDegrees()
+                       - float(rotation) + 180.0) % 360.0) - 180.0)
+            if (dx > 0.02 or dy > 0.02 or dr > 0.05
+                    or bool(footprint.IsFlipped()) != bool(flipped)):
+                mismatches.append(
+                    "%s pose delta=(%.3f,%.3f,%.3f) face=%s/%s" % (
+                        ref, dx, dy, dr,
+                        "B" if footprint.IsFlipped() else "F",
+                        "B" if flipped else "F"))
+        if mismatches:
+            laid = {"refused": True,
+                    "reason": "blueprint pose mismatch: %s" %
+                    "; ".join(mismatches[:4])}
+        else:
+            _, copper = cec_cell_extract.stamp(
+                stamp["template"], board=board,
+                at_mm=tuple(stamp["at_mm"]),
+                rot=float(stamp.get("rot", 0.0)),
+                ref_map=stamp.get("ref_map") or {},
+                net_map=stamp.get("net_map"), lay=True, apply=False)
+            laid = copper.get("laid", {})
+        if laid.get("refused"):
+            refused_rows.append({
+                "index": int(index),
+                "template": str(stamp.get("template_source") or
+                                (stamp.get("template") or {}).get(
+                                    "meta", {}).get("generator") or
+                                "inline-blueprint"),
+                "refs": sorted({
+                    str(ref) for ref in
+                    (stamp.get("ref_map") or {}).values() if ref}),
+                "reason": str(laid.get("reason") or
+                              "whole-cell copper refused"),
+            })
+            _tc.warn_once(
+                "blueprint_refuse",
+                "blueprint cell copper REFUSED: %s" % laid.get("reason"))
+        else:
+            laid_cells += 1
+            locked_segments += int(laid.get("laid_tracks", 0))
+            locked_segments += int(laid.get("laid_vias", 0))
+
+    if (getattr(cfg, "params", None) or {}).get("force_lanes"):
+        import cec_force_lanes
+        lanes = cec_force_lanes.lay_force_lanes(board, lock=True)
+        bad = {key: value for key, value in lanes.items()
+               if not isinstance(value, dict)}
+        print("[materialize] force lanes: %d/6 laid%s" % (
+            6 - len(bad),
+            (" -- " + "; ".join("lane %s %s" % row
+                                  for row in sorted(bad.items())))
+            if bad else ""), file=sys.stderr)
+    pcbnew.SaveBoard(out, board)
+    report = {
+        "schema": 1, "board": os.path.basename(str(out)),
+        "total": len(stamps), "laid": int(laid_cells),
+        "locked_segments": int(locked_segments),
+        "refused": refused_rows,
+    }
+    with open(report_path, "w", encoding="utf-8") as destination:
+        json.dump(report, destination, indent=2, sort_keys=True)
+        destination.write("\n")
+    print("[materialize] blueprint cells: laid %d LOCKED segment(s), "
+          "%d cell(s) refused" % (
+              locked_segments, len(refused_rows)), file=sys.stderr)
+    return report
+
+
+def _lay_declared_force_rails(cfg, out):
+    """Lay, report, and compile declarative shared-bus current rails."""
+    report_path = (str(out)[:-len(".kicad_pcb")]
+                   if str(out).endswith(".kicad_pcb")
+                   else os.path.splitext(str(out))[0]) + ".railreport.json"
+    try:
+        os.unlink(report_path)
+    except OSError:
+        pass
+    if not (cfg and cfg.params.get("force_rails")):
+        return []
+    try:
+        import cec_force_rails
+        import cec_fab_profile
+        import pcbnew
+
+        board = pcbnew.LoadBoard(out)
+        alternate = cfg.params.get("rail_alt_layer")
+        escape_layers = tuple(
+            layer for layer in cec_fab_profile.routing_layers(board)
+            if layer not in {"F.Cu", "B.Cu", alternate})
+        laid = cec_force_rails.lay_force_rails(
+            board, lock=True, alt_layer=alternate,
+            mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")),
+            escape_layers=escape_layers)
+        patches = (laid.pop("_patches", None) or {}).get("pours") or []
+        if patches and os.environ.get("CEC_ABLATE_RAIL_PATCHES") == "1":
+            print("[materialize] landing zones ABLATED (%d patch(es) "
+                  "skipped, CEC_ABLATE_RAIL_PATCHES=1)" % len(patches),
+                  file=sys.stderr)
+            patches = []
+        if patches:
+            try:
+                import cec_fr
+                try:
+                    import cec_slab_pour
+                    neighborhoods = cec_slab_pour.shunt_neighborhoods(board)
+                except Exception:                         # noqa: BLE001
+                    neighborhoods = []
+                kept = []
+                for patch in patches:
+                    if (patch.get("layer", "F.Cu") != "F.Cu"
+                            or not neighborhoods):
+                        kept.append(patch)
+                        continue
+                    xs = [point[0] for point in
+                          patch.get("polygon") or ()]
+                    ys = [point[1] for point in
+                          patch.get("polygon") or ()]
+                    if xs and any(not (
+                            max(xs) < box[0] or box[2] < min(xs)
+                            or max(ys) < box[1] or box[3] < min(ys))
+                            for box in neighborhoods):
+                        kept.append(patch)
+                    else:
+                        print("[materialize] landing zone DROPPED (top, "
+                              "non-shunt): %s" % patch.get("net"),
+                              file=sys.stderr)
+                patches = kept
+                cec_fr.add_power_pours(board, patches, fill=True)
+                print("[materialize] landing zones: %d rectangular "
+                      "patch(es)" % len(patches), file=sys.stderr)
+            except Exception as exc:                      # noqa: BLE001
+                print("[materialize] landing zones FAILED: %s: %s" % (
+                    type(exc).__name__, exc), file=sys.stderr)
+        if laid:
+            pcbnew.SaveBoard(out, board)
+        refused = {key: value for key, value in laid.items()
+                   if not isinstance(value, dict)}
+        print("[materialize] force rails: %d/%d laid%s" % (
+            len(laid) - len(refused), len(laid),
+            (" -- " + "; ".join("%s %s" % row
+                                  for row in sorted(refused.items())))
+            if refused else ""), file=sys.stderr)
+        with open(report_path, "w", encoding="utf-8") as destination:
+            json.dump({
+                "schema": 1, "board": os.path.basename(str(out)),
+                "total": len(laid), "laid": len(laid) - len(refused),
+                "refused": {key: str(value)
+                            for key, value in refused.items()},
+            }, destination, indent=1, sort_keys=True)
+            destination.write("\n")
+
+        rails = cec_force_rails.discover_rails(board)
+        j3_y = [pad[2] for rail in rails for pad in rail["j3"]]
+        chains = cec_force_rails.plan_rail_chains(
+            rails, max(j3_y) if j3_y else 8.0,
+            alt=bool(cfg.params.get("rail_alt_layer")))
+        asks = cec_force_rails.compile_rail_pour_asks(
+            rails, chains, alt_layer=cfg.params.get("rail_alt_layer"),
+            mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")),
+            laid_report=laid)
+        if asks:
+            print("[materialize] pour compiler: %d rail pour ask(s)" %
+                  len(asks), file=sys.stderr)
+        return asks
+    except Exception as exc:                              # noqa: BLE001
+        print("[materialize] force rails FAILED: %s: %s" % (
+            type(exc).__name__, exc), file=sys.stderr)
+        return []
+
+
 def _materialize_rehydrated_board(cand, cfg, out):
     """Clone an existing unrouted board and apply a repaired placement.
 
@@ -32090,11 +33658,13 @@ def _materialize_rehydrated_board(cand, cfg, out):
         raise RuntimeError(
             "rehydrated board lost project rule authority: %s" %
             rule_authority.get("reason", "unknown"))
+    _lay_declared_blueprint_cells(cand, cfg, out)
+    rail_asks = _lay_declared_force_rails(cfg, out)
     try:
         import cec_pourplan
         plan = cec_pourplan.PourPlan.from_board(
-            out, asks=tuple((cfg.params if cfg else {}).get(
-                "pour_asks") or ()))
+            out, asks=(tuple((cfg.params if cfg else {}).get(
+                "pour_asks") or ()) + tuple(rail_asks)))
         with open(out_stem + ".pourplan.json", "w") as output:
             json.dump(plan.to_dict(), output, indent=1, sort_keys=True)
     except Exception as exc:                              # noqa: BLE001
@@ -32230,22 +33800,79 @@ def materialize(cand, cfg, out, *, logo=None):
     # placed the cell parts at their p4b positions); now lay each cell's INTERNAL copper as real LOCKED
     # tracks/vias -- guard-checked against foreign copper (whole-cell refusal). Placement candidates
     # carry no copper (like fiducials); the copper is laid HERE at materialize. No stamps -> untouched.
-    _bp_stamps = list(getattr(cand, "blueprint_stamps", None) or ())
+    _bp_stamps = _declared_blueprint_stamps(cfg, cand.P)
+    if not _bp_stamps:
+        _bp_stamps = list(
+            getattr(cand, "blueprint_stamps", None) or ())
+    _bp_report_path = _blueprint_cell_report_path(out)
+    try:
+        os.unlink(_bp_report_path)
+    except OSError:
+        pass
     if _bp_stamps:
         import cec_cell_extract
         import pcbnew
         _bpb = pcbnew.LoadBoard(out)
-        _laid = _refused = 0
-        for _st in _bp_stamps:
-            _, _cop = cec_cell_extract.stamp(_st["template"], board=_bpb,
-                                             at_mm=tuple(_st["at_mm"]), rot=float(_st.get("rot", 0.0)),
-                                             ref_map=_st.get("ref_map") or {}, net_map=_st.get("net_map"),
-                                             lay=True, apply=False)
-            _rep = _cop.get("laid", {})
+        _bp_footprints = {
+            fp.GetReference(): fp for fp in _bpb.GetFootprints()}
+        _laid = _refused = _laid_cells = 0
+        _refused_rows = []
+        for _bp_index, _st in enumerate(_bp_stamps):
+            _expected, _ = cec_cell_extract.stamp(
+                _st["template"], at_mm=tuple(_st["at_mm"]),
+                rot=float(_st.get("rot", 0.0)),
+                ref_map=_st.get("ref_map") or {},
+                net_map=_st.get("net_map"))
+            _pose_mismatches = []
+            for _ref, (_x, _y, _rotation, _flipped) in sorted(
+                    _expected.items()):
+                _fp = _bp_footprints.get(_ref)
+                if _fp is None:
+                    _pose_mismatches.append("%s missing" % _ref)
+                    continue
+                _live = _fp.GetPosition()
+                _dx = abs(_live.x / 1e6 - float(_x))
+                _dy = abs(_live.y / 1e6 - float(_y))
+                _dr = abs(((_fp.GetOrientationDegrees()
+                            - float(_rotation) + 180.0) % 360.0) - 180.0)
+                if (_dx > 0.02 or _dy > 0.02 or _dr > 0.05
+                        or bool(_fp.IsFlipped()) != bool(_flipped)):
+                    _pose_mismatches.append(
+                        "%s pose delta=(%.3f,%.3f,%.3f) face=%s/%s" % (
+                            _ref, _dx, _dy, _dr,
+                            "B" if _fp.IsFlipped() else "F",
+                            "B" if _flipped else "F"))
+            if _pose_mismatches:
+                _rep = {
+                    "refused": True,
+                    "reason": "blueprint pose mismatch: %s" %
+                    "; ".join(_pose_mismatches[:4]),
+                }
+            else:
+                _, _cop = cec_cell_extract.stamp(
+                    _st["template"], board=_bpb,
+                    at_mm=tuple(_st["at_mm"]),
+                    rot=float(_st.get("rot", 0.0)),
+                    ref_map=_st.get("ref_map") or {},
+                    net_map=_st.get("net_map"), lay=True, apply=False)
+                _rep = _cop.get("laid", {})
             if _rep.get("refused"):
                 _refused += 1
+                _refused_rows.append({
+                    "index": int(_bp_index),
+                    "template": str(_st.get("template_source") or
+                                    (_st.get("template") or {}).get(
+                                        "meta", {}).get("generator") or
+                                    "inline-blueprint"),
+                    "refs": sorted({
+                        str(ref) for ref in
+                        (_st.get("ref_map") or {}).values() if ref}),
+                    "reason": str(_rep.get("reason") or
+                                  "whole-cell copper refused"),
+                })
                 _tc.warn_once("blueprint_refuse", "blueprint cell copper REFUSED: %s" % _rep.get("reason"))
             else:
+                _laid_cells += 1
                 _laid += _rep.get("laid_tracks", 0) + _rep.get("laid_vias", 0)
         # FORCE LANES (owner rung 2026-07-11, "the trace routing to and from the
         # shunts needs to be SET and not infringed on"): lay the DRC-proven fat
@@ -32263,6 +33890,16 @@ def materialize(cand, cfg, out, *, logo=None):
                      (" -- " + "; ".join("lane %s %s" % kv for kv in sorted(_bad.items())))
                      if _bad else ""), file=sys.stderr)
         pcbnew.SaveBoard(out, _bpb)
+        with open(_bp_report_path, "w", encoding="utf-8") as _bp_file:
+            json.dump({
+                "schema": 1,
+                "board": os.path.basename(str(out)),
+                "total": len(_bp_stamps),
+                "laid": int(_laid_cells),
+                "locked_segments": int(_laid),
+                "refused": _refused_rows,
+            }, _bp_file, indent=2, sort_keys=True)
+            _bp_file.write("\n")
         print("[materialize] blueprint cells: laid %d LOCKED segment(s), %d cell(s) refused"
               % (_laid, _refused), file=sys.stderr)
     # FORCE RAILS (owner GO 2026-07-19, "the 24 pin is pretty much fully gated on
@@ -32278,11 +33915,17 @@ def materialize(cand, cfg, out, *, logo=None):
     if cfg and cfg.params.get("force_rails"):
         try:
             import cec_force_rails
+            import cec_fab_profile
             import pcbnew as _pcb_fr
             _rlb = _pcb_fr.LoadBoard(out)
+            _rail_alt = cfg.params.get("rail_alt_layer")
+            _rail_escape = tuple(
+                ln for ln in cec_fab_profile.routing_layers(_rlb)
+                if ln not in {"F.Cu", "B.Cu", _rail_alt})
             _frr = cec_force_rails.lay_force_rails(
-                _rlb, lock=True, alt_layer=cfg.params.get("rail_alt_layer"),
-                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")))
+                _rlb, lock=True, alt_layer=_rail_alt,
+                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")),
+                escape_layers=_rail_escape)
             # RECTANGULAR landing zones (owner 2026-07-20: no pill fields) --
             # laid + filled here so every render shows real rectangles
             _fpatch = (_frr.pop("_patches", None) or {}).get("pours") or []
@@ -32363,7 +34006,8 @@ def materialize(cand, cfg, out, *, logo=None):
                 alt=bool(cfg.params.get("rail_alt_layer")))
             _rail_asks = cec_force_rails.compile_rail_pour_asks(
                 _rl2, _ch2, alt_layer=cfg.params.get("rail_alt_layer"),
-                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")))
+                mirror_bcu=bool(cfg.params.get("rail_mirror_bcu")),
+                laid_report=_frr)
             if _rail_asks:
                 print("[materialize] pour compiler: %d rail pour ask(s)"
                       % len(_rail_asks), file=sys.stderr)

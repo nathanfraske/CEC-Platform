@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -457,6 +458,39 @@ def power_path_anchor_placements(plan):
     return {
         **plan.get("fixed_power_path_placements_mm", {}),
         **plan.get("placements_mm", {}),
+    }
+
+
+def centered_interface_anchor_placements(plan, outline_width_mm, *,
+                                         terminal_edge_y_mm):
+    """Translate a qualified interface macro into a fresh board frame.
+
+    Contract placements are often authored in an existing PCB coordinate
+    frame.  Their relative terminal spacing, auxiliary-header offset, and
+    rotations are mechanical authority; the absolute origin is not.  Center
+    the complete macro on the requested outline and place the primary terminal
+    row at the declared edge datum without rescaling or repacking any member.
+    """
+    placements = power_path_anchor_placements(plan)
+    if not placements:
+        return {}
+    primary = [ref for ref in plan.get("refs", {}) if ref in placements]
+    if not primary:
+        raise ValueError("qualified interface macro has no primary terminals")
+    try:
+        width = float(outline_width_mm)
+        edge_y = float(terminal_edge_y_mm)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("interface target frame must be numeric") from exc
+    if not math.isfinite(width) or width <= 0.0 or not math.isfinite(edge_y):
+        raise ValueError("interface target frame must be finite and positive")
+    xs = [float(row[0]) for row in placements.values()]
+    primary_ys = [float(placements[ref][1]) for ref in primary]
+    dx = width / 2.0 - (min(xs) + max(xs)) / 2.0
+    dy = edge_y - min(primary_ys)
+    return {
+        ref: (float(row[0]) + dx, float(row[1]) + dy, float(row[2]))
+        for ref, row in placements.items()
     }
 
 

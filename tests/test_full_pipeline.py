@@ -16,9 +16,125 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import cec_full_pipeline as pipeline
+import cec_continue_placement as continuation
 
 
 class FullPipelineJournalTests(unittest.TestCase):
+    def test_placement_continuation_refuses_unlocked_routing(self):
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "routed.kicad_pcb"
+            source.write_text("fixture", encoding="utf-8")
+            unlocked = SimpleNamespace(
+                IsLocked=lambda: False,
+                GetClass=lambda: "PCB_TRACK",
+                GetNetname=lambda: "/USB_D+",
+                m_Uuid=SimpleNamespace(AsString=lambda: "route-uuid"),
+            )
+            board = SimpleNamespace(GetTracks=lambda: [unlocked])
+
+            with mock.patch("pcbnew.LoadBoard", return_value=board):
+                with self.assertRaisesRegex(
+                        RuntimeError, "refuses unlocked detailed routing"):
+                    continuation.continue_placement(
+                        board_name="hub-standard-rev2",
+                        input_board=source,
+                        output_board=Path(temp) / "out.kicad_pcb")
+
+    def test_replacement_outline_uses_real_edge_cuts(self):
+        source = SimpleNamespace(W=80.0, H=50.0, x0=10.0, y0=20.0)
+        cfg = SimpleNamespace(
+            params={"bootstrap_outline_mm": [86.0, 95.0]})
+
+        resolved, evidence = pipeline._replacement_source_outline(cfg, source)
+
+        self.assertIs(resolved, source)
+        self.assertEqual(evidence["mode"], "edge_cuts")
+        self.assertEqual(evidence["outline_mm"], [80.0, 50.0])
+
+    def test_replacement_outline_bootstraps_only_from_explicit_policy(self):
+        source = SimpleNamespace(W=0.0, H=0.0, x0=0.0, y0=0.0)
+        cfg = SimpleNamespace(
+            params={"bootstrap_outline_mm": [86.0, 95.0]})
+
+        resolved, evidence = pipeline._replacement_source_outline(cfg, source)
+
+        self.assertIsNot(resolved, source)
+        self.assertEqual((resolved.W, resolved.H), (86.0, 95.0))
+        self.assertEqual((source.W, source.H), (0.0, 0.0))
+        self.assertEqual(evidence["mode"], "declared_bootstrap")
+
+    def test_replacement_outline_rejects_outline_less_undeclared_source(self):
+        source = SimpleNamespace(W=0.0, H=0.0, x0=0.0, y0=0.0)
+        cfg = SimpleNamespace(params={})
+
+        with self.assertRaisesRegex(
+                pipeline.PipelineBlocked, "declares no bootstrap_outline_mm"):
+            pipeline._replacement_source_outline(cfg, source)
+
+    def test_placement_reader_missing_outline_is_explicit_opt_in(self):
+        import cec_synth_pipeline as synth
+
+        board = SimpleNamespace(GetFootprints=lambda: [])
+        with mock.patch("pcbnew.LoadBoard", return_value=board), \
+                mock.patch(
+                    "cec_board_geometry.outline_bbox_mm",
+                    side_effect=ValueError("no closed outline")):
+            with self.assertRaisesRegex(ValueError, "no closed outline"):
+                synth.read_placement("staging.kicad_pcb")
+            unresolved = synth.read_placement(
+                "staging.kicad_pcb", allow_missing_outline=True)
+
+        self.assertEqual((unresolved.W, unresolved.H), (0.0, 0.0))
+        self.assertEqual((unresolved.x0, unresolved.y0), (0.0, 0.0))
+
+    def test_schematic_first_normalization_uses_working_copy_and_retires_orphans(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            canonical = temp / "canonical.kicad_pcb"
+            canonical.write_text("canonical", encoding="utf-8")
+            schematic = temp / "current.kicad_sch"
+            schematic.write_text("schematic", encoding="utf-8")
+            cfg = SimpleNamespace(
+                sch=str(schematic), params={}, dir=str(temp),
+                pcb=str(canonical))
+
+            def copy_source(source, destination, cfg=None):
+                del cfg
+                destination = Path(destination)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, destination)
+                return [str(destination)]
+
+            first = {
+                "unexpected_board_refs": ["J_OLD"],
+                "missing_schematic_refs": [],
+                "added_refs": ["C_NEW"],
+                "replaced_footprints": [],
+            }
+            final = {
+                "unexpected_board_refs": [],
+                "missing_schematic_refs": [],
+            }
+            with mock.patch.object(
+                    pipeline, "_copy_sidecars", side_effect=copy_source), \
+                    mock.patch(
+                        "cec_sync_pcb_from_schematic.synchronize",
+                        side_effect=[first, final]) as synchronize:
+                result = pipeline._normalize_schematic_first_source(
+                    cfg, canonical, temp / "run")
+
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["retired_refs"], ["J_OLD"])
+            self.assertEqual(result["added_refs"], ["C_NEW"])
+            self.assertEqual(synchronize.call_count, 2)
+            self.assertEqual(
+                synchronize.call_args_list[1].kwargs["remove_refs"],
+                ("J_OLD",))
+            self.assertTrue(
+                synchronize.call_args_list[0].kwargs["rip_all_copper"])
+            self.assertEqual(canonical.read_text(encoding="utf-8"),
+                             "canonical")
+
     def test_dashboard_stage_declares_pipeline_lineage_authority(self):
         cfg = SimpleNamespace(board="pcie-8pin-2port")
         with mock.patch(
@@ -867,6 +983,16 @@ class FullPipelineManifestTests(unittest.TestCase):
 
 
 class FullPipelineRouteStageTests(unittest.TestCase):
+
+    def test_admitted_priority_placement_is_stable_unless_opted_in(self):
+        cfg = SimpleNamespace(params={})
+        self.assertTrue(pipeline._preserve_admitted_priority_placement(
+            cfg, {"ok": True}))
+        self.assertFalse(pipeline._preserve_admitted_priority_placement(
+            cfg, {"ok": False}))
+        cfg.params["placement_optimize_feasible_routes"] = True
+        self.assertFalse(pipeline._preserve_admitted_priority_placement(
+            cfg, {"ok": True}))
     def test_power_authority_placement_delta_is_rotation_aware(self):
         delta = pipeline._placement_delta(
             {"J1": (10.0, 5.0, 359.0), "J2": (2.0, 3.0, 0.0)},

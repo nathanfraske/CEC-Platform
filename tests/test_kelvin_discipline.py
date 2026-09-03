@@ -136,6 +136,11 @@ class _Board:
         r99 = _fp(self.b, "R99", "GND-blocker")
         _pad_smd(r99, "1", self.gnd, 11.68, 6.6, 0.4, 0.4)
 
+    def gnd_canonical_wall(self):
+        """Block every legal package-normal HI run while naming one obstacle."""
+        r99 = _fp(self.b, "R99", "GND-canonical-wall")
+        _pad_smd(r99, "1", self.gnd, 12.0, 8.0, 4.0, 0.4)
+
     def synth(self):
         return cec_fr.synthesize_kelvin_taps(self.b, kelvin_pairs=PAIR)
 
@@ -289,6 +294,23 @@ class CanonicalOrRefuse(unittest.TestCase):
         labels = [x for v in rep["by_net"].values() for x in v]
         self.assertTrue(all("(canonical)" in x for x in labels), labels)
 
+    def test_locked_mode_tries_bounded_canonical_run_variants(self):
+        """A blocked 0.9 mm lane may use another package-normal run length.
+
+        This remains the same three-leg textbook topology; it is not permission
+        to use the unrestricted dogleg/diagonal fallback on stamped cells.
+        """
+        w = _Board()
+        w.locked_trunk()
+        w.gnd_blocker()
+        before = _snap(w.b)
+        rep = w.synth()
+        new = _snap(w.b) - before
+        hi = [segment for segment in new if segment[4] == HI]
+        self.assertTrue(hi, rep)
+        self.assertTrue(all(_is_ortho(segment) for segment in hi), hi)
+        self.assertFalse(rep["refused"].get(HI), rep)
+
     def test_locked_mode_suppresses_vbus_bridge(self):
         w = _Board()
         w.locked_trunk()
@@ -306,7 +328,7 @@ class CanonicalOrRefuse(unittest.TestCase):
         REFUSES with the blocker NAMED and lays nothing on that net."""
         w = _Board()
         w.locked_trunk()
-        w.gnd_blocker()
+        w.gnd_canonical_wall()
         before = _snap(w.b)
         rep = w.synth()
         new = _snap(w.b) - before

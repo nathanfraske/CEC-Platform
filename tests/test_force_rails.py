@@ -150,6 +150,8 @@ class TestDiscovery(unittest.TestCase):
                        for p in rl["j3"]]
             q["tb"] = [tuple(list(p[:3]) + [axis2 - p[3]] + list(p[4:]))
                       for p in rl["tb"]]
+            if rl.get("tb_escape_y") is not None:
+                q["tb_escape_y"] = axis2 - rl["tb_escape_y"]
             rev.append(q)
         back = FR.plan_rail_chains(rev, max(q[2] for q in rev[0]["j3"]))
         for kind in ("src", "snk"):
@@ -160,6 +162,75 @@ class TestDiscovery(unittest.TestCase):
                     round(y2, 6), w, tag)
                    for x1, y1, x2, y2, w, tag in back["RS2"][kind]}
             self.assertEqual(got, want)
+
+    def test_monolithic_terminal_escapes_per_leg_before_full_width_band(self):
+        rail = dict(FR.discover_rails(_mkboard())[0])
+        rail["tb"] = [
+            ("TB2", str(index), x, y, 1.25, True)
+            for index, (x, y) in enumerate(
+                ((18.0, 48.0), (22.0, 48.0),
+                 (18.0, 50.0), (22.0, 50.0)), start=1)
+        ]
+        rail["tb_escape_y"] = 45.0
+        plan = FR._plan_rail_chains_forward(
+            [rail], max(q[2] for q in rail["j3"]))["RS2"]
+
+        self.assertLessEqual(plan["snk_band"][2], 45.0)
+        leg_drops = plan["snk"][-4:]
+        self.assertEqual({segment[4] for segment in leg_drops}, {1.25})
+
+    def test_sink_scheduler_puts_widest_collector_at_terminal_edge(self):
+        items = [
+            {"key": "wide", "w": 5.0, "x_lo": 10.0, "x_hi": 50.0},
+            {"key": "left", "w": 3.0, "x_lo": 12.0, "x_hi": 20.0},
+            {"key": "right", "w": 3.0, "x_lo": 38.0, "x_hi": 46.0},
+        ]
+        rows, _depth = FR.plan_bands(
+            items, 0.0, y0_off=0.0, widest_first=True)
+
+        self.assertLess(rows["wide"], rows["left"])
+        self.assertLess(rows["wide"], rows["right"])
+
+    def test_sink_commit_priority_is_widest_then_current(self):
+        rails = [
+            {"rs": "RS1", "amps": 12.0, "lo": (20.0, 0.0),
+             "tb": [("TB1", "1", 24.0, 0.0, 1.0, True)]},
+            {"rs": "RS3", "amps": 20.0, "lo": (30.0, 0.0),
+             "tb": [("TB3", "1", 50.0, 0.0, 1.0, True)]},
+            {"rs": "RS2", "amps": 20.0, "lo": (40.0, 0.0),
+             "tb": [("TB2", "1", 44.0, 0.0, 1.0, True)]},
+        ]
+        order = sorted(rails, key=FR._sink_priority)
+
+        self.assertEqual([rail["rs"] for rail in order],
+                         ["RS3", "RS2", "RS1"])
+
+    def test_pour_compiler_follows_actual_side_layers_and_nets(self):
+        rail = {
+            "rs": "RS4", "src_net": "/SRC", "snk_net": "/SNK",
+            "j3": [("1", 10.0, 40.0, 1.0, True)],
+            "tb": [("TB4", "1", 10.0, 2.0, 1.0, True)],
+        }
+        chains = {"RS4": {
+            "w": 1.5, "band_y": 35.0, "body": "alt",
+            "src": [(8.0, 35.0, 12.0, 35.0, 1.5, "alt")],
+            "snk": [(8.0, 8.0, 12.0, 8.0, 1.5, "alt")],
+            "snk_desc": (10.0, 20.0, 8.0, 1.5),
+        }}
+        asks = FR.compile_rail_pour_asks(
+            [rail], chains, alt_layer="In3.Cu", mirror_bcu=False,
+            laid_report={"RS4": {
+                "source_layer": "B.Cu", "sink_layer": "In2.Cu"}})
+
+        self.assertTrue(any(a["net"] == "/SRC"
+                            and a["layers"] == ("B.Cu",) for a in asks))
+        self.assertTrue(any(a["net"] == "/SNK"
+                            and a["layers"] == ("In2.Cu",) for a in asks))
+        sink_trunk = [a for a in asks
+                      if a["region_hint"][1] <= 8.0 <= a["region_hint"][3]
+                      and a["layers"] == ("In2.Cu",)]
+        self.assertTrue(sink_trunk)
+        self.assertEqual({a["net"] for a in sink_trunk}, {"/SNK"})
 
     def test_tht_probe_reserves_inner_power_runs(self):
         rails = FR.discover_rails(_mkboard_alt())

@@ -518,6 +518,12 @@ def _local_supply_limit_mm(direct_mm, class_width_mm=0.25,
 
 def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
                      group_neckdowns=True, link_role="supply"):
+    # Reuse exact foreign-copper shapes throughout this one link search.
+    # Candidate via seats and maze legs see an immutable board until a winner
+    # is accepted, so rebuilding every pad/track shape for every seat is pure
+    # quadratic work.  Keep the cache local: an accepted link mutates the
+    # board before the next bypass cell is evaluated.
+    foreign_cache = {}
     net = owner_pad.GetNetname()
     if net != cap_pad.GetNetname():
         if diagnostics is not None:
@@ -606,7 +612,8 @@ def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
             lambda a, b, half: cec_fr._edge_leg_clear(
                 board, a, b, half),
             start_escape=start_escape,
-            end_escape=end_escape)
+            end_escape=end_escape,
+            foreign_cache=foreign_cache)
         if not path:
             continue
         path_length = _legs_length_mm(path)
@@ -649,7 +656,8 @@ def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
                 board, start, end, local_width, layer, clearance,
                 net_code,
                 lambda a, b, half: cec_fr._edge_leg_clear(
-                    board, a, b, half))
+                    board, a, b, half),
+                foreign_cache=foreign_cache)
             if not path:
                 continue
             path_length = _legs_length_mm(path)
@@ -748,7 +756,8 @@ def _add_supply_link(board, owner_pad, cap_pad, *, lock, diagnostics=None,
                 leg_ok=lambda a, b, half: cec_fr._edge_leg_clear(
                     board, a, b, half),
                 start_escape=start_escape, end_escape=end_escape,
-                allow_maze=True, maze_margin_mm=2.0)
+                allow_maze=True, maze_margin_mm=2.0,
+                foreign_cache=foreign_cache)
             if ops and _within_locality("via-bridge", _ops_length_mm(ops)):
                 bridge_mode = "via-bridge"
             else:
@@ -1172,6 +1181,12 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
     gnd_code = pad.GetNetCode()
     pos = pad.GetPosition()
     layer = pad.GetLayer()
+    # The pad/track/zone geometry is immutable throughout one return-seat
+    # search.  Share a caller-owned exact spatial snapshot across every ray
+    # and candidate via; a successful mutation returns immediately, and a
+    # second pad in the coupled cell receives a fresh snapshot that includes
+    # the first pad's new copper.
+    foreign_cache = {}
     profile_name = cec_fab_profile.active_profile_name(
         board, hint=board_path)
     profile = (cec_fab_profile.get_profile(profile_name)
@@ -1200,7 +1215,8 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
             board, pos, pcbnew.FromMM(diameter),
             pcbnew.FromMM(0.20), {gnd_code},
             drill_nm=pcbnew.FromMM(drill),
-            net_code=gnd_code, contained_layers={layer})
+            net_code=gnd_code, contained_layers={layer},
+            foreign_cache=foreign_cache)
         if process_ok and edge_clear and hole_clear and spot_clear:
             via = pcbnew.PCB_VIA(board)
             via.SetPosition(pos)
@@ -1288,7 +1304,8 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
                 checks = (
                     ("stub_foreign_clearance", cec_fr._tap_foreign_clear(
                         board, pos, at, stub_width_nm,
-                        layer, pcbnew.FromMM(0.20), {gnd_code})),
+                        layer, pcbnew.FromMM(0.20), {gnd_code},
+                        foreign_cache=foreign_cache)),
                     ("stub_edge_clearance", cec_fr._edge_leg_clear(
                         board, pos, at, stub_width_nm // 2)),
                     ("via_edge_clearance", cec_fr._edge_leg_clear(
@@ -1296,7 +1313,8 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
                     ("via_spot_clearance", cec_fr._via_spot_clear(
                         board, at, pcbnew.FromMM(diameter),
                         pcbnew.FromMM(0.20), {gnd_code},
-                        drill_nm=pcbnew.FromMM(drill), net_code=gnd_code)),
+                        drill_nm=pcbnew.FromMM(drill), net_code=gnd_code,
+                        foreign_cache=foreign_cache)),
                     # Same-net copper is exempt from the ordinary
                     # spot-clearance guard, but a standard dogbone barrel may
                     # still graze the edge of its source pad.  That is neither
@@ -1305,7 +1323,8 @@ def _add_ground_return(board, pad, *, board_path, reach_mm, lock):
                     ("via_pad_qualification",
                      cec_fab_profile.via_at_pad_conflicts(
                          board, at, pcbnew.FromMM(diameter),
-                         pcbnew.FromMM(drill), gnd_code)[0] is None),
+                         pcbnew.FromMM(drill), gnd_code,
+                         pad_cache=foreign_cache)[0] is None),
                     ("via_hole_clearance", _hole_to_hole_clear(
                         board, at, drill)[0]),
                     ("stub_pair_overlap", cec_fr._tap_pair_overlap_clear(

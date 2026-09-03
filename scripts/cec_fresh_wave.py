@@ -1029,16 +1029,18 @@ def _lane_net_map(n):
 # v0 template (scripts/gen_24pin_sense_cell.py -- RS + INA238 + INA181A2 +
 # TLV7011, parts packed PERPENDICULAR to the pad axis so both pad-axis
 # approaches stay free for the force-rail stubs/arrays, the v3-keystone rule),
-# four stamps anchored at the blade-row shunt seats. ideal_internal synthesizes
-# the one internal net (DETAMP: 181-out -> 7011-in); kelvin copper stays the
-# precision tap pass's job. Bypass/threshold passives keep auto_cluster
-# ownership (they cluster to these stamped positions).
+# four stamps anchored at the blade-row shunt seats.  The detector trace is
+# deliberately deferred to the board router: pre-locking that lower-priority
+# local net can fence the INA181's Kelvin input even though the cell placement
+# itself is route-clean.  Kelvin copper therefore receives first-route
+# authority; DETAMP is ordinary residual routing. Bypass/threshold passives
+# keep auto_cluster ownership (they cluster to these stamped positions).
 _SENSE_RAIL_BP_24 = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                  "blueprints", "sense-rail-v0.json")
 _SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                       "blueprints", "sense-rail-v0-left.json")
 _SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "beta", "atx-24pin-rev3",
-                                      "blueprints", "sense-rail-v0-taps.json")
+                                      "blueprints", "sense-rail-v1.json")
 _BP_RAILS_24 = {
     "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
             {"CELL_HI": "/SENSE12V_HI", "CELL_LO": "/SENSE12V_LO",
@@ -1066,7 +1068,7 @@ BOARD_PARAMS["atx-24pin-rev3"]["blueprint_cells"] = [
     # 11.9 walk pitch; the per-pair coverage guard then skips route-time
     # synthesis for these pairs). Mixed handedness still faces two banks in
     # one pitch -- uniform-right + the J1 tuck stands.
-    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": True,
+    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": False,
      "ref_map": rm, "net_map": nm}
     for rs, (rm, nm) in _BP_RAILS_24.items()]
 

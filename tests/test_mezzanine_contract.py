@@ -39,6 +39,27 @@ class MezzanineContractTest(unittest.TestCase):
         ok, detail = C._chk_mezzanine_segment_contract(board, ATX, {})
         self.assertTrue(ok, detail)
 
+    def test_mating_datum_does_not_follow_a_resized_laminate_edge(self):
+        board = pcbnew.LoadBoard(HUB)
+        bounds = board.GetBoardEdgesBoundingBox()
+        max_x = bounds.GetRight()
+        max_y = bounds.GetBottom()
+        grow = pcbnew.FromMM(6.0)
+        for drawing in board.GetDrawings():
+            if drawing.GetLayer() != pcbnew.Edge_Cuts:
+                continue
+            start = drawing.GetStart()
+            end = drawing.GetEnd()
+            drawing.SetStart(pcbnew.VECTOR2I(
+                start.x + (grow if start.x == max_x else 0),
+                start.y + (grow if start.y == max_y else 0)))
+            drawing.SetEnd(pcbnew.VECTOR2I(
+                end.x + (grow if end.x == max_x else 0),
+                end.y + (grow if end.y == max_y else 0)))
+        ok, detail = C._chk_mezzanine_segment_contract(
+            board, "resized-hub.kicad_pcb", {})
+        self.assertTrue(ok, detail)
+
     def test_both_candidate_lugs_are_plated_gnd(self):
         self.assertEqual(MEZZ_HUB_24PIN["mount_net"], "GND")
         self.assertEqual(MEZZ_HUB_24PIN["mount_function"],

@@ -980,12 +980,21 @@ def _assign_multidrop_edge_layers(plan, edges, *, max_states=8192,
         incidence = {}
         layers_by_ref = {}
         preferred_cost = 0
+        interface_outer_cost = 0
         learned_refusals = 0
         learned_timeouts = 0
         learned_successes = 0
         for index, layer in assignment.items():
             edge = rows[index]
             preferred_cost += rank.get(layer, len(preferred) + 4)
+            difficulty = _multidrop_edge_interface_difficulty(edge, ports)
+            has_inner_signal_option = any(
+                candidate not in ("F.Cu", "B.Cu")
+                for candidate in edge.get("_layer_options") or ())
+            if (difficulty.get("constrained")
+                    and has_inner_signal_option
+                    and layer in ("F.Cu", "B.Cu")):
+                interface_outer_cost += 1
             key = tuple(sorted((edge["a"], edge["b"])))
             learned = route_layer_evidence.get(key, {}).get(layer, {})
             learned_refusals += int(learned.get("refusals", 0))
@@ -1001,7 +1010,8 @@ def _assign_multidrop_edge_layers(plan, edges, *, max_states=8192,
             for ref, values in layers_by_ref.items()
             if ports[ref].get("through"))
         return (junction_excess, learned_refusals, learned_timeouts,
-                -learned_successes, preferred_cost, articulations)
+                -learned_successes, interface_outer_cost,
+                preferred_cost, articulations)
 
     def non_pth_consistent(assignment):
         layers_by_ref = {}
@@ -1061,8 +1071,9 @@ def _assign_multidrop_edge_layers(plan, edges, *, max_states=8192,
             "learned_refusals": int(score[1]),
             "learned_timeouts": int(score[2]),
             "learned_successes": int(-score[3]),
-            "preferred_layer_cost": int(score[4]),
-            "pth_articulations": int(score[5]),
+            "interface_outer_layer_cost": int(score[4]),
+            "preferred_layer_cost": int(score[5]),
+            "pth_articulations": int(score[6]),
         },
         "selected_layers": selected,
         "forced_layers": {
@@ -1592,7 +1603,7 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
         return blocker_shape_cache[key]
 
     def partner_shapes(net_code):
-        key = (int(layer_id), int(net_code))
+        key = ("pads", int(layer_id), int(net_code))
         if key in partner_shape_cache:
             return partner_shape_cache[key]
         rows = []
@@ -1608,6 +1619,37 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
                     # Preserve the historical guard: an engine-specific pad
                     # shape failure skips only that shape, not the whole test.
                     continue
+        indexed = cec_fr._bucket_foreign_shapes(rows)
+        partner_shape_cache[key] = indexed
+        return indexed
+
+    def partner_track_shapes(net_code):
+        """Index established opposite-member copper once per local solve.
+
+        Multidrop routing invokes this guard thousands of times while
+        screening finite portal/dogbone candidates.  Rewalking every board
+        track on every leg made later edges consume their wall-clock budget in
+        clearance bookkeeping even when earlier copper was spatially remote.
+        Candidate copper is emitted only after both members pass admission,
+        so the transaction-start snapshot is the correct obstacle authority.
+        """
+        key = ("tracks", int(layer_id), int(net_code))
+        if key in partner_shape_cache:
+            return partner_shape_cache[key]
+        rows = []
+        for item in getattr(board, "GetTracks", lambda: ())():
+            if item.GetNetCode() != int(net_code):
+                continue
+            try:
+                if item.Type() == pcbnew.PCB_VIA_T:
+                    if layer_id not in item.GetLayerSet().CuStack():
+                        continue
+                elif item.GetLayer() != layer_id:
+                    continue
+                shape = item.GetEffectiveShape(layer_id)
+                rows.append((shape, shape.BBox()))
+            except Exception:                         # noqa: BLE001
+                continue
         indexed = cec_fr._bucket_foreign_shapes(rows)
         partner_shape_cache[key] = indexed
         return indexed
@@ -1633,7 +1675,8 @@ def _route_paired_stub(board, pair, endpoints, *, layer="F.Cu",
             # package tie or an earlier topology edge is already present.
             "partner_copper": _partner_tracks_clear(
                 board, a, b, width_nm, layer_id, partner_code,
-                clearance_nm=clearance_nm),
+                clearance_nm=clearance_nm,
+                partner_shapes=partner_track_shapes(partner_code)),
         }
         if not value["foreign_copper"]:
             identified = blocker_shapes()
@@ -2244,6 +2287,103 @@ def _conflict_free_edge_layers(edge, edges, preferred_layers=()):
             layer))
 
 
+def _multidrop_edge_betweenness(edges):
+    """Return the number of terminal pairs whose tree path uses each edge.
+
+    A professional multidrop route establishes the shared backbone before
+    attaching low-fanout drops.  Euclidean length and layer-domain size do not
+    identify that backbone: a short single-layer leaf can detour across the
+    entire future trunk when routed first.  For a tree, removing an edge splits
+    the terminals into sets of size ``a`` and ``b``; ``a*b`` is its exact path
+    betweenness and is independent of reference names or board identity.
+    """
+    rows = [dict(row) for row in (edges or ())]
+    adjacency = {}
+    for row in rows:
+        a, b = str(row["a"]), str(row["b"])
+        adjacency.setdefault(a, set()).add(b)
+        adjacency.setdefault(b, set()).add(a)
+    total = len(adjacency)
+    scores = {}
+    for row in rows:
+        a, b = str(row["a"]), str(row["b"])
+        seen = {a}
+        frontier = [a]
+        while frontier:
+            node = frontier.pop()
+            for neighbor in adjacency.get(node, ()):
+                if ((node == a and neighbor == b)
+                        or (node == b and neighbor == a)
+                        or neighbor in seen):
+                    continue
+                seen.add(neighbor)
+                frontier.append(neighbor)
+        left = len(seen)
+        scores[tuple(sorted((a, b)))] = left * max(0, total - left)
+    return scores
+
+
+def _multidrop_edge_interface_difficulty(edge, ports):
+    """Rank PTH-to-PTH transitions that transform the pair pin field.
+
+    Plated terminals can move a pair between layers without vias, but a link
+    between dissimilar connector pin fields still owns a scarce geometric
+    escape.  If it is postponed until after a long backbone, the existing
+    trunk can consume the only legal pitch/orientation transition and leave
+    too little bounded retry time.  This metric is purely package geometry;
+    it generalizes to headers, jacks, terminal blocks, and future connectors.
+    """
+    a = (ports or {}).get(edge.get("a")) or {}
+    b = (ports or {}).get(edge.get("b")) or {}
+    pth_transition = bool(a.get("through") and b.get("through"))
+
+    def field(port):
+        p = tuple(port.get("p") or ())
+        n = tuple(port.get("n") or ())
+        if len(p) != 2 or len(n) != 2:
+            return 0.0, None
+        pitch = _dist(p, n)
+        axis = ((n[0] - p[0]) / pitch, (n[1] - p[1]) / pitch) \
+            if pitch > 1e-9 else None
+        return pitch, axis
+
+    a_pitch, a_axis = field(a)
+    b_pitch, b_axis = field(b)
+    if not pth_transition or min(a_pitch, b_pitch) <= 1e-9:
+        return {
+            "pth_transition": pth_transition,
+            "constrained": False,
+            "score": 0.0,
+            "pitch_ratio": None,
+            "axis_mismatch": None,
+        }
+    pitch_ratio = max(a_pitch, b_pitch) / min(a_pitch, b_pitch)
+    axis_mismatch = 0.0
+    if a_axis is not None and b_axis is not None:
+        axis_mismatch = 1.0 - min(1.0, abs(
+            a_axis[0] * b_axis[0] + a_axis[1] * b_axis[1]))
+    score = max(0.0, pitch_ratio - 1.0) + axis_mismatch
+    return {
+        "pth_transition": True,
+        "constrained": bool(score > 0.10),
+        "score": round(score, 6),
+        "pitch_ratio": round(pitch_ratio, 6),
+        "axis_mismatch": round(axis_mismatch, 6),
+    }
+
+
+def _multidrop_edge_attempt_seconds(edge, ports, *, forced=False):
+    """Return a bounded edge budget proportional to escape difficulty."""
+    if forced:
+        return 90.0
+    if _multidrop_edge_interface_difficulty(
+            edge, ports).get("constrained"):
+        return 60.0
+    if len(edge.get("layers") or ()) == 1:
+        return 60.0
+    return 30.0
+
+
 def _route_layered_multidrop_pair_tree(board, pair, plan, *, avoid=(),
                                        verbose=False,
                                        max_search_seconds=240.0,
@@ -2623,19 +2763,41 @@ def _route_layered_multidrop_pair_tree(board, pair, plan, *, avoid=(),
             sum(int(row.get("successes", 0)) for row in rows.values()),
         )
 
-    # Route the hardest constrained spans first.  The old leaf/shortest-first
-    # order paid for several easy edges before discovering that a long edge's
-    # selected colour had no corridor, then discarded all that work during
-    # recoloring.  A professional critical-net pass fails fast on scarce layer
-    # domains and high-cost spans; learned failures from a prior bounded branch
-    # receive the highest priority on the retry.
+    # Route the shared backbone before its drops.  The previous scarce-layer-
+    # first order let a one-layer leaf take an unconstrained detour through a
+    # future connector trunk; every trunk edge was individually routable, but
+    # the composed transaction then spent its budget recoloring around copper
+    # that should have been laid later.  Tree edge betweenness identifies the
+    # board-independent backbone.  Learned failures still lead retries, and
+    # layer scarcity/length retain deterministic tie-breaks.
+    edge_betweenness = _multidrop_edge_betweenness(edges)
+    interface_difficulty = {
+        tuple(sorted((edge["a"], edge["b"]))):
+            _multidrop_edge_interface_difficulty(edge, ports)
+        for edge in edges
+    }
     ordered_edges = sorted(
         edges,
         key=lambda edge: (
             -learned_edge_cost(edge)[0],
+            -int(interface_difficulty[tuple(sorted(
+                (edge["a"], edge["b"])))]["constrained"]),
+            -float(interface_difficulty[tuple(sorted(
+                (edge["a"], edge["b"])))]["score"]),
+            -edge_betweenness.get(tuple(sorted(
+                (edge["a"], edge["b"]))), 0),
             len(edge.get("layers") or ("F.Cu",)),
             -float(edge["length_mm"]),
             learned_edge_cost(edge)[1], edge["a"], edge["b"]))
+    prefilter["route_order"] = [{
+        "edge": [edge["a"], edge["b"]],
+        "betweenness": int(edge_betweenness.get(
+            tuple(sorted((edge["a"], edge["b"]))), 0)),
+        "interface_difficulty": interface_difficulty[
+            tuple(sorted((edge["a"], edge["b"])))],
+        "layer_domain": list(edge.get("layers") or ("F.Cu",)),
+        "length_mm": float(edge.get("length_mm", 0.0) or 0.0),
+    } for edge in ordered_edges]
     runtime_layer_adjustments = []
     route_template_reuses = []
     for edge in ordered_edges:
@@ -2668,10 +2830,9 @@ def _route_layered_multidrop_pair_tree(board, pair, plan, *, avoid=(),
                 break
             attempt_deadline = min(
                 absolute_deadline,
-                time.monotonic() + (
-                    90.0 if edge_key in forced_edge_layers else
-                    60.0 if len(edge.get("layers") or ()) == 1 else
-                    30.0))
+                time.monotonic() + _multidrop_edge_attempt_seconds(
+                    edge, ports,
+                    forced=edge_key in forced_edge_layers))
             a_port = throats.get((a, layer, b),
                                  chosen.get((a, layer), ports[a]))
             b_port = throats.get((b, layer, a),
@@ -2773,6 +2934,16 @@ def _route_layered_multidrop_pair_tree(board, pair, plan, *, avoid=(),
                 "layer_refusals": layer_refusals,
                 "candidate_prefilter": prefilter,
                 "route_layer_evidence": public_route_layer_evidence(),
+                "failure_certificate": {
+                    "schema": 1,
+                    "conclusion": "layered_multidrop_edge_refused",
+                    "classification": ["layered_trunk_edge_refused"],
+                    "failed_edge": [a, b],
+                    "failed_layer": selected_layer,
+                    "attempted_layers": [
+                        str(row.get("layer") or "")
+                        for row in layer_refusals],
+                },
             }
             # Local conflict-free alternatives can be empty even though a
             # different global coloring is feasible.  Force the failed PTH
@@ -3492,7 +3663,7 @@ def _partner_pads_clear(board, a, b, width_nm, layer_id, partner_code, clr_nm,
 
 
 def _partner_tracks_clear(board, a, b, width_nm, layer_id, partner_code,
-                          *, clearance_nm=0):
+                          *, clearance_nm=0, partner_shapes=None):
     """Reject clearance infringement with established partner copper.
 
     A differential pair's opposite member is intentionally closer than the
@@ -3509,6 +3680,14 @@ def _partner_tracks_clear(board, a, b, width_nm, layer_id, partner_code,
     if a == b:
         return True
     segment = pcbnew.SHAPE_SEGMENT(_v(*a), _v(*b), width_nm)
+    if partner_shapes is not None:
+        # Candidate P/N paths are checked jointly before either is emitted,
+        # so only copper established before this transaction belongs here.
+        # Buckets conservatively shortlist shapes; KiCad's exact Collide()
+        # remains the admission predicate with the historical 1 nm epsilon.
+        return cec_fr._snapshot_foreign_clear(
+            _v(*a), _v(*b), width_nm,
+            max(0, int(clearance_nm) - 1), (), partner_shapes)
     for item in getattr(board, "GetTracks", lambda: ())():
         if item.GetNetCode() != int(partner_code):
             continue
@@ -4509,24 +4688,47 @@ def _paired_portal_candidates(p_start, n_start, p_end, n_end, *,
                                 budget_value)
             if minimum_lead - 1e-9 <= value <= max_lead + 1e-9})
         rows = {1: [], -1: []}
-        direction = 1.0 if side == "start" else -1.0
+        preferred_direction = 1.0 if side == "start" else -1.0
         anchor = start_center if side == "start" else end_center
         for lead in leads:
             for lateral in lateral_rows:
-                center = (anchor[0] + direction * ux * lead + nx * lateral,
-                          anchor[1] + direction * uy * lead + ny * lateral)
-                for sign in (1, -1):
-                    rows[sign].append({
-                        "side": side, "sign": sign,
-                        "lead_mm": round(lead, 6),
-                        "lateral_mm": round(lateral, 6),
-                        "center": center,
-                        "p": (center[0] + nx * offset * sign,
-                              center[1] + ny * offset * sign),
-                        "n": (center[0] - nx * offset * sign,
-                              center[1] - ny * offset * sign),
-                        "actual_p": actual_p, "actual_n": actual_n,
-                    })
+                # A connector can expose the routed pair on the side opposite
+                # its peer, with an unused or ground pad row between them.  A
+                # human escapes away from the package, turns around the pad
+                # field, and rejoins the trunk.  The historical portal domain
+                # only launched toward the peer, making that ordinary topology
+                # look placement-impossible.  Retain the preferred launch
+                # first, then its finite reverse counterpart.  Both still pass
+                # the exact local fan-in and shared-ribbon clearance gates.
+                for reverse_launch in (False, True):
+                    direction = preferred_direction * (
+                        -1.0 if reverse_launch else 1.0)
+                    center = (
+                        anchor[0] + direction * ux * lead + nx * lateral,
+                        anchor[1] + direction * uy * lead + ny * lateral)
+                    # ``direction`` is the pad-to-portal heading.  The shared
+                    # ribbon traverses that heading at the start and its
+                    # inverse at the end.  Orient the portal P/N ordering in
+                    # that traversal frame so a one-sided reverse launch does
+                    # not silently request a crossover.
+                    traversal_sign = (
+                        direction if side == "start" else -direction)
+                    for sign in (1, -1):
+                        lane_offset = offset * sign * traversal_sign
+                        rows[sign].append({
+                            "side": side, "sign": sign,
+                            "lead_mm": round(lead, 6),
+                            "lateral_mm": round(lateral, 6),
+                            "reverse_launch": bool(reverse_launch),
+                            "route_heading": (
+                                direction * ux, direction * uy),
+                            "center": center,
+                            "p": (center[0] + nx * lane_offset,
+                                  center[1] + ny * lane_offset),
+                            "n": (center[0] - nx * lane_offset,
+                                  center[1] - ny * lane_offset),
+                            "actual_p": actual_p, "actual_n": actual_n,
+                        })
         return rows
 
     start_rows = side_rows(
@@ -4551,6 +4753,7 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
                        launch_distance=1.25, start_lead=1.0, end_lead=3.0,
                        start_lateral=0.0, end_lateral=0.0,
                        initial_turn_steps=0, portal_mode=False,
+                       portal_start_heading=None, portal_end_heading=None,
                        deadline=None, diagnostics=None,
                        max_visited=120000,
                        foreign_shape_cache=None):
@@ -4613,9 +4816,14 @@ def _grid_coupled_path(board, *, start_center, end_center, p_start, n_start,
         # the supplied P/N portals without another package escape search.
         route_start = start_center
         route_end = end_center
-        start_vector = (end_center[0] - start_center[0],
-                        end_center[1] - start_center[1])
-        end_vector = start_vector
+        default_vector = (end_center[0] - start_center[0],
+                          end_center[1] - start_center[1])
+        start_vector = (tuple(portal_start_heading)
+                        if portal_start_heading is not None
+                        else default_vector)
+        end_vector = (tuple(portal_end_heading)
+                      if portal_end_heading is not None
+                      else default_vector)
     else:
         route_start, start_vector = launch(
             start_center, p_start, n_start, end_center, start_sign,
@@ -5253,6 +5461,7 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
     portal_screen_cache = (portal_screen_cache
                            if portal_screen_cache is not None else {})
     screen_domain = (
+        "reverse-launch-v1",
         str(pair.get("p")), str(pair.get("n")), str(layer),
         tuple(round(float(value), 6) for point in endpoints for value in point),
         round(width, 6), round(gap, 6), round(float(clearance), 6),
@@ -5271,6 +5480,9 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
         public = {
             "sign": row["sign"], "lead_mm": row["lead_mm"],
             "lateral_mm": row["lateral_mm"],
+            "reverse_launch": bool(row.get("reverse_launch")),
+            "route_heading": [round(value, 6) for value in
+                              row.get("route_heading", ())],
             "center": [round(value, 6) for value in row["center"]],
             "p": [round(value, 6) for value in row["p"]],
             "n": [round(value, 6) for value in row["n"]],
@@ -5281,9 +5493,9 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
 
     def emit_fanin(row, *, allow_detour, detour_member_paths=32):
         axis = portal_plan["axis"]
-        preferred_heading = (
+        preferred_heading = tuple(row.get("route_heading") or (
             axis if row["side"] == "start"
-            else (-axis[0], -axis[1]))
+            else (-axis[0], -axis[1])))
         return _route_paired_stub(
             board, pair,
             (row["actual_p"], row["p"],
@@ -5347,6 +5559,7 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                 round(abs(
                     _dist(row["actual_p"], row["p"])
                     - _dist(row["actual_n"], row["n"])), 6),
+                1 if row.get("reverse_launch") else 0,
                 round(abs(row["lateral_mm"]), 6),
                 row["lead_mm"],
             )
@@ -5386,7 +5599,26 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
         # domain.  Only if neither yields a candidate do we exhaust the
         # remaining direct rows, so no legal direct solution is removed from
         # the search space.
-        ranked = sorted(rows, key=lower_bound)
+        # Keep the two launch topologies compute-fair.  Simply appending the
+        # reverse rows doubles the domain but can still let a dense set of
+        # shorter forward fan-ins fill ``max_fanins_per_side`` before one
+        # reverse escape is proved.  Interleave independently ranked families
+        # so the bounded beam contains both whenever both exist; exact length
+        # and geometry still rank accepted combinations afterward.
+        launch_families = {
+            reverse: sorted(
+                (row for row in rows
+                 if bool(row.get("reverse_launch")) == reverse),
+                key=lower_bound)
+            for reverse in (False, True)}
+        ranked = []
+        for index in range(max(
+                (len(family) for family in launch_families.values()),
+                default=0)):
+            for reverse in (False, True):
+                family = launch_families[reverse]
+                if index < len(family):
+                    ranked.append(family[index])
         direct_beam = min(len(ranked), max(
             12, 4 * int(max_fanins_per_side)))
         phases = (
@@ -5689,6 +5921,10 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                     clearance=clearance, own=own, avoid=middle_avoid,
                     step=step, initial_turn_steps=0,
                     portal_mode=True, deadline=deadline,
+                    portal_start_heading=start.get("route_heading"),
+                    portal_end_heading=tuple(
+                        -float(value) for value in
+                        end.get("route_heading", ())) or None,
                     diagnostics=grid_diagnostics,
                     max_visited=max_grid_visited,
                     foreign_shape_cache=foreign_shape_cache)
@@ -5780,6 +6016,10 @@ def _route_coupled_via_portals(board, pair, endpoints, *, layer="F.Cu",
                         clearance=clearance, own=own, avoid=source_avoid,
                         step=step, initial_turn_steps=0,
                         portal_mode=True, deadline=deadline,
+                        portal_start_heading=start.get("route_heading"),
+                        portal_end_heading=tuple(
+                            -float(value) for value in
+                            end.get("route_heading", ())) or None,
                         diagnostics=grid_diagnostics,
                         max_visited=max_grid_visited,
                         foreign_shape_cache=foreign_shape_cache)
@@ -7326,15 +7566,50 @@ def _pair_detour_failure_certificate(board, pair, detour, created_ids,
 
 
 def _scheduled_coupled_pairs(board, pairs):
-    """Deterministic constrained-first schedule for independent pair nets."""
-    rows = [(round(_pair_route_span(board, pair), 6),
-             str(pair.get("name") or ""), pair)
-            for pair in pairs]
-    rows.sort(key=lambda row: (row[0], row[1]))
-    return [row[2] for row in rows], [
-        {"name": row[2].get("name"), "p": row[2].get("p"),
-         "n": row[2].get("n"), "span_mm": row[0],
-         "order": index + 1}
+    """Deterministic topology-constrained-first schedule for pair nets.
+
+    Span alone is not a constraint measure.  A short point-to-point/flow-
+    through pair can consume the only legal corridor of a longer multidrop
+    tree even when its endpoint reservations remain clear.  Route complete
+    multidrop topologies first, then flow-through packages, then ordinary
+    point-to-point pairs.  Within a topology class, more physical stations and
+    single-layer edges lead before the historical shorter-span tie-breaker.
+    This is the pair analogue of establishing a bus backbone before drops.
+    """
+    rows = []
+    for pair in pairs:
+        flow = _flow_through_pair_legs(board, pair)
+        multidrop = (_multidrop_pair_plan(board, pair)
+                     if flow is None else None)
+        if multidrop is not None:
+            topology = "multidrop"
+            topology_rank = 0
+            station_count = len(multidrop.get("terminals") or ())
+            constrained_edges = sum(
+                1 for edge in (multidrop.get("edges") or ())
+                if len(edge.get("layers") or ()) <= 1)
+        elif flow is not None:
+            topology = "flow-through"
+            topology_rank = 1
+            station_count = len(flow[1] or ()) + 2
+            constrained_edges = len(flow[0] or ())
+        else:
+            topology = "point-to-point"
+            topology_rank = 2
+            station_count = len(_pair_endpoint_stations(board, pair))
+            constrained_edges = 0
+        span = round(_pair_route_span(board, pair), 6)
+        rows.append((topology_rank, -station_count, -constrained_edges,
+                     span, str(pair.get("name") or ""), pair,
+                     topology, station_count, constrained_edges))
+    rows.sort(key=lambda row: row[:5])
+    return [row[5] for row in rows], [
+        {"name": row[5].get("name"), "p": row[5].get("p"),
+         "n": row[5].get("n"), "span_mm": row[3],
+         "topology": row[6], "station_count": int(row[7]),
+         "constrained_edge_count": int(row[8]),
+         "order": index + 1,
+         "ordering_policy": "topology-constrained-first"}
         for index, row in enumerate(rows)]
 
 

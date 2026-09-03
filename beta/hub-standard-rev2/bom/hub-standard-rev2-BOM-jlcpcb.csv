@@ -2,7 +2,7 @@
 "4700uF","C1","cec-Capacitor_SMD:CP_Elec_16x17.5","C487318"
 "10nF","C12","cec-Capacitor_SMD:C_0402_1005Metric","C15195"
 "10uF","C2,C3,C11,C23","cec-Capacitor_SMD:C_0603_1608Metric","C96446"
-"100nF","C4,C5,C6,C8,C13,C14,C15,C16,C17,C18,C19,C20,C21,C22,C29,C30,C31,C32,C33,C34","cec-Capacitor_SMD:C_0402_1005Metric","C1525"
+"100nF","C4,C5,C6,C8,C13,C14,C15,C16,C17,C18,C19,C20,C21,C22,C29,C30,C31,C32,C33,C34,C35","cec-Capacitor_SMD:C_0402_1005Metric","C1525"
 "4n7","C7","cec-Capacitor_SMD:C_0402_1005Metric","C1538"
 "1uF","C10,C25,C26,C27,C28","cec-Capacitor_SMD:C_0603_1608Metric","C15849"
 "2.2uF","C_SS2,C_SS3","cec-Capacitor_SMD:C_0603_1608Metric","C23630"
