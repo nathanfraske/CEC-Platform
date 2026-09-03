@@ -18,6 +18,7 @@ import cec_sch_gates  # noqa: E402
 import cec_fr  # noqa: E402
 import cec_current_topology  # noqa: E402
 import cec_pour_plan  # noqa: E402
+import cec_pcb  # noqa: E402
 import cec_synth_pipeline  # noqa: E402
 import cec_xfcn_contract as contract  # noqa: E402
 import cec_xfcn_thermal_validate as thermal_validation  # noqa: E402
@@ -154,7 +155,14 @@ class XfcnTerminalContractTest(unittest.TestCase):
              + max(row[0] for row in placed.values())) / 2.0,
             43.0)
         self.assertAlmostEqual(
-            min(placed[ref][1] for ref in plan["refs"]), 0.9)
+            min(
+                placed[ref][1] + min(
+                    cec_pcb._rot(x, y, placed[ref][2])[1]
+                    for x0, y0, x1, y1 in cec_pcb.local_pad_boxes(
+                        contract.PARTS[plan["refs"][ref]["part"]]["footprint"])
+                    for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)))
+                for ref in plan["refs"]),
+            0.9)
         for left, right in zip(sorted(before), sorted(placed)):
             self.assertEqual(left, right)
         refs = sorted(before)
@@ -288,6 +296,44 @@ class XfcnTerminalContractTest(unittest.TestCase):
             self.assertEqual("already-integrated", report["status"])
             self.assertEqual(str(source.resolve()), report["source_pcb"])
         self.assertEqual(before, source.read_bytes())
+
+    def test_stale_contracted_value_forces_non_destructive_apply(self):
+        """A mechanically current interface cannot hide stale BOM identity."""
+        import pcbnew
+
+        source = contract.project_path("atx-main", "pcb")
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / "stale-value.kicad_pcb"
+            board = pcbnew.LoadBoard(str(source))
+            footprint = next(
+                fp for fp in board.GetFootprints()
+                if fp.GetReference() == "J_SIG1")
+            footprint.SetValue("STALE-AUXILIARY-PART")
+            pcbnew.SaveBoard(str(candidate), board)
+
+            command = [
+                sys.executable, str(ROOT / "scripts/cec_xfcn_place.py"),
+                "--project", "atx-main", "--input-board", str(candidate),
+                "--apply", "--json",
+            ]
+            process = subprocess.run(
+                command, cwd=ROOT, capture_output=True, text=True)
+            self.assertEqual(0, process.returncode,
+                             process.stderr + process.stdout)
+            report = json.loads(process.stdout)[0]
+            self.assertEqual("applied", report["status"])
+            self.assertEqual([{
+                "ref": "J_SIG1",
+                "from": "STALE-AUXILIARY-PART",
+                "to": contract.PARTS[contract.ATX_SIGNAL_MAIN]["value"],
+            }], report["refreshed_values"])
+            repaired = pcbnew.LoadBoard(str(candidate))
+            repaired_fp = next(
+                fp for fp in repaired.GetFootprints()
+                if fp.GetReference() == "J_SIG1")
+            self.assertEqual(
+                contract.PARTS[contract.ATX_SIGNAL_MAIN]["value"],
+                repaired_fp.GetValue())
 
     def test_surgical_helper_finds_column_zero_generated_symbols(self):
         text = (

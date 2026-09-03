@@ -468,8 +468,11 @@ def centered_interface_anchor_placements(plan, outline_width_mm, *,
     Contract placements are often authored in an existing PCB coordinate
     frame.  Their relative terminal spacing, auxiliary-header offset, and
     rotations are mechanical authority; the absolute origin is not.  Center
-    the complete macro on the requested outline and place the primary terminal
-    row at the declared edge datum without rescaling or repacking any member.
+    the complete macro on the requested outline and place the minimum rotated
+    *pad-copper* edge of the primary terminal row at the declared edge datum
+    without rescaling or repacking any member.  Footprint origins are not
+    mechanical edge datums: a rotated terminal can extend several millimetres
+    past its origin even when the origin itself appears to be on the board.
     """
     placements = power_path_anchor_placements(plan)
     if not placements:
@@ -485,9 +488,30 @@ def centered_interface_anchor_placements(plan, outline_width_mm, *,
     if not math.isfinite(width) or width <= 0.0 or not math.isfinite(edge_y):
         raise ValueError("interface target frame must be finite and positive")
     xs = [float(row[0]) for row in placements.values()]
-    primary_ys = [float(placements[ref][1]) for ref in primary]
+    # Bind the board-edge datum to real electrical copper.  This is computed
+    # from the same qualified footprint geometry used by synthesis; per-part
+    # magic offsets would become stale as soon as a footprint were revised.
+    import cec_pcb
+
+    primary_copper_y = []
+    for ref in primary:
+        part_key = plan["refs"][ref]["part"]
+        footprint = PARTS[part_key]["footprint"]
+        rotation = float(placements[ref][2])
+        boxes = cec_pcb.local_pad_boxes(footprint)
+        if not boxes:
+            raise ValueError(
+                "qualified interface terminal %s has no electrical pad copper"
+                % ref)
+        rotated_y = []
+        for x0, y0, x1, y1 in boxes:
+            for lx, ly in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+                _dx, dy_pad = cec_pcb._rot(lx, ly, rotation)
+                rotated_y.append(float(dy_pad))
+        primary_copper_y.append(
+            float(placements[ref][1]) + min(rotated_y))
     dx = width / 2.0 - (min(xs) + max(xs)) / 2.0
-    dy = edge_y - min(primary_ys)
+    dy = edge_y - min(primary_copper_y)
     return {
         ref: (float(row[0]) + dx, float(row[1]) + dy, float(row[2]))
         for ref, row in placements.items()

@@ -361,6 +361,12 @@ def _integrated(board, plan, pad_nets):
         part = contract.PARTS[expectation["part"]]
         if _footprint_id(fp) != part["footprint"]:
             return False
+        # Placement idempotence includes the assembly identity.  A footprint
+        # can be mechanically correct while still carrying a superseded MPN
+        # as its value; treating that state as integrated lets stale BOM data
+        # survive indefinitely on otherwise current boards.
+        if fp.GetValue() != part["value"]:
+            return False
         x, y, angle = plan["placements_mm"][ref]
         pos = fp.GetPosition()
         if math.hypot(_mm(pos.x) - x, _mm(pos.y) - y) > 0.01:
@@ -616,30 +622,46 @@ def apply_project(name, write=False, force=False, source_pcb=None, output_pcb=No
     contracted_refs = contract.project_refs(plan)
     interface_refs = set(plan["remove_refs"]) | set(contracted_refs)
 
+    source_findings = contract.audit_project(name)
+    if source_findings:
+        raise SystemExit(
+            f"{name}: REFUSE stale schematic contract: "
+            + "; ".join(source_findings))
+
     # A routed candidate may predate a value-only source correction.  Refresh
     # metadata only when source and candidate still agree on footprint
     # geometry; a footprint mismatch remains a hard reconciliation problem.
     refreshed_values = []
-    if source_pcb is not None:
-        for footprint in board.GetFootprints():
-            ref = footprint.GetReference()
-            expected = inventory.get(ref)
-            if ref in interface_refs or expected is None:
-                continue
-            expected_value = expected.get("value")
-            expected_footprint = expected.get("footprint")
-            old_value = footprint.GetValue()
-            if (expected_value is not None and old_value != expected_value and
-                    _footprint_id(footprint) == expected_footprint):
-                footprint.SetValue(expected_value)
-                refreshed_values.append({
-                    "ref": ref, "from": old_value, "to": expected_value,
-                })
+    for footprint in board.GetFootprints():
+        ref = footprint.GetReference()
+        expected = inventory.get(ref)
+        if expected is None:
+            continue
+        expected_value = expected.get("value")
+        expected_footprint = expected.get("footprint")
+        # Contracted parts use the pinned part identity.  Other candidate
+        # parts retain the older copy-refresh behavior and are only eligible
+        # when operating on a derived input board.
+        if ref in contracted_refs:
+            part = contract.PARTS[contracted_refs[ref]["part"]]
+            expected_value = part["value"]
+            expected_footprint = part["footprint"]
+        elif source_pcb is None or ref in interface_refs:
+            continue
+        old_value = footprint.GetValue()
+        if (expected_value is not None and old_value != expected_value and
+                _footprint_id(footprint) == expected_footprint):
+            footprint.SetValue(expected_value)
+            refreshed_values.append({
+                "ref": ref, "from": old_value, "to": expected_value,
+            })
     placements_integrated = _integrated(board, plan, pad_nets)
-    already_integrated = placements_integrated
+    already_integrated = placements_integrated and not refreshed_values
     managed_pour_nets = set(plan.get("managed_pour_nets", ()))
     if placements_integrated and managed_pour_nets:
-        already_integrated = _managed_pours_match(board, source_path, plan)
+        already_integrated = (
+            already_integrated
+            and _managed_pours_match(board, source_path, plan))
     if not force and already_integrated:
         if write and pcb_path != source_path:
             pcbnew.SaveBoard(str(pcb_path), board)

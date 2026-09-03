@@ -4910,6 +4910,17 @@ def _net_pad_centroid_x(nl, comps, ref, net, P):
     return (sum(xs) / len(xs)) if xs else P[ref][0]
 
 
+def _rigid_row_translation_blockers(row_refs, pinned_refs):
+    """Return the upstream-owned members that forbid translating a rigid row.
+
+    A later corridor or rail pass may translate a freely seeded connector row,
+    but one pinned member makes the complete mechanical macro immutable.  Moving
+    only the unpinned siblings would preserve electrical bounds while silently
+    destroying the reviewed mating pitch, so the decision is all-or-nothing.
+    """
+    return sorted(set(row_refs or ()) & set(pinned_refs or ()))
+
+
 def _rigid_row_clear_shift(row_boxes, obstacle_boxes, W, *, clr=0.5,
                            margin=0.6, bounds_boxes=None, constraints=None):
     """Return the smallest legal X shift for a rigid connector row.
@@ -7978,9 +7989,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
         # board containment remain invariant.
         _stub = next((r for r in sorted(anchors) if r.startswith("J_SIG")), None)
         if _stub and _stub in comps and cfg.params.get("force_rails"):
+            _row_refs = [r for r in anchors
+                         if r.startswith("TB") or r == _stub]
+            _row_pins = _rigid_row_translation_blockers(
+                _row_refs,
+                set((cfg.pins or {}).keys()) | set(_pourfirst_locked_refs))
+            if _row_pins:
+                print("  [rails] rigid interface row is upstream-pinned (%s); "
+                      "force-rail planning owns any required clearance repair"
+                      % ", ".join(_row_pins), file=sys.stderr, flush=True)
+                _row_refs = []
             for _attempt in range(2):
-                _row_refs = [r for r in anchors
-                             if r.startswith("TB") or r == _stub]
+                if not _row_refs:
+                    break
                 _row_boxes = {}
                 for _rr in _row_refs:
                     if _rr not in comps:

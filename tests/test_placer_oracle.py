@@ -40,6 +40,19 @@ def _nl(comps, nets):
                       nets=nets)
 
 
+class TestRigidInterfaceOwnership(unittest.TestCase):
+    def test_one_pinned_member_freezes_complete_row_translation(self):
+        row = ["TB1", "TB2", "J_SIG1"]
+        self.assertEqual(
+            ["J_SIG1"],
+            sp._rigid_row_translation_blockers(row, {"J_SIG1", "U1"}))
+
+    def test_unowned_row_remains_available_to_generic_clearance_repair(self):
+        self.assertEqual(
+            [], sp._rigid_row_translation_blockers(
+                ["J_IN1", "J_IN2"], {"H1", "H2"}))
+
+
 # ===================================================================== MV2a: net-aware _role
 class TestRoleNetAware(unittest.TestCase):
     def setUp(self):
