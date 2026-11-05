@@ -78,6 +78,14 @@ def plan(board, operation, board_hint):
         "bounded_cell_track_lock_scope_required",
     )
     shift = operation.get("max_shift_nm", 6_000_000)
+    reference_groups = operation.get("reference_group_uuids", [])
+    require(
+        type(reference_groups) is list
+        and len(reference_groups) <= 8
+        and all(type(value) is str and value for value in reference_groups)
+        and len(set(reference_groups)) == len(reference_groups),
+        "explicit_source_reference_group_uuid_scope_required",
+    )
     require(
         type(shift) is int and 0 < shift <= 32_000_000, "bounded_cell_motion_required"
     )
@@ -88,6 +96,7 @@ def plan(board, operation, board_hint):
         max_shift_mm=shift / 1e6,
         allow_owned_locked_escapes=bool(track_allow),
         rebuild_projected_ground=False,
+        reference_group_uuids=reference_groups,
     )
     retired = set(proposal["retired_track_uuids"])
     tracks = {uid(item): item for item in board.GetTracks()}
@@ -231,6 +240,7 @@ def construct(board, operation, *, board_hint, request):
             "allow_locked_footprint_uuids",
             "allow_locked_track_uuids",
             "max_shift_nm",
+            "reference_group_uuids",
         }
         and {
             "kind",
@@ -258,6 +268,7 @@ def construct(board, operation, *, board_hint, request):
         retired_track_uuids=proposal["retired_track_uuids"],
         added_track_uuids=added,
         allow_locked_track_uuids=operation["allow_locked_track_uuids"],
+        reference_group_uuids=operation.get("reference_group_uuids", []),
         source_owned_obligations_recompiled=True,
         max_shift_nm=operation.get("max_shift_nm", 6_000_000),
         source_plan=proposal,

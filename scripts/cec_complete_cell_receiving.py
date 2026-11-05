@@ -528,6 +528,25 @@ def _preserve_partitions(parent,child,poses,retired,deadline):
     return {k:v for k,v in proof.items() if k not in ('source_parts','child_parts','demoted_parts')}
 
 
+def _receive_reference_transports(candidate,plan):
+    """Rebuild exact annotation AST from source proofs, never candidate claims."""
+    import cec_source_reference_group_transport as reference_transport
+    import cec_copper_echo as source_syntax
+    _,candidate_nodes=additive._nodes(candidate)
+    for ref,contract in plan['row_plan']['source_reference_group_transports'].items():
+        first=plan['row_plan']['source_poses'][ref];last=plan['row_plan']['target_poses'][ref]
+        turn=(last[2]-first[2])%360
+        if turn%90:
+            raise ValueError('saved_source_reference_group_cardinal_rotation_required')
+        expected=reference_transport.expected_cardinal_nodes(contract,
+            quarter_turns=int(turn)//90,delta_nm=tuple(
+                round((last[k]-first[k])*1e6) for k in (0,1)),
+            maximum_translation_mm=escape.complete_transport_shift_bound(plan))
+        if any(u not in candidate_nodes or source_syntax._freeze(candidate_nodes[u])!=source_syntax._freeze(n)
+               for u,n in expected.items()):
+            raise ValueError('saved_source_reference_group_cardinal_transport_differs')
+
+
 def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
             allow_owned_locked_escapes=False,rebuild_projected_ground=False,allow_octilinear_rotations=False,
             reference_group_uuids=(),aggregate_capacitor_max_shift_mm=None,
@@ -565,17 +584,7 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         # Source-rederive each exact whole annotation group. The complete
         # cell still owes all normal copper/current/ground/pose receiving.
         if reference_group_uuids:
-            import cec_source_reference_group_transport as reference_transport
-            import cec_copper_echo as source_syntax
-            _,candidate_nodes=additive._nodes(paths[1])
-            for ref,contract in plan['row_plan']['source_reference_group_transports'].items():
-                first=plan['row_plan']['source_poses'][ref];last=plan['row_plan']['target_poses'][ref]
-                expected=reference_transport.expected_nodes(contract,delta_nm=tuple(
-                    round((last[k]-first[k])*1e6) for k in (0,1)),
-                    maximum_translation_mm=escape.complete_transport_shift_bound(plan))
-                if any(u not in candidate_nodes or source_syntax._freeze(candidate_nodes[u])!=source_syntax._freeze(n)
-                       for u,n in expected.items()):
-                    raise ValueError('saved_source_reference_group_translation_differs')
+            _receive_reference_transports(paths[1],plan)
         projected=pcbnew.LoadBoard(str(paths[0]));escape.apply_private(projected,plan)
         requests=escape.obligations(parent,projected,plan)
         r['inherited_unplanned_terminals']=escape.unplanned_source_terminals(parent,plan,requests,board=projected)
@@ -584,6 +593,16 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         with tempfile.TemporaryDirectory(prefix='cec-complete-saved-cell-') as work:
             expected=force._copy_family(paths[0],Path(work)/'expected')
             additive._ground_refill(projected);field._save_field_snapshot(projected,expected)
+            if reference_group_uuids:
+                import cec_complete_macro_cell as complete_macro
+                row_plan=plan['row_plan']
+                requests_to_save=[(proof,
+                    int((row_plan['target_poses'][ref][2]-row_plan['source_poses'][ref][2])%360)//90,
+                    tuple(round((row_plan['target_poses'][ref][k]-row_plan['source_poses'][ref][k])*1e6)
+                        for k in (0,1)))
+                    for ref,proof in row_plan['source_reference_group_transports'].items()]
+                complete_macro._save_cardinal_reference_nodes(expected,requests_to_save,
+                    maximum_translation_mm=escape.complete_transport_shift_bound(plan))
             remaining=min(10.,deadline-time.monotonic())
             if remaining<=0:raise ValueError('complete_cell_source_replay_deadline')
             proof=additive.receive(expected,paths[1],timeout_s=remaining,board_hint=board_hint,

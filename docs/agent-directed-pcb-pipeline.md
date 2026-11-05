@@ -67,6 +67,42 @@ There is no arbitrary shell/Python tool. `--schemas` exports the full vocabulary
 All geometry uses integer nanometres. Board-specific coordinates are work
 orders, not implementation exceptions.
 
+### Received refinement outcomes
+
+Craft receiving compares individual physical findings, not their aggregate
+count. Identity binds defect kind, net, copper face and exact native locus;
+reconstructed UUIDs, explanatory prose and incident iteration order do not
+change the identity. New locations/types and worse typed measurements refuse,
+even if more defects disappeared elsewhere. Unlocated, unknown, partial,
+inconsistent or non-finite observations refuse rather than becoming clean
+evidence. Existing debt is explicit and is not qualified by nonregression.
+
+Craft rows returned by `issues` expose `target_issue_id`. The optional
+`stage.target_issue_ids` list names up to 32 exact-source targets that must
+actually disappear. Improving a target without clearing it is not completion;
+changing a claimed target cannot disguise an identical failed geometry retry.
+This first outcome contract covers craft findings only, not every possible
+electrical/placement/thermal design objective.
+
+Every actuator also receives `pair_integrity`. Scope is independently derived
+from saved conductor, pad and filled-zone geometry; shared reference or
+terminal changes conservatively recheck all complete declared pairs. An
+ordinary-net-only change can prove that pair geometry is unchanged without
+replaying irrelevant pair measurements. One aggregate killable 8-second lease
+covers both boards and every scoped pair. Timeouts and unavailable evidence
+refuse. Both measurements use the **source** policy path. The retained checker
+has legacy defaults, which are disclosed assumptions, not new source-qualified
+limits. Its saved-fill reference samples are not a continuous return-path or
+electromagnetic proof; this is pair-semantic nonregression, not SI signoff.
+
+Cell preview and construction expose explicit `reference_group_uuids` authority
+for recognized source-owned readable reference maps. Cardinal motion transports
+the complete source map, and saved receiving independently reconstructs its
+expected AST. Unrelated locked groups remain exact. An exactly stationary
+grouped contextual owner needs no moving authority; that does not authorize
+moving or unlocking its group. This enables useful connected-cell decisions
+without stripping reviewer annotations or bypassing copper ownership.
+
 ## Received construction capabilities
 
 * `replace_chain`: ordinary-signal shortening with source ports, launch

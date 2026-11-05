@@ -334,6 +334,7 @@ class Workbench:
         max_shift_nm=6000000,
         offset=0,
         limit=8,
+        reference_group_uuids=None,
     ):
         require(
             type(offset) is int
@@ -350,6 +351,7 @@ class Workbench:
             max_shift_nm=max_shift_nm,
             allow_locked_footprint_uuids=allow_locked_footprint_uuids or [],
             allow_locked_track_uuids=allow_locked_track_uuids or [],
+            reference_group_uuids=reference_group_uuids or [],
         )
         token = self._make_job(board, dict(kind="cell_preview", operation=operation))
         record = self._run(token, "cell_preview")
@@ -648,7 +650,7 @@ class Workbench:
             release_authority=False,
         )
 
-    def stage(self, board, expected_source_sha256, intent, operations):
+    def stage(self, board, expected_source_sha256, intent, operations, target_issue_ids=None):
         require(
             board in self.rows and expected_source_sha256 == self._row(board)["sha256"],
             "exact_expected_checkpoint_sha_required",
@@ -667,7 +669,15 @@ class Workbench:
             all(op.get("kind") in CAPABILITIES for op in operations),
             "only_independently_received_construction_kinds_are_exposed",
         )
-        token = self._make_job(board, dict(intent=intent, operations=operations))
+        require(target_issue_ids is None or type(target_issue_ids) is list
+                and len(target_issue_ids) <= 32
+                and all(type(key) is str and len(key) == 64 for key in target_issue_ids)
+                and len(set(target_issue_ids)) == len(target_issue_ids),
+                "bounded_exact_craft_targets_required")
+        request = dict(intent=intent, operations=operations)
+        if target_issue_ids:
+            request["target_issue_ids"] = target_issue_ids
+        token = self._make_job(board, request)
         path, job = self._job(token)
         decision = self.journal.begin(
             token,
@@ -677,6 +687,7 @@ class Workbench:
             dict(
                 intent=intent,
                 operations=operations,
+                target_issue_ids=target_issue_ids or [],
                 source_family=job["source_family"],
                 footprint_table_sha256=job["footprint_table_sha256"],
             ),
@@ -748,6 +759,7 @@ class Workbench:
         failed = []
         missing = []
         records = {}
+        craft_delta = None
         from .execution import required_gates
 
         built = path.parent / "construct.json"
@@ -809,7 +821,7 @@ class Workbench:
                 failed=failed,
                 reason="These construction tools are not yet connected to complete specialized receiving. Native DRC cannot substitute.",
             )
-        for step in ("native_source", "native_candidate", "transaction_delta"):
+        for step in ("native_source", "native_candidate", "transaction_delta", "pair_integrity"):
             r = records[step]
             if r.get("ok") is not True or r.get("complete") is not True:
                 failed.append(step + ": failed or unknown")
@@ -839,20 +851,16 @@ class Workbench:
                 "ignored_checks"
             ):
                 failed.append("native configuration or physical-fault regression")
+            from .craft import compare
+
             before, after = [records[s] for s in ("craft_source", "craft_candidate")]
-            if any(
-                r.get("complete") is not True
-                or r.get("power_contours", {}).get("complete") is not True
-                for r in (before, after)
-            ):
+            craft_delta = compare(before.get("semantic_inventory"),
+                                  after.get("semantic_inventory"),
+                                  target_ids=data["request"].get("target_issue_ids", ()))
+            if craft_delta["complete"] is not True:
                 failed.append("craft/contour observer incomplete")
-            elif (
-                after["issue_count"] > before["issue_count"]
-                or after["non_octilinear_count"] > before["non_octilinear_count"]
-                or after["power_contours"]["finding_count"]
-                > before["power_contours"]["finding_count"]
-            ):
-                failed.append("craft regression")
+            elif craft_delta["ok"] is not True:
+                failed.append("new/worsened craft finding or uncleared target")
             first, last = [records[s] for s in ("fields_source", "fields_candidate")]
 
             # Compare exact physical interaction records, not only their count.
@@ -873,6 +881,8 @@ class Workbench:
             candidate_sha256=inspection.sha(data["candidate"]),
             source_sha256=data["source_sha256"],
             native_counts=records["native_candidate"].get("counts"),
+            craft_delta=craft_delta,
+            pair_integrity=records.get("pair_integrity"),
             saved_centerline_mm=sum(
                 c.get("saved_centerline_mm", 0) for c in c.get("changes", [])
             ),

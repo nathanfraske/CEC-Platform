@@ -78,6 +78,8 @@ def compile_map(world, native, craft, fields):
             uuids,
             issue,
         )
+        if issue.get("semantic_id"):
+            rows[-1]["target_issue_id"] = issue["semantic_id"]
     for issue in fields.get("interactions", []):
         add(
             "field",

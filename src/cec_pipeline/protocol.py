@@ -84,6 +84,7 @@ for _kind, _props in {
     "add_connections": dict(routes=_ROUTES, vias=_VIAS),
     "place_cell": dict(
         poses=_POSES,
+        reference_group_uuids=dict(type="array", items=dict(type="string", minLength=1), maxItems=8, uniqueItems=True),
         routes=_ROUTES,
         vias=dict(type="array", maxItems=0, items=_VIAS["items"]),
         max_shift_nm=dict(type="integer", minimum=1, maximum=32000000),
@@ -151,6 +152,8 @@ TOOL_PARAMETERS = {
         "board": {"type": "string"},
         "expected_source_sha256": {"type": "string"},
         "intent": {"type": "string"},
+        "target_issue_ids": dict(type="array", items=dict(type="string", minLength=64, maxLength=64),
+                                 maxItems=32, uniqueItems=True),
         "operations": dict(
             type="array", items=dict(oneOf=_OPERATIONS), minItems=1, maxItems=8
         ),
@@ -178,6 +181,7 @@ TOOL_PARAMETERS = {
     "plan_cell": {
         "board": dict(type="string"),
         "poses": _POSES,
+        "reference_group_uuids": dict(type="array", items=dict(type="string", minLength=1), maxItems=8, uniqueItems=True),
         "allow_locked_footprint_uuids": _UIDS,
         "allow_locked_track_uuids": dict(
             type="array", items=dict(type="string"), maxItems=256, uniqueItems=True
@@ -244,7 +248,7 @@ REQUIRED.update(
 DESCRIPTIONS = {
     "boards": "List only the exact pinned nine-board checkpoint; no newest-file fallback.",
     "inspect": "Inspect native objects, route opportunities, repeated parts and actual power-zone intent. Returns integer nm, not inferred current ratings.",
-    "stage": "Author an atomic private candidate: replace_chain, align_group, reshape_zone. Explicit UUIDs/coordinates only. No baseline overwrite or admission.",
+    "stage": "Author an atomic private candidate using the closed received actor catalog. Optional target_issue_ids name exact source craft findings that must disappear. Explicit UUIDs/coordinates only. No baseline overwrite or admission.",
     "check": "Run one bounded independent check on the exact candidate. Failure/timeout remains failed/unknown.",
     "verdict": "Require all independent evidence; return review nonregression only, never manufacturing approval or automatic publication.",
     "select": "After independent checks and native visual review, select a private child for suite replay. Never overwrite originals or authorize release.",

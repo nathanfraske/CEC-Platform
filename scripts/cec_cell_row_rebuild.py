@@ -173,8 +173,15 @@ def plan(board, poses, cells, *, protected_nets=(), allow_owned_locked=False,
     oldposes={};deltas={};rotations={}
     for ref,target in poses.items():
         fp=fps[ref];at=fp.GetPosition();angle=fp.GetOrientationDegrees()
-        if (fp.IsLocked() or force._uid(fp) in grouped and ref not in reference_transports or len(target)!=3
+        if (len(target)!=3
                 or not all(math.isfinite(v) for v in target)):
+            raise ValueError('unlocked_translation_only_cell_poses_required')
+        stationary=(round(target[0]*1e6)==at.x and round(target[1]*1e6)==at.y
+            and abs((target[2]-angle+180)%360-180)<1e-9)
+        # An unchanged contextual owner grants no group motion authority.
+        # Only inspected explicit source mappings may accompany actual motion.
+        if (fp.IsLocked() or force._uid(fp) in grouped
+                and ref not in reference_transports and not stationary):
             raise ValueError('unlocked_translation_only_cell_poses_required')
         turn=(target[2]-angle)%360
         if not any(abs(turn-v)<1e-5 for v in (0.,360.)):

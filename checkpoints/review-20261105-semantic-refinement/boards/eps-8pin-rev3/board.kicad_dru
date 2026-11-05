@@ -1,0 +1,15 @@
+(version 1)
+# BEGIN CEC LOCAL POFV SIGNAL VIA
+# Filled/capped local signal dogbones under the selected profile.
+(rule "CEC local POFV signal via"
+  (condition "A.Type == 'Via' && A.memberOfGroup('CEC_LOCAL_POFV_SIGNAL_VIA')")
+  (constraint via_diameter (min 0.300mm))
+  (constraint hole_size (min 0.200mm))
+  (constraint annular_width (min 0.050mm)))
+# END CEC LOCAL POFV SIGNAL VIA
+# BEGIN CEC LOCAL ENDPOINT NECKDOWN
+# Short, guarded neckdowns at fine-pitch endpoints only.
+(rule "CEC guarded local endpoint neckdown"
+  (condition "A.Type == 'Track' && A.memberOfGroup('CEC_LOCAL_ENDPOINT_NECKDOWN')")
+  (constraint track_width (min 0.200mm)))
+# END CEC LOCAL ENDPOINT NECKDOWN

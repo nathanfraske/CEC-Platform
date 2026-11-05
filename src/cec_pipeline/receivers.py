@@ -81,6 +81,7 @@ def worker(job_path, step, output):
                 timeout_s=10.0,
                 max_shift_mm=op.get("max_shift_nm", 6000000) / 1e6,
                 allow_owned_locked_escapes=bool(op["allow_locked_track_uuids"]),
+                reference_group_uuids=op.get("reference_group_uuids", ()),
             )
         elif kind == "add_connections":
             from .connections import receive
@@ -106,6 +107,10 @@ def worker(job_path, step, output):
         from .safety import assembly_pair
 
         result = assembly_pair(source, candidate)
+    elif step == "pair_integrity":
+        from .pairs import receive
+
+        result = receive(source, candidate, timeout_s=8.0)
     elif step == "kelvin_pair":
         from .safety import kelvin_pair
 
@@ -130,7 +135,11 @@ def worker(job_path, step, output):
         import cec_route_quality as quality
 
         path = source if step == "craft_source" else candidate
-        result = quality.analyze_board(pcbnew.LoadBoard(str(path)))
+        board = pcbnew.LoadBoard(str(path))
+        result = quality.analyze_board(board)
+        from .craft import inventory
+
+        result["semantic_inventory"] = inventory(result, board)
     else:
         raise ValueError("unknown_worker_step")
     require(
