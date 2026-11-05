@@ -94,6 +94,23 @@ def _bypass_board():
 
 
 class TestLastmile(unittest.TestCase):
+    def test_closure_uses_private_native_graph_without_relabeling_source_shorts(self):
+        import pcbnew
+        import cec_fr
+        board = _board([(5,5,'/SELECTED'),(7,5,'/SELECTED'),(12,12,'/PROTECTED')])
+        foreign = pcbnew.NETINFO_ITEM(board,'/FOREIGN');board.Add(foreign)
+        inherited = pcbnew.PCB_TRACK(board);inherited.SetNet(foreign)
+        inherited.SetStart(pcbnew.VECTOR2I_MM(12,12));inherited.SetEnd(pcbnew.VECTOR2I_MM(14,12))
+        inherited.SetWidth(200000);inherited.SetLayer(pcbnew.F_Cu);board.Add(inherited)
+        saved = (inherited.GetNetCode(), inherited.GetNetname(), inherited.GetWidth())
+        with mock.patch.object(pcbnew.BOARD,'BuildConnectivity',side_effect=AssertionError('no net propagation')):
+            before=cec_fr.net_connectivity_component_count(board,board.GetNetcodeFromNetname('/SELECTED'))
+            result=cec_fr.synthesize_lastmile(board,include_nets={'/SELECTED'},
+                min_w=.2,clearance=.2,max_mm=5.,maze_max_mm=0.)
+            after=cec_fr.net_connectivity_component_count(board,board.GetNetcodeFromNetname('/SELECTED'))
+        self.assertEqual((before,result['closed'],after),(2,1,1))
+        self.assertEqual(saved,(inherited.GetNetCode(),inherited.GetNetname(),inherited.GetWidth()))
+
     def test_exact_component_count_tracks_live_closure_not_refusal_rows(self):
         import cec_fr
 
@@ -1176,6 +1193,12 @@ class TestLastmile(unittest.TestCase):
         import cec_fr
 
         board = _board([], edge=(0, 0, 8, 4))
+        # The fine-process profile cannot override the board's absolute floors.
+        # This positive fixture explicitly opts into native 0.35/0.25/0.05 mm.
+        settings = board.GetDesignSettings()
+        settings.m_ViasMinSize = pcbnew.FromMM(0.35)
+        settings.m_MinThroughDrill = pcbnew.FromMM(0.25)
+        settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.05)
         start = pcbnew.VECTOR2I_MM(1.0, 2.0)
         end = pcbnew.VECTOR2I_MM(7.0, 2.0)
         qualified = {(start.x, start.y), (end.x, end.y)}
@@ -1213,7 +1236,7 @@ class TestLastmile(unittest.TestCase):
                          [(0.25, 0.35), (0.25, 0.35)])
         self.assertTrue(calls)
 
-    def test_bridge_reserves_pofv_geometry_for_offset_from_bare_endpoint(self):
+    def test_bridge_reserves_pofv_geometry_for_proven_local_pad_escape(self):
         import pcbnew
         import cec_fr
 
@@ -1254,13 +1277,11 @@ class TestLastmile(unittest.TestCase):
         vias = [op for op in operations if op[0] == "via"]
         self.assertEqual([(op[2], op[3]) for op in vias],
                          [(0.30, 0.50), (0.30, 0.50)])
-        # The bare endpoint itself is not a via-in-pad qualification, so its
-        # origin candidate remains ordinary.  A selected filled/capped board
-        # process may still use its profile geometry at a guarded offset
-        # dogbone seat.
+        # The bare endpoint is not a local pad-escape qualification, so both
+        # the origin candidate and every remote offset seat remain ordinary.
         self.assertEqual(calls[0],
                          (pcbnew.FromMM(0.50), pcbnew.FromMM(0.30)))
-        self.assertIn(
+        self.assertNotIn(
             (pcbnew.FromMM(0.35), pcbnew.FromMM(0.25)), calls)
 
     def test_bridge_clamps_offset_vias_to_board_drc_minima(self):
@@ -1285,7 +1306,11 @@ class TestLastmile(unittest.TestCase):
                     and kwargs.get("drill_nm") == pcbnew.FromMM(0.30))
 
         with mock.patch.object(
-                cec_fr._fab, "board_profile_name", return_value=None), \
+                cec_fr._fab, "board_profile_name",
+                return_value="jlcpcb_6l_pofv_signal"), \
+                mock.patch.object(
+                    cec_fr._fab, "via_at_pad_conflicts",
+                    return_value=(None, [])), \
                 mock.patch.object(cec_fr, "_via_spot_clear",
                                   side_effect=via_clear), \
                 mock.patch.object(
@@ -1818,6 +1843,13 @@ class TestLastmile(unittest.TestCase):
         skipped = cec_fr.synthesize_missing_layer_junction_vias(
             tht_board, netclass_resolver=resolve)
         self.assertEqual((skipped["candidates"], skipped["added"]), (0, 0))
+        # A qualified complete upstream net may deliberately overlap on two
+        # layers while connecting elsewhere. Its importer is not its router.
+        protected = fixture()
+        untouched = cec_fr.synthesize_missing_layer_junction_vias(
+            protected, netclass_resolver=resolve, exclude_nets={'/PWR'})
+        self.assertEqual((untouched['candidates'], untouched['added']), (0, 0))
+        self.assertFalse(any(t.GetClass() == 'PCB_VIA' for t in protected.GetTracks()))
 
     def test_pipeline_power_zone_split_islands_get_guarded_bridge(self):
         import pcbnew
@@ -1955,6 +1987,46 @@ class TestLastmile(unittest.TestCase):
             row.get("kind") == "zone"
             and row.get("contact") == "zone_clearance"
             for row in blockers))
+
+    def test_zone_broadphase_honors_route_clearance_larger_than_zone_rule(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(2, 5, "/A"), (8, 5, "/A")], edge=(0, 0, 10, 10))
+        foreign = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(foreign)
+        zone = pcbnew.ZONE(board)
+        zone.SetLayer(pcbnew.F_Cu)
+        zone.SetNet(foreign)
+        zone.SetZoneName("pourplan:/BLOCK")
+        zone.SetLocalClearance(pcbnew.FromMM(0.1))
+        zone.Outline().NewOutline()
+        for x, y in ((4, 5.35), (6, 5.35), (6, 8), (4, 8)):
+            zone.Outline().Append(pcbnew.FromMM(x), pcbnew.FromMM(y))
+        board.Add(zone)
+        start, end = pcbnew.VECTOR2I_MM(2, 5), pcbnew.VECTOR2I_MM(8, 5)
+        width, clearance = pcbnew.FromMM(0.2), pcbnew.FromMM(0.4)
+        self.assertTrue(zone.Outline().Collide(
+            pcbnew.SHAPE_SEGMENT(start, end, width), clearance))
+        code = board.GetNetcodeFromNetname('/A')
+        raw = cec_fr._layer_foreign_shapes(board, pcbnew.F_Cu, {code})
+        indexed = cec_fr._identified_foreign_shape_indexes(board, pcbnew.F_Cu, {code})
+        # The 0.25 mm actual edge gap fails the route's 0.40 mm requirement,
+        # even though it passes the zone's own 0.10 mm requirement.
+        for shapes in (raw, indexed):
+            self.assertFalse(cec_fr._snapshot_foreign_clear(start, end, width, clearance, *shapes))
+        self.assertTrue(any(row.get('kind') == 'zone' for row in
+            cec_fr._snapshot_foreign_blockers(start, end, width, clearance, *indexed)))
+        for cache in (None, {}):
+            self.assertFalse(cec_fr._tap_foreign_clear(
+                board, start, end, width, pcbnew.F_Cu, clearance, {code},
+                foreign_cache=cache))
+            self.assertFalse(cec_fr._via_spot_clear(
+                board, pcbnew.VECTOR2I_MM(5, 5), width, clearance, {code},
+                foreign_cache=cache))
+            self.assertTrue(cec_fr._tap_foreign_clear(
+                board, pcbnew.VECTOR2I_MM(2, 4.5), pcbnew.VECTOR2I_MM(8, 4.5),
+                width, pcbnew.F_Cu, clearance, {code}, foreign_cache=cache))
 
     def test_foreign_shape_index_is_reused_only_for_same_layer_and_exempt_net(self):
         import pcbnew

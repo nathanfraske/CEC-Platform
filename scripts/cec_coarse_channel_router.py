@@ -532,7 +532,8 @@ def route_one(board_path, out_path, net_name, layers, grid_mm=0.5):
         add_channel(board, route)
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         board.BuildConnectivity()
         pcbnew.SaveBoard(trial, board)
         after = cec_score.score(trial, None)

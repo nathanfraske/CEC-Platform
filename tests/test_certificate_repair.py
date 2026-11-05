@@ -504,7 +504,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         self.assertFalse(repair._defer_support_relocation(
             footprint, negotiation, prior))
 
-    def test_prior_footprint_candidate_keys_survive_nested_wave_report(self):
+    def test_unscoped_nested_wave_report_cannot_suppress_poses(self):
         import cec_certificate_repair as repair
 
         report = {"algorithm_revision": repair.REPAIR_ALGORITHM_REVISION,
@@ -517,9 +517,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
             }],
         }}}}
 
-        self.assertEqual(repair._prior_footprint_candidate_keys(report), {
-            ("C42", 90.0, 0.5, -0.25),
-        })
+        self.assertEqual(repair._prior_footprint_candidate_keys(report), set())
         self.assertTrue(repair._prior_has_footprint_attempts(report))
         stale = {**report, "algorithm_revision": "older"}
         self.assertEqual(repair._prior_footprint_candidate_keys(stale), set())
@@ -527,8 +525,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
         report["plan"]["placement_candidate_history"] = [
             ["U4", 180.0, 0.0, 0.0]]
-        self.assertIn(("U4", 180.0, 0.0, 0.0),
-                      repair._prior_footprint_candidate_keys(report))
+        self.assertEqual(repair._prior_footprint_candidate_keys(report), set())
 
         timed_out = copy.deepcopy(report)
         timed_out["plan"]["endpoint_owner_relocation"] = {"sweep": {
@@ -547,9 +544,9 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         bounded_restore["plan"]["endpoint_owner_relocation"]["sweep"][
             "attempts"][0][
                 "placement_copper_restoration_budget_s"] = 25.0
-        self.assertIn(
-            ("U4", 180.0, 0.0, 0.0),
-            repair._prior_footprint_candidate_keys(bounded_restore))
+        # Neither raw nested attempts nor an old ref-only key establish the
+        # source scope and effective search context, even on this revision.
+        self.assertEqual(repair._prior_footprint_candidate_keys(bounded_restore), set())
 
         footprint = {"targets": [{"ref": "C42"}]}
         negotiation = {"windows": [{"net": "/OPEN"}]}
@@ -583,11 +580,21 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
     def test_placement_candidate_history_merges_prior_and_partial_attempts(self):
         import cec_certificate_repair as repair
+        import cec_route_pose_history as poses
 
-        prior = {("C1", 0.0, 0.25, 0.0)}
+        context = dict(stage='footprint_relocation', max_copper_pads=2, max_branch_tracks=12)
+        target = dict(ref='C2', target_net='/ARBITRARY', endpoint_ref='OWNER',
+            endpoint_pad='7', endpoint_x_mm=1., endpoint_y_mm=2.,
+            motion='away_from_endpoint', companion_refs=[])
+        prior = {poses.candidate_key({**target, 'ref': 'C1'},
+            dict(rotation_delta_deg=0, dx_mm=.25, dy_mm=0), context)}
         plan = {"footprint_relocation": {"sweep": {"attempts": [{
             "stage": "footprint_relocation",
-            "target": {"ref": "C2"},
+            "target": target,
+            "search_context": context,
+            "accepted": False,
+            "decision": "placement_regression",
+            "placement_preflight": {"accepted": False},
             "candidate": {
                 "rotation_delta_deg": 180.0,
                 "dx_mm": -0.5,
@@ -597,10 +604,9 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
         history = repair._persist_placement_candidate_history(plan, prior)
 
-        self.assertEqual({tuple(row) for row in history}, {
-            ("C1", 0.0, 0.25, 0.0),
-            ("C2", 180.0, -0.5, 0.75),
-        })
+        measured = plan['footprint_relocation']['sweep']['attempts'][0]
+        self.assertEqual({tuple(row) for row in history}, prior | {
+            poses.candidate_key(target, measured['candidate'], context)})
         self.assertEqual(plan["placement_candidate_history"], history)
 
     def test_mobility_cell_signature_prevents_candidate_aliasing(self):
@@ -1246,6 +1252,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
     def test_footprint_candidate_cap_is_per_certified_target(self):
         import cec_certificate_repair as repair
+        import cec_fixed_pofv_mobility as mobility
 
         budget = repair.RepairEffortBudget(
             max_attempts=4, wall_budget_s=60, started=10.0)
@@ -1262,7 +1269,10 @@ class TestCertificateRepairPolicy(unittest.TestCase):
                 mock.patch.object(repair, "_copy_board_family"), \
                 mock.patch.object(
                     repair, "_spawn_apply",
-                    return_value=(False, {"refusal": "test"})):
+                    side_effect=lambda worker,args,**kwargs: (
+                        dict(eligible=args[2],rejected=[])
+                        if worker is mobility.filter_candidates else
+                        (False, {"refusal": "test"}))):
             first = repair._attempt_footprint_relocation(
                 "board.kicad_pcb", {}, row, work_dir="/tmp", token="00",
                 effort=budget, max_candidates=1)
@@ -1278,6 +1288,8 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
     def test_pose_local_restoration_timeout_is_consumed_not_retried(self):
         import cec_certificate_repair as repair
+        import cec_fixed_pofv_mobility as mobility
+        import cec_support_craft_gate as craft
 
         target = repair.asdict(repair.FootprintRepairTarget(
             ref="C1", target_net="/OPEN", endpoint_ref="U1",
@@ -1290,6 +1302,10 @@ class TestCertificateRepairPolicy(unittest.TestCase):
 
         def fake_spawn(func, _args, **_kwargs):
             nonlocal classify_calls
+            if func is craft.measure:
+                return dict(ok=True,gates={},faults={})
+            if func is mobility.filter_candidates:
+                return dict(eligible=_args[2],rejected=[])
             if func is repair._relocate_footprint_worker:
                 return True, {"affected_nets": ["/OPEN", "/SIDE"]}
             if func is repair._refill_worker:
@@ -2333,7 +2349,7 @@ class TestCertificateRepairPolicy(unittest.TestCase):
         board.GetFootprints.return_value = [owner]
         board.Groups.return_value = []
 
-        def seats(_path, row, limit=32):
+        def seats(_path, row, limit=32, generated_locked_uuids=()):
             endpoint = float(row["endpoint_x_mm"])
             return [{
                 "rotation_delta_deg": 90.0,
@@ -3210,9 +3226,11 @@ class TestCertificateRepairPolicy(unittest.TestCase):
                                repair.MM, 0.3, places=3)
         self.assertAlmostEqual(normalized.GetDrillValue() / repair.MM,
                                0.2, places=3)
-        self.assertTrue(evacuated_changed, evacuated_evidence)
-        self.assertEqual(evacuated_evidence["ownership_mode"],
-                         "evacuated_local_dogbone")
+        # A historical branch proves origin, but does not prove a live
+        # connection. Reconnect first, then qualify/lock the local barrel.
+        self.assertFalse(evacuated_changed, evacuated_evidence)
+        self.assertEqual(evacuated_evidence["refusal"],
+                         "pofv_group_qualification_failed")
 
     def test_structural_identity_filter_ignores_nonroute_geometry_noise(self):
         import cec_certificate_repair as repair
@@ -4262,6 +4280,52 @@ class TestNegotiationTelemetry(unittest.TestCase):
             analyze_mock.call_args_list[1].kwargs[
                 "compiled_priority_routes"],
             ({"critical_routes_ok": True}, {"enabled": False}))
+
+    def test_multiresolution_rescues_critical_grid_false_negative_once(self):
+        import cec_route_preflight as preflight
+
+        def report_for(_board, *, grid_mm, **_kwargs):
+            blocked = int(grid_mm >= 1.0)
+            return {
+                "gate": not blocked,
+                "critical_routes": {"critical_routes_ok": True},
+                "route_reservations": {"enabled": True},
+                "criticality": {"unroutable_count": blocked},
+                "congestion": {
+                    "backend": "cpu", "wall_s": grid_mm,
+                    "iters": 2, "unroutable_count": blocked,
+                    "residual_overuse": 0.0,
+                    "residual_overuse_escaped": 0.0,
+                    "hotspots": [],
+                    "negotiation": {"plateau": False,
+                                    "best_iteration": 1, "stall_age": 0},
+                },
+                "wall_s": grid_mm,
+            }
+
+        with mock.patch.object(preflight, "analyze",
+                               side_effect=report_for) as analyze_mock:
+            result = preflight.analyze_multiresolution(
+                "board.kicad_pcb", grid_mm=1.0, iters=40,
+                coarse_factor=2.0)
+
+        self.assertTrue(result["gate"])
+        multi = result["multiresolution"]
+        self.assertEqual(
+            [row["grid_mm"] for row in multi["levels"]],
+            [2.0, 1.0, 0.5])
+        self.assertEqual(multi["authoritative_grid_mm"], 0.5)
+        self.assertTrue(multi["critical_rescue"]["ran"])
+        self.assertEqual(
+            multi["critical_rescue"]["critical_unroutable_before"], 1)
+        self.assertEqual(
+            multi["critical_rescue"]["critical_unroutable_after"], 0)
+        self.assertEqual(len(analyze_mock.call_args_list), 3)
+        self.assertEqual(analyze_mock.call_args_list[2].kwargs["iters"], 4)
+        self.assertEqual(
+            analyze_mock.call_args_list[2].kwargs[
+                "compiled_priority_routes"],
+            ({"critical_routes_ok": True}, {"enabled": True}))
 
 
 class TestIterativePlacementRepair(unittest.TestCase):

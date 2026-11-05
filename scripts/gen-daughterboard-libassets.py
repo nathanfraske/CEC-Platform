@@ -44,13 +44,13 @@
 # README), and MODDIY population stays a DNP/no-footprint note.
 #
 #   python3 scripts/gen-daughterboard-libassets.py
-import os, sys, uuid
+import math, os, sys, uuid
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def ff(v):
-    s = f"{v:.4f}".rstrip("0").rstrip(".")
+    s = f"{v:.6f}".rstrip("0").rstrip(".")
     return "0" if s in ("", "-0") else s
 
 
@@ -61,7 +61,8 @@ def U():
 # ---------------------------------------------------------------------------
 # Generic bare THT solder-field footprint.
 # ---------------------------------------------------------------------------
-def solder_field(name, descr, pads, *, rows=2, cols=12, pitch_x=4.2, pitch_y=5.5):
+def solder_field(name, descr, pads, *, rows=2, cols=12, pitch_x=4.2, pitch_y=5.5,
+                 silk_clearance_mm=.15, mask_expansion_mm=0., silk_width_mm=.15):
     """pads: list of (num, x, y, drill, pad_w, pad_h, shape) -- shape 'oval'|'circle'.
     Bare pad field: silk reference box + F.Fab outline + F.CrtYd, no connector
     body/shroud (this is not a housing part).
@@ -80,6 +81,13 @@ def solder_field(name, descr, pads, *, rows=2, cols=12, pitch_x=4.2, pitch_y=5.5
     axis) is untouched -- it is the free "length" dimension on the standing
     board, no reason to tighten it and every reason not to touch a dimension
     that isn't the problem."""
+    if (not pads or any(type(v)not in(int,float)or not math.isfinite(v)or v<0
+            for v in (silk_clearance_mm,mask_expansion_mm,silk_width_mm))
+            or silk_width_mm<=0):
+        raise ValueError('finite_positive_field_legend_geometry_required')
+    if any(type(p)not in(tuple,list)or len(p)!=7 or any(type(v)not in(int,float)or not math.isfinite(v)
+            for v in p[1:6])or min(p[3:6])<=0 for p in pads):
+        raise ValueError('actual_finite_positive_solder_field_lands_required')
     xs = [p[1] for p in pads]; ys = [p[2] for p in pads]
     y_lo, y_hi = min(ys), max(ys)
     h_lo = max(p[5] for p in pads if p[2] == y_lo)
@@ -110,11 +118,19 @@ def solder_field(name, descr, pads, *, rows=2, cols=12, pitch_x=4.2, pitch_y=5.5
         '\t(attr through_hole)',
         '\t(duplicate_pad_numbers_are_jumpers no)',
     ]
-    # silk + fab outline box around the whole field (no plastic body -- a bare
-    # pad field's "outline" is just the assembly-reference rectangle)
+    # F.Fab and courtyard remain their authored physical/reference envelopes.
+    # Silk is a stroke, not a zero-width boundary: clear the ACTUAL entire pad
+    # mask envelope by the declared factory gap plus half the unchanged stroke.
+    # Two nm cover native integer rounding; they are not a process tolerance.
+    margin=mask_expansion_mm+silk_clearance_mm+silk_width_mm/2+.000002
+    silk_bounds=(min(x0,min(p[1]-p[4]/2 for p in pads)-margin),
+        min(y0,min(p[2]-p[5]/2 for p in pads)-margin),
+        max(x1,max(p[1]+p[4]/2 for p in pads)+margin),
+        max(y1,max(p[2]+p[5]/2 for p in pads)+margin))
     for layer in ("F.SilkS", "F.Fab"):
-        w = 0.15 if layer == "F.SilkS" else 0.1
-        pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+        w = silk_width_mm if layer == "F.SilkS" else 0.1
+        ax0,ay0,ax1,ay1=silk_bounds if layer=='F.SilkS'else(x0,y0,x1,y1)
+        pts = [(ax0,ay0),(ax1,ay0),(ax1,ay1),(ax0,ay1),(ax0,ay0)]
         for (ax, ay), (bx, by) in zip(pts, pts[1:]):
             body.append(f'\t(fp_line (start {ff(ax)} {ff(ay)}) (end {ff(bx)} {ff(by)}) '
                         f'(stroke (width {w}) (type solid)) (layer "{layer}") (uuid "{U()}"))')
@@ -199,11 +215,6 @@ FIELDS = [
 ]
 
 OUTDIR = f"{ROOT}/lib/vendor/Connector_Generic.pretty"
-os.makedirs(OUTDIR, exist_ok=True)
-for name, pads, descr in FIELDS:
-    path = f"{OUTDIR}/{name}.kicad_mod"
-    open(path, "w").write(solder_field(name, descr, pads))
-    print(f"WROTE {os.path.relpath(path, ROOT)}  ({len(pads)} pads)")
 
 
 # ---------------------------------------------------------------------------
@@ -258,10 +269,6 @@ def pinheader_2x05():
 
 
 PHDIR = f"{ROOT}/lib/vendor/Connector_PinHeader_2.54mm.pretty"
-os.makedirs(PHDIR, exist_ok=True)
-ph_path = f"{PHDIR}/PinHeader_2x05_P2.54mm_Vertical.kicad_mod"
-open(ph_path, "w").write(pinheader_2x05())
-print(f"WROTE {os.path.relpath(ph_path, ROOT)}  (10 pads)")
 
 
 # ---------------------------------------------------------------------------
@@ -317,14 +324,24 @@ def cec_conn_2x5():
     return "\n".join(lines)
 
 
-sympath = f"{ROOT}/lib/cec.kicad_sym"
-symtext = open(sympath).read()
-if '"CEC_CONN_2x5"' not in symtext:
-    block = cec_conn_2x5()
-    # insert right before the final closing paren of the (kicad_symbol_lib ...) file
-    idx = symtext.rstrip().rfind(")")
-    symtext = symtext.rstrip()[:idx] + block + "\n)\n"
-    open(sympath, "w").write(symtext)
-    print(f"WROTE {os.path.relpath(sympath, ROOT)}  (+CEC_CONN_2x5)")
-else:
-    print(f"SKIP {os.path.relpath(sympath, ROOT)}  (CEC_CONN_2x5 already present)")
+def main():
+    os.makedirs(OUTDIR,exist_ok=True)
+    for name,pads,descr in FIELDS:
+        path=f"{OUTDIR}/{name}.kicad_mod"
+        with open(path,'w')as stream:stream.write(solder_field(name,descr,pads))
+        print(f"WROTE {os.path.relpath(path,ROOT)}  ({len(pads)} pads)")
+    os.makedirs(PHDIR,exist_ok=True)
+    ph_path=f"{PHDIR}/PinHeader_2x05_P2.54mm_Vertical.kicad_mod"
+    with open(ph_path,'w')as stream:stream.write(pinheader_2x05())
+    print(f"WROTE {os.path.relpath(ph_path,ROOT)}  (10 pads)")
+    sympath=f"{ROOT}/lib/cec.kicad_sym"
+    with open(sympath)as stream:symtext=stream.read()
+    if '"CEC_CONN_2x5"'not in symtext:
+        block=cec_conn_2x5();idx=symtext.rstrip().rfind(')')
+        symtext=symtext.rstrip()[:idx]+block+'\n)\n'
+        with open(sympath,'w')as stream:stream.write(symtext)
+        print(f"WROTE {os.path.relpath(sympath,ROOT)}  (+CEC_CONN_2x5)")
+    else:print(f"SKIP {os.path.relpath(sympath,ROOT)}  (CEC_CONN_2x5 already present)")
+
+
+if __name__=='__main__':main()

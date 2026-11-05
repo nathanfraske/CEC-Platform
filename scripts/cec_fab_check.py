@@ -28,13 +28,14 @@ Exit code 1 if any board has a fab-blocking finding, else 0.
 
 import argparse
 import collections
+import hashlib
 import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import cec_fab_profile as cec_fab
 
@@ -70,14 +71,41 @@ PROFILES = {
         "min_annular": 0.13,
         "min_drill": 0.20,
         "min_via_diameter": 0.45,
-        "min_hole_to_hole": 0.50,    # different nets, centre-to-centre edge gap
+        "min_hole_to_hole": 0.50,    # conservative ordinary-process edge gap
+        "min_via_hole_to_via_hole": 0.20,
+        "min_pad_hole_to_pad_hole": 0.45,
+        "min_via_hole_to_pad_hole": 0.45,  # POFV requires strictly greater
         "min_hole_clearance": 0.20,  # copper land/track to drilled hole edge
         "min_copper_edge": 0.20,
         "min_silk_width": 0.15,
+        "min_silk_height": 1.0,
+        "min_silk_clearance": 0.15,
         "min_sliver": 0.10,          # copper/mask sliver a process can hold
         "max_plated_aspect": 8.0,    # CEC process margin for plated through holes
     },
 }
+
+FACTORY_AUTHORITY = {
+    'jlcpcb': {
+        'verified_on': '2026-10-02',
+        'capabilities_url': 'https://jlcpcb.com/capabilities/pcb-capabilities',
+        'pofv_url': 'https://jlcpcb.com/news/free-via-in-pad-6-20-layer-pcbs-pofv',
+        'scope': 'published capability floors, not a board-specific factory acceptance',
+        'board_specific_exceptions_accepted': [],
+        'barrel_plating_minimum_qualified': False,
+    },
+}
+
+# A project's warning/ignore settings are intent, not permission to omit a
+# fabrication requirement.  Library mapping/courtyard advisories remain in
+# the raw report but do not acquire fictitious factory authority here.
+FACTORY_DRC_TYPES = frozenset({
+    'annular_width', 'clearance', 'connection_width', 'copper_edge_clearance',
+    'drill_out_of_range', 'hole_clearance', 'hole_to_hole', 'holes_co_located',
+    'shorting_items', 'silk_edge_clearance', 'silk_over_copper', 'silk_overlap',
+    'text_height', 'text_thickness', 'track_width', 'via_diameter',
+    'solder_mask_bridge', 'unconnected_items', 'starved_thermal',
+})
 
 
 def profile_rules(prof, copper_oz, process_profile=None):
@@ -98,9 +126,14 @@ def profile_rules(prof, copper_oz, process_profile=None):
         "drill": prof["min_drill"],
         "via": prof["min_via_diameter"],
         "h2h": prof["min_hole_to_hole"],
+        "h2h_via_via": prof["min_via_hole_to_via_hole"],
+        "h2h_pad_pad": prof["min_pad_hole_to_pad_hole"],
+        "h2h_via_pad": prof["min_via_hole_to_pad_hole"],
         "hole_clearance": prof["min_hole_clearance"],
         "edge": prof["min_copper_edge"],
         "silk": prof["min_silk_width"],
+        "silk_height": prof["min_silk_height"],
+        "silk_clearance": prof["min_silk_clearance"],
         "sliver": prof["min_sliver"],
         "aspect": prof["max_plated_aspect"],
     }
@@ -138,14 +171,16 @@ QUALIFIED_CONSTRAINTS = {
 
 
 def extract_qualified_fab_rules(dru_path):
-    """Extract explicitly named, footprint-scoped manufacturer exceptions.
+    """Extract named footprint-scoped exception CLAIMS for evidence only.
 
     The fab audit intentionally replaces ordinary board intent rules.  A
     vendor land can nevertheless require a drawing-qualified exception (for
     example, an SMD land beside its own locating NPTH).  Import only rules
     using the public ``fab_qualified_`` convention, with an explicit condition,
     footprint scope, and a clearance-family constraint.  Broad or unrelated
-    design exceptions never cross this boundary.
+    design exceptions never cross this boundary.  The name and an owner's
+    land drawing do not prove that a PCB manufacturer accepted the exception.
+    The factory check therefore records these but never applies them.
     """
     if not dru_path or not os.path.isfile(dru_path):
         return []
@@ -225,14 +260,12 @@ def write_fab_dru(path, r, *, qualified_rules=()):
             "# This deliberately replaces the board's own intent rules: the\n"
             "# question here is not 'does it meet our spec' but 'can it be\n"
             "# built'. Do not commit this beside a board.\n")
-        # KiCad applies the first matching custom constraint.  Put qualified
-        # footprint rules ahead of the global fab floor so their deliberately
-        # narrow manufacturer-land condition can win for those items only.
+        # Preserve the intent evidence in comments, not executable exceptions.
+        # A rule-name convention is not primary manufacturer acceptance.
         for row in qualified_rules or ():
-            fh.write(
-                "\n# Board-local manufacturer-land exception admitted by "
-                "the fab_qualified_ contract.\n")
-            fh.write(str(row["text"]).rstrip() + "\n")
+            fh.write("\n# UNVERIFIED board-local exception claim; not applied:\n")
+            for line in str(row["text"]).splitlines():
+                fh.write('# ' + line + '\n')
         fh.write(
             '(rule "fab min track"\n'
             "\t(constraint track_width (min %smm)))\n"
@@ -249,9 +282,16 @@ def write_fab_dru(path, r, *, qualified_rules=()):
             '(rule "fab copper to edge"\n'
             "\t(constraint edge_clearance (min %smm)))\n"
             '(rule "fab silk width"\n'
+            '\t(condition "A.Layer == \'F.Silkscreen\' || A.Layer == \'B.Silkscreen\'")\n'
             "\t(constraint text_thickness (min %smm)))\n"
+            '(rule "fab silk height"\n'
+            '\t(condition "A.Layer == \'F.Silkscreen\' || A.Layer == \'B.Silkscreen\'")\n'
+            "\t(constraint text_height (min %smm)))\n"
+            '(rule "fab silk clearance"\n'
+            "\t(constraint silk_clearance (min %smm)))\n"
             % (r["track"], r["clearance"], r["annular"], r["drill"],
-               r["h2h"], r["hole_clearance"], r["edge"], r["silk"]))
+               r["h2h"], r["hole_clearance"], r["edge"], r["silk"],
+               r["silk_height"], r["silk_clearance"]))
 
 
 def qualify_fab_drc_violations(violations, board):
@@ -263,12 +303,67 @@ def qualify_fab_drc_violations(violations, board):
     rows = list(violations or ())
     try:
         import cec_score
-        return cec_score.qualify_structural_violations(rows, board)
+        qualified = cec_score.qualify_structural_violations(rows, board)
+        # Only the selected process's exact compact-via geometry proof can
+        # qualify dimensional native rows here.  The scorer also understands
+        # owner land/edge exceptions; those are NOT factory acceptance.
+        eligible = {'via_diameter', 'annular_width', 'drill_out_of_range'}
+        retained = collections.Counter(json.dumps(row, sort_keys=True) for row in qualified)
+        result = []
+        for row in rows:
+            key = json.dumps(row, sort_keys=True)
+            if row.get('type') not in eligible or retained[key]:
+                result.append(row)
+                retained[key] -= int(retained[key] > 0)
+        return result
     except Exception:                                      # noqa: BLE001
         return rows
 
 
-def run_fab_drc(board_path, r):
+def _factory_project_severities(path):
+    project = json.loads(Path(path).read_text()) if Path(path).exists() else {}
+    design = project.setdefault('board', {}).setdefault('design_settings', {})
+    severities = design.setdefault('rule_severities', {})
+    before = dict(severities)
+    exclusions = design.get('drc_exclusions', [])
+    design['drc_exclusions'] = []
+    for kind in FACTORY_DRC_TYPES:
+        severities[kind] = 'error'
+    Path(path).write_text(json.dumps(project, indent=2)+'\n', encoding='utf-8')
+    return dict(source=before, source_exclusions_not_applied=exclusions,
+                factory_override={kind:'error' for kind in sorted(FACTORY_DRC_TYPES)},
+                effective=dict(severities))
+
+
+def native_report_completeness(report, version):
+    """A capped KiCad report cannot prove absence of unreported defects."""
+    rows = report.get('violations')
+    unconnected = report.get('unconnected_items')
+    ignored = report.get('ignored_checks', [])
+    if (not isinstance(rows, list) or not isinstance(unconnected, list)
+            or not isinstance(ignored, list)
+            or any(not isinstance(v, dict) or not isinstance(v.get('key'), str) for v in ignored)
+            or any(not isinstance(v, dict) or not isinstance(v.get('type'), str)
+                   or v.get('severity') not in ('error', 'warning', 'ignore') for v in rows)):
+        return dict(complete=False, reason='malformed_native_drc_report', capped_types={})
+    counts = collections.Counter(v['type'] for v in rows)
+    limits = {kind:(499 if kind == 'clearance' else 199) for kind in counts}
+    capped = {kind:dict(count=count, limit=limits[kind]) for kind, count in counts.items()
+              if count >= limits[kind]}
+    if len(unconnected) >= 499:
+        capped['unconnected_items'] = dict(count=len(unconnected), limit=499)
+    version = report.get('kicad_version', version)
+    known = re.match(r'^10\.0\.5(?:\D|$)', str(version)) is not None
+    ignored_factory = sorted(v['key'] for v in ignored if v['key'] in FACTORY_DRC_TYPES)
+    return dict(complete=known and not capped and not ignored_factory, capped_types=capped,
+                ignored_factory_checks=ignored_factory,
+                reason=('factory_checks_remain_ignored' if ignored_factory else
+                        'native_report_cap_reached' if capped else
+                        'native_report_limit_contract_unverified' if not known else None),
+                version=version, limit_authority='KiCad 10.0.5 drc_engine.cpp ERROR_LIMIT=199, EXTENDED=499')
+
+
+def run_fab_drc(board_path, r, *, evidence=None):
     """KiCad's own geometry engine, against the fab profile."""
     work = tempfile.mkdtemp(prefix="fabchk-")
     try:
@@ -295,37 +390,52 @@ def run_fab_drc(board_path, r):
         settings.m_MinThroughDrill = pcbnew.FromMM(r["drill"])
         settings.m_ViasMinAnnularWidth = pcbnew.FromMM(r["annular"])
         settings.m_HoleToHoleMin = pcbnew.FromMM(r["h2h"])
-        # Board-setup minima are an independent lower bound beneath custom
-        # rules.  Lower only the disposable copy to the smallest explicitly
-        # qualified footprint floor; the unconditional fab rule below still
-        # enforces the ordinary value everywhere else.
-        qualified_hole_floor = min(
-            [float(r["hole_clearance"])] + [
-                float((row.get("minima") or {}).get(
-                    "hole_clearance", r["hole_clearance"]))
-                for row in qualified_rules])
-        settings.m_HoleClearance = pcbnew.FromMM(qualified_hole_floor)
+        # No owner exception can lower the independent factory hole floor.
+        settings.m_HoleClearance = pcbnew.FromMM(r['hole_clearance'])
         settings.m_CopperEdgeClearance = pcbnew.FromMM(r["edge"])
         settings.m_MinSilkTextThickness = pcbnew.FromMM(r["silk"])
+        settings.m_MinSilkTextHeight = pcbnew.FromMM(r['silk_height'])
+        settings.m_SilkClearance = pcbnew.FromMM(r['silk_clearance'])
         pcbnew.SaveBoard(base + ".kicad_pcb", audit_board)
         write_fab_dru(
             base + ".kicad_dru", r, qualified_rules=qualified_rules)
+        severity = _factory_project_severities(base + '.kicad_pro')
         out = os.path.join(work, "drc.json")
-        subprocess.run(
-            ["kicad-cli", "pcb", "drc", "--severity-error", "--format", "json",
-             "-o", out, base + ".kicad_pcb"],
-            capture_output=True, text=True, timeout=900)
+        from cec_operation_budget import run, OperationFailure
+        progress = os.environ.get('CEC_OPERATION_PROGRESS')
+        diagnostic_parent = Path(progress).parent if progress else Path(work)
+        diagnostic_parent.mkdir(parents=True, exist_ok=True)
+        diagnostic = tempfile.mkdtemp(prefix='fab-native-', dir=str(diagnostic_parent))
+        if evidence is not None:
+            evidence.update(severity_policy=severity, unapplied_intent_exception_claims=[
+                dict(row, acceptance_status='unverified_not_applied') for row in qualified_rules],
+                            diagnostics_durable=bool(progress))
+        try:
+            operation = run(
+                ['kicad-cli', 'pcb', 'drc', '--severity-all', '--all-track-errors', '--format', 'json',
+                 '-o', out, base + '.kicad_pcb'], diagnostic,
+                operation='factory_native_drc', timeout=900)
+        except OperationFailure as exc:
+            if evidence is not None:
+                evidence['operation'] = dict(exc.failure_evidence)
+                evidence['log_tail'] = Path(diagnostic, 'worker.log').read_text(errors='replace')[-16384:] if Path(diagnostic, 'worker.log').exists() else ''
+            raise
         if not os.path.exists(out):
             return None, None
         d = json.load(open(out))
         violations = d.get("violations") or []
-        # Use the same geometry-proven qualification authority as the route
-        # scorer.  The fab DRU deliberately remains conservative; only rows
-        # that pass the exact POFV/manufacturer-land/endpoint predicates are
-        # removed after KiCad has reported them.  An exception in the proof
-        # path keeps every row, so this audit remains fail-closed.
+        # Only dimensional compact-via rows may use the central process
+        # proof. Owner land/edge/legend exceptions never cross this boundary.
         violations = qualify_fab_drc_violations(violations, audit_board)
-        return violations, d.get("unconnected_items") or []
+        blocking = [v for v in violations
+                    if v.get('type') in FACTORY_DRC_TYPES or v.get('severity') == 'error']
+        if evidence is not None:
+            evidence.update(origin='fresh_disposable_factory_drc', operation=operation,
+                raw_report=d, raw_counts=dict(collections.Counter(v.get('type') for v in d.get('violations', []))),
+                completeness=native_report_completeness(d, d.get('kicad_version')),
+                process_qualified_rows=[v for v in d.get('violations', []) if v not in violations],
+                retained_nonblocking_advisories=[v for v in violations if v not in blocking])
+        return blocking, d.get("unconnected_items") or []
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -519,33 +629,84 @@ def artifact_scan(board_path, r):
     return out
 
 
+def _input_identity(board_path):
+    path = Path(board_path).resolve()
+    return {suffix: (hashlib.sha256(path.with_suffix(suffix).read_bytes()).hexdigest()
+                     if path.with_suffix(suffix).is_file() else None)
+            for suffix in ('.kicad_pcb', '.kicad_pro', '.kicad_dru')}
+
+
 def check(board_path, prof_key, copper_oz, do_artifacts=True):
+    """Factory-specific blockers and completeness, never release authority.
+
+    ``drc_total`` retains its aggregate blocking meaning for older consumers;
+    raw native counts and independent findings are explicitly separate below.
+    Unknown/capped/incomplete evidence is also surfaced as ``error`` so a
+    legacy consumer cannot turn absence of reported defects into FAB OK.
+    """
     prof = PROFILES[prof_key]
-    import pcbnew
-    board = pcbnew.LoadBoard(board_path)
-    if board is None:
-        return {"board": os.path.relpath(board_path),
-                "profile": prof["name"],
-                "error": "KiCad could not load board"}
-    process_name = cec_fab.board_profile_name(board)
-    process_profile = cec_fab.get_profile(process_name) if process_name else None
-    r = profile_rules(prof, copper_oz, process_profile)
-    viol, unconn = run_fab_drc(board_path, r)
-    rep = {"board": os.path.relpath(board_path), "profile": prof["name"],
-           "fabrication_profile": process_name,
-           "copper_oz": copper_oz, "rules": r}
-    if viol is None:
-        rep["error"] = "DRC did not produce a report"
-        return rep
-    rep["drc"] = dict(collections.Counter(v.get("type") for v in viol))
-    rep["drc_total"] = len(viol)
-    rep["unconnected"] = len(unconn)
-    rep["examples"] = [v.get("description", "")[:110] for v in viol[:6]]
-    if do_artifacts:
+    rep = dict(schema=2, board=os.path.relpath(board_path), profile=prof['name'],
+               factory_authority=FACTORY_AUTHORITY[prof_key], complete=False,
+               release_authority=False, factory_status='inconclusive',
+               scope='modeled native fabrication checks, not full manufacturing or assembly qualification',
+               copper_oz=copper_oz, drc={}, drc_total=0, unconnected=None,
+               raw_native={}, independent_geometry={}, incomplete_reasons=[])
+    reasons, violations = rep['incomplete_reasons'], []
+    try:
+        import pcbnew
+        import cec_fab_native_geometry as native
+        before = _input_identity(board_path)
+        rep['input_identity'] = before
+        board = pcbnew.LoadBoard(str(board_path))
+        if board is None:
+            raise ValueError('KiCad could not load board')
+        process_name = cec_fab.board_profile_name(board)
+        process_profile = cec_fab.get_profile(process_name) if process_name else None
+        r = profile_rules(prof, copper_oz, process_profile)
+        rep.update(fabrication_profile=process_name, rules=r)
         try:
-            rep.update(artifact_scan(board_path, r))
-        except Exception as e:                             # noqa: BLE001
-            rep["artifact_error"] = "%s: %s" % (type(e).__name__, e)
+            viol, unconn = run_fab_drc(board_path, r, evidence=rep['raw_native'])
+            if viol is None or unconn is None:
+                reasons.append('native_drc_report_missing')
+            else:
+                violations.extend(viol)
+                rep['unconnected'] = len(unconn)
+            completion = rep['raw_native'].get('completeness', {})
+            if completion.get('complete') is not True:
+                reasons.append(completion.get('reason') or 'native_drc_completeness_unknown')
+        except Exception as exc:
+            reasons.append('native_drc_failed: %s: %s' % (type(exc).__name__, exc))
+        for name, result in (
+                ('holes', native.audit_holes(board, r, board_path=board_path)),
+                ('legend', native.audit_legend(board, r))):
+            rep['independent_geometry'][name] = result
+            violations.extend(result['findings'])
+            if result.get('complete') is not True:
+                reasons.append('independent_%s_incomplete' % name)
+        if do_artifacts:
+            try:
+                rep.update(artifact_scan(board_path, r))
+            except Exception as exc:
+                rep['artifact_error'] = '%s: %s' % (type(exc).__name__, exc)
+                reasons.append('artifact_scan_failed')
+        else:
+            reasons.append('artifact_scan_not_requested')
+        after = _input_identity(board_path)
+        rep['input_identity_unchanged'] = after == before
+        if before != after:
+            reasons.append('source_family_changed_during_factory_check')
+            rep['input_identity_after'] = after
+    except Exception as exc:
+        reasons.append('%s: %s' % (type(exc).__name__, exc))
+    rep['drc'] = dict(collections.Counter(v.get('type') for v in violations))
+    rep['drc_total'] = len(violations)
+    rep['examples'] = [v.get('description', '')[:160] for v in violations[:6]]
+    rep['complete'] = not reasons
+    known = (len(violations) + int(rep.get('unconnected') or 0)
+             + sum(len(rep.get(key) or ()) for key in ('slivers','islands','drill_aspect','acid_traps')))
+    rep['factory_status'] = 'blocked' if known else 'inconclusive' if reasons else 'pass'
+    if reasons:
+        rep['error'] = '; '.join(reasons)
     return rep
 
 
@@ -557,9 +718,10 @@ def blocking_count(rep):
     blocker too; reporting ``FAB OK`` after the independent artifact authority
     crashed is a fail-open result.
     """
-    if rep.get("error") or rep.get("artifact_error"):
-        return 1
-    return (int(rep.get("drc_total", 0))
+    unknown = bool(rep.get('error') or rep.get('artifact_error') or
+                   (rep.get('schema', 1) >= 2 and rep.get('complete') is not True))
+    return (int(unknown) + int(rep.get("drc_total", 0))
+            + int(rep.get('unconnected') or 0)
             + len(rep.get("slivers") or ())
             + len(rep.get("islands") or ())
             + len(rep.get("drill_aspect") or ())
@@ -596,6 +758,7 @@ def main():
     for bp in a.boards:
         if not os.path.isfile(bp):
             print("MISSING %s" % bp)
+            bad += 1
             continue
         copper_oz = a.copper_oz
         if copper_oz is None:

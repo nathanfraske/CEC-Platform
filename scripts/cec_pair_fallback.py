@@ -63,8 +63,16 @@ def route_atomic_pairs(input_board, work_dir, *, tier_groups,
                 seed=trial_seed, timeout=max(1, int(timeout)),
                 verbose=verbose, hints=list(hints),
                 skip_locked_taps=bool(skip_locked_taps))
+            # A refused tier retains its parent. Preserve the actual backend,
+            # geometry and pair-physics refusal BEFORE subsequent return or
+            # all-pair checks report merely that this parent is still open.
+            row["staged"] = staged
             cec_fr.copy_project_sidecars(input_board, routed)
-            pair_return = cec_pair_return.synthesize(routed, returned)
+            # The fallback owns only the requested atomic groups. Independent
+            # whole-board pair signoff below still covers all pairs, but a
+            # USB attempt must not realign an unrelated already-routed pair.
+            pair_return = cec_pair_return.synthesize(
+                routed, returned, pair_nets={net for group in groups for net in group})
             row["pair_return"] = pair_return
             if not pair_return.get("ok"):
                 raise RuntimeError(
@@ -82,7 +90,6 @@ def route_atomic_pairs(input_board, work_dir, *, tier_groups,
                         pair_quality.get("violations") or
                         [pair_quality.get("error", "unknown failure")]))
             row["accepted"] = True
-            row["staged"] = staged
             attempts.append(row)
             return {
                 "schema": 1,

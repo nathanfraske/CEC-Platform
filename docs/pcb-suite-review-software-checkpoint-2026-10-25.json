@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "kind": "software_and_received_hardware_checkpoint_not_fabrication_release",
+  "checkpoint": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/pipeline-monitor-quiet-checkpoint-20261025-bu.json",
+  "checkpoint_sha256": "9c4ae3fee10ca0014484f22ac8db1291ad8775eeb7963a2ad9cd88e7fa7041e4",
+  "archive_sha256": "0a55143165ba4b5d114092a4d887c7ceb24497be280ff77c95d91d933beac437",
+  "archive_bytes": 627084,
+  "regression": "build/parallel-full-integration-20261025-closure48-receipt.json",
+  "regression_modules": 422,
+  "regression_tests_passed": 13034,
+  "regression_failures": 0,
+  "regression_errors": 0,
+  "regression_skipped": 0,
+  "new_synthetic_tests": 133,
+  "selected_hardware_ledger": "docs/pcb-suite-review-goal-2026-10-21.json",
+  "selected_hardware_ledger_sha256": "c908054b7eec5d66aff0b15e92d709ccc42b3d3336342d6cc3ae07859e7a55aa",
+  "selected_plan": "build/parallel-review-suite-monitor-quiet-rated-20261025-he.json",
+  "selected_plan_sha256": "fc955869ac45282e43dd1c3a265e8a992de5a861dc8a72bca1e119a0da7481c5",
+  "selected_hardware_changed": true,
+  "last_fresh_selected_suite_opens": 54,
+  "last_fresh_selected_suite_warnings": 371,
+  "last_fresh_selected_suite_native_error_level_violations": 0,
+  "last_fresh_selected_suite_exclusions": 0,
+  "nine_board_receiving": {
+    "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/nine-board-monitor-quiet-rated-20261025-root-he/receiving.json",
+    "sha256": "2a8a2502de282ee07284d980aad45957e4b841f81804adc81195dc77e259c088"
+  },
+  "original_parent_receiving": [
+    {
+      "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/eps-production-monitor-ground-receiving-20261025-root-gu/receiving.json",
+      "sha256": "97f81c70afc8aa775ca38498263d0b483707aaf8bc30a8197d203c1709b32b2a"
+    },
+    {
+      "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/pcie3-production-original-parent-receiving-20261025-root-gv/receiving.json",
+      "sha256": "f93560a4fff04726b19ac4fb0e7053ca8909f676eb31b7e65b089316dc49f6d4"
+    },
+    {
+      "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/pcie3-production-quiet-cleanup-receiving-20261025-root-hc/receiving.json",
+      "sha256": "82b1a96d94c5bb767210fd55284ea351741c1b13ba734f048d6c69cddf5f00bd"
+    },
+    {
+      "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/vhp-production-unloaded-receiving-20261025-root-gy/receiving.json",
+      "sha256": "0d89edcfe6c68d0617339710ba41a48f958ec16e89bce47c1d19e2e4731de960"
+    }
+  ],
+  "all_changed_hardware_transactions_all16_current_code_gates_passed": true,
+  "fresh_current_code_nine_board_receiving_still_required": false,
+  "actual_physical_boards_changed": 3,
+  "opens_retired": 3,
+  "original_controls_byte_exact": true,
+  "pending_reviewed_courtyard_conflicts": 13,
+  "power_window_prototypes_not_selected": true,
+  "next_work": [
+    "Checked local via-clearance windows were explicitly approved, but two private/RAM examples narrow existing power webs without a positive full-current remaining-path proof. Native openness improvement and unchanged track-debt objects are not zone ampacity evidence; no window is selected.",
+    "The C6 module lacks a complete device-role/mover contract. Its manufacturer-declared split Ground lands also need exact per-physical-UUID handling before a coordinated MCU/support move, rather than deduplication or invented internal PCB shorts.",
+    "EPS fixed-supply C30 pivots hit actual retained copper/part geometry and lose a meaningful old Ground lead. Those literal failed poses are not retried unchanged.",
+    "VHP private C6/OV1 closure reaches13opens but creates one new reference conflict; local/cooperative field searches and closed reverse-map search refused. It remains private, not a warning trade."
+  ],
+  "goal_complete": false,
+  "release_authority": false,
+  "fab_ready": false
+}

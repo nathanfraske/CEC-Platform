@@ -134,6 +134,10 @@ class TestDashboard(unittest.TestCase):
         self.assertIn("STALE SOURCE", dashboard.PAGE)
         self.assertIn("analyze diagnostic", dashboard.PAGE)
 
+    def test_structural_count_is_not_labelled_as_raw_native_drc(self):
+        self.assertIn("gbadge('qualified DRC',g.drc===0", dashboard.PAGE)
+        self.assertNotIn("gbadge('drc',g.drc===0", dashboard.PAGE)
+
     def test_archive_contract_keeps_executable_route_ownership_sidecars(self):
         self.assertIn(".pourplan.json", dashboard.ARCHIVE_BOARD_SIDECARS)
         self.assertIn(".pourfirst-state.json",
@@ -250,6 +254,27 @@ class TestDashboard(unittest.TestCase):
             self.assertFalse(cec_render._board_render_valid(empty))
             self.assertTrue(cec_render._board_render_valid(valid))
 
+    def test_render_validator_rejects_sparse_pads_spanning_whole_frame(self):
+        from PIL import Image, ImageDraw
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "sparse.png")
+            image = Image.new("RGB", (320, 240), (0, 0, 0))
+            draw = ImageDraw.Draw(image)
+            for x in (40, 160, 280):
+                for y in (30, 120, 210):
+                    draw.rectangle((x, y, x+10, y+10), fill=(220, 220, 220))
+            image.save(path)
+            self.assertFalse(cec_render._board_render_valid(path))
+
+    def test_render_cannot_accept_invalid_artifact_after_retry_exhaustion(self):
+        with mock.patch.object(cec_render, "_artifact_command",
+                               return_value=types.SimpleNamespace(
+                                   returncode=0, stderr=b"", stdout=b"")), \
+                mock.patch.object(cec_render.os.path, "isfile", return_value=True), \
+                mock.patch.object(cec_render, "_board_render_valid", return_value=False):
+            self.assertIsNone(cec_render.render(
+                "source.kicad_pcb", "out.png", no_silk=False))
+
     def test_status_banner_keeps_failure_state_inside_exported_image(self):
         from PIL import Image
 
@@ -280,7 +305,9 @@ class TestDashboard(unittest.TestCase):
             max_T=50.5, ambient=50.0,
             nets_dropped={"/OPEN": "no terminal path"}, nets_absent={})
         complete = types.SimpleNamespace(
-            max_T=50.5, ambient=50.0, nets_dropped={}, nets_absent={})
+            max_T=50.5, ambient=50.0, nets_dropped={}, nets_absent={},
+            meta={"operation_complete": True, "budget_exhausted": False,
+                  "thermal_iterations_completed": 1})
         self.assertEqual(
             cec_thermal_overlay._blend_thermal_verdict(incomplete, 40),
             ("FAIL", True))
@@ -403,6 +430,7 @@ class TestDashboard(unittest.TestCase):
 
     def test_legacy_thermal_pass_is_invalid_without_geometry_proof(self):
         gates = {"ok": True, "kelvin_ok": True, "drc": 0, "unconnected": 0,
+                 "route_sanity": {"craft_ok": True,"craft_policy_identity":dashboard._current_craft_policy_identity()},
                  "foreign": {"status": "na"}}
         verdict, failing = dashboard._verdict(
             gates, {"ok": True, "verdict": "PASS", "dT": 1.0})
@@ -411,9 +439,12 @@ class TestDashboard(unittest.TestCase):
 
     def test_source_only_thermal_pass_can_be_clean(self):
         gates = {"ok": True, "kelvin_ok": True, "drc": 0, "unconnected": 0,
+                 "route_sanity": {"craft_ok": True,"craft_policy_identity":dashboard._current_craft_policy_identity()},
                  "foreign": {"status": "na"}}
         verdict, failing = dashboard._verdict(
             gates, {"ok": True, "verdict": "PASS",
+                    "operation_complete": True, "budget_exhausted": False,
+                    "thermal_iterations_completed": 1,
                     "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE})
         self.assertEqual((verdict, failing), ("CLEAN", []))
         self.assertIn("geometry unproven", dashboard.PAGE)
@@ -426,9 +457,23 @@ class TestDashboard(unittest.TestCase):
                                   "craft_issue_count": 1}}
         verdict, failing = dashboard._verdict(
             gates, {"ok": True, "verdict": "PASS",
+                    "operation_complete": True, "budget_exhausted": False,
+                    "thermal_iterations_completed": 1,
                     "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE})
         self.assertEqual((verdict, failing), ("FAILED", ["route-craft"]))
         self.assertIn("route craft", dashboard.PAGE)
+
+    def test_source_only_cached_temperature_pass_requires_completion(self):
+        gates = {"ok": True, "kelvin_ok": True, "drc": 0, "unconnected": 0,
+                 "route_sanity": {"craft_ok": True,"craft_policy_identity":dashboard._current_craft_policy_identity()},
+                 "foreign": {"status": "na"}}
+        for evidence in ({}, {"operation_complete": False, "budget_exhausted": True,
+                               "thermal_iterations_completed": 1}):
+            verdict, failing = dashboard._verdict(gates,
+                {"ok": True, "verdict": "PASS", "dT": 5.0,
+                 "geometry_source": dashboard.THERMAL_GEOMETRY_SOURCE, **evidence})
+            self.assertEqual((verdict, failing), ("FAILED", ["thermal-completion"]))
+        self.assertIn("partial or legacy field", dashboard.PAGE)
 
     @unittest.skipUnless(shutil.which("kicad-cli") and shutil.which("rsvg-convert"),
                          "KiCad and rsvg-convert required for the real wave tile")

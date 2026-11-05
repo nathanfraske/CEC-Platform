@@ -675,6 +675,7 @@
 		(property "Manufacturer" "Samsung" (at 168.91 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL05B104KO5NNNC" (at 168.91 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C1525" (at 168.91 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U4.1" (at 168.91 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "04071fe3-15fe-4622-a319-82b8f1ceaecf"))
 		(pin "2" (uuid "c632cf3f-04b0-4a82-bdf6-8681138756ec"))
 		(instances

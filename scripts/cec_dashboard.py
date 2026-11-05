@@ -60,6 +60,7 @@ from xml.sax.saxutils import escape as _xml_escape
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPOSE_FILE = os.path.join(ROOT, "docker", "compose.yaml")
 ARCHIVE_ROOT = os.path.join(ROOT, "build", "board-archive")
+INSPECTION_ONLY = False
 ARCHIVE_BOARD_SIDECARS = (
     ".kicad_pro", ".kicad_dru", ".kicad_prl",
     ".pourplan.json", ".railreport.json", ".pourfirst-state.json",
@@ -845,8 +846,9 @@ def _analyze_in_container(board, detail_png, current_png, width,
         res, fpath, cool = ov._solve_thermal(
             board, ambient=SOLVE["ambient"], grid_mm=SOLVE["grid_mm"],
             h_eff=SOLVE["h_eff"], time_budget_s=180.0)
-        if any("time budget" in str(v)
-               for v in (getattr(res, "nets_dropped", None) or {}).values()):
+        if (ov._thermal_operation_report(res)["budget_exhausted"] is True
+                or any("time budget" in str(v)
+                       for v in (getattr(res, "nets_dropped", None) or {}).values())):
             print("[dash] fine-grid thermal hit its budget -- retrying at 0.8mm",
                   file=sys.stderr)
             res, fpath, cool = ov._solve_thermal(
@@ -865,8 +867,13 @@ def _analyze_in_container(board, detail_png, current_png, width,
                 bottleneck_error = f"{type(error).__name__}: {error}"
         dt = res.max_T - res.ambient
         injection = _thermal_injection_report(res)
+        operation = ov._thermal_operation_report(res)
+        verdict, _incomplete = ov._blend_thermal_verdict(res, GATE_DT)
         thermal = {"ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
-                   "dT": round(dt, 2), "verdict": "PASS" if dt <= GATE_DT else "FAIL",
+                   "dT": round(dt, 2), "verdict": verdict,
+                   **operation,
+                   "component_temperature_qualified": False,
+                   "release_authority": False,
                    "cooling": cool, "grid_mm": res.grid_mm,
                    "geometry_source": res.meta.get("geometry_source"),
                    "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
@@ -884,7 +891,9 @@ def _analyze_in_container(board, detail_png, current_png, width,
                    "current_density": (
                        os.path.basename(bottlenecks_png)
                        if bottlenecks_png else None)}
-        if not injection["nets_requested"]:
+        if not operation["operation_complete"]:
+            thermal.update({"verdict": "FAIL", "error": operation["operation_refusal"]})
+        elif not injection["nets_requested"]:
             thermal.update({"ok": False, "verdict": "N/A",
                             "error": "no configured current-injection scenario for this board"})
         elif injection["omitted"]:
@@ -990,8 +999,16 @@ def _slug(name):
     return re.sub(r"[^A-Za-z0-9_-]+", "-", name).strip("-") or "board"
 
 
-def _verdict(gates, thermal):
-    """Roll the per-gate state into CLEAN / FAILED + the ordered list of failing gates. Thermal counts
+def _current_craft_policy_identity():
+    try:
+        import cec_route_quality
+        return cec_route_quality.policy_identity(current=True)
+    except Exception:  # noqa: BLE001 -- absent policy evidence cannot be CLEAN
+        return None
+
+
+def _verdict(gates, thermal, *, craft_policy_identity=None):
+    """Roll gates into CLEAN / FAILED / UNKNOWN and ordered withholding gates. Thermal counts
     only on an actual FAIL (a thermal that did not solve is shown 'n/a', it does not by itself fail the
     board)."""
     failing = []
@@ -1006,18 +1023,39 @@ def _verdict(gates, thermal):
         failing.append("unconnected")
     if gates.get("drc"):
         failing.append("drc")
-    route_sanity = gates.get("route_sanity") or {}
-    # Missing on historical archives is unknown/legacy, not retroactive proof
-    # of failure.  Every newly analyzed board carries the explicit whole-board
-    # craft verdict and fails visibly on any route backtrack/overlap/angle arc.
+    route_sanity = gates.get("route_sanity")
+    if type(route_sanity)is not dict:route_sanity={}
+    # Unknown/legacy or failed analysis is not proof of a geometric defect,
+    # but it is never a CLEAN result. Only an explicit positive whole-board
+    # verdict can supply current craft evidence.
     if route_sanity.get("craft_ok") is False:
         failing.append("route-craft")
+    craft_unknown=(route_sanity.get('craft_ok') is not True
+                   and route_sanity.get('craft_ok') is not False)
+    if route_sanity.get('error') or route_sanity.get('ok') is False:
+        craft_unknown=route_sanity.get('craft_ok') is not False
+    if route_sanity.get('craft_ok') is True:
+        current=(craft_policy_identity if craft_policy_identity is not None
+                 else _current_craft_policy_identity())
+        if type(current)is not dict or route_sanity.get('craft_policy_identity')!=current:
+            craft_unknown=True
     geometry_source = thermal.get("geometry_source")
     if geometry_source == "INVALID" or (
             thermal.get("ok") and geometry_source != THERMAL_GEOMETRY_SOURCE):
         failing.append("thermal-geometry")
+    elif thermal.get("ok") and not (
+            thermal.get("operation_complete") is True
+            and thermal.get("budget_exhausted") is False
+            and type(thermal.get("thermal_iterations_completed")) is int
+            and thermal["thermal_iterations_completed"] > 0):
+        # Source-only copper does not make a retained partial temperature field
+        # complete. Re-evaluate legacy caches, not just newly generated images.
+        failing.append("thermal-completion")
     elif thermal.get("ok") and thermal.get("verdict") == "FAIL":
         failing.append("thermal")
+    if craft_unknown:
+        failing.append('route-craft-unverified')
+        return ('FAILED' if len(failing)>1 else 'UNKNOWN'),failing
     return ("CLEAN" if not failing else "FAILED"), failing
 
 
@@ -1262,6 +1300,12 @@ def _decorate_archive_summary(summary):
     in the archive contract also makes CLI-created archives immediately
     shareable without copying images into a second tree.
     """
+    review = summary.get("review") or {}
+    if review.get("kind") == "pipeline-pass-preview":
+        # A lightweight review has no independent DRC/FEM result. In
+        # particular, neither a process exit nor a render is a CLEAN board.
+        summary["verdict"] = review.get("label") or "REVIEW ONLY"
+        summary["failing"] = ["not-release-qualified"]
     aid = str(summary.get("id") or "")
     if not aid:
         return summary
@@ -1313,7 +1357,8 @@ def _load_archive(force=True):
     process or re-running the expensive analysis.
     """
     global _archive_disk_signature
-    signature = _archive_signature()
+    current_policy=_current_craft_policy_identity()
+    signature = (json.dumps(current_policy,sort_keys=True),_archive_signature())
     if not force and signature == _archive_disk_signature:
         _archive_sync_status["last_scan"] = time.time()
         return False
@@ -1329,7 +1374,8 @@ def _load_archive(force=True):
             # a historical CLEAN badge when current policy can prove the FEM
             # geometry provenance is missing.
             s["verdict"], s["failing"] = _verdict(
-                s.get("gates") or {}, s.get("thermal") or {})
+                s.get("gates") or {}, s.get("thermal") or {},
+                craft_policy_identity=current_policy)
             _decorate_archive_summary(s)
             found[s["id"]] = s
         except Exception as exc:                                   # noqa: BLE001
@@ -1468,6 +1514,36 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):                                              # noqa: N802
         path, _, q = self.path.partition("?")
         params = {k: unquote(v) for k, v in (p.split("=", 1) for p in q.split("&") if "=" in p)}
+        if path == "/inspection" or (INSPECTION_ONLY and path == "/"):
+            self.send_response(302)
+            self.send_header("Location", "/inspection/")
+            self.end_headers()
+            return
+        if path.startswith(("/inspection/", "/inspection-static/")):
+            try:
+                import cec_suite_inspection
+                result = cec_suite_inspection.response(path)
+                if result:
+                    self._send(*result)
+                else:
+                    self._json({"error": "no such inspection asset"}, 404)
+            except (OSError, ValueError, KeyError) as exc:
+                self._json({"error": "inspection snapshot unavailable", "detail": str(exc)}, 503)
+            return
+        if INSPECTION_ONLY:
+            if path == "/healthz":
+                import cec_suite_inspection
+                try:
+                    _directory, report = cec_suite_inspection._published()
+                    self._json({"ok": True, "mode": "inspection-only",
+                                "boards": len(report["boards"]),
+                                "totals": report["totals"],
+                                "solvers_and_archive_watchers": False})
+                except (OSError, ValueError, KeyError) as exc:
+                    self._json({"ok": False, "error": str(exc)}, 503)
+            else:
+                self._json({"error": "review-only server; analysis endpoints disabled"}, 404)
+            return
         if path == "/":
             self._send(PAGE.replace("__REV__", _page_rev).encode(), "text/html; charset=utf-8")
         elif path == "/api/archive":
@@ -1554,16 +1630,18 @@ button.pill.on{background:#33691e;color:#dcedc8}
 button.pill.act{background:#1c313a;color:#80deea;margin-left:6px;float:right}
 .pill.act2{background:#2a1c3a;color:#ce93d8}.pill.dim2{background:#1c242b;color:#78909c}
 button.pill.act:hover{background:#26424e}
-#pwrap{flex:1;overflow:auto;cursor:grab;background:#000;min-height:0}
+#pwrap{flex:1;overflow:auto;cursor:grab;background:#000;min-height:0;overscroll-behavior:contain;touch-action:none}
 #pstack{position:relative;width:1100px;background:#000;isolation:isolate}
 #pstack .panel{position:relative;width:100%}
 #pstack .panel img{width:100%;display:block;pointer-events:none}
 #pstack .cap{position:absolute;left:8px;top:6px;z-index:2;background:#0d1117cc;color:#80cbc4;
   font:11px monospace;padding:2px 8px;border-radius:3px;pointer-events:none}
 #empty{padding:40px;color:#607d8b;text-align:center}
+@media(max-width:1100px){#app{grid-template-columns:220px minmax(0,1fr)}}
+@media(max-width:650px){#app{grid-template-columns:150px minmax(0,1fr)}#bar{padding:6px}.pill{padding:5px 8px}}
 </style></head><body><div id="app">
 <div id="side">
- <div id="sidehdr"><h1>CEC BOARD LIBRARY <span style="color:#607d8b;font-size:10px">ui __REV__</span></h1><div id="seed"></div></div>
+ <div id="sidehdr"><h1>CEC BOARD LIBRARY <span style="color:#607d8b;font-size:10px">ui __REV__</span></h1><a href="/inspection/">Nine-board inspection</a><div id="seed"></div></div>
  <div id="list"></div>
 </div>
 <div class="main">
@@ -1580,9 +1658,12 @@ button.pill.act:hover{background:#26424e}
   <button class="pill" onclick="fit()">fit</button>
   <button class="pill" onclick="zoom(1.25)">+</button>
   <button class="pill" onclick="zoom(0.8)">-</button>
+  <label class="pill"><input type="checkbox" id="wheelzoom">plain wheel zoom</label>
+  <span class="dim">two-finger pan · pinch/Ctrl+scroll zoom</span>
  </div>
- <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
+ <div id="pwrap" tabindex="0" role="region" aria-label="Board view. Two-finger scroll pans; pinch or Ctrl+scroll zooms; F fits."><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
+<script src="/inspection-static/cec_viewport.js"></script>
 <script>
 let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100, actBodies=false, actTwin=null, actImg=null;
 const PAGE_REV='__REV__';
@@ -1672,7 +1753,7 @@ function renderBadges(){
  let h=gbadge('kelvin',g.kelvin_ok)
   +gbadge('actual-pour',fok,fext)
   +gbadge('route-reserve',null,rvext)
- +gbadge('drc',g.drc===0,String(g.drc))
+ +gbadge('qualified DRC',g.drc===0,String(g.drc))
   +gbadge('unconnected',g.unconnected===0,String(g.unconnected));
  if(rt.ok){
   const rr=Number.isFinite(rt.residual_overuse_escaped)?rt.residual_overuse_escaped:'?';
@@ -1687,11 +1768,15 @@ function renderBadges(){
   }
  }else h+=`<span class="pill dim" title="${esc(rt.error||'')}">congestion n/a</span>`;
  const off45=Number.isInteger(rq.non_octilinear_tracks)?rq.non_octilinear_tracks:null;
- if(off45!==null) h+=`<span class="pill ${off45===0?'ok':'bad'}" title="All straight copper, locked or unlocked, must use 0/45/90-degree headings; curves require an explicit net policy">angle 0/45/90 · ${off45}</span>`;
+ const craftUnverified=(cur.failing||[]).includes('route-craft-unverified');
+ if(off45!==null) h+=`<span class="pill ${off45===0&&!craftUnverified?'ok':'bad'}" title="All straight copper, locked or unlocked, must use 0/45/90-degree headings; curves require an explicit net policy">angle 0/45/90 · ${off45}${craftUnverified?' · unverified':''}</span>`;
  const craft=Number.isInteger(rq.craft_issue_count)?rq.craft_issue_count:null;
- if(craft!==null) h+=`<span class="pill ${rq.craft_ok?'ok':'bad'}" title="Whole-board route craft: no acute backtracks, covered duplicate segments, arbitrary headings, or unauthorized curved copper">route craft · ${craft}</span>`;
+ if(craftUnverified) h+=`<span class="pill bad" title="Missing, failed, or stale checker identity. Recheck this exact saved board; historical evidence is retained unchanged.">route craft · unverified</span>`;
+ else if(craft!==null) h+=`<span class="pill ${rq.craft_ok?'ok':'bad'}" title="Whole-board route craft: no acute backtracks, covered duplicate segments, arbitrary headings, or unauthorized curved copper">route craft · ${craft}</span>`;
  const geomOk=t.geometry_source==='source-declared-copper-only:v1';
+ const fieldComplete=t.operation_complete===true&&t.budget_exhausted===false&&Number.isInteger(t.thermal_iterations_completed)&&t.thermal_iterations_completed>0;
  if(t.ok&&!geomOk) h+=`<span class="pill bad" title="Legacy or unproven FEM geometry; re-run this board with source-only copper verification">thermal INVALID · geometry unproven</span>`;
+ else if(t.ok&&!fieldComplete) h+=`<span class="pill bad" title="${esc(t.operation_refusal||'Temperature-field completion was not proven; this is diagnostic data, not a thermal pass')}">thermal UNVERIFIED · partial or legacy field</span>`;
  else if(t.ok) h+=`<span class="pill ${t.verdict==='PASS'?'ok':'bad'}" title="2.5D electro-thermal on source-declared copper only, grid ${t.grid_mm}mm, amb ${t.ambient}C, gate dT<=${30}C. cooling: ${esc(t.cooling||'')}">thermal ${t.verdict} · θmax ${t.max_T}°C dT ${t.dT}°C</span>`;
  else if(t.geometry_source==='INVALID') h+=`<span class="pill bad" title="${esc(t.error||'FEM geometry parity failed')}">thermal INVALID · geometry parity</span>`;
  else h+=`<span class="pill dim" title="${esc(t.error||'')}">thermal n/a</span>`;
@@ -1801,27 +1886,35 @@ function pick(id,updateLocation=true){
  // Panels are the primary payload.  Mount them before optional badge metadata
  // so a future badge-schema regression can never blank an otherwise valid
  // archived board again.
- renderList(); fit(); renderBadges(); updateShareLinks();
+ renderList(); buildPanels(); fit(); renderBadges(); updateShareLinks();
  if(cur&&updateLocation){
   const suffix=mode!=='all'?('&panel='+encodeURIComponent(mode)):'';
   history.replaceState(null,'',`/?id=${encodeURIComponent(cur.id)}${suffix}`);
  }
 }
-function rerender(){ if(cur){buildPanels();} else if(curAct!==null){pickAct(curAct);} }
-function fit(){plotW=document.getElementById('pwrap').clientWidth-4; rerender();}
-function zoom(f){plotW=Math.min(24000,Math.max(200,plotW*f)); rerender();}
-// wheel-zoom anchored at cursor + drag-pan (the reused high-res viewing frame)
+// Scaling never rebuilds image nodes or refetches all archive panels.
+function rerender(){document.getElementById('pstack').style.width=plotW+'px';}
+function fit(){const pw=document.getElementById('pwrap');plotW=pw.clientWidth-4;rerender();pw.scrollLeft=0;pw.scrollTop=0;}
+function zoomAt(f,x,y){const pw=document.getElementById('pwrap'),old=plotW;
+ const fx=(pw.scrollLeft+x)/old,fy=(pw.scrollTop+y)/old;
+ plotW=Math.min(24000,Math.max(200,old*f));rerender();pw.scrollLeft=fx*plotW-x;pw.scrollTop=fy*plotW-y;}
+function zoom(f){const pw=document.getElementById('pwrap');zoomAt(f,pw.clientWidth/2,pw.clientHeight/2);}
+// Precision-trackpad scroll pans. Pinch/Ctrl+scroll zooms at the pointer.
 window.addEventListener('DOMContentLoaded',()=>{
  const pw=document.getElementById('pwrap');
  pw.addEventListener('wheel',e=>{e.preventDefault();
-  const f=e.deltaY<0?1.25:0.8, nw=Math.min(24000,Math.max(200,plotW*f)), r=pw.getBoundingClientRect();
-  const fx=(pw.scrollLeft+e.clientX-r.left)/plotW, fy=(pw.scrollTop+e.clientY-r.top)/plotW;
-  plotW=nw; rerender();
-  pw.scrollLeft=fx*plotW-(e.clientX-r.left); pw.scrollTop=fy*plotW-(e.clientY-r.top);},{passive:false});
+  const a=CECViewport.wheel(e,pw.clientWidth,pw.clientHeight,document.getElementById('wheelzoom').checked),r=pw.getBoundingClientRect();
+  if(a.zoom)zoomAt(a.factor,e.clientX-r.left,e.clientY-r.top);
+  else{pw.scrollLeft+=a.dx;pw.scrollTop+=a.dy;}},{passive:false});
  let pan=null;
- pw.addEventListener('mousedown',e=>{pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.style.cursor='grabbing';e.preventDefault();});
- window.addEventListener('mousemove',e=>{if(pan){pw.scrollLeft=pan.l-(e.clientX-pan.x);pw.scrollTop=pan.t-(e.clientY-pan.y);}});
- window.addEventListener('mouseup',()=>{pan=null;pw.style.cursor='grab';});
+ pw.addEventListener('pointerdown',e=>{if(e.button!==0||e.isPrimary===false)return;pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.setPointerCapture(e.pointerId);pw.focus({preventScroll:true});pw.style.cursor='grabbing';});
+ pw.addEventListener('pointermove',e=>{if(pan){pw.scrollLeft=pan.l-(e.clientX-pan.x);pw.scrollTop=pan.t-(e.clientY-pan.y);}});
+ pw.addEventListener('pointerup',()=>{pan=null;pw.style.cursor='grab';});
+ pw.addEventListener('pointercancel',()=>{pan=null;pw.style.cursor='grab';});
+ pw.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='+'||e.key==='='){zoom(1.25);e.preventDefault();}
+  else if(e.key==='-'){zoom(.8);e.preventDefault();}
+  else if(e.key.toLowerCase()==='f'||e.key==='Home'){fit();e.preventDefault();}});
  setMode('all'); tick(); setInterval(tick,3000);
 });
 async function tick(){
@@ -1852,11 +1945,14 @@ async function tick(){
 
 
 def main():
+    global INSPECTION_ONLY
     ap = argparse.ArgumentParser(description="CEC board browser + high-res analyzer")
     ap.add_argument("--port", type=int, default=8090)
     ap.add_argument("--seed", action="store_true", help="archive the key boards (eps + PCIe-2/3) on start")
     ap.add_argument("--no-watch", action="store_true",
                     help="disable the build/fresh/** auto-archive watcher")
+    ap.add_argument("--inspection-only", action="store_true",
+                    help="serve the explicit portable review snapshot without solvers, archive scans or watchers")
     ap.add_argument("--archive", default=None, help="archive ONE board (path) then keep serving")
     ap.add_argument("--name", default=None, help="name for --archive (default: derived from the path)")
     ap.add_argument("--provenance", default=None,
@@ -1889,6 +1985,16 @@ def main():
                               issues_svg=a.issues,
                               **{f"{panel}_svg": getattr(a, panel)
                                  for panel, _filename, _layers in COPPER_PLOTS})
+        return
+
+    if a.inspection_only:
+        if a.archive or a.seed:
+            ap.error("--inspection-only does not run archive or analysis jobs")
+        import cec_suite_inspection
+        cec_suite_inspection._published()
+        INSPECTION_ONLY = True
+        print(f"inspection: http://localhost:{a.port}/inspection/ (read-only; no archive scans or solvers)", flush=True)
+        ThreadingHTTPServer(("127.0.0.1", a.port), H).serve_forever()
         return
 
     os.makedirs(ARCHIVE_ROOT, exist_ok=True)

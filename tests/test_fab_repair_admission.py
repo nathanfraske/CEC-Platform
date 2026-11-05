@@ -239,7 +239,8 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     handle.write(os.path.basename(path))
                 return {"backtracks": 2}
 
-            with mock.patch.object(repair, "_score_isolated", side_effect=score), \
+            with mock.patch.object(repair, "_copper_inventory_isolated", return_value={}), \
+                    mock.patch.object(repair, "_score_isolated", side_effect=score), \
                     mock.patch.object(repair, "_fab_isolated", return_value={
                         "fab_blocking": 5, "fab_drc": 0,
                         "fab_unconnected": 0}), \
@@ -299,7 +300,8 @@ class FabRepairAdmissionTest(unittest.TestCase):
                     })
                 return row
 
-            with mock.patch.object(repair, "_score_isolated",
+            with mock.patch.object(repair, "_copper_inventory_isolated", return_value={}), \
+                    mock.patch.object(repair, "_score_isolated",
                                    side_effect=score), \
                     mock.patch.object(repair, "_fab_isolated", return_value={
                         "fab_blocking": 5, "fab_drc": 0,
@@ -352,7 +354,8 @@ class FabRepairAdmissionTest(unittest.TestCase):
                 return {"foreign_status": "ok", "foreign_tracks": 1,
                         "foreign_vias": 0, "foreign_blocking": 1}
 
-            with mock.patch.object(repair, "_score_isolated",
+            with mock.patch.object(repair, "_copper_inventory_isolated", return_value={}), \
+                    mock.patch.object(repair, "_score_isolated",
                                    return_value=score), \
                     mock.patch.object(repair, "_fab_isolated", return_value={
                         "fab_blocking": 0, "fab_drc": 0,

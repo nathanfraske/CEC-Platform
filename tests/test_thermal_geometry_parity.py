@@ -81,7 +81,12 @@ class TestThermalGeometryParity(unittest.TestCase):
         self.assertIn("/FAN_12V", currents)
         self.assertIn("/FAN_12V", overrides)
         self.assertNotIn("/SENSEP6_HI", currents)
-        self.assertEqual(len(currents), 13)  # six HI + six LO + GND
+        force = {"/FAN_12V", "GND"} | {"/SENSEP%d_LO" % n for n in range(1, 7)} | {
+            "/SENSEP%d_HI" % n for n in range(1, 6)}
+        self.assertTrue(force <= set(currents))
+        self.assertEqual({n.rsplit("/", 1)[-1] for n in set(currents)-force},
+                         {"VBUS_RAW", "VBUS_F", "VBUS"})
+        self.assertEqual(len(currents), 16)  # force/return plus three service-USB stages
 
     def test_parity_guard_has_teeth(self):
         path = self.BOARDS[1][2]

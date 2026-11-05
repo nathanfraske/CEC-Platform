@@ -88,6 +88,28 @@ class CurrentDomainWidthTests(unittest.TestCase):
             self.assertIn("side-branch", detail)
             self.assertIn("1 aggregate current domain", detail)
 
+    def test_restored_local_copper_still_requires_an_independent_rated_trunk(self):
+        import cec_current_topology
+        import cec_staged_fr
+        for narrow in (False, True):
+            with self.subTest(narrow_trunk=narrow), tempfile.TemporaryDirectory() as directory:
+                source = os.path.join(directory, "source.kicad_pcb")
+                candidate = os.path.join(directory, "trial.kicad_pcb")
+                board = self._aggregate_board(source, narrow_trunk=narrow)
+                with mock.patch("cec_thermal_overlay.board_thermal_config",
+                                side_effect=self._domain_config):
+                    pruned = cec_current_topology.prune_undersized_current_tracks(
+                        board, ["+5VSB"], board_hint=source)
+                    pcbnew.SaveBoard(candidate, board)
+                    ids = {row['uuid'] for row in pruned['removed']}
+                    self.assertTrue(ids)
+                    cec_staged_fr.restore_protected_copper_prefix(
+                        source, candidate, (), item_uuids=ids)
+                    final = pcbnew.LoadBoard(candidate)
+                    ok, detail = constraints.CHECKERS["trace-width-high-current"](
+                        final, candidate, {})[:2]
+                    self.assertEqual(ok, not narrow, detail)
+
     def test_current_gate_rejects_narrow_segment_needed_by_source_sink_path(self):
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "hub-standard-rev2-trunk.kicad_pcb")
@@ -101,6 +123,29 @@ class CurrentDomainWidthTests(unittest.TestCase):
             self.assertIn("no source-to-sink path", detail)
             self.assertTrue(any(row.get("type") == "current_domain_path"
                                 for row in payload))
+            failure = next(row for row in payload if row.get("type") == "current_domain_path")
+            self.assertEqual(failure["repair_class"], "undersized_power_path")
+            self.assertTrue(failure["original_connectivity"]["connected"])
+            self.assertFalse(failure["rated_connectivity"]["connected"])
+            self.assertEqual(len(failure["undersized_segments"]),
+                             failure["removed_undersized_segments"])
+
+    def test_existing_open_is_not_misdiagnosed_as_width_only(self):
+        from cec_native_items import discard_items
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "arbitrary-open.kicad_pcb")
+            board = self._aggregate_board(path, narrow_trunk=True)
+            discard_items(board, [item for item in board.GetTracks()
+                                  if item.GetEnd().x == pcbnew.FromMM(20)])
+            pcbnew.SaveBoard(path, board)
+            with mock.patch("cec_thermal_overlay.board_thermal_config",
+                            side_effect=self._domain_config):
+                ok, detail, payload = constraints.CHECKERS[
+                    "trace-width-high-current"](board, path, {})
+            self.assertFalse(ok, detail)
+            failure = next(row for row in payload if row.get("type") == "current_domain_path")
+            self.assertEqual(failure["repair_class"], "preexisting_open_with_undersized_copper")
+            self.assertFalse(failure["original_connectivity"]["connected"])
 
     def test_current_gate_uses_domain_authority_for_anonymous_worker_path(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -364,7 +409,11 @@ class CurrentDomainWidthTests(unittest.TestCase):
         return board
 
     def test_outer_ground_entries_delegate_only_with_a_real_inner_plane(self):
-        with tempfile.TemporaryDirectory() as directory:
+        # This fixture has only a ground track/zone, not the Hub's electrical
+        # population. Isolate that width policy from full-board load authority.
+        with tempfile.TemporaryDirectory() as directory, mock.patch(
+                "cec_thermal_overlay.board_thermal_config",
+                return_value=(None, None, None, None)):
             without_path = os.path.join(
                 directory, "hub-standard-rev2-no-plane.kicad_pcb")
             without = self._board(without_path, inner_ground_plane=False)

@@ -41,11 +41,46 @@ def _uuid(item):
     return str(item.m_Uuid.AsString())
 
 
+def offset_points_nm(start, end, offset_mm):
+    """Canonical three-leg detour for any 0/45/90-degree straight run.
+
+    Diagonal runs use integral, equal XY components for the parallel shift
+    and longitudinal inset. The two joining legs are then axis-aligned,
+    with at most one nanometre of rounding in the requested normal offset.
+    """
+    dx,dy=end[0]-start[0],end[1]-start[1]
+    if not math.isfinite(offset_mm) or not .01 <= abs(offset_mm) <= 10:
+        raise ValueError('offset must be finite and between 0.01 and 10 mm')
+    shift=round(offset_mm*1e6)
+    if abs(dy)<=1000 and abs(dx)>1000:
+        along=(1 if dx>0 else -1,0);normal=(0,1);length=abs(dx)
+    elif abs(dx)<=1000 and abs(dy)>1000:
+        along=(0,1 if dy>0 else -1);normal=(1,0);length=abs(dy)
+    elif abs(abs(dx)-abs(dy))<=1000 and min(abs(dx),abs(dy))>1000:
+        along=(1 if dx>0 else -1,1 if dy>0 else -1)
+        normal=(-along[1],along[0]);length=min(abs(dx),abs(dy))
+        shift=round(shift/math.sqrt(2))
+    else:
+        raise ValueError('only nonzero 0/45/90-degree tracks are eligible')
+    inset=abs(shift)
+    if length<=2*inset+10_000:
+        raise ValueError('track is too short for canonical offset legs')
+    first=tuple(start[i]+along[i]*inset+normal[i]*shift for i in (0,1))
+    second=tuple(end[i]-along[i]*inset+normal[i]*shift for i in (0,1))
+    return first,second
+
+
+def _require_unprotected(board, items):
+    grouped={_uuid(item) for group in board.Groups() for item in group.GetItems()}
+    if any(item.IsLocked() or _uuid(item) in grouped for item in items):
+        raise ValueError('protected copper cannot be rewritten by field repair')
+
+
 def offset_straight_track(board, track_uuid: str, offset_mm: float):
     """Offset one straight run while preserving its two graph endpoints.
 
-    The longitudinal inset equals the perpendicular offset, so both joining
-    legs are exactly 45 degrees.  The existing object becomes the first leg
+    The longitudinal inset equals the perpendicular offset, so joining legs
+    are 45 degrees to the original run. The existing object becomes the first leg
     and keeps its UUID; two new same-net/same-layer objects complete the run.
     No item is removed, avoiding the KiCad SWIG invalidation hazard.
     """
@@ -56,35 +91,11 @@ def offset_straight_track(board, track_uuid: str, offset_mm: float):
                   and _uuid(item) == str(track_uuid)), None)
     if track is None:
         raise ValueError("track UUID not found: %s" % track_uuid)
+    _require_unprotected(board, [track])
     start = track.GetStart()
     end = track.GetEnd()
-    dx = end.x - start.x
-    dy = end.y - start.y
-    horizontal = abs(dy) <= 1_000
-    vertical = abs(dx) <= 1_000
-    if not (horizontal or vertical) or (horizontal and vertical):
-        raise ValueError("only nonzero horizontal/vertical tracks are eligible")
-
-    shift_nm = int(round(float(offset_mm) * 1e6))
-    inset_nm = abs(shift_nm)
-    length_nm = abs(dx) if horizontal else abs(dy)
-    if inset_nm < 10_000:
-        raise ValueError("offset is below 0.01 mm")
-    if length_nm <= 2 * inset_nm + 10_000:
-        raise ValueError("track is too short for 45-degree offset legs")
-
-    if horizontal:
-        direction = 1 if dx > 0 else -1
-        first = pcbnew.VECTOR2I(start.x + direction * inset_nm,
-                               start.y + shift_nm)
-        second = pcbnew.VECTOR2I(end.x - direction * inset_nm,
-                                end.y + shift_nm)
-    else:
-        direction = 1 if dy > 0 else -1
-        first = pcbnew.VECTOR2I(start.x + shift_nm,
-                               start.y + direction * inset_nm)
-        second = pcbnew.VECTOR2I(end.x + shift_nm,
-                                end.y - direction * inset_nm)
+    first_xy,second_xy=offset_points_nm(tuple(start),tuple(end),float(offset_mm))
+    first,second=pcbnew.VECTOR2I(*first_xy),pcbnew.VECTOR2I(*second_xy)
 
     original_end = pcbnew.VECTOR2I(end.x, end.y)
     track.SetEnd(first)
@@ -164,6 +175,7 @@ def relayer_track_component(board, track_uuid: str, target_layer_name: str):
             point_objects[key] = point
     boundaries = [point_objects[key] for key, degree in degrees.items()
                   if degree == 1]
+    _require_unprotected(board, component.values())
     if len(boundaries) < 2:
         raise ValueError("track island has fewer than two boundary anchors")
 
@@ -281,6 +293,7 @@ def perpendicular_endpoint_departure(board, victim_uuid: str,
     if len(options) != 1:
         raise ValueError("endpoint topology is not one anchored 45/straight escape")
     anchor, joint, continuation, other = options[0]
+    _require_unprotected(board, [aggressor,continuation])
     # These are SWIG views into the tracks.  Copy coordinates before mutating
     # the aggressor; otherwise its old endpoint proxy changes in place and the
     # continuation's wrong end is shortened.
@@ -368,7 +381,8 @@ def _worker(source, output, track_uuid, offset_mm):
     change = offset_straight_track(board, track_uuid, offset_mm)
     for zone in board.Zones():
         zone.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     board.Save(output)
     return change
 
@@ -383,7 +397,8 @@ def _relayer_worker(source, output, track_uuid, target_layer):
         board, track_uuid, str(target_layer))
     for zone in board.Zones():
         zone.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     board.Save(output)
     return change
 
@@ -400,9 +415,64 @@ def _departure_worker(source, output, victim_uuid, aggressor_uuid,
         float(required_edge_gap_mm), float(margin_mm))
     for zone in board.Zones():
         zone.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     board.Save(output)
     return change
+
+
+def _return_worker(source, output, first_uuid, second_uuid):
+    import pcbnew
+    import cec_swig_guard
+    import cec_field_transition_return as returns
+    import cec_field_coupling
+    import cec_zone_fill
+    cec_swig_guard.pin()
+    board = pcbnew.LoadBoard(source)
+    field = cec_field_coupling.field_coupling_summary(source, board=board)
+    target = next((r for r in field['interactions'] if r.get('blocking')
+                   and set(r['track_uuids']) == {first_uuid, second_uuid}), None)
+    if target is None:
+        raise ValueError('reported field interaction is no longer current')
+    change = returns.add_returns(board, target)
+    if not change.get('added'):
+        raise ValueError('no missing transition return could be constructed')
+    for zone in board.Zones():
+        if not zone.GetIsRuleArea():
+            zone.UnFill()
+    cec_zone_fill.fill(board)
+    change['final_contact'] = returns.verify_contacts(board, change)
+    if not change['final_contact']['ok']:
+        raise ValueError('new return barrel lost actual reference-plane contact')
+    board.Save(output)
+    return change
+
+
+def _return_trial(current, target, baseline_score, baseline_field, work, round_index):
+    """Repair a witnessed transition before relocating already legal copper."""
+    if len(set(target.get('layers') or ())) != 2:
+        return []
+    candidate = os.path.join(work, 'r%02d-return.kicad_pcb' % (round_index+1))
+    report = candidate + '.change.json'
+    row = dict(path=candidate, method='transition_ground_return', safe=False, reduced=False)
+    try:
+        _copy_board_family(current, candidate)
+        proc = subprocess.run([sys.executable, os.path.abspath(__file__), '--return-worker',
+            current, candidate, *target['track_uuids'], '--json', report],
+            capture_output=True, text=True, timeout=10)
+        if proc.returncode:
+            raise RuntimeError((proc.stderr or proc.stdout)[-1000:])
+        with open(report, encoding='utf-8') as handle:
+            row['change'] = json.load(handle)
+        row['score'] = _score_isolated(candidate)
+        field = _field_isolated(candidate)
+        row.update(safe=_safe_no_regression(baseline_score, row['score']),
+            field_blocking=int(field.get('blocking_count', 999999)),
+            reduced=int(field.get('blocking_count', 999999))
+            < int(baseline_field.get('blocking_count', 999999)))
+    except Exception as exc:
+        row['error'] = '%s: %s' % (type(exc).__name__, exc)
+    return [row]
 
 
 def _score_isolated(board_path):
@@ -430,11 +500,8 @@ def _field_isolated(board_path):
 
 
 def _copy_board_family(source, output):
-    shutil.copy2(source, output)
-    for ext in (".kicad_pro", ".kicad_dru", ".kicad_prl"):
-        src = source[:-len(".kicad_pcb")] + ext
-        if os.path.isfile(src):
-            shutil.copy2(src, output[:-len(".kicad_pcb")] + ext)
+    import cec_certificate_repair
+    cec_certificate_repair._copy_board_family(source, output)
 
 
 def _worker_isolated(source, output, track_uuid, offset_mm):
@@ -542,6 +609,49 @@ def _relayer_trials(current, target, baseline_score, baseline_field, work,
     return trials
 
 
+def _departure_trials(current, target, baseline_score, baseline_field, work,
+                      round_index, margin_mm):
+    """Schedule the native anchored-departure primitive for cross-layer faults."""
+    if len(set(target.get('layers') or ())) != 2:
+        return []
+    nets,uuids=target.get('nets') or (),target.get('track_uuids') or ()
+    if (len(nets)!=2 or len(uuids)!=2 or target.get('victim') not in nets
+            or target.get('aggressor') not in nets):
+        return []
+    victim,aggressor=(str(uuids[nets.index(target[role])])
+                      for role in ('victim','aggressor'))
+    # Electrical aggressor/victim roles are not geometric movement authority.
+    # Either unlocked endpoint chain may provide the canonical crossing. Keep
+    # the actual independent field roles unchanged in every validation.
+    return [_departure_trial(current,target,baseline_score,baseline_field,work,
+                             round_index,margin_mm,a,b)
+            for a,b in ((victim,aggressor),(aggressor,victim))]
+
+
+def _departure_trial(current,target,baseline_score,baseline_field,work,
+                     round_index,margin_mm,victim,aggressor):
+    candidate=os.path.join(work,'r%02d-departure-%s.kicad_pcb'%(round_index+1,aggressor[:8]))
+    report=candidate+'.change.json'
+    row=dict(path=candidate,method='perpendicular_departure',safe=False,reduced=False)
+    try:
+        _copy_board_family(current,candidate)
+        proc=subprocess.run([sys.executable,os.path.abspath(__file__),'--departure-worker',
+            current,candidate,victim,aggressor,str(target.get('interaction_reach_mm') or 1.),
+            str(margin_mm),'--json',report],capture_output=True,text=True,timeout=10)
+        if proc.returncode:
+            raise RuntimeError((proc.stderr or proc.stdout)[-1000:])
+        with open(report,encoding='utf-8') as handle:
+            row['change']=json.load(handle)
+        row['score']=_score_isolated(candidate)
+        field=_field_isolated(candidate)
+        row.update(safe=_safe_no_regression(baseline_score,row['score']),
+            field_blocking=int(field.get('blocking_count',999999)),
+            reduced=int(field.get('blocking_count',999999))<int(baseline_field.get('blocking_count',999999)))
+    except Exception as exc:
+        row['error']='%s: %s'%(type(exc).__name__,exc)
+    return row
+
+
 def _safe_no_regression(baseline, candidate):
     return (
         int(candidate["drc"]) <= int(baseline["drc"])
@@ -593,13 +703,53 @@ def _away_sign(interaction, board_path, victim_uuid):
     am = ((aggressor[0] + aggressor[2]) / 2,
           (aggressor[1] + aggressor[3]) / 2)
     horizontal = abs(victim[3] - victim[1]) <= 0.001
+    dx,dy=victim[2]-victim[0],victim[3]-victim[1]
+    if abs(abs(dx)-abs(dy))<=.001 and min(abs(dx),abs(dy))>.001:
+        normal=(-1 if dy>0 else 1,1 if dx>0 else -1)
+        return 1 if sum((vm[i]-am[i])*normal[i] for i in (0,1))>=0 else -1
     return (1 if vm[1] >= am[1] else -1) if horizontal else (
         1 if vm[0] >= am[0] else -1)
+
+
+def _partner_offset_trials(current,target,baseline_score,baseline_field,work,
+                           round_index,margin_mm):
+    """Try the other unlocked participant when the victim cannot move safely."""
+    victim=_victim_uuid(target)
+    partner=next((str(u) for u in target.get('track_uuids') or () if str(u)!=victim),None)
+    if not partner:
+        return []
+    sign=_away_sign(target,current,partner)
+    needed=max(.15,float(target.get('interaction_reach_mm') or 1.)-
+               float(target.get('edge_gap_mm') or 0.)+margin_mm)
+    magnitudes=sorted({.15,.3,.5,round(needed,3),round(needed+.15,3)})
+    rows=[]
+    for index,magnitude in enumerate(magnitudes):
+        for direction in (sign,-sign):
+            offset=round(direction*magnitude,3)
+            path=os.path.join(work,'r%02d-partner-%02d-%s.kicad_pcb'%(
+                round_index+1,index,'p' if offset>0 else 'm'))
+            row=dict(path=path,method='partner_offset',track_uuid=partner,
+                     offset_mm=offset,safe=False,reduced=False)
+            try:
+                row['change']=_worker_isolated(current,path,partner,offset)
+                row['score']=_score_isolated(path)
+                field=_field_isolated(path)
+                row.update(safe=_safe_no_regression(baseline_score,row['score']),
+                    field_blocking=int(field.get('blocking_count',999999)),
+                    reduced=int(field.get('blocking_count',999999))<int(baseline_field.get('blocking_count',999999)))
+            except Exception as exc:
+                row['error']='%s: %s'%(type(exc).__name__,exc)
+            rows.append(row)
+    return rows
 
 
 def repair_admitted(board_path, output_path=None, *, max_rounds=6,
                     margin_mm=0.10):
     """Reduce field blockers with bounded, fail-closed offset trials."""
+    if type(max_rounds) is not int or not 1 <= max_rounds <= 16:
+        raise ValueError('field repair requires 1 to 16 rounds')
+    if not math.isfinite(margin_mm) or not 0 <= margin_mm <= 2:
+        raise ValueError('field repair margin must be between 0 and 2 mm')
     source = os.path.abspath(board_path)
     output = os.path.abspath(output_path or board_path)
     parent = os.path.dirname(output) or "."
@@ -609,7 +759,7 @@ def repair_admitted(board_path, output_path=None, *, max_rounds=6,
     _copy_board_family(source, current)
     history = []
     try:
-        for round_index in range(max(1, int(max_rounds))):
+        for round_index in range(max_rounds):
             baseline_score = _score_isolated(current)
             baseline_field = _field_isolated(current)
             blockers = [row for row in baseline_field.get("interactions", ())
@@ -630,6 +780,19 @@ def repair_admitted(board_path, output_path=None, *, max_rounds=6,
                                 "accepted": False,
                                 "reason": "victim_uuid_unavailable"})
                 break
+            departure = _return_trial(current,target,baseline_score,baseline_field,
+                                       work,round_index)
+            if not any(r['safe'] and r['reduced'] for r in departure):
+                departure += _departure_trials(current,target,baseline_score,baseline_field,
+                                                work,round_index,margin_mm)
+            accepted_departure=[r for r in departure if r['safe'] and r['reduced']]
+            if accepted_departure:
+                winner=accepted_departure[0]
+                _copy_board_family(winner['path'],current)
+                history.append(dict(round=round_index+1,accepted=True,
+                    target_uuid=target_uuid,interaction=target,trial_count=len(departure),
+                    winner={k:v for k,v in winner.items() if k!='path'}))
+                continue
             sign = _away_sign(target, current, target_uuid)
             needed = max(0.15,
                          float(target.get("interaction_reach_mm") or 1.0)
@@ -638,6 +801,11 @@ def repair_admitted(board_path, output_path=None, *, max_rounds=6,
             magnitudes = sorted({round(value, 3) for value in (
                 needed, needed + 0.15, needed + 0.35,
                 max(0.5, needed), max(0.8, needed), max(1.0, needed))})
+            if len(set(target.get('layers') or ())) == 2:
+                # A crossing can become shielded by clearing a local plane
+                # void; it need not translate by the full unshielded reach.
+                # The exact field audit, not offset distance, proves success.
+                magnitudes=sorted(set(magnitudes)|{.15,.30,.50})
             trials = []
             for trial_index, magnitude in enumerate(magnitudes):
                 for direction in (sign, -sign):
@@ -671,6 +839,11 @@ def repair_admitted(board_path, output_path=None, *, max_rounds=6,
             accepted = [row for row in trials
                         if row.get("safe") and row.get("reduced")]
             if not accepted:
+                partner=_partner_offset_trials(current,target,baseline_score,baseline_field,
+                                                work,round_index,margin_mm)
+                trials.extend(partner)
+                accepted=[row for row in partner if row.get('safe') and row.get('reduced')]
+            if not accepted:
                 relayer = _relayer_trials(
                     current, target, baseline_score, baseline_field, work,
                     round_index)
@@ -682,6 +855,7 @@ def repair_admitted(board_path, output_path=None, *, max_rounds=6,
                         "target_uuid": target_uuid, "interaction": target,
                         "offset_trials": trials,
                         "relayer_trials": relayer,
+                        "departure_trials": departure,
                     })
                     break
                 trials = relayer
@@ -727,6 +901,8 @@ def main(argv=None):
                         metavar=("SOURCE", "OUTPUT", "UUID", "OFFSET_MM"))
     parser.add_argument("--relayer-worker", nargs=4,
                         metavar=("SOURCE", "OUTPUT", "UUID", "LAYER"))
+    parser.add_argument("--return-worker", nargs=4,
+                        metavar=("SOURCE", "OUTPUT", "FIRST_UUID", "SECOND_UUID"))
     parser.add_argument("--departure-worker", nargs=6,
                         metavar=("SOURCE", "OUTPUT", "VICTIM_UUID",
                                  "AGGRESSOR_UUID", "EDGE_GAP_MM",
@@ -738,6 +914,8 @@ def main(argv=None):
     elif args.relayer_worker:
         source, output, track_uuid, layer = args.relayer_worker
         report = _relayer_worker(source, output, track_uuid, layer)
+    elif args.return_worker:
+        report = _return_worker(*args.return_worker)
     elif args.departure_worker:
         source, output, victim, aggressor, edge_gap, margin = (
             args.departure_worker)

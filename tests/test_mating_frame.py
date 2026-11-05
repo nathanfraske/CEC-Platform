@@ -53,6 +53,13 @@ class TestLegacyForm(unittest.TestCase):
 
 
 class TestV2Form(unittest.TestCase):
+    def test_explicit_datum_survives_any_outline_size(self):
+        c={**V2,'sides':{'a':{**V2['sides']['a'],
+            'nominal_outline':(60,40),'datum_origin_mm':(12,-7)}}}
+        first=mating_frame_pins(100,80,c,'a')
+        assert first==mating_frame_pins(90,70,c,'a')
+        assert first['anchor_pins']['J6P'][:2]==(10,15.5)
+
     def test_three_segments_one_provisioned_mount(self):
         out = mating_frame_pins(74.0, 55.0, V2, "a")
         pins = out["anchor_pins"]
@@ -61,12 +68,15 @@ class TestV2Form(unittest.TestCase):
         self.assertEqual(list(out["mount_pos_override"]), ["H1"])
         self.assertEqual(out["mount_fp_override"],
                          {"H1": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via"})
+        self.assertEqual(out["source_sync_extra_pad_nets"],
+                         {"H1.1": "GND"})
 
     def test_r1_pure_empty_mounts(self):
         c = dict(V2, mount_dc=())
         out = mating_frame_pins(74.0, 55.0, c, "a")
         self.assertEqual(out["mount_pos_override"], {})
         self.assertNotIn("mount_fp_override", out)
+        self.assertNotIn("source_sync_extra_pad_nets", out)
 
     def test_mate_invariant_constant_translation(self):
         """Every mating ref must differ between the two sides by the SAME
@@ -107,6 +117,8 @@ class TestProductionContract(unittest.TestCase):
             out = mating_frame_pins(*BOARD_WH[side], MEZZ_HUB_24PIN, side)
             self.assertEqual(set(out["anchor_pins"]), {"J6P", "J6C", "J6D"})
             self.assertEqual(list(out["mount_pos_override"]), ["H1"])
+            self.assertEqual(out["source_sync_extra_pad_nets"],
+                             {"H1.1": "GND"})
 
     def test_dead_bug_reflection_is_position_and_rotation_conjugate(self):
         atx = mating_frame_pins(86.0, 95.0, MEZZ_HUB_24PIN,
@@ -118,7 +130,16 @@ class TestProductionContract(unittest.TestCase):
             hx, hy, hr = hub["anchor_pins"][ref]
             self.assertAlmostEqual(ax - 43.0, hdx - (hx - 43.0))
             self.assertAlmostEqual(ay - 47.5, hdy + (hy - 37.0))
-            self.assertAlmostEqual(ar % 360.0, (180.0 - hr) % 360.0)
+            self.assertAlmostEqual(ar % 360.0, (-hr) % 360.0)
+            # Compare all numbered contacts, not another copy of the old
+            # incorrect orientation formula.
+            import cec_mezz_contract as mezz
+            from cec_stack_fit_screen import posed_contacts, contact_registration
+            rows = mezz.local_contacts(next(s for s in mezz.SEGMENTS if s['ref']==ref))
+            socket = [dict(p, xy=[-p['xy'][0],p['xy'][1]]) for p in rows]
+            self.assertTrue(contact_registration(
+                posed_contacts(rows,(ax,ay),ar), posed_contacts(socket,(hx,hy),hr),
+                [-1,0,0,1,86+hdx,47.5-37+hdy])['ok'])
         for ref, (ax, ay) in atx["mount_pos_override"].items():
             hx, hy = hub["mount_pos_override"][ref]
             self.assertAlmostEqual(ax - 43.0, hdx - (hx - 43.0))
@@ -126,13 +147,15 @@ class TestProductionContract(unittest.TestCase):
 
     def test_rj45_height_has_nominal_stack_margin(self):
         stack = MEZZ_HUB_24PIN["stack"]
-        self.assertEqual(stack["board_gap_mm"], 18.0)
+        self.assertEqual(stack["board_gap_mm"], 22.0)
         self.assertGreaterEqual(stack["nominal_height_margin_mm"], 4.0)
         self.assertAlmostEqual(stack["board_gap_mm"]
                                - stack["inward_component_height_mm"],
                                stack["nominal_height_margin_mm"])
         self.assertIn("-17-", stack["header_family"])
-        self.assertEqual(stack["standoff_thread"], "M2.5")
+        self.assertEqual(stack["standoff_thread"], "M2")
+        self.assertIsNone(stack['standoff_mpn'])
+        self.assertFalse(stack['release_qualified'])
         self.assertEqual(stack["hub_assembly_dc_mm"], (0.0, -0.7))
         guard = stack["atx_planar_guard_mm"]
         self.assertGreaterEqual(stack["atx_top_access_band_mm"],
@@ -187,14 +210,16 @@ class TestProductionContract(unittest.TestCase):
     def test_runtime_size_rebuilds_every_stack_datum(self):
         import cec_fresh_wave as wave
         W, H = 91.0, 101.0
-        session, _ = wave._build_session(
-            "atx-24pin-rev3", W, H, "plain", "compact", 5,
-            pourfirst_artifact=False)
+        # The contract is resolved at the public size-specific parameter
+        # boundary.  Constructing a complete PlacementSession here adds a
+        # minutes-long placement solve to a pure datum regression test and
+        # tests unrelated behavior.
+        params = wave._placement_params("atx-24pin-rev3", W, H)
         expected = mating_frame_pins(W, H, MEZZ_HUB_24PIN,
                                      "atx-24pin-rev3")
         for ref, pin in expected["anchor_pins"].items():
-            self.assertEqual(session.cfg.pins[ref], pin)
-        self.assertEqual(session.cfg.params["mount_pos_override"],
+            self.assertEqual(params["anchor_pins"][ref], pin)
+        self.assertEqual(params["mount_pos_override"],
                          expected["mount_pos_override"])
 
 

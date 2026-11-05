@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
 import cec_synth_pipeline as sp                                  # noqa: E402
 import cec_router                                                # noqa: E402
 import cec_pourplan                                              # noqa: E402
+import cec_fr                                                    # noqa: E402
 
 try:
     import pcbnew                                                # noqa: F401
@@ -55,6 +56,19 @@ class _R:
 
 # ===================================================================== logic (no pcbnew)
 class TestOracleLogic(unittest.TestCase):
+    def test_isolated_zone_refill_uses_single_load_worker(self):
+        completed = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with mock.patch.object(cec_fr.subprocess, "run",
+                               return_value=completed) as run:
+            self.assertTrue(cec_fr.refill_zones_isolated(
+                "candidate.kicad_pcb", timeout=17))
+
+        command = run.call_args.args[0]
+        self.assertTrue(command[1].endswith("cec_hc.py"))
+        self.assertEqual(command[2], "--fill")
+        self.assertTrue(command[3].endswith("candidate.kicad_pcb"))
+        self.assertEqual(run.call_args.kwargs["timeout"], 17.0)
+
     def test_priority_power_layer_search_is_bounded_and_board_agnostic(self):
         orders = sp._priority_power_layer_orders(
             ("In3.Cu", "B.Cu", "F.Cu", "In2.Cu"),
@@ -94,13 +108,6 @@ class TestOracleLogic(unittest.TestCase):
             promoted)
 
     def test_exact_power_admission_refuses_residual_protected_open(self):
-        bbox = SimpleNamespace(GetWidth=lambda: 80_000_000,
-                               GetHeight=lambda: 60_000_000)
-        board = SimpleNamespace(
-            Zones=lambda: [], GetFootprints=lambda: [],
-            BuildConnectivity=lambda: None,
-            GetBoardEdgesBoundingBox=lambda: bbox)
-        filler = SimpleNamespace(Fill=lambda _zones: None)
         baseline = SimpleNamespace(
             drc=0, unconnected=2, drc_types={},
             detail={"unconn_nets": ["RAIL", "SIG"]})
@@ -114,38 +121,32 @@ class TestOracleLogic(unittest.TestCase):
                   "far": 0, "cross_layer": 0}
         prune = {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
                  "detail": []}
-        with mock.patch("pcbnew.LoadBoard", return_value=board), \
-                mock.patch("pcbnew.SaveBoard"), \
-                mock.patch("pcbnew.ZONE_FILLER", return_value=filler), \
+        with mock.patch("cec_fr.refill_zones_isolated",
+                           return_value=True) as refill, \
                 mock.patch.object(
-                    sp.cec_score, "score",
+                    sp, "_score_priority_power_artifact_isolated",
                     side_effect=[exact_before, exact_after]), \
-                mock.patch("cec_fr._project_netclass_resolver",
-                           return_value=lambda _net: {}), \
-                mock.patch("cec_fr.synthesize_lastmile",
+                mock.patch.object(
+                    sp, "_repair_legacy_priority_power_artifact_isolated",
                            return_value=repair), \
-                mock.patch("cec_fr.prune_redundant_dangling_pickups",
+                mock.patch.object(
+                    sp, "_prune_priority_power_artifact_isolated",
                            return_value=prune), \
-                mock.patch("cec_current_topology.authority_connectivity",
-                           return_value={"available": False,
-                                         "connected": False}):
+                mock.patch.object(
+                    sp, "_priority_power_authority_isolated",
+                    return_value={"RAIL": {"available": False,
+                                             "connected": False}}):
             report = sp._admit_priority_power_candidate(
                 "candidate.kicad_pcb", ["RAIL"], baseline)
 
+        self.assertGreaterEqual(refill.call_count, 1)
         self.assertFalse(report["passed"])
         self.assertEqual(report["open_after"], ["RAIL"])
         self.assertEqual(
             report["reason"],
             "protected_rail_open_after_exact_fill_and_guarded_repair")
 
-    def test_exact_power_admission_uses_full_board_maze_budget(self):
-        bbox = SimpleNamespace(GetWidth=lambda: 80_000_000,
-                               GetHeight=lambda: 60_000_000)
-        board = SimpleNamespace(
-            Zones=lambda: [], GetFootprints=lambda: [],
-            BuildConnectivity=lambda: None,
-            GetBoardEdgesBoundingBox=lambda: bbox)
-        filler = SimpleNamespace(Fill=lambda _zones: None)
+    def test_exact_power_admission_delegates_legacy_repair_isolated(self):
         baseline = SimpleNamespace(
             drc=0, unconnected=1, drc_types={},
             detail={"unconn_nets": ["RAIL"]})
@@ -159,33 +160,31 @@ class TestOracleLogic(unittest.TestCase):
                   "far": 0, "cross_layer": 0}
         prune = {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
                  "detail": []}
-        with mock.patch("pcbnew.LoadBoard", return_value=board), \
-                mock.patch("pcbnew.SaveBoard"), \
-                mock.patch("pcbnew.ZONE_FILLER", return_value=filler), \
+        authority = [
+            {"RAIL": {"available": False, "connected": False}},
+            {"RAIL": {"available": False, "connected": False}},
+        ]
+        with mock.patch("cec_fr.refill_zones_isolated",
+                           return_value=True), \
                 mock.patch.object(
-                    sp.cec_score, "score",
+                    sp, "_score_priority_power_artifact_isolated",
                     side_effect=[exact_before, exact_after]), \
-                mock.patch("cec_fr._project_netclass_resolver",
-                           return_value=lambda _net: {}), \
-                mock.patch("cec_fr.synthesize_lastmile",
-                           return_value=repair) as lastmile, \
-                mock.patch("cec_fr.prune_redundant_dangling_pickups",
+                mock.patch.object(
+                    sp, "_repair_legacy_priority_power_artifact_isolated",
+                    return_value=repair) as lastmile, \
+                mock.patch.object(
+                    sp, "_prune_priority_power_artifact_isolated",
                            return_value=prune), \
-                mock.patch("cec_current_topology.authority_connectivity",
-                           return_value={"available": False,
-                                         "connected": False}):
+                mock.patch.object(
+                    sp, "_priority_power_authority_isolated",
+                    side_effect=authority):
             report = sp._admit_priority_power_candidate(
                 "candidate.kicad_pcb", ["RAIL"], baseline)
 
         self.assertTrue(report["passed"])
-        self.assertAlmostEqual(lastmile.call_args.kwargs["maze_max_mm"],
-                               100.0)
+        lastmile.assert_called_once_with("candidate.kicad_pcb", ["RAIL"])
 
     def test_exact_power_admission_refuses_new_fault_even_if_drc_total_drops(self):
-        board = SimpleNamespace(
-            Zones=lambda: [], GetFootprints=lambda: [],
-            BuildConnectivity=lambda: None)
-        filler = SimpleNamespace(Fill=lambda _zones: None)
         old_faults = [
             {"type": "clearance", "items": [
                 {"uuid": "old-a"}, {"uuid": "old-b"}]},
@@ -206,17 +205,18 @@ class TestOracleLogic(unittest.TestCase):
                     "structural_violations": [new_short]})
         prune = {"vias": 0, "stubs": 0, "unlanded_pofv": 0,
                  "detail": []}
-        with mock.patch("pcbnew.LoadBoard", return_value=board), \
-                mock.patch("pcbnew.SaveBoard"), \
-                mock.patch("pcbnew.ZONE_FILLER", return_value=filler), \
+        with mock.patch("cec_fr.refill_zones_isolated",
+                           return_value=True), \
                 mock.patch.object(
-                    sp.cec_score, "score",
+                    sp, "_score_priority_power_artifact_isolated",
                     side_effect=[exact_before, exact_after]), \
-                mock.patch("cec_fr.prune_redundant_dangling_pickups",
+                mock.patch.object(
+                    sp, "_prune_priority_power_artifact_isolated",
                            return_value=prune), \
-                mock.patch("cec_current_topology.authority_connectivity",
-                           return_value={"available": True,
-                                         "connected": True}):
+                mock.patch.object(
+                    sp, "_priority_power_authority_isolated",
+                    return_value={"RAIL": {"available": True,
+                                             "connected": True}}):
             report = sp._admit_priority_power_candidate(
                 "candidate.kicad_pcb", ["RAIL"], baseline)
 
@@ -332,6 +332,7 @@ class TestOracleLogic(unittest.TestCase):
     def test_route_swarm_inherits_and_restores_board_recipe(self):
         cfg = SimpleNamespace(
             board="hub-standard-rev2",
+            board_key="hub-standard-rev2",
             params={"power_pickup": True, "overunder": True,
                     "pour_reserve": True, "lastmile": True,
                     "critical_route_nets": ("BLACKOUT_SENSE",
@@ -375,6 +376,7 @@ class TestOracleLogic(unittest.TestCase):
     def test_route_swarm_keeps_explicit_precision_ablation(self):
         cfg = SimpleNamespace(
             board="hub-standard-rev2",
+            board_key="hub-standard-rev2",
             params={"wave_precision": True, "wave_pair_grid": True})
 
         def board_spec(board, _out, **kwargs):

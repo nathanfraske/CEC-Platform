@@ -366,7 +366,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 8.89 2.54 180)
 					(length 2.54)
 					(name "VCC"
@@ -603,7 +603,7 @@
 						)
 					)
 				)
-				(pin unspecified line
+				(pin power_in line
 					(at 8.89 2.54 180)
 					(length 2.54)
 					(name "VS"
@@ -1810,7 +1810,7 @@
 		(uuid "8076b390-89c2-435e-8c92-ef14e9e7d8c9")
 		(property "Reference" "U65V1" (at 219.71 124.46 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "INA181A2IDBVR" (at 219.71 127 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 210.82 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6_TI_DBV0006A" (at 210.82 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf" (at 210.82 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C2058784" (at 210.82 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "INA181A2IDBVR" (at 210.82 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -2221,7 +2221,7 @@
 		(uuid "3c4140dc-082f-4179-8aa2-366b054f6a03")
 		(property "Reference" "U65VSB1" (at 219.71 195.58 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "INA181A2IDBVR" (at 219.71 198.12 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 210.82 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6_TI_DBV0006A" (at 210.82 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf" (at 210.82 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C2058784" (at 210.82 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "INA181A2IDBVR" (at 210.82 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))

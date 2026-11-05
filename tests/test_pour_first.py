@@ -21,6 +21,8 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_slab_pour  # noqa: E402
 import cec_fr  # noqa: E402
+import cec_pour_plan  # noqa: E402
+from shapely.geometry import box as shapely_box  # noqa: E402
 from cec_slab_pour import (  # noqa: E402
     Grid,
     _nowhere_zone_verdict,
@@ -41,6 +43,23 @@ MM = 1e6
 # six-layer fake appear to have only F/B copper and hide its In2 anchors.
 _LAY = {"F.Cu": 0, "In1.Cu": 4, "In2.Cu": 6, "B.Cu": 2}
 _ALL_CU = list(_LAY.values())
+
+
+class TestTerminalLandingConductorDomain(unittest.TestCase):
+    def test_raw_landing_is_clipped_around_foreign_body(self):
+        legal = shapely_box(0, 0, 4, 4).difference(
+            shapely_box(1, 1, 3, 3))
+        state = {"spaces": {
+            "F.Cu": type("Space", (), {"copper_legal": legal})(),
+        }}
+        raw = shapely_box(0.5, 0.5, 3.5, 3.5)
+
+        clipped = cec_pour_plan._clip_terminal_land_to_conductor_domain(
+            state, "F.Cu", raw)
+
+        self.assertAlmostEqual(
+            clipped.intersection(shapely_box(1, 1, 3, 3)).area, 0.0)
+        self.assertLess(clipped.area, raw.area)
 
 
 class _BB:
@@ -257,6 +276,36 @@ class TestConnectorManifolds(unittest.TestCase):
                             "single-pin pickup must not slab across its neighbor")
             self.assertAlmostEqual(min(xs), 10.0 - 0.6 - 0.3, places=3)
             self.assertAlmostEqual(max(xs), 10.0 + 0.6 + 0.3, places=3)
+
+    def test_interleaved_connector_uses_local_obstacle_aware_clusters(self):
+        from shapely.geometry import Point, Polygon
+
+        # A reduced ATX-style field: pads 1/2/13 form an L-shaped local rail
+        # group, pad 12 repeats that rail remotely, and a foreign pad occupies
+        # the missing corner.  A single bounding rectangle would falsely gang
+        # the remote pad and cover the foreign one; exact KiCad fill then
+        # splits it into islands while the abstract planner reports success.
+        rail = [
+            _Pad("/RAIL", 1, 66.1, 92.5, half=1.35, name="1"),
+            _Pad("/RAIL", 1, 61.9, 92.5, half=1.35, name="2"),
+            _Pad("/RAIL", 1, 66.1, 87.0, half=1.35, name="13"),
+            _Pad("/RAIL", 1, 19.9, 92.5, half=1.35, name="12"),
+        ]
+        foreign = _Pad("/OTHER", 2, 61.9, 87.0, half=1.35, name="14")
+        board = _Board(90, 110, [_FP("J3", rail + [foreign])],
+                       {1: "/RAIL", 2: "/OTHER"})
+        rows = connector_manifolds(board, nets={"/RAIL"})
+        self.assertEqual(len(rows), 4,
+                         "two local clusters times two THT copper layers")
+        self.assertEqual(len({row["name"] for row in rows}), 2)
+        self.assertTrue(all(not Polygon(row["polygon"]).covers(
+            Point(61.9, 87.0)) for row in rows),
+            "the Manhattan L must not fill its foreign-pin corner")
+        self.assertTrue(all(not (
+            min(x for x, _y in row["polygon"]) < 20.0
+            and max(x for x, _y in row["polygon"]) > 60.0)
+            for row in rows),
+            "remote repetitions are route terminals, not one giant slab")
 
     def test_footprint_copper_graphics_are_via_obstacles(self):
         fp = _FP("LOGO1", [], [_Graphic(_LAY["B.Cu"], (4.0, 5.0, 8.0, 9.0)),

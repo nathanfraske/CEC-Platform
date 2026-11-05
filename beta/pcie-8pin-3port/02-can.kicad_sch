@@ -1088,6 +1088,7 @@
 		(property "Manufacturer" "Samsung" (at 201.93 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL05B104KO5NNNC" (at 201.93 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C1525" (at 201.93 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U2.5" (at 201.93 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "4845663d-82fd-4b4d-b21b-42c5109dfcf6"))
 		(pin "2" (uuid "c895a645-f97d-47e2-adeb-d171f8bf09b2"))
 		(instances
@@ -1277,8 +1278,8 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:GND")
-		(at 201.93 114.3 0)
+		(lib_id "cec-power:+5VSB")
+		(at 201.93 114.3 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -1286,7 +1287,7 @@
 		(dnp no)
 		(uuid "48a39f20-6636-4f50-9c91-aaf88d8afb8c")
 		(property "Reference" "#PWR202" (at 201.93 111.76 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 201.93 119.38 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5VSB" (at 201.93 119.38 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "27faaf98-c468-4b68-9ed2-10219b855601"))
 		(instances
 			(project "pcie8pin-3port-module"

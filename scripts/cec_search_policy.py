@@ -9,12 +9,19 @@ once per incumbent and then returns an explicit stop decision.
 
 from __future__ import annotations
 
+import math
+
 import cec_outline_compaction
 
 
 MAX_ROUTE_CANDIDATES = 8
 MAX_PLACEMENT_CANDIDATES = 16
 MAX_UNATTENDED_ROUNDS = 32
+
+
+def _gate_defect_count(value):
+    """Missing/invalid measured defects never mean zero defects."""
+    return value if type(value) is int and value >= 0 else float("inf")
 
 
 def bounded_round_budget(value, *, cap=MAX_UNATTENDED_ROUNDS):
@@ -140,6 +147,14 @@ def candidate_rank(result):
         except (TypeError, ValueError):
             return 0
 
+    def _cost(value):
+        # Missing, negative or non-finite measurements are not free copper.
+        try:
+            value = float(value)
+            return value if math.isfinite(value) and value >= 0 else float("inf")
+        except (TypeError, ValueError):
+            return float("inf")
+
     return (
         0 if result.get("gate") else 1,
         *numeric,
@@ -147,6 +162,14 @@ def candidate_rank(result):
         _count(result.get("drc")),
         _count(result.get("unconnected")),
         _count(blockers.get("blocking_count")),
+        sum(_gate_defect_count(value) for value in
+            (result.get("gate_defect_counts") or {}).values()),
+        # Never trade a safety/connectivity term for cosmetic economy. Failing
+        # oracle keys omit these costs; otherwise-equal retries must not grow
+        # copper indefinitely merely because the new seed won a tie.
+        _cost(result.get("vias")),
+        _cost(result.get("length")),
+        0 if result.get("candidate_origin") == "incumbent" else 1,
         _count(result.get("seed")),
     )
 
@@ -157,7 +180,33 @@ def select_candidate(results):
                 if row and row.get("routed")]
     if not eligible:
         return None
+    incumbents = [row for row in eligible
+                  if row.get("candidate_origin") == "incumbent"]
+    if len(incumbents) > 1:
+        raise ValueError("route selection requires one identity-bound incumbent")
+    if incumbents:
+        incumbent = incumbents[0]
+        # A lower scalar defect count cannot replace a previously satisfied
+        # physical gate with a different failure. Missing evidence is not true.
+        eligible = [row for row in eligible
+                    if not incumbent_gate_regressions(row, incumbent)]
     return min(eligible, key=candidate_rank)
+
+
+def incumbent_gate_regressions(candidate, incumbent):
+    """Preserve passed gates AND partial progress inside a still-failing gate."""
+    baseline = (incumbent or {}).get("gate_terms") or {}
+    actual = (candidate or {}).get("gate_terms") or {}
+    lost = [name for name, passed in baseline.items()
+            if passed is True and actual.get(name) is not True]
+    before = (incumbent or {}).get("gate_defect_counts") or {}
+    after = (candidate or {}).get("gate_defect_counts") or {}
+    for name, count in before.items():
+        previous = _gate_defect_count(count)
+        current = _gate_defect_count(after.get(name))
+        if current > previous:
+            lost.append(name + ":defect_count")
+    return sorted(lost)
 
 
 def next_action(*, plateau_streak, patience, used_families=(),

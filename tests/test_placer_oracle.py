@@ -433,7 +433,21 @@ class TestSortKey(unittest.TestCase):
         self.assertIn("pin_blocker_relief", blocker_moves[:4])
         self.assertLess(blocker_moves.index("pin_blocker_relief"),
                         blocker_moves.index("rotate_90"))
+        # Refdes is not mechanical authority.  An unpinned connector is a
+        # valid evidence-named placement target; boards that require an exact
+        # mating position declare it through cfg.pins/immutable policy.
+        self.assertIn("J1", {move["ref"] for move in moves})
+
+    def test_access_move_specs_keep_explicitly_pinned_connector_fixed(self):
+        candidate = self._cand(0, 0, 3.0, 0.0)
+        candidate.P = {"J1": (8, 5, 0), "J2": (5, 5, 0)}
+        evidence = {"critical_pair_refs": ["J1", "J2"]}
+
+        moves = sp._route_access_move_specs(
+            candidate, evidence, SimpleNamespace(pins={"J1": (8, 5, 0)}))
+
         self.assertNotIn("J1", {move["ref"] for move in moves})
+        self.assertIn("J2", {move["ref"] for move in moves})
 
     def test_access_move_specs_never_move_blueprint_copper_datum(self):
         candidate = self._cand(0, 0, 3.0, 0.0)
@@ -830,6 +844,34 @@ class TestSortKey(unittest.TestCase):
             if row["kind"] == "pair_endpoint_station_rotation"}
         self.assertEqual(len(set(rotation_groups.values())), 3)
 
+        # A 180-degree turn cannot expose the y-down/CCW sign mismatch.
+        # Compare quarter-turn proposals against KiCad's own rigid transform,
+        # including off-centre copper pads and an owned follower footprint.
+        import pcbnew
+        def native_footprint(ref):
+            board = pcbnew.BOARD()
+            fp = pcbnew.FOOTPRINT(board)
+            x, y, angle = candidate.P[ref]
+            fp.SetPosition(pcbnew.VECTOR2I(round(x*1e6), round(y*1e6)))
+            fp.SetOrientationDegrees(angle)
+            pad = pcbnew.PAD(fp)
+            pad.SetPosition(pcbnew.VECTOR2I(round((x+.37)*1e6), round((y+.19)*1e6)))
+            fp.Add(pad); board.Add(fp)
+            return board, fp
+        for row in station_moves:
+            if row['kind'] != 'pair_endpoint_station_rotation':
+                continue
+            pivot = pcbnew.VECTOR2I(30000000, 21000000)
+            for ref, pose in row['placements'].items():
+                expected_board, expected = native_footprint(ref)
+                actual_board, actual = native_footprint(ref)
+                expected.Rotate(pivot, pcbnew.EDA_ANGLE(row['rotation_deg'], pcbnew.DEGREES_T))
+                actual.SetOrientationDegrees(pose[2])
+                actual.SetPosition(pcbnew.VECTOR2I(round(pose[0]*1e6), round(pose[1]*1e6)))
+                ep, ap = next(iter(expected.Pads())).GetPosition(), next(iter(actual.Pads())).GetPosition()
+                self.assertLessEqual(math.hypot(ep.x-ap.x, ep.y-ap.y), 2,
+                                     (row['rotation_deg'], ref))
+
         pin_flip = next(row for row in station_moves
                         if row["kind"] ==
                         "pair_endpoint_member_pin_flip")
@@ -875,6 +917,86 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual(selected[0]["kind"],
                          "pair_failure_portal_shift")
         self.assertEqual(len(selected), 2)
+
+    def test_route_repair_move_signature_survives_follower_legalization(self):
+        original = {
+            "kind": "rotate_180", "ref": "U1",
+            "position": (10.0, 20.0, 180.0),
+            "placements": {"U1": (10.0, 20.0, 180.0)},
+        }
+        legalized = {
+            "kind": "route_blocker_macro_window_reseat",
+            "source_kind": "rotate_180", "ref": "U1",
+            "position": [10.0, 20.0, 180.0],
+            "placements": {
+                "U1": (10.0, 20.0, 180.0),
+                "C1": (11.0, 20.0, 90.0),
+            },
+        }
+
+        signature = sp.route_repair_move_signature(original)
+
+        self.assertEqual(
+            signature, sp.route_repair_move_signature(legalized))
+        self.assertNotEqual(
+            signature, sp.route_repair_move_signature({
+                **original, "position": (10.0, 21.0, 180.0)}))
+
+    def test_critical_route_owner_moves_keep_majority_of_bounded_budget(self):
+        moves = []
+        for ref in ("U1", "D1", "J1"):
+            for index in range(6):
+                moves.append({
+                    "kind": "shift", "ref": ref,
+                    "position": (float(index), 0.0, 0.0),
+                })
+        for blocker_index in range(7):
+            ref = "C%d" % blocker_index
+            for index in range(3):
+                moves.append({
+                    "kind": "shift", "ref": ref,
+                    "position": (float(index), 1.0, 0.0),
+                })
+
+        selected = sp._bounded_critical_owner_move_specs(
+            moves, 16, {"U1", "D1", "J1"})
+        owners = [row for row in selected
+                  if row["ref"] in {"U1", "D1", "J1"}]
+        blockers = [row for row in selected
+                    if row["ref"].startswith("C")]
+
+        self.assertEqual(len(selected), 16)
+        self.assertEqual(len(owners), 12)
+        self.assertEqual(len(blockers), 4)
+        self.assertEqual({row["ref"] for row in owners},
+                         {"U1", "D1", "J1"})
+
+    def test_direct_physical_critical_moves_are_reserved_before_topology_moves(self):
+        speculative = [{
+            "kind": "rotate_%d" % index, "ref": "J1",
+            "budget_group": "topology-%d" % index,
+            "position": (10.0, 10.0, float(index * 90)),
+        } for index in range(8)]
+        direct = [{
+            "kind": "lane_nudge", "ref": "J1",
+            "budget_group": "lane",
+            "position": (10.0 + 0.1 * index, 10.0, 0.0),
+        } for index in range(4)]
+        blockers = [{
+            "kind": "blocker_shift", "ref": "C%d" % index,
+            "position": (20.0 + index, 10.0, 0.0),
+        } for index in range(4)]
+        moves = speculative + direct + blockers
+
+        selected, reserved = (
+            sp._bounded_critical_owner_move_specs_with_direct_physical_reserve(
+                moves, 8, {"J1"}, direct))
+
+        self.assertEqual(len(selected), 8)
+        self.assertEqual(reserved, 4)
+        self.assertEqual(selected[:4], direct)
+        self.assertTrue(any(row["kind"].startswith("rotate_")
+                            for row in selected[4:]))
 
     def test_stale_power_only_craft_conflict_requires_moved_ref_and_clean_rest(self):
         baseline = {
@@ -1130,6 +1252,51 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual(set(relief[0]["placements"]), {"C10"})
         self.assertLess(relief[0]["dx_mm"], 0.0)
 
+    def test_critical_route_targets_include_certified_foreign_blockers(self):
+        targets = sp._critical_route_target_refs({
+            "critical_pair_refs": ["J1", "U1"],
+            "critical_pair_blocker_refs": ["R7"],
+            "critical_kelvin_refs": ["RS1", "U2"],
+            "critical_kelvin_blocker_refs": ["C10"],
+            "critical_route_quality_refs": ["U3"],
+        })
+        self.assertEqual(targets["pair"], {"J1", "U1", "R7"})
+        self.assertEqual(targets["kelvin"], {"RS1", "U2", "C10"})
+        self.assertEqual(targets["quality"], {"U3"})
+
+    def test_kelvin_blocking_decoupler_uses_measured_valid_tangent_seats(self):
+        candidate = self._cand(0, 0, 3.0, 0.0)
+        candidate.P = {"C10": (9.6, 5.0, 0.0), "U10": (10, 5, 0)}
+        route = {"critical_kelvin_blocker_refs": ["C10"]}
+        craft = {"decoupler": {"details": [{
+            "cap_ref": "C10",
+            "ideal_supply_distance_mm": 1.4,
+            "pin_proximity_excess_limit_mm": 0.25,
+            "tangent_target": {"candidates": [
+                {"side": "right", "position_mm": [11.5, 5.0],
+                 "orientation_deg": 90, "supply_mm": 1.5,
+                 "ground_mm": 1.0, "loop_proxy_mm": 2.5},
+                {"side": "top", "position_mm": [10.0, 3.5],
+                 "orientation_deg": 180, "supply_mm": 1.4,
+                 "ground_mm": 0.8, "loop_proxy_mm": 2.2},
+                {"side": "left", "position_mm": [7.0, 5.0],
+                 "orientation_deg": 270, "supply_mm": 2.0,
+                 "ground_mm": 0.5, "loop_proxy_mm": 2.5},
+            ]},
+        }]}}
+
+        moves = sp._decoupler_blocker_tangent_moves(
+            candidate, route, craft)
+
+        self.assertEqual(len(moves), 2)
+        self.assertEqual(moves[0]["kind"],
+                         "kelvin_blocker_decoupler_tangent_reseat")
+        self.assertEqual(moves[0]["side"], "top")
+        self.assertEqual(moves[0]["placements"]["C10"],
+                         (10.0, 3.5, 180.0))
+        self.assertEqual({move["budget_group"] for move in moves},
+                         {"kelvin-decoupler:C10"})
+
     def test_blockage_witness_prioritizes_perpendicular_escape_channel(self):
         candidate = self._cand(0, 0, 3.0, 0.0)
         candidate.P = {"R_ESCAPE": (5, 5, 0), "C_OTHER": (8, 8, 0)}
@@ -1198,6 +1365,8 @@ class TestSortKey(unittest.TestCase):
                 mock.patch.object(sp, "_count_overlaps", return_value=0), \
                 mock.patch.object(sp, "materialize",
                                   return_value="board") as materialize_mock, \
+                mock.patch("cec_placement_dependencies.from_board",
+                           return_value={"ok": True, "groups": []}), \
                 mock.patch.object(sp, "_oracle_decoupler_adjacency",
                                   return_value={"ok": True,
                                                 "violations": []}), \
@@ -1211,7 +1380,22 @@ class TestSortKey(unittest.TestCase):
                            side_effect=fake_analyze):
             repaired, report = sp.repair_route_preflight(
                 cfg, candidate, max_trials=1, full_evals=1)
+            # An optimistic screen followed by a worse full check must leave
+            # the incumbent intact AND retain the actual losing key.
+            with mock.patch.dict(sp._ROUTE_AUTHORITY_CACHE, {}, clear=True), \
+                    mock.patch.object(sp, '_route_authority_analyze', return_value={
+                    'slot': 0, 'cache_key': None, 'wall_s': 0,
+                    'evidence': dict(candidate.route_preflight,
+                                     critical_route_refused_count=1)}):
+                rejected, refusal = sp.repair_route_preflight(
+                    cfg, candidate, max_trials=1, full_evals=1)
         self.assertTrue(report["accepted"])
+        self.assertEqual(report['best_finalist_comparison']['relation'], 'improved')
+        self.assertIs(rejected, candidate)
+        self.assertFalse(refusal['accepted'])
+        self.assertEqual(refusal['best_finalist_comparison']['decisive_change']['field'],
+                         'critical_route_refused_count')
+        self.assertEqual(refusal['finalist_comparisons'][0]['comparison']['candidate_key'][1], 1)
         self.assertEqual(repaired.P["R37"][2], 180)
         self.assertEqual(repaired.route_preflight[
             "pin_access_blocked_count"], 0)
@@ -1220,7 +1404,7 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual(report["authority"]["exact_computed"], 1)
         self.assertEqual(report["authority"]["incremental_screened"], 1)
         # Baseline plus the access-improving finalist; no quick-trial board.
-        self.assertEqual(materialize_mock.call_count, 2)
+        self.assertEqual(materialize_mock.call_count, 4)
 
 
 # ===================================================================== MV5: hub model + score
@@ -1688,6 +1872,29 @@ class TestRailToRailBypassPlacementAuthority(unittest.TestCase):
         self.assertEqual(owned["C8"]["owner"], "U8")
         self.assertEqual(owned["C62"]["owner"], "U4")
 
+    def test_declared_owner_reserves_two_distinct_wroom_supply_cells(self):
+        nl = _nl({
+            "U1": ("ESP32-S3-WROOM-1-N16R8", "RF_Module:ESP32-S3-WROOM-1"),
+            "C3": ("10uF", "Capacitor_SMD:C_0603_1608Metric"),
+            "C11": ("22uF", "Capacitor_SMD:C_0805_2012Metric"),
+            "C13": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+            "C36": ("100nF", "Capacitor_SMD:C_0402_1005Metric"),
+        }, {
+            "GND": [("U1", "1"), ("C3", "2"), ("C11", "2"),
+                    ("C13", "2"), ("C36", "2")],
+            "+3V3": [("U1", "2"), ("C3", "1"), ("C11", "1"),
+                     ("C13", "1"), ("C36", "1")],
+        })
+        nl.comps["C11"].props["BypassOwner"] = "U1.2"
+        nl.comps["C36"].props["BypassOwner"] = "U1.2"
+
+        owned = sp._device_bypass_specs(
+            nl, {"C3", "C11", "C13", "C36"}, ["U1"])
+
+        self.assertEqual(set(owned), {"C11", "C36"})
+        self.assertEqual(owned["C11"]["kind"], "at-least-10u")
+        self.assertEqual(owned["C36"]["kind"], "100n")
+
     def test_tja1051_vio_to_vcc_cap_is_owned_before_placement(self):
         nl = _nl({
             "U2": ("TJA1051T/3", "Package_SO:SOIC-8"),
@@ -1787,6 +1994,40 @@ class TestDecouplerTangentTarget(unittest.TestCase):
         item = self.Item(0.0, 0.0)
         self.assertIsNone(sp._decoupler_tangent_target(
             item, item, item, item, [], item))
+
+
+class TestMaterializedPlacementContract(unittest.TestCase):
+    class Footprint:
+        def __init__(self, ref, x_mm, y_mm):
+            self.ref = ref
+            self.position = SimpleNamespace(
+                x=int(round(x_mm * 1_000_000)),
+                y=int(round(y_mm * 1_000_000)))
+
+        def GetReference(self):
+            return self.ref
+
+        def GetPosition(self):
+            return self.position
+
+    class Board:
+        def __init__(self, footprints):
+            self.footprints = footprints
+
+        def GetFootprints(self):
+            return self.footprints
+
+    def test_accepts_actuated_candidate_coordinates(self):
+        board = self.Board([self.Footprint("J1", 12.25, 7.75)])
+        report = sp._verify_materialized_positions(
+            board, {"J1": (12.25, 7.75, 90.0)})
+        self.assertEqual(report["checked"], 1)
+
+    def test_rejects_silent_origin_fallback(self):
+        board = self.Board([self.Footprint("J1", 0.0, 0.0)])
+        with self.assertRaisesRegex(RuntimeError, "J1: expected"):
+            sp._verify_materialized_positions(
+                board, {"J1": (12.25, 7.75, 90.0)})
 
 
 if __name__ == "__main__":

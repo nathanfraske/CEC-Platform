@@ -56,7 +56,7 @@ def main():
         board,
         max_mm=float(args.max_mm),
         min_w=0.2,
-        clearance=0.2,
+        clearance=0.0,  # The resolver owns clearance, including stricter nets.
         cap=max(8, 8 * len(nets)),
         netclass_resolver=resolver,
         include_nets=set(nets),
@@ -81,7 +81,8 @@ def main():
             board, list(board.GetTracks()))
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         board.BuildConnectivity()
         pcbnew.SaveBoard(trial_path, board)
         rule_authority = {

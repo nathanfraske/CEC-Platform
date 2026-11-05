@@ -57,13 +57,19 @@ class BlockerProvenanceTests(unittest.TestCase):
 
         owner_event = provenance.normalize_event(
             "precision_route", "passed", "generated trace",
-            uuids=["track-1"], nets=["/USB_D_P"])
+            uuids=["track-1"], nets=["/USB_D_P"], mutation='created')
         joined = provenance.join_events(blockers, [owner_event])
         self.assertTrue(joined[0]["origin_known"])
         self.assertEqual(
             joined[0]["causal_chain"][0]["certainty"], "attributed")
         self.assertTrue(
             provenance.compact_summary(joined)["full_fail_stack"])
+        observed = provenance.normalize_event(
+            'geometry_audit', 'failed', 'observed existing track; no mutation',
+            uuids=['track-1'])
+        joined = provenance.join_events(blockers, [observed])
+        self.assertFalse(joined[0]['origin_known'])
+        self.assertFalse(provenance.compact_summary(joined)['full_fail_stack'])
 
     def test_large_stage_detail_is_referenced_instead_of_duplicated(self):
         blockers = provenance.final_blockers({

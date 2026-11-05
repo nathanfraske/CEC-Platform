@@ -157,6 +157,10 @@ class _FakeRes:
         self.nets_dropped = dropped or {}
         self.nets_absent = absent or {}
         self.meta = ({"geometry_source": "source-declared-copper-only:v1",
+                      "operation_complete": True, "budget_exhausted": False,
+                      "thermal_iterations_completed": 1,
+                      "component_heat_contract": {"mapping_ok": True,
+                          "component_temperature_qualified": True},
                       "source_geometry_sha256": "same-fingerprint",
                       "analysis_geometry_sha256": "same-fingerprint"}
                      if geometry_proven else {})
@@ -167,8 +171,10 @@ class TestStampClassification(unittest.TestCase):
 
     def _stamp(self, res):
         import cec_synth_pipeline as csp
+        from cec_thermal_overlay import _thermal_operation_report
         stub = types.SimpleNamespace(
-            _solve_thermal=lambda p, ambient, grid_mm: (res, p, "test-cooling"))
+            _solve_thermal=lambda p, ambient, grid_mm: (res, p, "test-cooling"),
+            _thermal_operation_report=_thermal_operation_report)
         real = sys.modules.get("cec_thermal_overlay")
         sys.modules["cec_thermal_overlay"] = stub
         try:
@@ -179,6 +185,14 @@ class TestStampClassification(unittest.TestCase):
                 sys.modules["cec_thermal_overlay"] = real
             else:
                 sys.modules.pop("cec_thermal_overlay", None)
+
+    def test_cool_board_does_not_prove_component_temperature(self):
+        res = _FakeRes(10., requested={"POWER": 1.})
+        res.meta["component_heat_contract"]["component_temperature_qualified"] = False
+        result = self._stamp(res)
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["board_rise_within_limit"])
+        self.assertIn("COMPONENT TEMPERATURE UNQUALIFIED", result["error"])
 
     def test_dropped_net_fails_with_names(self):
         # the mirage shape: healthy-LOOKING dT with an open 25A rail excluded
@@ -228,6 +242,46 @@ class TestStampClassification(unittest.TestCase):
         self.assertFalse(st["ok"])
         self.assertFalse(st["injection_complete"])
         self.assertIn("THERMAL GEOMETRY UNPROVEN", st["error"])
+
+    def test_retained_cool_temperature_field_cannot_pass_after_timeout(self):
+        res = _FakeRes(5.0, requested={"POWER": 1.0})
+        res.meta.update(operation_complete=False, budget_exhausted=True)
+        st = self._stamp(res)
+        self.assertFalse(st["ok"])
+        self.assertTrue(st["injection_complete"])
+        self.assertFalse(st["operation_complete"])
+        self.assertIn("THERMAL OPERATION INCOMPLETE", st["error"])
+
+    def test_legacy_completion_metadata_is_not_a_pass(self):
+        res = _FakeRes(12.0, requested={"POWER": 1.0})
+        for name in ("operation_complete", "budget_exhausted",
+                     "thermal_iterations_completed"):
+            del res.meta[name]
+        self.assertFalse(self._stamp(res)["ok"])
+
+    def test_confirmation_requires_its_own_completed_operation_and_injection(self):
+        from cec_thermal_overlay import _thermal_operation_report
+        from unittest import mock
+        import cec_synth_pipeline as csp
+        for cause in ("temperature_deadline", "dropped_current", "recipe_drift"):
+            with self.subTest(cause=cause):
+                first = _FakeRes(5.0, requested={"POWER": 1.0})
+                second = _FakeRes(5.0, requested={"POWER": 1.0})
+                if cause == "temperature_deadline":
+                    second.meta.update(operation_complete=False, budget_exhausted=True)
+                elif cause == "dropped_current":
+                    second.nets_dropped = {"POWER": "disconnected"}
+                else:
+                    second.nets_requested = {"OTHER": 1.0}
+                stub = types.SimpleNamespace(
+                    _solve_thermal=mock.Mock(side_effect=[
+                        (first, "board", "test"), (second, "board", "test")]),
+                    _thermal_operation_report=_thermal_operation_report)
+                with mock.patch.dict(sys.modules, {"cec_thermal_overlay": stub}):
+                    stamp = csp._oracle_thermal("board", ambient=50.0,
+                                               gate_dt=30.0, grid_mm=0.8)
+                self.assertFalse(stamp["ok"])
+                self.assertIn("THERMAL CONFIRMATION INCOMPLETE", stamp["error"])
 
 
 if __name__ == "__main__":

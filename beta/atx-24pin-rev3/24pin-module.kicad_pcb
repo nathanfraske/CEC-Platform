@@ -11521,7 +11521,7 @@
 	(footprint "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "a8151bc5-ecbc-43ac-9727-6148b7ed58f9")
-		(at 242.295 81.565)
+		(at 240.87 81.565)
 		(descr "Samtec SSQ-102-03-G-D exact 2x2 2.54 mm vertical THT female socket. Manufacturer drawing gives a 5.59 x 4.95 x 8.51 mm body for two double-row positions and 10.01 mm lead-style -03 tails. Pads follow Samtec odd/even-by-column numbering: 1/2 left column, 3/4 right column. First-article mated-transform verification is mandatory.")
 		(tags "Samtec SSQ 102 03 G D 2x2 vertical socket blind mate")
 		(property "Reference" "J_SIG1"

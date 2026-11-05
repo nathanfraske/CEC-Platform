@@ -46,6 +46,7 @@ name; do not merge the two.
 import math
 import os
 import sys
+import time
 from itertools import combinations
 
 import numpy as np
@@ -59,6 +60,8 @@ except ImportError:                                    # host-side tests
 if pcbnew is not None:
     import cec_swig_guard as _swig_guard
     _swig_guard.pin()
+    import cec_native_layer_masks as _native_layer_masks
+    _native_layer_masks.install(pcbnew)
 
 import cec_slab_pour as _sp
 import cec_fab_profile as _fab
@@ -277,6 +280,8 @@ def _multipin_terminal_approach_fields(board, net_code):
     terminal escape domain only when at least two plated lands carry this net;
     foreign lands remain exact obstacles inside the domain, and the ordinary
     contiguous-neck length/ratio gate still limits the realized conductor.
+    Large connectors use bounded pad-centred tiles rather than losing local
+    escape authority merely because remote pins make the footprint wider.
     """
     fields = []
     for footprint in board.GetFootprints():
@@ -302,11 +307,24 @@ def _multipin_terminal_approach_fields(board, net_code):
         y0 = min(geometry.bounds[1] for geometry in through)
         x1 = max(geometry.bounds[2] for geometry in through)
         y1 = max(geometry.bounds[3] for geometry in through)
-        if (x1 - x0 > TERMINAL_FIELD_MAX_SPAN_MM
-                or y1 - y0 > TERMINAL_FIELD_MAX_SPAN_MM):
-            continue
-        fields.append(_box(x0, y0, x1, y1).buffer(
-            APPROACH_MM, join_style=2, mitre_limit=2.0))
+        whole = _box(x0, y0, x1, y1)
+        if (x1 - x0 <= TERMINAL_FIELD_MAX_SPAN_MM
+                and y1 - y0 <= TERMINAL_FIELD_MAX_SPAN_MM):
+            local_fields = [whole]
+        else:
+            half = TERMINAL_FIELD_MAX_SPAN_MM / 2.0
+            local_fields = []
+            seen = set()
+            for geometry in own:
+                cx, cy = geometry.centroid.coords[0]
+                tile = whole.intersection(_box(cx - half, cy - half,
+                                              cx + half, cy + half))
+                signature = tuple(tile.bounds)
+                if signature not in seen:
+                    seen.add(signature)
+                    local_fields.append(tile)
+        fields.extend(tile.buffer(APPROACH_MM, join_style=2, mitre_limit=2.0)
+                      for tile in local_fields)
     return fields
 
 
@@ -680,6 +698,23 @@ def required_widths_from_geometry_basis(layer_amps, layers, board):
         for lay in layers}
 
 
+def fallback_current_ask(ask, geometry_amps):
+    """Carry the resolved reserve through a solver handoff exactly once.
+
+    A larger explicit ask remains authoritative. Repeated fallback/replay
+    does not compound its margin, and caller-owned ask dictionaries are not
+    mutated. This is a current-basis conversion, not a reduced load budget.
+    """
+    geometry_amps = float(geometry_amps)
+    explicit = float(ask.get('design_current_A') or 0.)
+    margin = 1. if ask.get('margin_included') else float(ask.get('geometry_margin', 1.25))
+    if (not all(math.isfinite(v) for v in (geometry_amps, explicit, margin))
+            or geometry_amps < 0 or explicit < 0 or margin < 1.):
+        raise ValueError('invalid fallback current/margin basis')
+    return dict(ask, design_current_A=max(geometry_amps, explicit*margin),
+                margin_included=True, geometry_margin=1.)
+
+
 def _append_access_primitive_records(out, primitives, lay_ids, nc,
                                      clearance_mm, guard_mm):
     """Project future local-PI copper into a pour's obstacle layers.
@@ -823,6 +858,10 @@ def _geo_obstacle_records(board, nc, layers, clearance_mm, guard_mm,
     out = {lay: [] for lay in layers}
     lay_ids = {lay: board.GetLayerID(lay) for lay in layers}
 
+    import cec_native_rule_areas
+    for layer,records in cec_native_rule_areas.pour_obstacles(board,layers,guard_mm=guard_mm).items():
+        out[layer].extend(records)
+
     def _item_id(item):
         uuid = getattr(item, "m_Uuid", None)
         try:
@@ -847,38 +886,12 @@ def _geo_obstacle_records(board, nc, layers, clearance_mm, guard_mm,
                                                p.GetPadName()),
                         "net": p.GetNetname(),
                     })
-        ref = str(fp.GetReference() or "")
-        # Same-net components are legitimate pour endpoints. THT connectors
-        # and board-only mechanics likewise need copper at/under their barrel
-        # or datum fields and are governed by their pad/hole obstacles instead.
-        if (any(p.GetNetCode() == nc for p in pads)
-                or ref.startswith(("J", "TB", "H", "LOGO", "FID"))
-                or not hasattr(fp, "IsFlipped")):
-            continue
-        side = "B.Cu" if fp.IsFlipped() else "F.Cu"
-        if side not in out:
-            continue
-        try:
-            courtyard_layer = board.GetLayerID(
-                "B.CrtYd" if fp.IsFlipped() else "F.CrtYd")
-            courtyard = fp.GetCourtyard(courtyard_layer)
-            body = (courtyard.BBox() if courtyard.OutlineCount()
-                    else fp.GetBoundingBox(False, False))
-        except Exception:                              # noqa: BLE001
-            try:
-                body = fp.GetBoundingBox(False, False)
-            except Exception:                          # noqa: BLE001
-                continue
-        geometry = _box(
-            body.GetLeft() / MM - grow,
-            body.GetTop() / MM - grow,
-            body.GetRight() / MM + grow,
-            body.GetBottom() / MM + grow)
-        out[side].append({
-            "geometry": geometry, "kind": "footprint_body",
-            "owner": ref, "detail": "%s courtyard" % ref,
-            "net": "",
-        })
+    from cec_power_body import foreign_regions
+    for body in foreign_regions(board, nc, margin_mm=grow):
+        if body['layer'] in out:
+            out[body['layer']].append(dict(geometry=_box(*body['box']),
+                kind='footprint_body', owner=body['ref'],
+                detail=body['ref']+' courtyard', net=''))
     for t in board.GetTracks():
         if t.GetNetCode() == nc:
             continue
@@ -1136,7 +1149,57 @@ def _own_track_polys(board, nc, layers):
     return out
 
 
-def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
+def _physical_anchor_connectivity(board, net_code, layers, grid):
+    """Separate terminal copper from track projections and prove layer joins.
+
+    A same-net crossing on two layers is not a barrel. Only an actual plated
+    pad or via can fuse those layers, and only the layers that item spans.
+    This raster is planning evidence, never an electrical/current admission.
+    """
+    physical = {lay: np.zeros((grid.ny, grid.nx), dtype=bool)
+                for lay in layers}
+    bridges = []
+    layer_ids = {lay: board.GetLayerID(lay) for lay in layers}
+
+    def add(item, bounds, plated):
+        stack = set(item.GetLayerSet().CuStack())
+        occupied = tuple(lay for lay, lid in layer_ids.items() if lid in stack)
+        if not occupied:
+            return
+        mask = np.zeros((grid.ny, grid.nx), dtype=bool)
+        grid.stamp_anchor_box(mask, *bounds)
+        for lay in occupied:
+            physical[lay] |= mask
+        if plated and len(occupied) > 1:
+            bridges.append((occupied, mask))
+
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            if pad.GetNetCode() != net_code:
+                continue
+            bb = pad.GetBoundingBox()
+            if hasattr(pad, 'GetAttribute') and pcbnew is not None:
+                if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                    continue
+                plated = pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH
+            else:
+                # Legacy host fixtures expose a multilayer PTH stack but no
+                # native attribute. Two projected surface lands are not proof.
+                plated = len(tuple(pad.GetLayerSet().CuStack())) > 2
+            add(pad, (bb.GetLeft() / MM, bb.GetTop() / MM,
+                      bb.GetRight() / MM, bb.GetBottom() / MM), plated)
+    for item in board.GetTracks():
+        if item.GetClass() != 'PCB_VIA' or item.GetNetCode() != net_code:
+            continue
+        position = item.GetPosition()
+        radius = item.GetWidth(item.TopLayer()) / MM / 2.0
+        x, y = position.x / MM, position.y / MM
+        add(item, (x - radius, y - radius, x + radius, y + radius), True)
+    return physical, bridges
+
+
+def _preconnect_merge(groups, layers, anchors, grid, own_tracks, *,
+                      physical_anchors=None, vertical_bridges=()):
     """MANDATE PART 1 (2026-07-25, live-probe measured): on live skeletons
     the materialize-laid LOCKED force rails already connect most of a rail
     net's terminal groups (+5V_MAIN {1,2,3}; /SENSE3V3_LO ALL FIVE -- the
@@ -1165,40 +1228,48 @@ def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
         ra, rb = find(a), find(b)
         if ra != rb:
             parent[ra] = rb
-    for i in range(len(layers)):
-        for j in range(i + 1, len(layers)):
-            both = anchors[layers[i]] & anchors[layers[j]]
-            ys, xs = np.where(both)
-            for y, x in zip(ys.tolist(), xs.tolist()):
-                a = (layers[i], int(comp[layers[i]][y, x]))
-                b = (layers[j], int(comp[layers[j]][y, x]))
-                if a[1] and b[1]:
-                    union(a, b)
-    # a group is ONE terminal: every raster component ANY of its cells
-    # touches (on any layer) fuses through it -- a manifold-ganged group's
-    # clusters span several components by construction, and the first-cell
-    # shortcut mis-rooted exactly those (measured: J1/TB gangs never merged
-    # across their rail)
+    for occupied, contact in vertical_bridges:
+        occupied = tuple(lay for lay in occupied if lay in comp)
+        for i in range(len(occupied)):
+            for j in range(i + 1, len(occupied)):
+                first, second = occupied[i], occupied[j]
+                both = contact & anchors[first] & anchors[second]
+                ys, xs = np.where(both)
+                for y, x in zip(ys.tolist(), xs.tolist()):
+                    a = (first, int(comp[first][y, x]))
+                    b = (second, int(comp[second][y, x]))
+                    if a[1] and b[1]:
+                        union(a, b)
+    # Gang members within their own physical layer, not through arbitrary
+    # projected tracks in a terminal's bounding rectangle. Cross-layer unions
+    # above require real plated items. An ambiguous multilayer group cannot
+    # certify that other terminals are already connected.
+    tags_by_group = {}
     for g in groups:
-        tags = []
+        if physical_anchors is not None and not g.is_manifold:
+            g.native = {lay for lay in layers if any(
+                physical_anchors[lay][r, c] for r, c in g.cells)}
+        group_tags = []
         for lay in layers:
-            for (r, c) in g.cells:
-                v = int(comp[lay][r, c])
-                if v:
-                    tags.append((lay, v))
-        for t in tags[1:]:
-            union(tags[0], t)
+            if lay not in g.native and lay not in g.man_layers:
+                continue
+            tags = []
+            for r, c in g.cells:
+                if (physical_anchors is not None
+                        and not physical_anchors[lay][r, c]
+                        and lay not in g.man_layers):
+                    continue
+                value = int(comp[lay][r, c])
+                if value:
+                    tags.append((lay, value))
+            for tag in tags[1:]:
+                union(tags[0], tag)
+            group_tags.extend(tags)
+        tags_by_group[id(g)] = group_tags
     by_root = {}
     for g in groups:
-        gtag = None
-        for lay in layers:
-            for (r, c) in g.cells:
-                v = int(comp[lay][r, c])
-                if v:
-                    gtag = find((lay, v))
-                    break
-            if gtag:
-                break
+        roots = {find(tag) for tag in tags_by_group[id(g)]}
+        gtag = next(iter(roots)) if len(roots) == 1 else ('unproved', id(g))
         by_root.setdefault(gtag, []).append(g)
     out = []
     for root, members in by_root.items():
@@ -1232,7 +1303,6 @@ def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
         # own-track capsules touching the merged extent (two passes cover
         # track chains). A hollow bbox is NEVER an attach target.
         la = {}
-        hull = keep.attach
         for lay in layers:
             parts = []
             for g in members:
@@ -1249,6 +1319,9 @@ def _preconnect_merge(groups, layers, anchors, grid, own_tracks):
                 if cellpolys:
                     parts.append(unary_union(cellpolys))
             cand_tr = list(own_tracks.get(lay, ()))
+            # Seed from physical copper on THIS layer. The projected union
+            # across other layers can touch a crossing track with no barrel.
+            hull = unary_union(parts)
             tr_ids = {id(t) for t in cand_tr if t.intersects(hull)}
             for _pass in range(2):
                 if not tr_ids:
@@ -1292,6 +1365,11 @@ class _LayerSpace:
 
     def __init__(self, region, obstacles, half_w, f_allow=None,
                  approach=None, half_neck=None, neck_unguard=0.0):
+        # Counterfactual diagnostics must change only the named obstacles,
+        # never silently discard a categorical layer region or raster guard.
+        self._construction = dict(region=region, half_w=half_w,
+            f_allow=f_allow, approach=approach, half_neck=half_neck,
+            neck_unguard=neck_unguard)
         raw_union = unary_union(obstacles) if obstacles else None
         copper_legal = region
         if f_allow is not None:
@@ -1340,6 +1418,8 @@ class _LayerSpace:
         self.free = (free.union(self.neck) if self.neck is not None
                      else free)
         self._prep = prep(self.free) if not self.free.is_empty else None
+        self._component_source = None
+        self._component_point_cache = {}
         cu = unary_union([c for c in corner_src if not c.is_empty]) \
             if corner_src else None
         self.corners = []
@@ -1351,6 +1431,10 @@ class _LayerSpace:
                 for ring in rings:
                     self.corners.extend(list(ring.coords)[:-1])
 
+    def rebuild(self, obstacles):
+        """Same electrical/geometric domain with a different obstacle set."""
+        return type(self)(obstacles=obstacles, **self._construction)
+
     def ok_pt(self, p):
         return self._prep is not None and self._prep.covers(Point(p))
 
@@ -1358,6 +1442,53 @@ class _LayerSpace:
         if self._prep is None:
             return False
         return self._prep.covers(LineString([a, b]))
+
+    def can_connect(self, a, b):
+        """Reject only proven disconnected exact centreline components.
+
+        No buffering, raster approximation or search budget is used here.
+        Touching polygon boundaries retain the existing ``covers`` contract.
+        A rebuilt space owns a new cache; unknown geometry is not pruned.
+        """
+        if self._component_source is not self.free:
+            pieces = tuple(getattr(self.free, 'geoms', (self.free,)))
+            self._component_source = self.free
+            self._component_point_cache = {}
+            self._component_polys = tuple(
+                piece for piece in pieces if not piece.is_empty)
+            self._component_labels = None
+            if all(piece.geom_type == 'Polygon'
+                   for piece in self._component_polys):
+                parent = list(range(len(self._component_polys)))
+
+                def find(index):
+                    while parent[index] != index:
+                        parent[index] = parent[parent[index]]
+                        index = parent[index]
+                    return index
+
+                for i, first in enumerate(self._component_polys):
+                    for j in range(i):
+                        if first.intersects(self._component_polys[j]):
+                            parent[find(i)] = find(j)
+                self._component_labels = tuple(find(i) for i in range(len(parent)))
+                self._component_prepared = tuple(
+                    prep(piece) for piece in self._component_polys)
+        if self._component_labels is None:
+            return True
+
+        def memberships(point):
+            key = tuple(point)
+            if key not in self._component_point_cache:
+                value = frozenset(label for label, piece in zip(
+                    self._component_labels, self._component_prepared)
+                    if piece.covers(Point(point)))
+                if len(self._component_point_cache) < 4096:
+                    self._component_point_cache[key] = value
+                return value
+            return self._component_point_cache[key]
+
+        return bool(memberships(a) & memberships(b))
 
 
 def _dist(a, b):
@@ -1417,9 +1548,71 @@ def _greedy_minimized_relief_sets(ranked, try_removed, initial_result):
     return results
 
 
+class _ReliefBudgetExceeded(RuntimeError):
+    pass
+
+
+class _ReliefBudget:
+    def __init__(self, seconds, attempts):
+        if seconds is not None and (not math.isfinite(seconds) or seconds < 0):
+            raise ValueError('finite nonnegative diagnostic seconds required')
+        if attempts is not None and (type(attempts) is not int or attempts < 0):
+            raise ValueError('nonnegative integer diagnostic attempts required')
+        self.started = time.monotonic()
+        self.deadline = None if seconds is None else self.started + seconds
+        self.limit = attempts
+        self.attempts = 0
+        self.cache = {}
+        self.ranked = []
+        self.movable = []
+        self.fixed = []
+
+    def check(self):
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            raise _ReliefBudgetExceeded('diagnostic_time_budget')
+
+    def begin(self):
+        self.check()
+        if self.limit is not None and self.attempts >= self.limit:
+            raise _ReliefBudgetExceeded('diagnostic_attempt_budget')
+        self.attempts += 1
+
+
 def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
                               pair_cap=10, max_cardinality=4,
-                              immovable_owners=()):
+                              immovable_owners=(), max_seconds=None,
+                              max_attempts=None):
+    """Bounded diagnostic wrapper; interrupted counterfactuals remain unknown."""
+    budget = _ReliefBudget(max_seconds, max_attempts)
+    try:
+        result = _corridor_relief_search(cor, st, lay, space,
+            owner_cap=owner_cap, pair_cap=pair_cap, max_cardinality=max_cardinality,
+            immovable_owners=immovable_owners, _budget=budget)
+    except _ReliefBudgetExceeded as exc:
+        proven = [r for r in budget.cache.values() if r]
+        result = dict(layer=lay, reason=str(exc), budget_exhausted=True,
+            required_width_mm=float(st['reqw'][lay]),
+            relief_sets=[r for r in proven if len(r['owners']) <= max_cardinality],
+            wide_relief_sets=[r for r in proven if len(r['owners']) > max_cardinality],
+            searched_owner_count=len(budget.ranked),
+            total_movable_owner_count=len(budget.movable), immovable_owners=budget.fixed)
+        for name, owners in [('all_ranked',budget.ranked),('all_movable',budget.movable)]:
+            key=tuple(sorted(owners))
+            tested=bool(owners) and key in budget.cache
+            witness=budget.cache.get(key)
+            result.update({name+'_removal_tested':tested,
+                name+'_removal_restores_path':bool(witness) if tested else None,
+                name+'_removal_path':witness})
+    result['diagnostic_budget'] = dict(max_seconds=max_seconds,max_attempts=max_attempts,
+        attempted=budget.attempts,completed=len(budget.cache),
+        elapsed_s=round(time.monotonic()-budget.started,6),
+        exhausted=bool(result.get('budget_exhausted')))
+    return result
+
+
+def _corridor_relief_search(cor, st, lay, space, *, owner_cap=18,
+                              pair_cap=10, max_cardinality=4,
+                              immovable_owners=(), _budget):
     """Name the smallest movable obstacle set that restores a wide path.
 
     This is a bounded placement diagnostic, not a geometry exception: remove
@@ -1454,6 +1647,12 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
     for row in records:
         by_owner.setdefault(_relief_owner(row), []).append(row)
     immovable = {str(owner) for owner in (immovable_owners or ())}
+    placement_refs = st.get("placement_relief_refs")
+    if placement_refs is not None:
+        # A placement diagnostic may relocate actual footprint-owned cells,
+        # but cannot delete a reserved pour or invent a route rip-up action.
+        # Keep those objects in the exact domain and search another cut.
+        immovable.update(owner for owner in by_owner if owner not in placement_refs)
     movable_ranked = sorted(
         (owner for owner in by_owner if str(owner) not in immovable),
         key=lambda owner: (
@@ -1461,23 +1660,33 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
                 for row in by_owner[owner]),
             owner))
     ranked = movable_ranked[:owner_cap]
+    _budget.ranked = ranked
+    _budget.movable = movable_ranked
+    _budget.fixed = sorted(owner for owner in by_owner if str(owner) in immovable)
 
     def _try_removed(removed):
+        key = tuple(sorted(removed))
+        if key in _budget.cache:
+            return _budget.cache[key]
+        _budget.begin()
         obstacles = [row["geometry"] for owner, rows in by_owner.items()
                      if owner not in removed for row in rows]
         if st.get("gap_geom") is not None:
             obstacles.append(st["gap_geom"])
-        trial = _LayerSpace(
-            st["region"], obstacles, st["reqw"][lay] / 2.0,
-            f_allow=None, approach=st.get("approach"),
-            half_neck=W_NECK / 2.0,
-            neck_unguard=(0.0 if st.get("bundle") else 0.6))
+        trial = space.rebuild(obstacles)
         ta, _tsa, taa, tb, _tsb, tbb = _endpoints_for_layer(
             cor, st, lay, trial)
         pts, bends = _path_with_alternates(
             trial, ta, taa, tb, tbb,
-            _projection_aligned_pairs(cor.ga, cor.gb, lay, st, trial))
+            _projection_aligned_pairs(cor.ga, cor.gb, lay, st, trial),
+            deadline=_budget.deadline)
         if pts is None:
+            _budget.cache[key] = None
+            return None
+        # Finding a centerline is not enough: a long, undersized neck is
+        # rejected by the real candidate builder and cannot be a repair proof.
+        if _cand_from_path(cor, st, lay, pts, bends, None, space=trial) is None:
+            _budget.cache[key] = None
             return None
         owner_bounds = {}
         for owner in removed:
@@ -1486,7 +1695,7 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
             if not geometry.is_empty:
                 owner_bounds[str(owner)] = [
                     round(float(value), 6) for value in geometry.bounds]
-        return {
+        result = {
             "owners": list(removed), "bends": int(bends),
             "length_mm": round(sum(
                 _dist(a, b) for a, b in zip(pts, pts[1:])), 3),
@@ -1497,7 +1706,16 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
                         for x, y in pts],
             "owner_bounds_mm": owner_bounds,
         }
+        _budget.cache[key] = result
+        return result
 
+    # Spend one bounded query on the most informative counterfactual before
+    # combinatorial small cuts can consume the budget. Fixed terminals,
+    # reserved copper and categorical layer regions all remain present.
+    # A failed search is not a theorem of unroutability; it distinguishes
+    # "tested broad placement relief" from "never tried it" in the receipt.
+    if (_budget.limit is not None or _budget.deadline is not None) and movable_ranked:
+        _try_removed(tuple(movable_ranked))
     relief = []
     for owner in ranked:
         result = _try_removed((owner,))
@@ -1529,9 +1747,17 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
     # window, while a false result points at fixed/unattributed geometry.
     all_ranked_result = None
     all_movable_result = None
+    all_ranked_tested = False
+    all_movable_tested = False
     wide_relief = []
     if not relief and ranked:
+        all_ranked_tested = True
         all_ranked_result = _try_removed(tuple(ranked))
+        if len(movable_ranked) == len(ranked):
+            # The identical universe was actually tested; reuse its result,
+            # not a boolean inference from an unperformed larger removal.
+            all_movable_tested = True
+            all_movable_result = all_ranked_result
         if all_ranked_result:
             # Minimize the successful broad cut without enumerating the
             # exponential owner power set.  Two deterministic greedy orders
@@ -1564,6 +1790,7 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
             # statement by removing every attributed movable owner once. A
             # success means the local beam was too narrow; a failure isolates
             # the obstruction to fixed, unattributed, or categorical geometry.
+            all_movable_tested = True
             all_movable_result = _try_removed(tuple(movable_ranked))
             if all_movable_result:
                 wide_relief = _greedy_minimized_relief_sets(
@@ -1606,19 +1833,21 @@ def _corridor_relief_evidence(cor, st, lay, space, *, owner_cap=18,
         "ranked_candidates": ranked_candidates,
         "searched_owner_count": len(ranked),
         "total_movable_owner_count": len(movable_ranked),
-        "all_ranked_removal_restores_path": bool(all_ranked_result),
+        "all_ranked_removal_tested": all_ranked_tested,
+        "all_ranked_removal_restores_path": (
+            bool(all_ranked_result) if all_ranked_tested else None),
         "all_ranked_removal_path": all_ranked_result,
-        "all_movable_removal_restores_path": bool(
-            all_movable_result or all_ranked_result),
-        "all_movable_removal_path": (
-            all_movable_result or all_ranked_result),
+        "all_movable_removal_tested": all_movable_tested,
+        "all_movable_removal_restores_path": (
+            bool(all_movable_result) if all_movable_tested else None),
+        "all_movable_removal_path": all_movable_result,
         "wide_relief_sets": wide_relief,
         "immovable_owners": sorted(
             owner for owner in by_owner if str(owner) in immovable),
     }
 
 
-def _find_path(space, p_from, p_to, *, max_corners=192):
+def _find_path(space, p_from, p_to, *, max_corners=192, deadline=None):
     """Rectilinear centerline from ``p_from`` to ``p_to`` in ``space``.
 
     Wide pour geometry is an orthogonal-routing problem. The former arbitrary-
@@ -1629,7 +1858,11 @@ def _find_path(space, p_from, p_to, *, max_corners=192):
     clearance-obstacle coordinates. Every accepted edge is horizontal or
     vertical and lies in the same configuration space used by clearance proof.
     """
+    if deadline is not None and time.monotonic() >= deadline:
+        raise _ReliefBudgetExceeded('diagnostic_time_budget')
     if not (space.ok_pt(p_from) and space.ok_pt(p_to)):
+        return None, None
+    if isinstance(space, _LayerSpace) and not space.can_connect(p_from, p_to):
         return None, None
     sx, sy = p_from
     tx, ty = p_to
@@ -1705,6 +1938,8 @@ def _find_path(space, p_from, p_to, *, max_corners=192):
     heap = [(0.0, 0, 0.0, start)]
     winner = None
     while heap:
+        if deadline is not None and time.monotonic() >= deadline:
+            raise _ReliefBudgetExceeded('diagnostic_time_budget')
         cost, bends, length, state = heapq.heappop(heap)
         if cost > dist.get(state, float("inf")) + 1e-12:
             continue
@@ -1864,7 +2099,7 @@ def _patch_spots(g, toward):
 
 def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                manifolds=True, collect=None, fallback=None,
-               relief_diagnostics=True):
+               relief_diagnostics=True, placement_fixed_refs=None):
     """v4 entry point -- same contract as
     cec_slab_pour.synthesize_overunder_pours: returns (pour_dicts, via_list,
     report) and fills *collect* with per-net reservation internals
@@ -1872,7 +2107,19 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
 
     *fallback*: callable(board, ask, collect_slot) -> (dicts, vias, rep_entry)
     for a net the planner cannot place (default: route_overunder via
-    synthesize_overunder_pours, loudly labeled). Pass a recorder in tests."""
+    synthesize_overunder_pours, loudly labeled). Pass a recorder in tests.
+
+    ``placement_fixed_refs`` supplies the caller's actual placement authority,
+    including fixed obstacles on OTHER nets. When supplied (even empty), only
+    footprint-owned obstacles are eligible for placement-relief diagnostics.
+    It never removes obstacles from the conductor solve or unlocks an anchor.
+    None retains the route-level diagnostic domain for non-placement callers.
+    """
+    if isinstance(placement_fixed_refs, (str, bytes)):
+        raise ValueError('placement fixed refs must be a collection, not a string')
+    fixed_placement = frozenset(str(ref) for ref in (placement_fixed_refs or ()))
+    placement_refs = (None if placement_fixed_refs is None else
+                      frozenset(str(fp.GetReference()) for fp in board.GetFootprints()))
     grid = Grid(board, cell_mm)
     if collect is not None:
         collect["_grid"] = grid
@@ -2097,8 +2344,12 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         own_tracks = _own_track_polys(board, nc, layers)
         if not why and groups:
             n_before = len(groups)
+            physical_anchors, vertical_bridges = _physical_anchor_connectivity(
+                board, nc, layers, grid)
             groups = _preconnect_merge(groups, layers, anchors, grid,
-                                       own_tracks)
+                                       own_tracks,
+                                       physical_anchors=physical_anchors,
+                                       vertical_bridges=vertical_bridges)
             if len(groups) < n_before:
                 print("[cec_pour_plan] %s: %d group(s) pre-connected by "
                       "existing copper -> %d planning group(s)"
@@ -2137,7 +2388,8 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             # certificate names the smallest *actionable* neighboring cell.
             "authority_refs": tuple(authority_refs or ()),
             "fixed_authority_refs": tuple(sorted(
-                _fixed_current_authority_refs(board, authority_refs))),
+                _fixed_current_authority_refs(board, authority_refs) | fixed_placement)),
+            "placement_relief_refs": placement_refs,
             # ``"light"`` is an actionable single-owner certificate for
             # negotiated-congestion beam expansion.  ``True`` retains the
             # exhaustive bounded combination shells for terminal forensics.
@@ -2415,7 +2667,7 @@ def plan_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         # the sizing basis that caused the territory planner to refuse.  Pass
         # the resolved, margin-inclusive current explicitly so a no-path at
         # 48.75 A cannot become a falsely successful 1.2 mm / 0 A lane.
-        ask["design_current_A"] = float(st.get("amps") or 0.0)
+        ask = fallback_current_ask(ask, st.get("amps") or 0.0)
         sub = {}
         if fallback is not None:
             fdicts, fvias, fent = fallback(board, ask, sub)
@@ -2518,6 +2770,26 @@ def _default_fallback(board, ask, sub, manifolds, man_by_net):
         manifold_dicts=man_by_net.get(ask.get("net"), ()))
     ent = rep.get(ask.get("net")) or {}
     return dicts, vias, ent
+
+
+def _clip_terminal_land_to_conductor_domain(st, layer, land):
+    """Keep a synthesized terminal landing out of exact foreign obstacles.
+
+    Corridor centerlines already use ``_LayerSpace.free``. Terminal landing
+    rectangles are assembled later around terminal cells and via fields, so a
+    raw rectangle can bridge across a nearby foreign courtyard even though
+    the search correctly kept the spine outside it. Clip only that landing to
+    the same exact conductor domain used by the search. Connectivity and
+    via-field admission remain downstream and fail closed if clipping removes
+    a necessary attachment.
+    """
+    spaces = ((st.get("bundle") or {}).get("spaces")
+              if st.get("bundle") else st.get("spaces")) or {}
+    space = spaces.get(layer)
+    legal = getattr(space, "copper_legal", None)
+    if legal is None:
+        return land
+    return land.intersection(legal)
 
 
 def _manifold_attach_pts(g, toward, space, cap=6):
@@ -2685,7 +2957,8 @@ def _field_via_minimum(st, field):
 def _spread_field_over_overlap(field, vias, overlap, grid, pad_boxes,
                                reserved=(), *, st=None,
                                pitch_mm=1.2, ledger_mm=0.85, region=None,
-                               edge_clearance_mm=0.5, target_count=None):
+                               edge_clearance_mm=0.5, target_count=None,
+                               maximum_extra_barrels=2):
     """Lay a uniform transition/stitch lattice in the two-layer overlap.
 
     Broad terminal fields use a centered, near-isotropic rectangular lattice
@@ -2701,6 +2974,8 @@ def _spread_field_over_overlap(field, vias, overlap, grid, pad_boxes,
     returned unchanged.
     """
     vias = list(vias or ())
+    if (not isinstance(maximum_extra_barrels,int) or maximum_extra_barrels<0):
+        raise ValueError('nonnegative integer rectangular via spare budget required')
     target_count = int(target_count if target_count is not None else
                        len(vias))
     if (target_count <= 1 or overlap is None or overlap.is_empty or
@@ -2838,62 +3113,69 @@ def _spread_field_over_overlap(field, vias, overlap, grid, pad_boxes,
     x_indices = sorted({ix for ix, _iy in candidate_cells})
     y_indices = sorted({iy for _ix, iy in candidate_cells})
     best = None
-    # Never accept a partially populated or independently displaced lattice.
-    # Every supported count, including primes (1 x N), has exact factors.
-    for rows in range(1, n + 1):
-        if n % rows:
-            continue
-        cols = n // rows
-        for xseq in _progressions(x_indices, cols):
-            for yseq in _progressions(y_indices, rows):
-                cells = [(ix, iy) for iy in yseq for ix in xseq]
-                if not all(cell in candidate_cells for cell in cells):
-                    continue
-                chosen = [candidate_cells[cell] for cell in cells]
-                # pitch_mm exceeds the default ledger, but retain an explicit
-                # invariant for non-default fabrication profiles.
-                if any(_dist(a, b) < ledger_mm - EPS
-                       for i, a in enumerate(chosen)
-                       for b in chosen[i + 1:]):
-                    continue
-                step_x = ((xseq[1] - xseq[0]) * candidate_pitch
-                          if cols > 1 else None)
-                step_y = ((yseq[1] - yseq[0]) * candidate_pitch
-                          if rows > 1 else None)
-                preferred_pitch = max(2.0 * pitch_mm,
-                                      ledger_mm + 2.0 * VIA_R)
-                used_w = (cols - 1) * (step_x or preferred_pitch) + pitch_mm
-                used_h = (rows - 1) * (step_y or preferred_pitch) + pitch_mm
-                lattice_aspect = used_w / max(used_h, EPS)
-                aspect_cost = abs(math.log(max(
-                    EPS, lattice_aspect / max(aspect, EPS))))
-                active_steps = [s for s in (step_x, step_y)
-                                if s is not None]
-                uniformity_cost = (abs(math.log(step_x / step_y))
-                                   if step_x is not None and
-                                   step_y is not None else 0.0)
-                pitch_cost = sum(abs(math.log(
-                    max(EPS, step / preferred_pitch)))
-                    for step in active_steps)
-                coverage = ((used_w / max(width, EPS)) *
-                            (used_h / max(height, EPS)))
-                lx = sum(p[0] for p in chosen) / n
-                ly = sum(p[1] for p in chosen) / n
-                centre_error = math.hypot(
-                    (lx - (minx + maxx) / 2.0) / max(width, EPS),
-                    (ly - (miny + maxy) / 2.0) / max(height, EPS))
-                # First demand a genuinely uniform moderate-pitch grid; then
-                # orient and centre it in the usable rectangle. Coverage is
-                # deliberately late: this is a via field, not random stitching
-                # that should consume every available square millimetre.
-                # Coordinates make the final tie-break deterministic across
-                # Python/Shapely versions.
-                score = (round(uniformity_cost, 9), round(pitch_cost, 9),
-                         round(aspect_cost, 9), round(centre_error, 9),
-                         -round(coverage, 9), rows, cols,
-                         tuple(chosen))
-                if best is None or score < best[0]:
-                    best = (score, chosen)
+    # Desired current-sharing count is not an exact drill-count limit. A
+    # compact 4x4 field must not fail solely because 14 factors only as 2x7.
+    # Prefer the exact population. Only when it cannot fit, permit up to two
+    # bounded extra barrels (and at most 25%), without changing any copper.
+    extra = min(maximum_extra_barrels, target_count // 4,
+                max(0, _sp.FIELD_VIA_CAP-target_count))
+    for n in range(target_count, min(len(candidates), target_count+extra)+1):
+        for rows in range(1, n + 1):
+            if n % rows:
+                continue
+            cols = n // rows
+            for xseq in _progressions(x_indices, cols):
+                for yseq in _progressions(y_indices, rows):
+                    cells = [(ix, iy) for iy in yseq for ix in xseq]
+                    if not all(cell in candidate_cells for cell in cells):
+                        continue
+                    chosen = [candidate_cells[cell] for cell in cells]
+                    # pitch_mm exceeds the default ledger, but retain an explicit
+                    # invariant for non-default fabrication profiles.
+                    if any(_dist(a, b) < ledger_mm - EPS
+                           for i, a in enumerate(chosen)
+                           for b in chosen[i + 1:]):
+                        continue
+                    step_x = ((xseq[1] - xseq[0]) * candidate_pitch
+                              if cols > 1 else None)
+                    step_y = ((yseq[1] - yseq[0]) * candidate_pitch
+                              if rows > 1 else None)
+                    preferred_pitch = max(2.0 * pitch_mm,
+                                          ledger_mm + 2.0 * VIA_R)
+                    used_w = (cols - 1) * (step_x or preferred_pitch) + pitch_mm
+                    used_h = (rows - 1) * (step_y or preferred_pitch) + pitch_mm
+                    lattice_aspect = used_w / max(used_h, EPS)
+                    aspect_cost = abs(math.log(max(
+                        EPS, lattice_aspect / max(aspect, EPS))))
+                    active_steps = [s for s in (step_x, step_y)
+                                    if s is not None]
+                    uniformity_cost = (abs(math.log(step_x / step_y))
+                                       if step_x is not None and
+                                       step_y is not None else 0.0)
+                    pitch_cost = sum(abs(math.log(
+                        max(EPS, step / preferred_pitch)))
+                        for step in active_steps)
+                    coverage = ((used_w / max(width, EPS)) *
+                                (used_h / max(height, EPS)))
+                    lx = sum(p[0] for p in chosen) / n
+                    ly = sum(p[1] for p in chosen) / n
+                    centre_error = math.hypot(
+                        (lx - (minx + maxx) / 2.0) / max(width, EPS),
+                        (ly - (miny + maxy) / 2.0) / max(height, EPS))
+                    # First demand a genuinely uniform moderate-pitch grid; then
+                    # orient and centre it in the usable rectangle. Coverage is
+                    # deliberately late: this is a via field, not random stitching
+                    # that should consume every available square millimetre.
+                    # Coordinates make the final tie-break deterministic across
+                    # Python/Shapely versions.
+                    score = (round(uniformity_cost, 9), round(pitch_cost, 9),
+                             round(aspect_cost, 9), round(centre_error, 9),
+                             -round(coverage, 9), rows, cols,
+                             tuple(chosen))
+                    if best is None or score < best[0]:
+                        best = (score, chosen)
+        if best is not None:
+            break
     if best is None:
         if os.environ.get("CEC_POUR_PLAN_DEBUG"):
             print("[cec_pour_plan][dbg] via-spread no regular lattice for "
@@ -2908,10 +3190,14 @@ def _spread_field_over_overlap(field, vias, overlap, grid, pad_boxes,
 
     before, after = _span(vias), _span(chosen)
     original_safe = all(component.buffer(EPS).covers(Point(v)) for v in vias)
-    if after <= before + 0.5 and original_safe:
+    if len(vias) >= target_count and after <= before + 0.5 and original_safe:
         return vias, 0, before, before
     original = {(round(x, 3), round(y, 3)) for x, y in vias}
     moved = sum((round(x, 3), round(y, 3)) not in original for x, y in chosen)
+    if len(chosen)>target_count and st is not None:
+        st.setdefault('notes',[]).append(
+            'uniform terminal field uses %d barrels for target %d; %d bounded rectangular spares' %
+            (len(chosen),target_count,len(chosen)-target_count))
     return chosen, moved, before, after
 
 
@@ -3081,7 +3367,7 @@ def _projection_aligned_pairs(ga, gb, lay, st, space):
 
 
 def _path_with_alternates(space, pa, alts_a, pb, alts_b,
-                          aligned_pairs=()):
+                          aligned_pairs=(), *, deadline=None):
     """Jointly select terminal endpoints and the rectilinear path.
 
     The former first-success policy considered alternates only after the
@@ -3104,7 +3390,8 @@ def _path_with_alternates(space, pa, alts_a, pb, alts_b,
         if key in seen:
             return
         seen.add(key)
-        pts, bends = _find_path(space, a, b)
+        pts, bends = (_find_path(space, a, b, deadline=deadline)
+                      if deadline is not None else _find_path(space, a, b))
         if pts is None:
             return
         length = sum(_dist(x, y) for x, y in zip(pts, pts[1:]))
@@ -3195,10 +3482,33 @@ def _cand_from_path(cor, st, lay, pts, bends, taper, space=None):
     return cand
 
 
+def _record_corridor_relief(cor, st, lay, space, failure):
+    """Shared bounded failure feedback; evidence never emits or admits copper."""
+    mode = st.get("relief_diagnostics", True)
+    relief = (_corridor_relief_evidence(
+        cor, st, lay, space,
+        owner_cap=(6 if mode == "light" else 18),
+        pair_cap=(0 if mode == "light" else 10),
+        max_cardinality=(1 if mode == "light" else 4),
+        max_seconds=(1.0 if mode == "light" else 2.0),
+        max_attempts=(8 if mode == "light" else 48),
+        immovable_owners=st.get("fixed_authority_refs") or ())
+        if mode else {"layer": lay, "relief_sets": [],
+                      "skipped": "bounded_candidate_sweep"})
+    relief["failure"] = failure
+    relief["candidate_acceptance_required"] = bool(mode)
+    st.setdefault("bottlenecks", {})[
+        "%s:%s->%s" % (lay, cor.ga.gid, cor.gb.gid)] = relief
+
+
 def _make_candidates(cor, st, grid):
     """Per-layer geometry candidates for one corridor."""
     ga, gb = cor.ga, cor.gb
     bundle = st.get("bundle")
+    # Replanning can change the obstruction. Do not attach an old cut to a
+    # later successful corridor or to a different failure on the same layer.
+    for lay in st["layers"]:
+        st.get("bottlenecks", {}).pop("%s:%s->%s" % (lay, ga.gid, gb.gid), None)
     if bundle:
         label = "+".join(bundle["layers"])
         parts = {}
@@ -3208,6 +3518,7 @@ def _make_candidates(cor, st, grid):
             if space._prep is None:
                 cor.diag[label] = "%s-width-infeasible(%.1fmm)" % (
                     lay, st["reqw"][lay])
+                _record_corridor_relief(cor, st, lay, space, "width-infeasible")
                 return
             pa, spot_a, alts_a, pb, spot_b, alts_b = _endpoints_for_layer(
                 cor, st, lay, space)
@@ -3215,19 +3526,7 @@ def _make_candidates(cor, st, grid):
                 space, pa, alts_a, pb, alts_b,
                 _projection_aligned_pairs(ga, gb, lay, st, space))
             if pts is None:
-                relief_mode = st.get("relief_diagnostics", True)
-                relief = (_corridor_relief_evidence(
-                    cor, st, lay, space,
-                    owner_cap=(6 if relief_mode == "light" else 18),
-                    pair_cap=(0 if relief_mode == "light" else 10),
-                    max_cardinality=(1 if relief_mode == "light" else 4),
-                    immovable_owners=st.get(
-                        "fixed_authority_refs") or ())
-                    if relief_mode else {
-                        "layer": lay, "relief_sets": [],
-                        "skipped": "bounded_candidate_sweep"})
-                st.setdefault("bottlenecks", {})[
-                    "%s:%s->%s" % (lay, ga.gid, gb.gid)] = relief
+                _record_corridor_relief(cor, st, lay, space, "no-path")
                 if os.environ.get("CEC_POUR_PLAN_DEBUG"):
                     print(
                         "[cec_pour_plan][dbg] bundle %s %s->%s %s "
@@ -3250,6 +3549,7 @@ def _make_candidates(cor, st, grid):
                 cor, st, lay, pts, bends, None, space=space)
             if part is None:
                 cor.diag[label] = "%s:bundle-neck-too-long" % lay
+                _record_corridor_relief(cor, st, lay, space, "neck-too-long")
                 return
             parts[lay] = part
             spots[lay] = (spot_a, spot_b, pts)
@@ -3327,6 +3627,14 @@ def _make_candidates(cor, st, grid):
         cor.cands.append(cand)
     _pref = layer_pref()
     cor.cands.sort(key=lambda c: _pref[c["layer"]])
+    if not cor.cands:
+        # Ordinary single-layer alternatives previously returned only a
+        # no-path string; the placement repair consumes owner/path witnesses,
+        # so it generated zero proposals forever. Diagnose only a completely
+        # unrouteable corridor, not each rejected layer of a successful one.
+        for lay in st["layers"]:
+            if lay in cor.diag:
+                _record_corridor_relief(cor, st, lay, st["spaces"][lay], cor.diag[lay])
 
 
 def _assigned_foreign(nets, net, lay):
@@ -4127,6 +4435,8 @@ def _realize_region(net, st, grid, existing_vias):
                 continue
             if gl == "F.Cu" and st.get("gap_geom") is not None:
                 land = land.difference(st["gap_geom"])
+            land = _clip_terminal_land_to_conductor_domain(
+                st, gl, land)
             if land.is_empty:
                 continue
             land_polys.setdefault(gl, []).append(land)
@@ -4457,6 +4767,8 @@ def _realize_verify(net, st, grid, existing_vias, nets):
             # islands beside RS2 poked into its gap strip)
             if st.get("gap_geom") is not None:
                 land = land.difference(st["gap_geom"])
+            land = _clip_terminal_land_to_conductor_domain(
+                st, "F.Cu", land)
             if land.is_empty:
                 continue                   # connectivity will judge
             land_polys.setdefault("F.Cu", []).append(land)
@@ -4486,8 +4798,9 @@ def _realize_verify(net, st, grid, existing_vias, nets):
         # every barrel into that one square wastes their current-sharing and
         # thermal-spreading value wherever the same net has broad copper on
         # both layers. Keep two local transition barrels, then distribute the
-        # remaining already-budgeted barrels across the connected overlap.
-        # No extra drills are introduced, and no via enters a placement hook:
+        # remaining barrels across the connected overlap. When exact count
+        # factorization cannot fit, a bounded rectangular spare allowance may
+        # complete a compact uniform matrix. No via enters a placement hook:
         # both layer polygons must already cover its full barrel.
         spread_moved = 0
         spread_fields = 0
@@ -4887,7 +5200,8 @@ def _collect_entry(st, grid, dicts, vias, *, ok):
             "path_cells": {lay: m.copy() for lay, m in masks.items()},
             "bridges": [f[:6] for f in (st.get("_fields") or ())],
             "rcells": {lay: 0 for lay in masks},
-            "foreign": st["foreign"], "reqw": st["reqw"]}
+            "foreign": st["foreign"], "reqw": st["reqw"],
+            "anchors": st.get("anchors") or {}}
 
 
 if __name__ == "__main__":

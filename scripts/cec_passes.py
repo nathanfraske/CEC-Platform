@@ -25,6 +25,7 @@ S1 invariants (do NOT break without the ablation discipline):
 """
 import math
 import time
+import copy
 
 
 # ------------------------------------------------------------------ errors (loud, named)
@@ -65,6 +66,24 @@ class GateFailure(RuntimeError):
 
     def __reduce__(self):
         return (GateFailure, (self.pass_name, self.violations))
+
+
+class CellOwnershipViolation(RuntimeError):
+    """A downstream pass invalidated the geometry consumed by an owning cell."""
+
+    def __init__(self, pass_name, owner_pass, cell, ref, owned_pos, moved_to):
+        self.pass_name, self.owner_pass = pass_name, owner_pass
+        self.cell, self.ref = cell, ref
+        self.owned_pos, self.moved_to = owned_pos, moved_to
+        super().__init__(
+            "CELL-OWNERSHIP VIOLATION: pass %r changed %r in cell %r owned by %r "
+            "from %r to %r; replan the complete cell at its owning stage"
+            % (pass_name, ref, cell, owner_pass, owned_pos, moved_to))
+
+    def __reduce__(self):
+        return (CellOwnershipViolation, (self.pass_name, self.owner_pass,
+                self.cell, self.ref, self.owned_pos, self.moved_to),
+                {"failure_evidence": getattr(self, "failure_evidence", {})})
 
 
 # ------------------------------------------------------------------ position equality
@@ -114,12 +133,17 @@ class Pass:
                     off, its result is still recorded in the journal if the gate is provided
                     and the ladder is asked to evaluate it. Flipping this on is ablation work.
     phase        -- the plan's P-phase label (P0..P8 / R0..R10), journal metadata only.
+    owned_cells_out -- mapping cell id -> member refs, or callable(state) -> mapping.
+                    Snapshots persistent geometry consumed by this stage's copper.
+                    Members also enter ordinary locks, but re-ratifying those locks
+                    cannot rewrite cell ownership. Replan at the owning stage;
+                    downstream passes cannot move even the complete stamped cell.
     """
 
-    __slots__ = ("name", "fn", "locks_out", "gate", "gate_enabled", "phase", "doc")
+    __slots__ = ("name", "fn", "locks_out", "owned_cells_out", "gate", "gate_enabled", "phase", "doc")
 
     def __init__(self, name, fn, *, locks_out=(), gate=None, gate_enabled=False,
-                 phase="", doc=""):
+                 phase="", doc="", owned_cells_out=None):
         if not callable(fn):
             raise TypeError("Pass %r: fn must be callable" % name)
         if gate is not None and not callable(gate):
@@ -127,6 +151,7 @@ class Pass:
         self.name = str(name)
         self.fn = fn
         self.locks_out = locks_out
+        self.owned_cells_out = owned_cells_out
         self.gate = gate
         self.gate_enabled = bool(gate_enabled)
         self.phase = str(phase)
@@ -137,6 +162,12 @@ class Pass:
         if callable(lo):
             lo = lo(state)
         return list(lo or ())
+
+    def resolve_owned_cells(self, state):
+        cells = self.owned_cells_out
+        if callable(cells):
+            cells = cells(state)
+        return {str(cell): sorted(set(refs)) for cell, refs in (cells or {}).items()}
 
     def __repr__(self):
         return "Pass(%r, phase=%r, gate=%s, gate_enabled=%s)" % (
@@ -163,6 +194,7 @@ class PassLadder:
         self.enforce_locks = bool(enforce_locks)
         self.eval_gates = eval_gates
         self.locked = {}          # ref -> locked (x,y,rot); first lock wins
+        self._owned_cells = {}    # (owning pass, cell id) -> immutable pose snapshot
         self.journal = []
 
     # -- observation -------------------------------------------------------------
@@ -212,28 +244,70 @@ class PassLadder:
                              error="%s: %s" % (type(e).__name__, e))
                 raise
             after = self._pos(state)
+            # Check persistent cell authority before the mutable progressive
+            # lock map. An intent may re-ratify a loose placement lock, but
+            # that must not silently authorize drift of downstream copper.
+            cells_out = p.resolve_owned_cells(state)
+            if self.enforce_locks:
+                for (owner, cell), poses in self._owned_cells.items():
+                    for ref, pose in poses.items():
+                        current = after.get(ref)
+                        if not _pos_eq(current, pose):
+                            self._raise_cell_violation(
+                                p, before, after, t0, owner, cell, ref,
+                                pose, current, poses)
+                for cell, refs in cells_out.items():
+                    for ref in refs:
+                        if after.get(ref) is None:
+                            self._raise_cell_violation(
+                                p, before, after, t0, p.name, cell, ref,
+                                None, None, refs)
             # LOCK ENFORCEMENT (opt-in): a locked ref may not have moved during this pass.
             if self.enforce_locks and self.locked:
                 for r, lp in self.locked.items():
                     cur = after.get(r)
-                    if cur is not None and not _pos_eq(cur, lp):
+                    if not _pos_eq(cur, lp):
                         self._record(p, before, after, gate=None, newly=[],
                                      dt=time.perf_counter() - t0,
                                      error="lock-violation:%s" % r)
                         raise LockViolation(p.name, r, lp, cur)
             # this pass's locks join the set (first lock wins -> stable provenance).
             newly = []
-            for r in p.resolve_locks(state):
+            owned_refs = [ref for refs in cells_out.values() for ref in refs]
+            for r in p.resolve_locks(state) + owned_refs:
                 if r in after and r not in self.locked:
                     self.locked[r] = after[r]
                     newly.append(r)
+            for cell, refs in cells_out.items():
+                self._owned_cells.setdefault((p.name, cell), {
+                    ref: tuple(after[ref]) for ref in refs if ref in after})
             # GATE (opt-in): evaluate + record; HALT only when the failing gate is enabled.
             gate = p.gate(state) if self._should_eval(p) else None
-            self._record(p, before, after, gate=gate, newly=newly,
-                         dt=time.perf_counter() - t0)
+            event = self._record(p, before, after, gate=gate, newly=newly,
+                                 dt=time.perf_counter() - t0)
+            if cells_out:
+                event["owned_cells"] = cells_out
             if p.gate_enabled and gate is not None and not gate.get("ok", True):
                 raise GateFailure(p.name, gate.get("violations"))
         return self.journal
+
+    def _raise_cell_violation(self, p, before, after, t0, owner, cell,
+                              ref, pose, current, members):
+        event = self._record(p, before, after, gate=None, newly=[],
+                             dt=time.perf_counter() - t0,
+                             error="cell-ownership-violation:%s" % ref)
+        event["ownership_violation"] = {
+            "cell": cell, "owner_pass": owner, "repair_stage": owner,
+            "offending_pass": p.name, "ref": ref, "members": sorted(members),
+            "owned_pose": pose, "observed_pose": current,
+        }
+        error = CellOwnershipViolation(p.name, owner, cell, ref, pose, current)
+        error.failure_evidence = {
+            "kind": "placement_cell_ownership",
+            "certificate": copy.deepcopy(event["ownership_violation"]),
+            "placement_journal": copy.deepcopy(self.journal),
+        }
+        raise error
 
     # -- convenience -------------------------------------------------------------
     def locked_refs(self):

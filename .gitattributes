@@ -1,0 +1,7 @@
+# Native BOM exports use CRLF intentionally; do not rewrite their data bytes
+# merely to satisfy Git's whitespace observer.
+*.csv whitespace=cr-at-eol
+
+# Receipts bind exact native-writer bytes, including CRLF, blank tabs and SVG
+# whitespace. Do not silently normalize an immutable review control.
+checkpoints/** -text whitespace=-blank-at-eol,-blank-at-eof

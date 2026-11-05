@@ -1458,6 +1458,7 @@
 		(property "Manufacturer" "Samsung" (at 204.47 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL21A106KAYNNNE" (at 204.47 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C15850" (at 204.47 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U5.7" (at 204.47 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "37aed900-adc7-4ef0-8f37-e1dd3861a5cd"))
 		(pin "2" (uuid "7921cd46-8887-4369-b629-c5103903639c"))
 		(instances

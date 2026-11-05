@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "input": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/0/eps-8pin-rev3.kicad_pcb",
+  "input_sha256": "3af9f2496c44474dc80eee9775596174f9480ace89853f3e463ab7add846aa01",
+  "output": "/home/codex/src/CEC-Platform/beta/eps-8pin-rev3/eps-8pin-rev3.kicad_pcb",
+  "moved": {
+    "TB13": {
+      "before": [
+        31.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        30.0,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB11": {
+      "before": [
+        38.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        37.75,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB12": {
+      "before": [
+        45.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        45.5,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB14": {
+      "before": [
+        52.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        53.25,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB23": {
+      "before": [
+        62.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        61.0,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB21": {
+      "before": [
+        69.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        68.75,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB22": {
+      "before": [
+        76.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        76.5,
+        35.5,
+        -90.0
+      ]
+    },
+    "TB24": {
+      "before": [
+        83.125,
+        35.5,
+        -90.0
+      ],
+      "after": [
+        84.25,
+        35.5,
+        -90.0
+      ]
+    }
+  },
+  "outline_unchanged": true,
+  "outline_change": null,
+  "unrelated_footprints_unchanged": true,
+  "copper_unchanged": true,
+  "affected_nets": [
+    "/SENSEC1_LO",
+    "/SENSEC2_LO",
+    "GND"
+  ],
+  "stale_copper": [
+    {
+      "uuid": "02c817a6-579c-4073-b29e-faf9cc897ece",
+      "net": "GND",
+      "kind": "ZONE"
+    }
+  ],
+  "route_authority_invalidated": true,
+  "inherited_route_invalidation": true,
+  "admission_ok": false,
+  "release_authority": false,
+  "required_next_stages": [
+    "mechanical_clearance",
+    "placement_admission",
+    "power_corridor_rebuild",
+    "routing",
+    "full_drc"
+  ],
+  "note": "Nominal mating ECO preview, not a routed/admitted board.",
+  "design_rule_hashes": {
+    ".kicad_pro": "fc3b7c88f9ac2e676a86ddd2feed67c81e4166efb9e9b844a205487c6cb78ee0"
+  },
+  "output_sha256": "3c55e595407bcf6f019df60e60ed13afa659a830f9441b8708e2b7c5b4f45235",
+  "publication_group": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/publication.json"
+}

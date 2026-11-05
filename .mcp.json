@@ -16,6 +16,14 @@
         "scripts/cec_sch_mcp.py"
       ]
     },
+    "cec-layout": {
+      "command": "python3",
+      "args": [
+        "scripts/cec_agentic_workbench.py",
+        "--workspace",
+        ".cec/campaign"
+      ]
+    },
     "cec-compute": {
       "command": "python",
       "args": [

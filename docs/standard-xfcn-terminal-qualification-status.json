@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release_status": "PROTOTYPE_BLOCKED",
-  "updated": "2026-08-12",
+  "updated": "2026-09-11",
   "authority": "docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md",
   "note": "This file is fail-closed. Only objective evidence may change a gate to passed; ECAD completion alone is not qualification.",
   "gates": {
@@ -17,6 +17,10 @@
     "contact_interface_finish_release": {
       "passed": false,
       "evidence": ["docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md"]
+    },
+    "output_mount_interoperability": {
+      "passed": false,
+      "evidence": ["docs/output-mount-and-probe-repair-2026-09-11.md"]
     },
     "jlc_tht_process_confirmation": {"passed": false, "evidence": []}
   }

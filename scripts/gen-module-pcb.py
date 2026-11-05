@@ -15,7 +15,7 @@
 # hand-maintained; do NOT re-run this over GUI work.
 #   python3 scripts/gen-module-pcb.py    (reads each board's exported .net)
 # Verify: kicad-cli pcb render / drc
-import os, re, sys, uuid
+import os, re, sys, uuid, math
 import cec_fab_profile as fab
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -177,6 +177,40 @@ def carve(s, i):
                 if d == 0: return s[i:j + 1]
         j += 1
 
+def _footprint_fields(s):
+    """Locate direct child forms, independent of line layout or child order.
+
+    Nested pad/property fields and parentheses in quoted strings are not root
+    metadata. Use the balanced-form reader instead of deleting entire lines.
+    """
+    header = re.match(r'\s*\(footprint\s+"(?:\\.|[^"\\])*"', s)
+    if header is None:
+        raise ValueError("missing footprint root")
+    root = carve(s, s.index("("))
+    if root is None:
+        raise ValueError("unbalanced footprint root")
+    end = s.index("(") + len(root)
+    if s[end:].strip():
+        raise ValueError("unexpected text after footprint root")
+    fields, i = [], header.end()
+    while i < end - 1:
+        if s[i].isspace():
+            i += 1
+        elif s[i] == "(":
+            block = carve(s, i)
+            key = re.match(r'\(\s*([^\s()"]+)', block or "")
+            if key is None or i + len(block) >= end:
+                raise ValueError("invalid footprint child form")
+            fields.append((key[1], i, i + len(block)))
+            i += len(block)
+        else:
+            # Older KiCad files may include bare flags such as `locked`.
+            atom = re.match(r'(?:"(?:\\.|[^"\\])*"|[^\s()"]+)', s[i:])
+            if atom is None:
+                raise ValueError("invalid footprint root token")
+            i += len(atom[0])
+    return fields
+
 def fp_path(nick, name):
     if nick == "cec": return f"{ROOT}/lib/cec.pretty/{name}.kicad_mod"
     if nick.startswith("cec-"): return f"{ROOT}/lib/vendor/{nick[4:]}.pretty/{name}.kicad_mod"
@@ -258,13 +292,16 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
     with open(fp_path(nick, name), encoding="utf-8", errors="replace") as handle:
         s = handle.read()
     s = s.replace(f'(footprint "{name}"', f'(footprint "{libid}"', 1)
-    for k in ("version", "generator", "generator_version"):
-        s = re.sub(rf'\n\s*\({k} [^\n]*\)', "", s, count=1)
-    s = re.sub(r'(\(layer "[^"]+"\))\n\t\(uuid "[^"]+"\)', r"\1", s, count=1)
+    for key, begin, end in reversed(_footprint_fields(s)):
+        if key in {"version", "generator", "generator_version", "at", "uuid"}:
+            s = s[:begin] + s[end:]
     if flip:
-        s = re.sub(r'"F\.(Cu|Mask|SilkS|Fab|Paste|Adhes|CrtYd)"', r'"B.\1"', s)
-        s = re.sub(r'\(xy (-?[\d.]+) (-?[\d.]+)\)',
-                   lambda m: f"(xy {ff(-float(m.group(1)))} {m.group(2)})", s)
+        s = re.sub(r'"([FB])\.(Cu|Mask|SilkS|Fab|Paste|Adhes|CrtYd)"',
+                   lambda m: '"%s.%s"' % ("B" if m.group(1) == "F" else "F", m.group(2)), s)
+        # Every graphic primitive must follow the same mirror as pads. Lines,
+        # rectangles, circles and arcs use these tokens rather than poly xy.
+        s = re.sub(r'\((xy|start|end|mid|center) (-?[\d.]+) (-?[\d.]+)\)',
+                   lambda m: f"({m.group(1)} {ff(-float(m.group(2)))} {m.group(3)})", s)
         # REAL-PART flip (2026-07-08, dual-sided placement): the logo-era flip mirrored
         # graphics only; a real footprint's PADS must mirror too (KiCad flips about the
         # footprint origin: local x -> -x, pad angle -> -angle). Property/text anchors
@@ -301,8 +338,14 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         # (R(-rot)*mirror(local) == mirror(R(rot)*local)). Calibrated: tests/test_place_flip.py
         # rot-270 shunt case fails without this.
         rot = (-rot) % 360
-    s = re.sub(r'(\(footprint "[^"]+"\n\t\(layer "[^"]+"\))',
-               lambda m: m.group(1) + f'\n\t(at {ff(x)} {ff(y)} {rot})\n\t(uuid "{U()}")', s, count=1)
+    # A legal root layer need not be the first child or occupy its own line.
+    # Never mistake a pad/property layer for the required footprint layer.
+    layer_fields = [(begin, end) for key, begin, end in _footprint_fields(s)
+                    if key == "layer"]
+    if len(layer_fields) != 1:
+        raise ValueError(f"cannot materialize footprint-level position for {libid}")
+    end = layer_fields[0][1]
+    s = s[:end] + f'\n\t(at {ff(x)} {ff(y)} {rot})\n\t(uuid "{U()}")' + s[end:]
     s = re.sub(r'\(property "Reference" "[^"]*"', f'(property "Reference" "{ref}"', s, count=1)
     # Value property: set to the real component value and move it onto F.SilkS so
     # the value is visible on the board. Footprints default the Value to the
@@ -335,7 +378,27 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         if tag:
             blk = blk[:-1].rstrip() + f'\n\t\t(net {tag[0]} "{tag[1]}")\n\t)'
         out += blk; pos = end
-    return "\t" + (out + s[pos:]).strip() + "\n"
+    emitted = out + s[pos:]
+    # Unlike footprint pads/graphics, an embedded PCB zone stores BOARD-
+    # absolute polygon coordinates. Leaving library-local keepout polygons
+    # unchanged strands the exclusion at (0,0) after its part moves. Mirror
+    # was already applied above; apply the same KiCad rotation/translation
+    # exactly once at this library-to-board serialization boundary.
+    angle = math.radians(rot)
+    cosine, sine = math.cos(angle), math.sin(angle)
+    zone_out, zone_pos = "", 0
+    for match in re.finditer(r'\(zone\b', emitted):
+        if match.start() < zone_pos:
+            continue
+        block = carve(emitted, match.start())
+        zone_out += emitted[zone_pos:match.start()]
+        block = re.sub(r'\(xy (-?[\d.]+) (-?[\d.]+)\)',
+            lambda m: "(xy %s %s)" % (
+                ff(x + float(m.group(1))*cosine + float(m.group(2))*sine),
+                ff(y - float(m.group(1))*sine + float(m.group(2))*cosine)), block)
+        zone_out += block
+        zone_pos = match.start() + len(carve(emitted, match.start()))
+    return "\t" + (zone_out + emitted[zone_pos:]).strip() + "\n"
 
 def gnd_planes(code, W, H, layers='"In1.Cu" "In2.Cu"'):
     """Dual whole-board GND pour on BOTH inner layers (In1+In2), one zone spanning

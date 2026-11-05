@@ -27,6 +27,7 @@ import contextvars
 import copy
 import itertools
 import json
+import hashlib
 import math
 import multiprocessing as mp
 import os
@@ -37,13 +38,14 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 import pcbnew
 
 import cec_fab_profile as _fab
 import cec_fr
+from cec_native_items import discard_items
 import cec_process_pool
 import cec_score
 import cec_stage_admission
@@ -53,7 +55,7 @@ import cec_toolchain as _tc
 MM = 1_000_000
 SCHEMA = 1
 REPAIR_ALGORITHM_REVISION = \
-    "2026-08-31-laid-pour-aware-diverse-endpoints-v43"
+    "2026-09-28-convex-branch-root-v97"
 _WORKER_DEADLINE = contextvars.ContextVar(
     "cec_certificate_worker_deadline", default=None)
 
@@ -226,6 +228,7 @@ class NegotiationWindow:
     local_pin_escape: bool = False
     vertical_pofv_escape: bool = False
     vertical_blocker_layers: tuple[str, ...] = ()
+    surface_escape_cut: bool = False
 
 
 @dataclass(frozen=True)
@@ -249,6 +252,7 @@ class FootprintRepairTarget:
     priority: tuple
     motion: str = "away_from_endpoint"
     companion_refs: tuple[str, ...] = ()
+    route_endpoints: tuple[dict, ...] = ()
 
 
 def _uuid(item) -> str:
@@ -398,6 +402,10 @@ def refusal_certificates(data: dict | None) -> list[dict]:
     """Return unique refusal rows from every completion stage in *data*."""
 
     payload = _completion_payload(data)
+    if 'final_residual' in payload:
+        import cec_completion_evidence
+        return [{'detail': detail, 'certificate': certificate}
+                for detail, certificate in cec_completion_evidence.refusal_certificates(payload)]
     reports = []
     for name in ("final_completion", "lastmile"):
         if isinstance(payload.get(name), dict):
@@ -435,6 +443,7 @@ def _planning_completion_with_live_report(completion, live_unconnected,
     payload = copy.deepcopy(_completion_payload(completion))
     payload["unconn_nets"] = list(live_unconnected or ())
     if isinstance(live_report, dict):
+        payload.pop('final_residual', None)
         payload["final_completion"] = copy.deepcopy(live_report)
         payload.pop("lastmile", None)
         payload.pop("refused_details", None)
@@ -447,6 +456,7 @@ def _run_drc(board_path: str, destination: str) -> dict:
         [cli, "pcb", "drc", "--exit-code-violations", "--format", "json",
          "-o", destination, board_path],
         capture_output=True, check=False,
+        timeout=10.0,
     )
     with open(destination, encoding="utf-8") as source:
         return json.load(source)
@@ -915,6 +925,46 @@ def _escape_corridor_blocker_rows(certificate: dict,
     return selected
 
 
+def _surface_escape_cut_sets(certificate, surface_layers, trapped_labels,
+                             movable_uuids, *, max_blockers, limit=4):
+    """Propose complete, policy-movable cuts of actual launch-layer rays.
+
+    A histogram combines obstructions from mutually exclusive topologies.
+    Removing that union needlessly displaces remote inner-layer branches when
+    one local edge is enough to reopen a surface launch. Keep each all-movable
+    ray as a separate bounded proposal; never drop a fixed member of a ray or
+    truncate its cut to fit the cap. These are search hints, not no-path or
+    redundancy proofs. The native transaction must still close the target and
+    restore displaced connectivity or independently prove it redundant.
+    """
+    movable = set(movable_uuids)
+    choices = {}
+    for layer in certificate.get("layers") or ():
+        layer_name = str(layer.get("layer") or "")
+        for endpoint in layer.get("endpoint_escape") or ():
+            label = str(endpoint.get("endpoint") or "")
+            if (label not in trapped_labels
+                    or layer_name not in surface_layers.get(label, set())):
+                continue
+            for ray in endpoint.get("ray_details") or ():
+                if ray.get("status") != "foreign_copper_blocked":
+                    continue
+                blockers = ray.get("blockers") or ()
+                if not blockers or any(
+                        blocker.get("kind") != "track"
+                        or str(blocker.get("uuid") or "") not in movable
+                        for blocker in blockers):
+                    continue
+                cut = tuple(sorted({str(blocker["uuid"])
+                                    for blocker in blockers}))
+                if not cut or len(cut) > max(0, int(max_blockers)):
+                    continue
+                rank = (len(cut), label, layer_name,
+                        str(ray.get("direction") or ""), cut)
+                choices[cut] = min(rank, choices.get(cut, rank))
+    return sorted(choices, key=choices.get)[:max(0, min(4, int(limit)))]
+
+
 def _fair_negotiation_window_schedule(windows, limit: int):
     """Round-robin ranked windows so one residual net cannot starve peers."""
 
@@ -1301,7 +1351,11 @@ def plan_negotiations(board_path: str, completion: dict | None, *,
                 if label:
                     escape_rays.setdefault(label, set()).update(
                         endpoint_row.get("clear_rays") or ())
-        trapped = sum(not rays for rays in escape_rays.values())
+        # Hypothetical clear rays on another layer do not give an SMD pad a
+        # layer transition. Count its actual trapped surface even if that
+        # remote layer is open; retain the old interpretation for other kinds.
+        trapped = len(surface_trapped | {
+            label for label, rays in escape_rays.items() if not rays})
         # Canonical and maze closure have already failed before negotiation.
         # Prefer the windows with a genuinely trapped endpoint here: those are
         # the cases for which certificate-driven rip-up is necessary.  An
@@ -1349,7 +1403,7 @@ def plan_negotiations(board_path: str, completion: dict | None, *,
                     # blockers while a nearly feasible control window waits.
                     fixed_blocker_hits, omitted, len(chosen), role_priority,
                     distance, -hit_total, net, key[1])
-        windows.append(NegotiationWindow(
+        broad_window = NegotiationWindow(
             net=net, distance_mm=distance, width_mm=width_mm,
             clearance_mm=float(cert.get("clearance_mm") or 0.25),
             blocker_uuids=tuple(entry["uuid"] for entry in chosen),
@@ -1360,7 +1414,33 @@ def plan_negotiations(board_path: str, completion: dict | None, *,
             trapped_endpoints=trapped,
             endpoints=endpoints, priority=priority,
             unlock_uuids=unlock_uuids,
-            local_pin_escape=local_pin_escape))
+            local_pin_escape=local_pin_escape)
+        by_uid = {entry["uuid"]: entry for entry in movable}
+        cuts = _surface_escape_cut_sets(
+            cert, surface_layers, surface_trapped, by_uid,
+            max_blockers=max_blockers)
+        for cut in cuts:
+            cut_entries = [by_uid[uid] for uid in cut]
+            cut_unlock = tuple(entry["uuid"] for entry in cut_entries
+                               if entry.get("generated_unlock"))
+            cut_hits = sum(entry["hit_count"] for entry in cut_entries)
+            windows.append(replace(
+                broad_window,
+                blocker_uuids=cut,
+                blocker_nets=tuple(entry["net"] for entry in cut_entries),
+                blocker_hits=cut_hits,
+                omitted_movable_blockers=0,
+                fixed_blocker_hits=0,
+                unlock_uuids=cut_unlock,
+                local_pin_escape=True,
+                surface_escape_cut=True,
+                # Complete minimal launch cuts precede histogram windows,
+                # whose blocker sets mix mutually exclusive path choices.
+                priority=(-1, -trapped, 0 if cut_unlock else 1,
+                          role_priority, 0, distance, 0, 0, len(cut),
+                          role_priority, distance, -cut_hits, net, cut)))
+        if tuple(sorted(broad_window.blocker_uuids)) not in cuts:
+            windows.append(broad_window)
     windows.sort(key=lambda window: window.priority)
     scheduled = _fair_negotiation_window_schedule(windows, limit)
     immutable.sort(key=lambda entry: (
@@ -1436,7 +1516,55 @@ def _surface_trapped_endpoint_labels(board, certificate: dict) -> set[str]:
     }
 
 
-def _trapped_foreign_pad_blockers(completion: dict | None) -> list[dict]:
+def _live_endpoint_launch_layers(board, certificate: dict) -> dict[str, set[str]]:
+    """Copper actually present at a bound SMD certificate's launch point.
+
+    A ray on a different layer is hypothetical until existing connected
+    copper reaches that exact origin. Do not infer a free layer transition.
+    THT/via/unknown endpoints keep the conservative all-layer interpretation.
+    This is search attribution, not a connectivity or no-path certificate.
+    """
+    board.BuildConnectivity()
+    connectivity = board.GetConnectivity()
+    result = {}
+    for endpoint in certificate.get('endpoints') or ():
+        if endpoint.get('kind') != 'pad' or not endpoint.get('endpoint'):
+            continue
+        footprint = board.FindFootprintByReference(str(endpoint.get('ref') or ''))
+        if footprint is None:
+            continue
+        try:
+            xy = float(endpoint['x_mm']), float(endpoint['y_mm'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not all(math.isfinite(v) for v in xy):
+            continue
+        point = pcbnew.VECTOR2I(round(xy[0]*MM), round(xy[1]*MM))
+        pads = [pad for pad in footprint.Pads()
+                if str(pad.GetNumber()) == str(endpoint.get('pad') or '')
+                and pad.GetNetname() == certificate.get('net')
+                and math.hypot(pad.GetPosition().x-point.x,
+                               pad.GetPosition().y-point.y) <= 1]
+        if len(pads) != 1:
+            continue
+        pad = pads[0]
+        if pad.HasHole() or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            continue
+        layers = set(pad.GetLayerSet().CuStack())
+        for item in connectivity.GetConnectedItems(pad):
+            # A same-net island elsewhere, or a zone's unfilled outline,
+            # cannot establish copper at this point. Use live connected
+            # native primitives and their actual copper hit test only.
+            if (item.GetClass() in ('PCB_TRACK', 'PCB_ARC', 'PCB_VIA', 'PAD')
+                    and item.GetNetCode() == pad.GetNetCode()
+                    and item.HitTest(point)):
+                layers.update(item.GetLayerSet().CuStack())
+        result[str(endpoint['endpoint'])] = {
+            board.GetLayerName(layer) for layer in layers}
+    return result
+
+
+def _trapped_foreign_pad_blockers(completion: dict | None, *, board=None) -> list[dict]:
     """Extract foreign footprint pads that seal a certified endpoint escape.
 
     The evidence is intentionally taken from per-ray refusal rows rather than
@@ -1448,16 +1576,17 @@ def _trapped_foreign_pad_blockers(completion: dict | None) -> list[dict]:
     rows = []
     for refusal in refusal_certificates(completion):
         cert = refusal["certificate"]
+        launch_layers = (_live_endpoint_launch_layers(board, cert)
+                         if board is not None else {})
         net = str(cert.get("net") or refusal["detail"].get("net") or "")
         endpoints = {
             str(row.get("endpoint") or ""): row
             for row in (cert.get("endpoints") or ())
             if row.get("endpoint") is not None
         }
-        # A support cell has placement authority only when the endpoint is
-        # sealed across every routable layer represented by the certificate.
-        # Treating one blocked layer as globally trapped wastes placement
-        # search when another layer already has a legal launch ray.
+        # A clear ray suppresses support movement only on copper the bound
+        # endpoint actually owns. Without native binding retain the older,
+        # conservative all-certificate-layer behavior; do not invent access.
         clear_by_endpoint = {}
         counts = {}
         blocker_layers = {}
@@ -1465,6 +1594,8 @@ def _trapped_foreign_pad_blockers(completion: dict | None) -> list[dict]:
             layer_name = str(layer.get("layer") or "")
             for escape in layer.get("endpoint_escape") or ():
                 label = str(escape.get("endpoint") or "")
+                if label in launch_layers and layer_name not in launch_layers[label]:
+                    continue
                 clear_by_endpoint.setdefault(label, set()).update(
                     str(ray) for ray in (escape.get("clear_rays") or ()))
                 if escape.get("clear_rays"):
@@ -1502,6 +1633,10 @@ def _trapped_foreign_pad_blockers(completion: dict | None) -> list[dict]:
                 "hit_count": int(hit_count),
                 "distance_mm": float(
                     refusal["detail"].get("distance_mm") or 1e9),
+                # The obstacle is not necessarily on the obstructed net.
+                # Preserve both real signal endpoints across its relocation.
+                "route_endpoints": tuple(dict(item) for item in
+                                         (cert.get("endpoints") or ())),
             })
     rows.sort(key=lambda row: (
         -row["hit_count"], row["distance_mm"], row["target_net"],
@@ -1530,7 +1665,7 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
     seen = set()
     candidate_rows = [
         {**row, "motion": "away_from_endpoint"}
-        for row in _trapped_foreign_pad_blockers(completion)]
+        for row in _trapped_foreign_pad_blockers(completion, board=board)]
 
     # A refusal can also prove that the movable object is one of the two
     # endpoints itself: a small resistor/capacitor inherited too far from its
@@ -1540,6 +1675,7 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
     # support, and the complete transaction must reconnect every affected net
     # and improve the whole-board score.
     endpoint_support_rows = 0
+    support_cell_evidence = []
     for refusal in refusal_certificates(completion):
         cert = refusal["certificate"]
         target_net = str(
@@ -1566,6 +1702,7 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
                 str(row.get("ref") or ""), str(row.get("pad") or "")))
             endpoint_label = str(endpoint.get("endpoint") or "")
             peer_label = str(peer.get("endpoint") or "")
+            required_companions = None
             if (peer_label in trapped_labels
                     and endpoint_label not in trapped_labels):
                 # A clear two-pin endpoint on an exclusive point-to-point net
@@ -1591,7 +1728,18 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
                 }
                 if (len(target_pads) != 2
                         or set(target_pads) != expected_endpoints):
-                    continue
+                    # A private divider/filter cell also has one owner pin,
+                    # but two or three local support terminals. Account for
+                    # every native terminal before treating it as one rigid
+                    # cell; an arbitrary multi-drop bus remains ineligible.
+                    import cec_support_cell_topology
+                    cell = cec_support_cell_topology.private_cell(
+                        board, target_net, (ref, str(endpoint.get("pad") or "")),
+                        (str(peer.get("ref") or ""), str(peer.get("pad") or "")))
+                    support_cell_evidence.append(dict(net=target_net, **cell))
+                    if not cell['ok']:
+                        continue
+                    required_companions = tuple(cell['companions'])
             candidate_rows.append({
                 "ref": ref, "target_net": target_net,
                 "endpoint_ref": str(peer.get("ref") or ""),
@@ -1601,6 +1749,7 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
                 "layers": [], "hit_count": max(1, hit_count),
                 "distance_mm": distance,
                 "motion": "toward_endpoint",
+                "required_companion_refs": required_companions,
             })
             endpoint_support_rows += 1
 
@@ -1661,6 +1810,10 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
             # passives.  Keep the transaction bounded and deterministic; the
             # whole-board scorer rejects a merely coincident same-net part.
             companions = tuple(ref for _distance, ref in sorted(adjacent)[:2])
+            if row.get('required_companion_refs') is not None:
+                # Do not drop a terminal that made the private-cell proof
+                # valid or substitute an unrelated neighboring support.
+                companions = tuple(row['required_companion_refs'])
         targets.append(FootprintRepairTarget(
             ref=row["ref"], target_net=row["target_net"],
             endpoint_ref=row["endpoint_ref"],
@@ -1670,7 +1823,8 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
             hit_count=row["hit_count"], distance_mm=row["distance_mm"],
             priority=priority,
             motion=str(row.get("motion") or "away_from_endpoint"),
-            companion_refs=companions))
+            companion_refs=companions,
+            route_endpoints=tuple(row.get("route_endpoints") or ())))
     targets.sort(key=lambda row: row.priority)
     immutable.sort(key=lambda row: (
         row.get("target_net", ""), row.get("ref", "")))
@@ -1680,13 +1834,14 @@ def plan_footprint_repairs(board_path: str, completion: dict | None, *,
         "targets": [asdict(row) for row in targets[:max(0, int(limit))]],
         "immutable": immutable,
         "certificate_blockers": len(
-            _trapped_foreign_pad_blockers(completion)),
+            _trapped_foreign_pad_blockers(completion, board=board)),
         "certificate_support_endpoints": endpoint_support_rows,
+        "support_cell_evidence": support_cell_evidence,
     }
 
 
 def plan_endpoint_owner_repairs(board_path: str, completion: dict | None, *,
-                                limit: int = 4) -> dict:
+                                limit: int = 4, max_refs: int = 4) -> dict:
     """Plan re-seats for small SMD ICs whose own pin cannot escape.
 
     This is intentionally not a general placement optimizer.  Authority comes
@@ -1696,7 +1851,11 @@ def plan_endpoint_owner_repairs(board_path: str, completion: dict | None, *,
     excluded.
     """
 
+    import cec_support_motion
+    max_refs = cec_support_motion.limits(max_refs=max_refs)['max_refs']
     board = pcbnew.LoadBoard(board_path)
+    grouped = {item.GetReference() for group in board.Groups()
+               for item in group.GetItems() if item.GetClass() == 'FOOTPRINT'}
     live_unconnected = set((completion or {}).get("unconn_nets") or ())
     targets, immutable, seen = [], [], set()
     for refusal in refusal_certificates(completion):
@@ -1715,16 +1874,17 @@ def plan_endpoint_owner_repairs(board_path: str, completion: dict | None, *,
                 continue
             seen.add(key)
             footprint = board.FindFootprintByReference(ref)
-            copper_pads = (list(footprint.Pads())
+            copper_pads = ([pad for pad in footprint.Pads() if pad.IsOnCopperLayer()]
                            if footprint is not None else [])
             reason = None
             if footprint is None:
                 reason = "missing_footprint"
-            elif footprint.IsLocked():
+            elif footprint.IsLocked() or ref in grouped:
                 reason = "locked_footprint"
             elif ref.upper().startswith(("J", "H", "FID", "LOGO", "MK")):
                 reason = "mechanical_or_access_anchor"
-            elif any(pad.HasHole() for pad in copper_pads):
+            elif any(pad.HasHole() or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+                     for pad in copper_pads):
                 reason = "through_hole_geometry"
             elif not (3 <= len(copper_pads) <= 16):
                 reason = "outside_small_smd_owner_scope"
@@ -1749,19 +1909,24 @@ def plan_endpoint_owner_repairs(board_path: str, completion: dict | None, *,
                        for row in cert.get("dominant_blockers") or ())
             distance = float(refusal["detail"].get("distance_mm") or 1e9)
             owner_position = footprint.GetPosition()
+            # A common return is not evidence of local functional ownership.
+            # Pull-downs and soft-start caps of neighbouring circuits also
+            # share it. Include only supports sharing an actual owner signal
+            # or supply; all decoupler/craft gates still qualify the final move.
             owner_nets = {pad.GetNetCode() for pad in copper_pads
-                          if pad.GetNetCode() > 0}
+                          if pad.GetNetCode() > 0 and not _is_gnd_net(pad.GetNetname())}
             local_supports = []
             for other in board.GetFootprints():
                 other_ref = other.GetReference()
-                if (other is footprint or other.IsLocked()
+                if (other_ref == ref or other.IsLocked() or other_ref in grouped
                         or other_ref.upper().startswith(
                             ("J", "H", "FID", "LOGO", "MK"))):
                     continue
                 other_pads = [pad for pad in other.Pads()
                               if pad.IsOnCopperLayer()]
                 if (len(other_pads) != 2
-                        or any(pad.HasHole() for pad in other_pads)
+                        or any(pad.HasHole() or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+                               for pad in other_pads)
                         or not owner_nets.intersection(
                             pad.GetNetCode() for pad in other_pads)):
                     continue
@@ -1771,10 +1936,9 @@ def plan_endpoint_owner_repairs(board_path: str, completion: dict | None, *,
                 if local_distance <= 4.0 + 1e-9:
                     local_supports.append((local_distance, other_ref))
             # Carry the closest bounded support cell with the endpoint owner.
-            # Four members cover the immediate decoupling/filter ring without
-            # turning local legalization into a board-scale placement move.
+            # The owner counts towards the same four-member admission bound.
             companions = tuple(ref for _distance, ref in
-                               sorted(local_supports)[:4])
+                               sorted(local_supports)[:max_refs - 1])
             targets.append(FootprintRepairTarget(
                 ref=ref, target_net=target_net,
                 endpoint_ref=str(peer.get("ref") or ""),
@@ -1817,11 +1981,18 @@ def plan_congestion_via_repairs(board_path: str, completion: dict | None, *,
             continue
         endpoints = [row for row in cert.get("endpoints") or ()
                      if row.get("x_mm") is not None and row.get("y_mm") is not None]
+        # One barrel can obstruct several distinct island pairs of the same
+        # net. Deduplicate reversed copies of a pair, not every later pair on
+        # that net; otherwise forwarding exact endpoints still loses work.
+        endpoint_identity = tuple(sorted(json.dumps({
+            key: endpoint.get(key) for key in
+            ("kind", "uuid", "ref", "pad", "x_mm", "y_mm")}, sort_keys=True)
+            for endpoint in endpoints))
         for blocker in cert.get("dominant_blockers") or ():
             if blocker.get("kind") != "via" or not blocker.get("uuid"):
                 continue
             uid = str(blocker["uuid"])
-            key = (target_net, uid)
+            key = (target_net, uid, endpoint_identity)
             if key in seen:
                 continue
             seen.add(key)
@@ -1884,6 +2055,9 @@ def plan_congestion_via_repairs(board_path: str, completion: dict | None, *,
                     owner_directions.append(direction)
             targets.append({
                 "target_net": target_net,
+                "route_endpoints": copy.deepcopy(endpoints),
+                "width_mm": float(cert.get("width_mm") or 0.25),
+                "clearance_mm": float(cert.get("clearance_mm") or 0.0),
                 "distance_mm": float(
                     refusal["detail"].get("distance_mm") or 1e9),
                 "hit_count": int(blocker.get("hit_count") or 1),
@@ -1993,7 +2167,33 @@ def _expanded_branch(board, target, *, max_hops: int = 2):
     }
 
 
-def _lay_ops(board, operations, net_code: int, *, lock: bool = False) -> dict:
+def _lay_ops(board, operations, net_code: int, *, lock: bool = False,
+             reuse_existing_collinear: bool = False) -> dict:
+    if type(reuse_existing_collinear)is not bool:
+        raise ValueError('explicit_collinear_native_material_reuse_policy_required')
+    coverage=[]
+    if reuse_existing_collinear:
+        # Only the caller's proposed tracks may be shortened/subdivided.
+        # Existing tracks, widths, locks, groups and native IDs stay exact.
+        # Reuse is geometry, not a substitute for the saved current/terminal
+        # and complete actual-parent receivers.
+        from cec_additive_portal_compaction import uncovered_collinear_segments
+        retained=list(board.GetTracks());staged=[];expanded=[]
+        for index,op in enumerate(operations):
+            if op[0]!='trk' or op[1]==op[2]:expanded.append(op);continue
+            _,start,end,width,layer=op
+            item=pcbnew.PCB_TRACK(board);item.SetStart(start);item.SetEnd(end)
+            item.SetWidth(int(width));item.SetLayer(int(layer));item.SetNetCode(net_code)
+            proof=uncovered_collinear_segments(item,[*retained,*staged])
+            coverage.append(dict(operation_index=index,**proof))
+            for a,b in proof['segments_nm']:
+                p,q=pcbnew.VECTOR2I(*a),pcbnew.VECTOR2I(*b)
+                expanded.append(('trk',p,q,width,layer))
+            # Keep the complete proposed envelope as a SAME-width geometric
+            # witness for subsequent operations. Its union is either existing
+            # metal or the exact missing intervals queued above, not a gap.
+            staged.append(item)
+        operations=expanded
     tracks = vias = 0
     uuids = []
     for op in operations:
@@ -2024,8 +2224,9 @@ def _lay_ops(board, operations, net_code: int, *, lock: bool = False) -> dict:
             uuids.append(_uuid(item))
             tracks += 1
     board.BuildConnectivity()
-    return {"tracks": tracks, "vias": vias, "uuids": uuids,
-            "locked": bool(lock)}
+    result={"tracks": tracks, "vias": vias, "uuids": uuids,"locked": bool(lock)}
+    if reuse_existing_collinear:result['collinear_reuse']=coverage
+    return result
 
 
 def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
@@ -2125,8 +2326,8 @@ def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
         # planner.  Replacement copper is re-locked below before it can leave
         # this transaction.
         item.SetLocked(False)
-    for old in removed:
-        board.Remove(old)
+    removed_uuids = [_uuid(old) for old in removed]
+    discard_items(board, removed)
     board.BuildConnectivity()
 
     def edge_ok(a, b, half_width):
@@ -2171,7 +2372,7 @@ def _candidate_ops(board, target: RepairTarget, *, board_path: str, mode: str,
         "source_length_mm": round(
             (branch["source_length_nm"] if branch else
              math.hypot(end.x - start.x, end.y - start.y)) / MM, 6),
-        "removed_tracks": [_uuid(old) for old in removed],
+        "removed_tracks": removed_uuids,
         "start_escape": ([round(start_escape[0] / MM, 6),
                            round(start_escape[1] / MM, 6)]
                           if start_escape else None),
@@ -2405,6 +2606,16 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
     clearance_mm = max(0.2, float(spec.get("clearance") or 0.0))
     clearance_nm = int(round(clearance_mm * MM))
 
+    from cec_route_proposal_guard import RouteProposalGuard
+    from cec_field_search import PlanarSearchGuard
+    proposal_guard = RouteProposalGuard(
+        board, snapshot["net"], board_path=board_path,
+        netclass_resolver=resolver, deadline=deadline_monotonic)
+    planar_guard = PlanarSearchGuard(
+        board, snapshot["net"], netclass_resolver=resolver)
+    if getattr(planar_guard, "active", True) is False:
+        planar_guard = None  # Native empty snapshot: no field-run state.
+
     # Track fragments wholly embedded in one same-net pad are not electrical
     # edges.  Requiring them to be redrawn can make a valid negotiated route
     # appear unrestorable when the new copper passes near that land.  Use the
@@ -2434,7 +2645,8 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
                 }
 
     def edge_ok(a, b, half_width):
-        return cec_fr._edge_leg_clear(board, a, b, half_width)
+        return (cec_fr._edge_leg_clear(board, a, b, half_width)
+                and (planar_guard is None or planar_guard(a, b, 2 * int(half_width) + 1, layer)))
 
     operations = None
     mode = "same_layer"
@@ -2443,7 +2655,9 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
         start_escape=snapshot.get("start_escape"),
         end_escape=snapshot.get("end_escape"), allow_maze=True,
         maze_margin_mm=float(maze_margin_mm), foreign_cache={},
-        deadline_monotonic=deadline_monotonic)
+        deadline_monotonic=deadline_monotonic,
+        path_validator=lambda plan: proposal_guard([
+            ("trk", a, b, leg_width, layer) for a, b, leg_width in plan]))
     precision_grid_mm = None
     if (not legs and math.hypot(end.x - start.x, end.y - start.y)
             <= 5.0 * MM):
@@ -2458,9 +2672,11 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
                 end_escape=snapshot.get("end_escape"), grid_mm=grid_mm,
                 margin_mm=float(maze_margin_mm), foreign_cache={},
                 deadline_monotonic=deadline_monotonic)
-            if legs:
+            if legs and proposal_guard([
+                    ("trk", a, b, leg_width, layer) for a, b, leg_width in legs]):
                 precision_grid_mm = grid_mm
                 break
+            legs = None
     if legs:
         operations = [("trk", a, b, leg_width, layer)
                       for a, b, leg_width in legs]
@@ -2475,11 +2691,18 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
                 board, layer, net_name=snapshot["net"], spec=spec),
             clearance_nm,
             drill=float(spec.get("via_drill") or 0.3),
-            dia=float(spec.get("via_diameter") or 0.6), leg_ok=edge_ok,
+            dia=float(spec.get("via_diameter") or 0.6),
+            leg_ok=lambda a, b, half: cec_fr._edge_leg_clear(board, a, b, half),
             start_escape=snapshot.get("start_escape"),
             end_escape=snapshot.get("end_escape"), seat_limit=8,
             allow_maze=True, maze_margin_mm=float(maze_margin_mm),
-            foreign_cache={}, deadline_monotonic=deadline_monotonic)
+            foreign_cache={}, deadline_monotonic=deadline_monotonic,
+            # Bridge stubs have their own face. Keep the edge predicate
+            # layer-neutral here, then apply the shared planar field guard
+            # with each operation's actual layer inside the bridge builder.
+            ops_ok=proposal_guard, planar_guard=planar_guard)
+    if operations:
+        operations = proposal_guard.prepare(operations)
     if not operations:
         return False, {
             "net": snapshot["net"], "mode": mode,
@@ -2490,6 +2713,7 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
             "width_mm": round(width / MM, 6),
             "source_length_mm": round(
                 float(snapshot["source_length_nm"]) / MM, 6),
+            "route_proposal_guard": proposal_guard.report(),
             "refusal": ("displaced_branch_restore_timeout"
                         if deadline_monotonic is not None
                         and time.monotonic() >= deadline_monotonic else
@@ -2533,12 +2757,21 @@ def _restore_displaced_branch(board, snapshot, *, board_path: str,
         "new_length_mm": round(new_length_nm / MM, 6),
         "geometry": geometry,
         "local_pofv_signal_vias": local_pofv_signal_vias,
+        "route_proposal_guard": proposal_guard.report(),
     }
+
+
+def _residual_search_domain_mm(value=80.0):
+    """One finite distance authority for canonical and deep live-net search."""
+    if not math.isfinite(value) or not 0 < value <= 80.0:
+        raise ValueError("residual route distance must be in (0, 80] mm")
+    return float(value)
 
 
 def _restore_displaced_net(board, snapshot, *, board_path: str,
                            maze_margin_mm: float,
-                           deadline_monotonic: float | None = None):
+                           deadline_monotonic: float | None = None,
+                           max_route_mm: float = 80.0):
     """Fallback from an exact branch path to bounded whole-net completion.
 
     Once the refused route claims a corridor, an old internal waypoint may no
@@ -2548,14 +2781,13 @@ def _restore_displaced_net(board, snapshot, *, board_path: str,
     board to strict identity-aware connectivity, DRC, pair, and Kelvin gates.
     """
 
+    max_mm = _residual_search_domain_mm(max_route_mm)
     net = snapshot["net"]
     before_ids = {_uuid(item) for item in board.GetTracks() if _uuid(item)}
     resolver = cec_fr._project_netclass_resolver(board_path)
     spec = dict(resolver(net) or {})
     width_mm = max(0.15, float(snapshot["width"]) / MM)
     clearance_mm = max(0.2, float(spec.get("clearance") or 0.0))
-    max_mm = max(25.0, min(
-        80.0, float(snapshot["source_length_nm"]) / MM + 8.0))
     remaining_s = (None if deadline_monotonic is None else
                    max(0.0, deadline_monotonic - time.monotonic()))
     if remaining_s is not None and remaining_s <= 0.0:
@@ -2573,14 +2805,14 @@ def _restore_displaced_net(board, snapshot, *, board_path: str,
     # the easy islands first; only a still-disconnected net receives the
     # remaining deep-search budget.
     reports = []
-    breadth_s = (None if remaining_s is None else min(
-        30.0, max(4.0, remaining_s * 0.60)))
+    breadth_s = (None if remaining_s is None else min(30.0, remaining_s * 0.60))
     breadth = cec_fr.synthesize_lastmile(
-        board, max_mm=max(80.0, max_mm), min_w=width_mm,
+        board, max_mm=max_mm, min_w=width_mm,
         clearance=clearance_mm, cap=64,
         netclass_resolver=resolver, include_nets={net},
         attempts_per_pair=8, maze_max_mm=0.0,
         maze_margin_mm=2.0, bridge_fast=True,
+        field_guard=True,
         wall_timeout_s=breadth_s, per_net_timeout_s=breadth_s)
     reports.append({"stage": "canonical_breadth", "report": breadth})
     board.BuildConnectivity()
@@ -2597,6 +2829,7 @@ def _restore_displaced_net(board, snapshot, *, board_path: str,
                 netclass_resolver=resolver, include_nets={net},
                 attempts_per_pair=24, maze_max_mm=max_mm,
                 maze_margin_mm=float(maze_margin_mm),
+                field_guard=True,
                 wall_timeout_s=deep_remaining_s,
                 per_net_timeout_s=deep_remaining_s)
             reports.append({"stage": "deep_remaining", "report": deep})
@@ -2606,6 +2839,7 @@ def _restore_displaced_net(board, snapshot, *, board_path: str,
     report = {
         "schema": 1,
         "net": net,
+        "residual_search_domain_mm": max_mm,
         "stages": reports,
         "closed": sum(int(row["report"].get("closed") or 0)
                       for row in reports),
@@ -2751,13 +2985,15 @@ def _remove_negotiation_blockers(board, window: NegotiationWindow, *,
         return False, {"stage": "remove_blockers",
                        "refusal": merge_refusal,
                        "blocked_net": window.net}, []
-    removed = set()
+    removed = {}
     for snapshot in snapshots:
         for old in snapshot.pop("_track_objects"):
             uid = _uuid(old)
             if uid and uid not in removed:
-                board.Remove(old)
-                removed.add(uid)
+                removed[uid] = old
+    # Collect every alias before destroying any borrowed native object.
+    # Overlapping snapshots can still name the same object after coalescing.
+    discard_items(board, removed.values())
     board.BuildConnectivity()
     return True, {
         "stage": "remove_blockers", "blocked_net": window.net,
@@ -2772,6 +3008,9 @@ def _certificate_endpoint_anchor(board, endpoint, net_code, class_width,
     """Resolve one current certificate endpoint to exact live board layers."""
 
     kind = str(endpoint.get("kind") or "")
+    if kind == "zone":
+        import cec_zone_endpoint
+        return cec_zone_endpoint.resolve(board, endpoint, net_code)
     target = None
     if kind == "pad":
         for footprint in board.GetFootprints():
@@ -2836,16 +3075,9 @@ def _certificate_endpoint_anchor(board, endpoint, net_code, class_width,
                       int(pcbnew.PAD_ATTRIB_SMD))
         except Exception:                               # noqa: BLE001
             is_smd = False
-        minor = min(target.GetSize().x, target.GetSize().y)
-        major = max(target.GetSize().x, target.GetSize().y)
-        if is_smd and minor < class_width:
-            local_width = min(
-                class_width, max(int(min_width_nm), minor // 2))
-            land_budget = major / 2.0 + clearance_nm + class_width / 2.0
-            budget = int(round(max(
-                0.6 * MM, min(1.5 * MM,
-                              max(1.5 * class_width, land_budget)))))
-            escape = (local_width, budget)
+        if is_smd:
+            escape = cec_fr._pad_local_escape(
+                target, class_width, clearance_nm, min_width_nm)
     elif target.GetClass() == "PCB_VIA":
         point = target.GetPosition()
         layers = frozenset(all_cu)
@@ -2853,9 +3085,15 @@ def _certificate_endpoint_anchor(board, endpoint, net_code, class_width,
         requested = pcbnew.VECTOR2I(
             int(round(float(endpoint.get("x_mm") or 0.0) * MM)),
             int(round(float(endpoint.get("y_mm") or 0.0) * MM)))
-        choices = (target.GetStart(), target.GetEnd())
-        point = min(choices, key=lambda value: math.hypot(
-            value.x - requested.x, value.y - requested.y))
+        if kind == 'track_contact':
+            import cec_native_track_ports as ports
+            if not ports.on_centerline(target,(int(requested.x),int(requested.y))):
+                return None
+            point=requested
+        else:
+            choices = (target.GetStart(), target.GetEnd())
+            point = min(choices, key=lambda value: math.hypot(
+                value.x - requested.x, value.y - requested.y))
         layers = frozenset((target.GetLayer(),))
     if not layers:
         return None
@@ -3168,8 +3406,7 @@ def _apply_target_endpoint_retreat_worker(
         if reason:
             return False, {"refusal": "retreat_%s" % reason, "uuid": uid}
         items.append(item)
-    for item in items:
-        board.Remove(item)
+    discard_items(board, items)
     board.BuildConnectivity()
     pcbnew.SaveBoard(board_path, board)
     return True, {
@@ -3182,9 +3419,12 @@ def _apply_target_endpoint_retreat_worker(
 
 def _close_certificate_pair(board, window: NegotiationWindow, *,
                             board_path: str, prefer_bridge: bool,
-                            wall_timeout_s: float | None = None):
+                            wall_timeout_s: float | None = None,
+                            seat_pair_first=False):
     """Route the exact live refusal pair before searching every net island."""
 
+    if type(seat_pair_first)is not bool:
+        raise ValueError('explicit_certificate_seat_pair_policy_required')
     if len(window.endpoints) != 2:
         return False, {"refusal": "certificate_pair_not_binary"}
     net_info = board.GetNetInfo().GetNetItem(window.net)
@@ -3215,6 +3455,16 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
         (end, end_layers, end_escape, _end_item) = anchors
     deadline = (None if wall_timeout_s is None else
                 time.monotonic() + max(0.0, float(wall_timeout_s)))
+    from cec_route_proposal_guard import RouteProposalGuard
+    from cec_field_search import PlanarSearchGuard
+    proposal_guard = RouteProposalGuard(
+        board, window.net, board_path=board_path,
+        netclass_resolver=resolver, deadline=deadline,
+        **(dict(memoize_exact_positive=True,preflight_s=4.)if seat_pair_first else {}))
+    planar_guard = PlanarSearchGuard(
+        board, window.net, netclass_resolver=resolver)
+    if getattr(planar_guard, "active", True) is False:
+        planar_guard = None  # Final physical field receiving is unchanged.
     bridge_layers = cec_fr._lastmile_route_layers(
         board, net_name=window.net, spec=spec, exclude_front=True)
     same_layer_authority = set(cec_fr._lastmile_route_layers(
@@ -3238,8 +3488,12 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
     def edge_ok(a, b, half_width):
         return cec_fr._edge_leg_clear(board, a, b, half_width)
 
-    def bridge_ops(phase_deadline=None):
-        return cec_fr._lastmile_bridge(
+    bridge_phases = []
+
+    def bridge_ops(phase_deadline=None, *, expanded=True):
+        started = time.monotonic()
+        diagnostics = {}
+        operations = cec_fr._lastmile_bridge(
             board, (start.x, start.y), start_layers,
             (end.x, end.y), end_layers, base_width, net_code,
             bridge_layers, clearance_nm,
@@ -3249,9 +3503,31 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
             end_escape=end_escape, seat_limit=8, allow_maze=True,
             maze_margin_mm=max(4.0, float(window.distance_mm) * 0.25),
             foreign_cache={}, width_for_layer=width_for_layer,
-            seat_offsets_mm=(0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0),
-            seat_angles_deg=(0, 90, 180, 270), allow_lattice=False,
-            deadline_monotonic=phase_deadline)
+            seat_offsets_mm=(None if expanded else
+                             (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)),
+            seat_angles_deg=None if expanded else (0, 90, 180, 270),
+            allow_lattice=expanded,
+            deadline_monotonic=phase_deadline, diagnostics=diagnostics,
+            ops_ok=proposal_guard, planar_guard=planar_guard,
+            multilayer_lays=sorted(same_layer_authority),
+            refine_stubs=phase_deadline is not None and expanded,
+            # The opt-in seat subportfolio has its own <=10 s domain. Do
+            # not accidentally reject a longer legacy exact-pair lease when
+            # its earlier search families return quickly.
+            deferred_seat_breadth=(phase_deadline is not None and expanded
+                and phase_deadline-time.monotonic() <= 10.),
+            **(dict(seat_pair_first=True)if seat_pair_first and expanded else {}))
+        bridge_phases.append({
+            "phase": "expanded_local_seats" if expanded else "cardinal_fast_seats",
+            "found": operations is not None,
+            "elapsed_s": round(time.monotonic() - started, 3),
+            "diagnostics": diagnostics,
+            "budget_exhausted": (phase_deadline is not None
+                                  and time.monotonic() >= phase_deadline),
+            "seat_domain": ("shared_bounded_dogbone_and_local_lattice"
+                            if expanded else "cardinal_offsets_up_to_2mm"),
+        })
+        return operations
 
     # A finite exact-pair attempt is a portfolio of route families, not a
     # winner-takes-all call to whichever family happens to run first.  Dense
@@ -3272,7 +3548,7 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
     initial_bridge_deadline = phase_milestone(0.40)
     same_layer_phase_deadline = phase_milestone(
         0.75 if prefer_bridge else 0.65)
-    operations = (bridge_ops(initial_bridge_deadline)
+    operations = (bridge_ops(initial_bridge_deadline, expanded=False)
                   if prefer_bridge else None)
     if operations is None:
         common = sorted(
@@ -3299,10 +3575,15 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
                     time.monotonic() + remaining_s / remaining_layers)
             legs = cec_fr._guarded_profiled_lastmile_legs(
                 board, start, end, width, layer, clearance_nm, net_code,
-                edge_ok, start_escape=start_escape, end_escape=end_escape,
+                lambda a, b, half, lay=layer: (
+                    edge_ok(a, b, half)
+                    and (planar_guard is None or planar_guard(a, b, 2 * int(half) + 1, lay))),
+                start_escape=start_escape, end_escape=end_escape,
                 allow_maze=True,
                 maze_margin_mm=max(4.0, float(window.distance_mm) * 0.25),
-                foreign_cache={}, deadline_monotonic=layer_deadline)
+                foreign_cache={}, deadline_monotonic=layer_deadline,
+                path_validator=lambda plan, lay=layer: proposal_guard([
+                    ("trk", a, b, leg_width, lay) for a, b, leg_width in plan]))
             if legs:
                 operations = [("trk", a, b, leg_width, layer)
                               for a, b, leg_width in legs]
@@ -3311,8 +3592,12 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
         # This is the only phase allowed to use the final deadline.  For a
         # same-layer-first net it is the first bridge attempt; for a
         # bridge-first net it is a broader retry after every common layer had
-        # a bounded chance.
+        # a bounded chance. This must actually widen the seat domain: repeating
+        # the same four rays/2 mm offsets cannot use the shared, qualified
+        # longer/off-ray dogbone search even when most of the budget remains.
         operations = bridge_ops(deadline)
+    if operations:
+        operations = proposal_guard.prepare(operations)
     if operations is None:
         endpoint_owned = set(cec_fr._endpoint_bridge_layers(
             board, start_layers, end_layers, bridge_layers))
@@ -3335,6 +3620,8 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
                         and time.monotonic() >= deadline else
                         "certificate_pair_no_exact_clear_path"),
             "certificate": certificate,
+            "bridge_phases": bridge_phases,
+            "route_proposal_guard": proposal_guard.report(),
         }
     before_ids = {_uuid(item) for item in board.GetTracks() if _uuid(item)}
     geometry = _lay_ops(board, operations, net_code, lock=False)
@@ -3343,6 +3630,8 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
     pofv = cec_fr.group_local_pofv_signal_vias(
         board, [item for item in new_items
                 if item.GetClass() == "PCB_VIA"])
+    neckdown = cec_fr.group_endpoint_neckdowns(
+        board, new_items, base_width, required_clearance=clearance_nm)
     return True, {
         "schema": 1, "closed": 1, "legs": geometry["tracks"],
         "vias": geometry["vias"], "refused": 0, "far": 0,
@@ -3354,7 +3643,10 @@ def _close_certificate_pair(board, window: NegotiationWindow, *,
             "vias": geometry["vias"],
         }],
         "local_pofv_signal_vias": pofv,
+        "endpoint_neckdown": neckdown,
         "exact_pair_geometry": geometry,
+        "bridge_phases": bridge_phases,
+        "route_proposal_guard": proposal_guard.report(),
     }
 
 
@@ -3425,6 +3717,7 @@ def _close_negotiation_target(board, window: NegotiationWindow, *,
         maze_margin_mm=float(maze_margin_mm),
         prefer_bridge=(bool(window.local_pin_escape)
                        if prefer_bridge is None else bool(prefer_bridge)),
+        field_guard=True,
         wall_timeout_s=remaining_wall_s,
         per_net_timeout_s=remaining_wall_s)
     if not completion.get("closed"):
@@ -3442,9 +3735,12 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
                                   maze_margin_mm: float,
                                   max_detour_ratio: float,
                                   order_mode: str = "hardest_first",
-                                  wall_timeout_s: float | None = None):
+                                  wall_timeout_s: float | None = None,
+                                  exact_budget_fraction: float = 0.60):
     """Phase 3: restore every displaced branch around the new target route."""
 
+    if not math.isfinite(exact_budget_fraction) or not 0 < exact_budget_fraction < 1:
+        raise ValueError("exact restoration fraction must be in (0, 1)")
     restored = []
     deadline_monotonic = (
         None if wall_timeout_s is None else
@@ -3478,7 +3774,30 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
         grouped[net].append(snapshot)
     restoration_groups = [grouped[net] for net in net_order]
 
-    for snapshot_group in restoration_groups:
+    for group_index, snapshot_group in enumerate(restoration_groups):
+        # Reserve real fallback time for EVERY group, including a singleton.
+        # Previously a one-branch bridge search consumed the entire phase and
+        # its live-net fallback was invoked with an already expired deadline.
+        # Divide remaining time between nets too: a first large net must not
+        # starve all remaining independent restoration obligations.
+        group_deadline = deadline_monotonic
+        exact_phase_deadline = deadline_monotonic
+        budget_evidence = {"exact_fraction": exact_budget_fraction,
+                           "group_allowance_s": None, "fallback_reserve_s": None}
+        if deadline_monotonic is not None:
+            now = time.monotonic()
+            allowance = max(0.0, deadline_monotonic - now) / (
+                len(restoration_groups) - group_index)
+            group_deadline = min(deadline_monotonic, now + allowance)
+            exact_phase_deadline = now + allowance * exact_budget_fraction
+            budget_evidence.update(group_allowance_s=round(allowance, 6),
+                fallback_reserve_s=round(allowance*(1-exact_budget_fraction), 6))
+            if allowance <= 0:
+                return False, {"stage": "restore_blockers",
+                    "refusal": "displaced_net_restore_timeout",
+                    "restored": restored, "order_mode": order_mode,
+                    "unattempted_net": snapshot_group[0]["net"],
+                    "search_budget": budget_evidence}
         if len(snapshot_group) > 1:
             # Escape a real package land before replaying remote trunks.  A
             # long branch is often geometrically easy, while a short
@@ -3514,11 +3833,6 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
             })
             branch_attempts = []
             exact_ok = True
-            exact_phase_deadline = deadline_monotonic
-            if deadline_monotonic is not None:
-                now = time.monotonic()
-                exact_phase_deadline = now + max(
-                    0.0, deadline_monotonic - now) * 0.60
             branch_weights = [
                 4.0 if (branch.get("start_escape") is not None
                         or branch.get("end_escape") is not None) else 1.0
@@ -3554,11 +3868,12 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
                 ok, evidence = _restore_displaced_net(
                     board, snapshot, board_path=board_path,
                     maze_margin_mm=maze_margin_mm,
-                    deadline_monotonic=deadline_monotonic)
+                    deadline_monotonic=group_deadline)
                 evidence["branch_attempts"] = branch_attempts
                 if ok:
                     evidence["mode"] = "network_group_lastmile"
             evidence["snapshot_count"] = len(snapshot_group)
+            evidence["search_budget"] = budget_evidence
             restored.append(evidence)
             if not ok:
                 return False, {
@@ -3573,14 +3888,15 @@ def _restore_negotiation_blockers(board, snapshot_rows, *, board_path: str,
             board, snapshot, board_path=board_path,
             maze_margin_mm=maze_margin_mm,
             max_detour_ratio=max_detour_ratio,
-            deadline_monotonic=deadline_monotonic)
+            deadline_monotonic=exact_phase_deadline)
         if not ok:
             branch_refusal = evidence
             ok, evidence = _restore_displaced_net(
                 board, snapshot, board_path=board_path,
                 maze_margin_mm=maze_margin_mm,
-                deadline_monotonic=deadline_monotonic)
+                deadline_monotonic=group_deadline)
             evidence["branch_refusal"] = branch_refusal
+        evidence["search_budget"] = budget_evidence
         restored.append(evidence)
         if not ok:
             return False, {
@@ -3681,6 +3997,9 @@ def _classify_placement_conflicts_worker(
     generated_locked.update(
         str(uid) for uid in
         (move.get("placement_generated_locked_uuids") or ()) if uid)
+    grouped_tracks = {_uuid(item) for group in board.Groups() for item in group.GetItems()
+                      if item.GetClass() == 'PCB_TRACK'}
+    retained_boundaries = set(move.get('preserved_incident_track_uuids') or ())
     items = {}
 
     def put(uid, **metadata):
@@ -3717,8 +4036,8 @@ def _classify_placement_conflicts_worker(
         put(uid, kind=("via" if item.GetClass() == "PCB_VIA" else "track"),
             ref="", net=str(item.GetNetname() or ""),
             locked=bool(item.IsLocked()), moved=uid in moved_route_uuids,
-            pipeline_movable=(not item.IsLocked()
-                              or uid in generated_locked),
+            pipeline_movable=((not item.IsLocked() or uid in generated_locked)
+                              and uid not in grouped_tracks and uid not in retained_boundaries),
             x_nm=x_nm, y_nm=y_nm, diameter_nm=diameter_nm,
             drill_nm=drill_nm)
     for zone in board.Zones():
@@ -3859,6 +4178,10 @@ def _evacuate_placement_copper_worker(
         return False, {"refusal": "no_movable_track_conflicts"}, []
     board = pcbnew.LoadBoard(board_path)
     generated = {str(uid) for uid in generated_locked_uuids if uid}
+    grouped = {_uuid(item) for group in board.Groups() for item in group.GetItems()}
+    if grouped.intersection(requested):
+        return False, dict(refusal='grouped_placement_copper_immutable',
+                           uuids=sorted(grouped.intersection(requested))), []
     missing_or_via = []
     blocker_nets = []
     for uid in requested:
@@ -3892,7 +4215,7 @@ def _evacuate_placement_copper_worker(
     }, snapshots
 
 
-def _spawn_apply(func, args, *, timeout_s=None):
+def _spawn_apply(func, args, *, timeout_s=None, search_budget_arg=None):
     """Run one pcbnew operation in a bounded fresh interpreter.
 
     KiCad's Python proxies can become invalid after a board is saved/reloaded in
@@ -3902,7 +4225,11 @@ def _spawn_apply(func, args, *, timeout_s=None):
     wait forever during ``__exit__`` after the result has been delivered (the
     parent waits on a futex while the idle child waits on its task pipe).  Use
     the pipeline's finite coordinator and shutdown guard for this one-shot
-    worker as well.
+    worker as well. A cooperative worker may explicitly name the positional
+    argument carrying its search allowance. If its supervisor is parent-
+    clamped, shorten that allowance too while retaining the originally
+    requested setup/finalization reserve. Never guess an argument by value,
+    function name, board, or reference designator.
     """
 
     raw_timeout = (timeout_s if timeout_s is not None else
@@ -3911,16 +4238,58 @@ def _spawn_apply(func, args, *, timeout_s=None):
         wall_timeout_s = max(1.0, float(raw_timeout))
     except (TypeError, ValueError):
         wall_timeout_s = 300.0
+    requested_timeout_s = wall_timeout_s
+    cooperative = {}
+    if search_budget_arg is not None:
+        if (type(search_budget_arg) is not int
+                or not 0 <= search_budget_arg < len(args)
+                or type(timeout_s) not in (float, int)
+                or not math.isfinite(timeout_s)
+                or type(args[search_budget_arg]) not in (float, int)
+                or not math.isfinite(args[search_budget_arg])
+                or not 0 < args[search_budget_arg] < requested_timeout_s):
+            raise ValueError('cooperative search requires an explicit budget argument and worker reserve')
+        cooperative = dict(
+            requested_search_s=float(args[search_budget_arg]),
+            finish_reserve_s=requested_timeout_s-float(args[search_budget_arg]))
+    operation = '%s.%s' % (getattr(func, '__module__', '?'),
+                          getattr(func, '__qualname__', type(func).__name__))
+    remaining_s = None
     deadline = _WORKER_DEADLINE.get()
     if deadline is not None:
         remaining_s = float(deadline) - time.monotonic()
         if remaining_s <= 0.0:
-            raise cec_process_pool.WorkerPoolStalled(
-                "certificate repair wall budget exhausted before worker")
+            failure = cec_process_pool.WorkerPoolStalled(
+                "certificate repair wall budget exhausted before worker "
+                "[operation=%s, requested_s=%.3f, effective_s=0]" %
+                (operation, requested_timeout_s))
+            failure.certificate_worker_diagnostics = dict(
+                operation=operation, requested_s=requested_timeout_s,
+                effective_s=0.0, parent_remaining_s=remaining_s,
+                deadline_limited=True, dispatched=False,
+                **(dict(cooperative, effective_search_s=0.0) if cooperative else {}))
+            raise failure
         # The transaction budget is an actual deadline, not merely a check
         # between candidates.  Cap every in-flight KiCad child to the time
         # remaining so one difficult maze cannot overrun an unattended wave.
         wall_timeout_s = max(0.05, min(wall_timeout_s, remaining_s))
+    if cooperative:
+        search_s = min(cooperative['requested_search_s'],
+                       wall_timeout_s-cooperative['finish_reserve_s'])
+        cooperative['effective_search_s'] = max(0.0, search_s)
+        if search_s <= 0:
+            evidence = dict(operation=operation, requested_s=requested_timeout_s,
+                effective_s=wall_timeout_s, parent_remaining_s=remaining_s,
+                deadline_limited=wall_timeout_s < requested_timeout_s,
+                dispatched=False, **cooperative)
+            failure = cec_process_pool.WorkerPoolStalled(
+                'insufficient parent budget for search and finalization '
+                '[operation=%s, effective_s=%.3f, reserve_s=%.3f]' %
+                (operation, wall_timeout_s, cooperative['finish_reserve_s']))
+            failure.certificate_worker_diagnostics = evidence
+            raise failure
+        args = tuple(search_s if index == search_budget_arg else value
+                     for index, value in enumerate(args))
     pool = ProcessPoolExecutor(
         max_workers=1, mp_context=mp.get_context("spawn"))
     forced_shutdown = False
@@ -3931,13 +4300,36 @@ def _spawn_apply(func, args, *, timeout_s=None):
             pool, {future: None}, wall_timeout_s=wall_timeout_s,
             poll_s=min(1.0, wall_timeout_s))
         for done in completed:
-            return done.result()
+            result = done.result()
+            if cooperative and isinstance(result, dict):
+                result['worker_budget'] = dict(
+                    requested_worker_s=requested_timeout_s,
+                    effective_worker_s=wall_timeout_s,
+                    parent_deadline_limited=wall_timeout_s < requested_timeout_s,
+                    release_authority=False, **cooperative)
+            return result
         raise cec_process_pool.WorkerPoolStalled(
             "certificate worker returned no completion")
-    except BaseException:
+    except BaseException as exc:
         forced_shutdown = True
         if future is not None:
             future.cancel()
+        if isinstance(exc, cec_process_pool.WorkerPoolStalled):
+            # No arguments or board payload: identify the exact child and
+            # distinguish a parent-clamped lease from its requested allowance.
+            # Keep the typed failure retryable; never turn it into no-path.
+            evidence = dict(operation=operation,
+                requested_s=requested_timeout_s, effective_s=wall_timeout_s,
+                parent_remaining_s=remaining_s,
+                deadline_limited=wall_timeout_s < requested_timeout_s,
+                **cooperative)
+            failure = cec_process_pool.WorkerPoolStalled(
+                '%s [operation=%s, requested_s=%.3f, effective_s=%.3f, '
+                'deadline_limited=%s]' % (str(exc), operation,
+                    requested_timeout_s, wall_timeout_s,
+                    evidence['deadline_limited']))
+            failure.certificate_worker_diagnostics = evidence
+            raise failure from exc
         raise
     finally:
         cec_process_pool.shutdown_process_pool(
@@ -3997,8 +4389,46 @@ def _footprint_plan_worker(board_path, completion, limit):
     return plan_footprint_repairs(board_path, completion, limit=limit)
 
 
-def _endpoint_owner_plan_worker(board_path, completion, limit):
-    return plan_endpoint_owner_repairs(board_path, completion, limit=limit)
+def _endpoint_owner_plan_worker(board_path, completion, limit, max_refs=4):
+    return plan_endpoint_owner_repairs(board_path, completion, limit=limit, max_refs=max_refs)
+
+
+def _endpoint_owner_lane_plan_worker(board_path, completion, limit, support_limits=None):
+    """Schedule native pad-lane alternatives without granting motion authority.
+
+    A same-net route window need not own the land sealing an IC's launch.
+    Waiting for that window to exhaust can starve the only relevant placement
+    degree of freedom. Require the ordinary live endpoint-owner certificate
+    AND a fresh native articulated-lane proposal before changing that order.
+    No proposal here is a route/no-path proof or an admitted placement.
+    """
+    import cec_owner_escape_articulation as articulation
+    import cec_support_motion as motion
+    policy = motion.limits(**{**(support_limits or {}), 'max_owner_copper_pads': 16})
+    plan = _endpoint_owner_plan_worker(board_path, completion, limit, policy['max_refs'])
+    board = pcbnew.LoadBoard(board_path)
+    lanes = []
+    for target in plan['targets']:
+        candidates = articulation.proposals(board, target, board_path=board_path,
+                                             support_limits=policy)
+        if candidates:
+            lanes.append(dict(ref=target['ref'], target_net=target['target_net'],
+                              candidates=candidates))
+    plan['native_pin_lanes'] = dict(targets=lanes, release_authority=False,
+        policy='witnessed_pad_lane_before_same_net_route_retries',
+        exhaustion_is_no_path_proof=False)
+    return plan
+
+
+def _early_owner_targets(owner_plan, support_schedule):
+    """A deferred route window may only be preempted by native lane evidence."""
+    lanes = {(row['ref'], row['target_net']): row['candidates']
+             for row in (owner_plan.get('native_pin_lanes') or {}).get('targets') or ()
+             if row.get('candidates')}
+    deferred = bool(support_schedule.get('deferred'))
+    return [(target, lanes.get((target['ref'], target['target_net'])))
+            for target in owner_plan.get('targets') or ()
+            if not deferred or (target['ref'], target['target_net']) in lanes]
 
 
 def _congestion_via_plan_worker(board_path, completion,
@@ -4010,21 +4440,37 @@ def _congestion_via_plan_worker(board_path, completion,
 
 def _generated_locked_route_uuids(board_path: str,
                                   authored_baseline: str | None) -> tuple[str, ...]:
-    """Return locked copper UUIDs absent from an explicit authored baseline.
+    """Resolve saved producer receipts plus an identity-matched baseline.
 
-    Provenance applies to both segments and vias.  Restricting this set to
-    ``PCB_TRACK`` made a generated barrel look authored even when the placed
-    baseline contained no route copper at all.
+    A continuation placement may already contain earlier generated routes.
+    Its UUID set alone must not turn all that copper into authored geometry.
+    Conversely, an unrelated/older empty board must not authorize every lock.
     """
+    import cec_route_copper_lineage
+    return cec_route_copper_lineage.generated_locked(
+        board_path, authored_baseline)
 
-    if not authored_baseline or not os.path.isfile(authored_baseline):
-        return ()
-    current = pcbnew.LoadBoard(board_path)
-    baseline = pcbnew.LoadBoard(authored_baseline)
-    authored = {_uuid(item) for item in baseline.GetTracks() if _uuid(item)}
-    return tuple(sorted(
-        _uuid(item) for item in current.GetTracks()
-        if item.IsLocked() and _uuid(item) and _uuid(item) not in authored))
+
+def _residual_polish_ready(metrics, accepted, *, placement_changed=False):
+    """Never mix global cosmetics into an unvalidated local placement move."""
+    return not placement_changed and (bool(accepted) or metrics.get("unconnected") == 0)
+
+
+def _route_polish_boundary_worker(source, target):
+    """Use the same native pose identity as independent placement admission.
+
+    A worker's successful route score does not validate its placement delta.
+    Preserve that small transaction until the coordinator can prove its owned
+    branches and complete placement gates. Global cosmetics belong afterward.
+    This affects finish-stage order, not route search or cached pose semantics.
+    """
+    import cec_full_pipeline as pipeline
+    first = pipeline._placement_position_signature(source)
+    last = pipeline._placement_position_signature(target)
+    return dict(ok=True, placement_changed=first != last,
+                source_pose_signature=first, candidate_pose_signature=last,
+                policy='placement_revalidation_before_global_polish',
+                release_authority=False)
 
 
 def _score_worker(board_path, drc_json):
@@ -4260,8 +4706,7 @@ def _swap_reversible_split_pair_station(
                 for pad in footprint.Pads()}
             for ref, pad_number, via in pad_vias:
                 via.SetPosition(new_centers[(ref, pad_number)])
-            for item in removed.values():
-                board.Remove(item)
+            discard_items(board, removed.values())
             board.BuildConnectivity()
             return True, {
                 "station": station.get("id"),
@@ -4361,8 +4806,7 @@ def _remove_partial_pair_copper_worker(board_path, pair_name,
                        "immutable": immutable}
     removed = [{"uuid": _uuid(item), "net": item.GetNetname(),
                 "kind": item.GetClass()} for item in pair_copper]
-    for item in pair_copper:
-        board.Remove(item)
+    discard_items(board, pair_copper)
     board.BuildConnectivity()
     pcbnew.SaveBoard(board_path, board)
     return True, {"removed": removed, "removed_count": len(removed),
@@ -4545,6 +4989,7 @@ def _relocate_via_worker(board_path, target_row, dx_nm, dy_nm,
         return False, {"refusal": "target_via_moved_since_plan"}
 
     branches = []
+    removed = []
     unsupported = []
     tolerance_nm = 5_000
     for item in list(board.GetTracks()):
@@ -4572,10 +5017,11 @@ def _relocate_via_worker(board_path, target_row, dx_nm, dy_nm,
                 and group.GetName() == cec_fr.ENDPOINT_NECKDOWN_GROUP
                 for group in board.Groups()),
         })
-        board.Remove(item)
+        removed.append(item)
     if unsupported:
         return False, {"refusal": "locked_or_arc_incident_stub",
                        "incident_uuids": sorted(unsupported)}
+    discard_items(board, removed)
     new = pcbnew.VECTOR2I(int(old.x + dx_nm), int(old.y + dy_nm))
     if not branches:
         if not allow_unattached_stitch:
@@ -4810,7 +5256,8 @@ def _rotate_board_vector(x, y, degrees):
     return cosine * x + sine * y, -sine * x + cosine * y
 
 
-def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
+def _occupancy_relocation_candidates(board_path, target_row, *, limit=32,
+                                     generated_locked_uuids=(), support_limits=None):
     """Generate component seats from live geometry instead of fixed offsets.
 
     The refusal certificate supplies the electrical objective (the endpoint
@@ -4830,6 +5277,11 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
     owner = (board.FindFootprintByReference(target.ref)
              if board is not None else None)
     if owner is None:
+        return []
+    import cec_support_motion
+    support_domain = (cec_support_motion.capture(board, target_row, support_limits)
+                      if support_limits is not None else None)
+    if support_domain is not None and not support_domain['ok']:
         return []
     members = [owner]
     for ref in target.companion_refs:
@@ -4882,15 +5334,24 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
     board_rect = inflated(rect_from_box(edge), -0.25)
 
     target_code = board.GetNetcodeFromNetname(target.target_net)
+    # The target net belongs to the trapped route, not necessarily this
+    # support. A foreign-net obstacle moves AWAY from that endpoint; requiring
+    # electrical membership here silently disabled its entire occupancy and
+    # fixed-via portfolio. Use its nearest actual copper land as the geometric
+    # anchor. A support moving TOWARD an electrical owner must still carry the
+    # target net. Neither proposal case changes pad nets or grants move/route
+    # authority; the support, fixed-via, craft and native admission gates follow.
     target_pads = [pad for pad in owner.Pads()
                    if pad.IsOnCopperLayer()
-                   and pad.GetNetCode() == target_code]
+                   and (target.motion == "away_from_endpoint"
+                        or pad.GetNetCode() == target_code)]
     if not target_pads:
         return []
     endpoint = (float(target.endpoint_x_mm), float(target.endpoint_y_mm))
-    target_pad = min(target_pads, key=lambda pad: math.hypot(
-        pad.GetCenter().x / MM - endpoint[0],
-        pad.GetCenter().y / MM - endpoint[1]))
+    target_pad = min(target_pads, key=lambda pad: (
+        math.hypot(pad.GetCenter().x / MM - endpoint[0],
+                   pad.GetCenter().y / MM - endpoint[1]),
+        str(pad.GetNumber()), _uuid(pad)))
     pad_position = target_pad.GetCenter()
     pad_x, pad_y = pad_position.x / MM, pad_position.y / MM
 
@@ -4926,6 +5387,15 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
         if (_uuid(item) and _uuid(item) not in incident_uuids
             and (item.GetClass() == "PCB_VIA"
                  or item.GetLayer() in member_surface_layers))]
+
+    # Bounding boxes are only congestion hints: a package body may cover a
+    # route without touching it, while a tiny pad shift can violate its real
+    # class clearance. Rank native land/retained-copper contacts first. This
+    # advisory snapshot never excludes a pose or grants copper edit authority.
+    from cec_pose_copper_score import NativePoseCopperScore
+    native_copper = NativePoseCopperScore(
+        board, target.ref, target.companion_refs,
+        generated_locked_uuids=generated_locked_uuids)
 
     vector_x, vector_y = endpoint[0] - pad_x, endpoint[1] - pad_y
     norm = math.hypot(vector_x, vector_y)
@@ -4977,12 +5447,28 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
                         "lateral_mm": lateral,
                     })
 
+    # Intersect with immutable owner domains before the top-K truncation.
+    # Previously almost the entire small returned portfolio could be invalid
+    # even when many lower-ranked, local fixed-anchor poses were available.
+    import cec_fixed_pofv_mobility as fixed_pofv
+    domain_cache = {}
+    raw.extend(fixed_pofv.proposals(board, target_row, rotations=rotations,
+        generated_locked_uuids=generated_locked_uuids, cache=domain_cache))
+    raw.extend(fixed_pofv.contained_land_proposals(board, target_row, rotations=rotations,
+        generated_locked_uuids=generated_locked_uuids, cache=domain_cache))
     scored, seen = [], set()
     for candidate in raw:
         key = _footprint_candidate_key(target.ref, candidate)[1:]
         if key in seen:
             continue
         seen.add(key)
+        if support_domain is not None and not cec_support_motion.evaluate(
+                support_domain, candidate)['ok']:
+            continue
+        if not fixed_pofv.evaluate(board, target_row, candidate,
+                generated_locked_uuids=generated_locked_uuids,
+                cache=domain_cache)['ok']:
+            continue
         transformed = [transformed_rect(
             member_rects[member.GetReference()], candidate)
                        for member in members]
@@ -5019,7 +5505,11 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
             moved_pad_x - endpoint[0], moved_pad_y - endpoint[1])
         movement = math.hypot(float(candidate["dx_mm"]),
                               float(candidate["dy_mm"]))
-        score = (round(outside_mm2, 6), footprint_overlap_count,
+        native_score = native_copper.score(candidate)
+        score = (round(outside_mm2, 6),
+                 native_score['new_fixed_copper_pairs'],
+                 native_score['new_copper_pairs'],
+                 native_score['copper_pairs'], footprint_overlap_count,
                  round(footprint_overlap_mm2, 6), locked_copper_hits,
                  copper_hits,
                  round(endpoint_distance, 6), round(movement, 6),
@@ -5035,6 +5525,7 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
             "locked_copper_hit_uuids": locked_copper_hit_uuids[:32],
             "endpoint_distance_mm": round(endpoint_distance, 6),
             "movement_mm": round(movement, 6),
+            "native_copper": native_score,
         }
         scored.append((score, candidate))
     scored.sort(key=lambda row: row[0])
@@ -5042,7 +5533,8 @@ def _occupancy_relocation_candidates(board_path, target_row, *, limit=32):
             scored[:max(0, int(limit))]]
 
 
-def _combined_footprint_relocation_candidates(board_path, target_row):
+def _combined_footprint_relocation_candidates(board_path, target_row, *,
+                                              generated_locked_uuids=(), support_limits=None):
     """Prefer measured seats and bounded soft-obstacle cell expansion.
 
     If the target's best occupancy-derived seats repeatedly intersect small,
@@ -5057,8 +5549,10 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
     if board is None:
         return _footprint_relocation_candidates(board_path, target_row)
     target = FootprintRepairTarget(**target_row)
+    motion_options = dict(support_limits=support_limits) if support_limits is not None else {}
     base_rows = _occupancy_relocation_candidates(
-        board_path, target_row, limit=64)
+        board_path, target_row, limit=64,
+        generated_locked_uuids=generated_locked_uuids, **motion_options)
     # A routed endpoint may already own a narrow egress through a dense pin
     # field.  Generate seats around a few exact nodes on that live component,
     # not only around the inaccessible pad centre.  The metadata follows the
@@ -5080,7 +5574,8 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
         access_target["endpoint_x_mm"] = float(endpoint["x_mm"])
         access_target["endpoint_y_mm"] = float(endpoint["y_mm"])
         for row in _occupancy_relocation_candidates(
-                board_path, access_target, limit=16):
+                board_path, access_target, limit=16,
+                generated_locked_uuids=generated_locked_uuids, **motion_options):
             row = dict(row)
             row["generator"] = "occupancy_connected_endpoint"
             row["route_access_endpoint"] = endpoint
@@ -5127,7 +5622,7 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
     soft_refs = [row[3] for row in eligible[:3]]
 
     expanded_rows = []
-    available_members = max(0, 4 - len(existing))
+    available_members = max(0, 4 - 1 - len(existing))
     subsets = ([(ref,) for ref in soft_refs]
                if available_members >= 1 else [])
     if available_members >= 2:
@@ -5137,16 +5632,42 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
         cluster = tuple(sorted(existing | set(subset)))
         expanded_target["companion_refs"] = list(cluster)
         for row in _occupancy_relocation_candidates(
-                board_path, expanded_target, limit=12):
+                board_path, expanded_target, limit=12,
+                generated_locked_uuids=generated_locked_uuids, **motion_options):
             row = dict(row)
             row["mobility_companion_refs"] = list(cluster)
             row["generator"] = "occupancy_mobility_graph"
             expanded_rows.append(row)
 
+    articulated_rows = []
+    if support_limits and support_limits.get('max_owner_copper_pads', 2) > 2:
+        # A rigid owner+support move retains an obstruction created by one of
+        # those supports. Add bounded geometry-derived subset motions; the
+        # same fixed-via, craft, physical and reconnect gates still own proof.
+        import cec_owner_escape_articulation as articulation
+        from cec_pose_copper_score import NativePoseCopperScore
+        scorers = {}
+        for row in articulation.proposals(board, target_row, board_path=board_path,
+                                         support_limits=support_limits):
+            companions = tuple(row['mobility_companion_refs'])
+            if companions not in scorers:
+                scorers[companions] = NativePoseCopperScore(board, target.ref, companions,
+                    generated_locked_uuids=generated_locked_uuids)
+            row['occupancy_score'] = {
+                'native_copper': scorers[companions].score(row),
+                'endpoint_distance_mm': target.distance_mm,
+                'movement_mm': math.hypot(row['dx_mm'], row['dy_mm']),
+            }
+            articulated_rows.append(row)
+
     def measured_key(row):
         score = row.get("occupancy_score") or {}
         return (
             float(score.get("outside_mm2") or 0.0),
+            int((score.get("native_copper") or {}).get("new_fixed_copper_pairs") or 0),
+            int((score.get("native_copper") or {}).get("new_copper_pairs") or 0),
+            int((score.get("native_copper") or {}).get("copper_pairs") or 0),
+            0 if row.get('escape_lane') else 1,
             int(score.get("footprint_overlap_count") or 0),
             float(score.get("footprint_overlap_mm2") or 0.0),
             int(score.get("locked_copper_hits") or 0),
@@ -5156,7 +5677,7 @@ def _combined_footprint_relocation_candidates(board_path, target_row):
             _footprint_candidate_key(target.ref, row),
         )
 
-    measured = access_rows + base_rows + expanded_rows
+    measured = access_rows + base_rows + expanded_rows + articulated_rows
     measured.sort(key=measured_key)
     rows = measured + _footprint_relocation_candidates(
         board_path, target_row)
@@ -5198,6 +5719,12 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
             return False, {"refusal": "missing_or_locked_companion",
                            "ref": str(ref)}
         footprints.append(companion)
+    import cec_fixed_pofv_mobility as fixed_pofv
+    fixed_via_domain = fixed_pofv.evaluate(board, target_row, candidate,
+        generated_locked_uuids=generated_locked_uuids)
+    if not fixed_via_domain['ok']:
+        return False, {'refusal': 'immutable_local_via_owner_out_of_reach',
+                       'fixed_via_domain': fixed_via_domain}
     copper_by_ref = {}
     for member in footprints:
         member_pads = [pad for pad in member.Pads()
@@ -5220,6 +5747,10 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
          point_key(pad.GetCenter()))
         for ref, pads in copper_by_ref.items() for pad in pads]
     all_copper = list(board.GetTracks())
+    import cec_local_copper_cell as local_cell
+    copper_before = local_cell.copper_inventory(board)
+    import cec_route_copper_lineage as lineage
+    lineage_before = lineage.begin_owned_mutation(board_path, board)
     pad_vias = {}
     for item in all_copper:
         if not isinstance(item, pcbnew.PCB_VIA):
@@ -5240,36 +5771,24 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
         if via.IsLocked() and _uuid(via) not in generated_locked
     }
 
-    tracks_by_node = {}
-    for item in all_copper:
-        if isinstance(item, pcbnew.PCB_VIA):
-            continue
-        net_code = item.GetNetCode()
-        for point in (item.GetStart(), item.GetEnd()):
-            tracks_by_node.setdefault(
-                (net_code, point_key(point)), []).append(item)
-
-    cluster_pad_nodes = {
-        (net_code, node)
-        for _ref, _pad, _name, net_code, node in pad_rows}
-    internal_tracks = {}
-    for item in all_copper:
-        if isinstance(item, pcbnew.PCB_VIA):
-            continue
-        net_code = item.GetNetCode()
-        a = (net_code, point_key(item.GetStart()))
-        b = (net_code, point_key(item.GetEnd()))
-        if a not in cluster_pad_nodes or b not in cluster_pad_nodes:
-            continue
-        uid = _uuid(item)
-        if not uid:
-            continue
-        if item.IsLocked() and uid not in generated_locked:
-            return False, {
-                "refusal": "authored_locked_internal_cluster_track",
-                "track_uuid": uid,
-            }
-        internal_tracks[uid] = item
+    # Preserve a complete local route, not just the special case of a single
+    # straight segment joining two pad centres. Removing each end of a bent
+    # inter-cell path needlessly left its middle behind and made the group
+    # recreate already legal internal wiring against stale anchors.
+    cell_copper = local_cell.plan(
+        board, footprints, generated_locked_uuids=generated_locked,
+        protected_nets=cec_fr.locked_pour_authority_nets_board(
+            board, include_complete_nets=False),
+        max_items=max(1, int(max_branch_tracks)))
+    internal_ids = set(cell_copper["internal_track_uuids"])
+    internal_tracks = {_uuid(item): item for item in all_copper
+                       if _uuid(item) in internal_ids}
+    import cec_pad_incident_tracks
+    incident = cec_pad_incident_tracks.inspect(board, copper_pads, internal_uuids=internal_ids)
+    if not incident['ok']:
+        return False, dict(refusal='incident_pad_contact_not_owned', incident_contacts=incident)
+    tracks_by_uuid = {_uuid(item): item for item in all_copper}
+    grouped_copper = {_uuid(item) for group in board.Groups() for item in group.GetItems()}
 
     removed = {}
     pad_row_by_identity = {
@@ -5278,6 +5797,7 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
     }
     anchors = []
     anchor_keys = set()
+    preserved_tracks = set()
 
     def preserve_anchor(row):
         key = (
@@ -5301,12 +5821,15 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
             "track_uuid": _uuid(via),
             "kind": "authored_locked_pad_via",
         })
-    for ref, pad_number, net_name, net_code, start in pad_rows:
-        for item in tracks_by_node.get((net_code, start), ()):
+    for contact in incident['contacts']:
+        ref, pad_number, net_name = contact['ref'], contact['pad'], contact['net']
+        start = tuple(contact['contact_nm'])
+        for item in (tracks_by_uuid[contact['track_uuid']],):
             uid = _uuid(item)
             if not uid or uid in removed or uid in internal_tracks:
                 continue
-            if item.IsLocked() and uid not in generated_locked:
+            if ((item.IsLocked() and uid not in generated_locked) or uid in grouped_copper
+                    or contact.get('fixed_boundary')):
                 # Like a locked pad via, authored incident copper is a fixed
                 # route boundary.  Keep the trace untouched and reconnect the
                 # moved pad to its old contact point.  This preserves manual
@@ -5319,15 +5842,17 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
                     "x_mm": round(start[0] / MM, 6),
                     "y_mm": round(start[1] / MM, 6),
                     "track_uuid": uid,
-                    "kind": "authored_locked_incident_branch",
+                    "kind": (contact.get('contact_kind') or
+                             ("grouped_incident_branch" if uid in grouped_copper
+                              and not item.IsLocked() else "authored_locked_incident_branch")),
                 })
+                preserved_tracks.add(uid)
                 continue
             removed[uid] = item
             if len(removed) > max(1, int(max_branch_tracks)):
                 return False, {"refusal": "incident_branch_too_broad",
                                "track_count": len(removed)}
-            a, b = point_key(item.GetStart()), point_key(item.GetEnd())
-            far = b if a == start else a
+            far = tuple(contact['far_nm'])
             preserve_anchor({
                 "ref": ref,
                 "pad": pad_number,
@@ -5372,10 +5897,23 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
             continue
         via.SetPosition(new_pad_centers[identity])
         moved_vias.append(_uuid(via))
-    for item in removed.values():
-        board.Remove(item)
+    discard_items(board, removed.values())
+    copper_ownership = local_cell.compare_inventory(
+        copper_before, local_cell.copper_inventory(board),
+        moved=(*internal_tracks, *moved_vias), removed=removed)
+    if not copper_ownership["ok"]:
+        # Everything above is still private native state. Do not write an
+        # accidental unrelated change even to the candidate PCB.
+        return False, {"refusal": "unowned_local_copper_change",
+                       "copper_ownership": copper_ownership}
+    receipt, lineage_motion = lineage.reissue_owned_mutation(
+        lineage_before, board, moved=(*internal_tracks, *moved_vias),
+        removed=removed, producer="certificate_rigid_cell_motion")
+    if not lineage_motion["ok"]:
+        return False, {"refusal": "owned_local_copper_invariant_failed",
+                       "lineage_motion": lineage_motion}
     board.BuildConnectivity()
-    pcbnew.SaveBoard(board_path, board)
+    lineage.commit_owned_mutation(board_path, board, lineage_before, receipt)
     old_position = old_poses[target.ref]["position"]
     old_rotation = old_poses[target.ref]["rotation"]
     return True, {
@@ -5389,8 +5927,15 @@ def _relocate_footprint_worker(board_path, target_row, candidate,
         "new_rotation_deg": float(fp.GetOrientationDegrees()),
         "moved_internal_tracks": len(internal_tracks),
         "moved_internal_track_uuids": sorted(internal_tracks),
+        "internal_copper_plan": cell_copper,
+        "copper_ownership": copper_ownership,
+        "lineage_motion": lineage_motion,
+        "fixed_via_domain": fixed_via_domain,
         "removed_tracks": len(removed),
+        "removed_track_uuids": sorted(removed),
         "preserved_anchors": anchors,
+        "incident_contacts": incident,
+        "preserved_incident_track_uuids": sorted(preserved_tracks),
         "preserved_locked_pad_via_uuids": sorted(
             _uuid(via) for via in anchored_pad_vias.values() if _uuid(via)),
         "moved_pad_via_uuids": sorted(uid for uid in moved_vias if uid),
@@ -5416,11 +5961,13 @@ def _prune_relocated_dangling_vias_worker(board_path, eligible_uuids,
         return False, {"removed": [], "reason": "no_eligible_dangling_via"}
     board = pcbnew.LoadBoard(board_path)
     removed = []
+    items = []
     for item in list(board.GetTracks()):
         uid = _uuid(item)
         if isinstance(item, pcbnew.PCB_VIA) and uid in remove:
-            board.Remove(item)
             removed.append(uid)
+            items.append(item)
+    discard_items(board, items)
     board.BuildConnectivity()
     pcbnew.SaveBoard(board_path, board)
     return bool(removed), {"removed": sorted(removed)}
@@ -5442,6 +5989,19 @@ def _save_with_reconciled_endpoint_neckdowns(board_path, board, report):
     rule from the minimum width of the exact group that will be saved.
     """
 
+    # Repair happens AFTER import sanitation. Coordinate rounding can emit a
+    # nanometre-long taper here too; it is not a qualified neckdown and used
+    # to survive native DRC while failing independent width conformance.
+    # Sanitize before refill/group derivation, never edit an owned locked
+    # prefix, and let the enclosing native transaction reprove connectivity.
+    report['degenerate_tracks_removed'] = cec_fr.prune_degenerate_tracks(
+        board, preserve_locked=True)
+    # A restored network can join an existing wider branch by retracing its
+    # launch. Native DRC permits same-net overlap, but route craft does not.
+    # Normalize only exact covered capsules before rebuilding width groups;
+    # this retains the physical copper union and never changes locked items.
+    import cec_collinear_copper
+    report['collinear_copper_normalization'] = cec_collinear_copper.normalize(board)
     # Every through-via or track added after the prior fill changes the legal
     # shape of every intersected zone.  Saving the stale fill makes KiCad DRC
     # report zero-clearance copper where the next refill would correctly void
@@ -5453,7 +6013,8 @@ def _save_with_reconciled_endpoint_neckdowns(board_path, board, report):
     if zones:
         for zone in zones:
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        report['zone_fill_stability'] = cec_zone_fill.fill_with_report(board)
         board.BuildConnectivity()
     report["zone_refill"] = {
         "performed": bool(zones),
@@ -5491,7 +6052,13 @@ def _save_with_reconciled_endpoint_neckdowns(board_path, board, report):
 
 
 def _lastmile_worker(board_path, target_nets, attempt_budget, margin,
-                     prefer_bridge=False, wall_timeout_s=None):
+                     prefer_bridge=False, wall_timeout_s=None,
+                     max_route_mm=80.0):
+    # Residual nets are not necessarily short, even when few opens remain.
+    # Match the canonical pass's finite domain, rather than silently excluding
+    # every >25 mm branch from the only portfolio with obstacle-aware search.
+    # The aggregate/per-net deadlines and exact geometry gates remain binding.
+    max_route_mm = _residual_search_domain_mm(max_route_mm)
     board = pcbnew.LoadBoard(board_path)
     resolver = cec_fr._project_netclass_resolver(board_path)
     nets = tuple(target_nets)
@@ -5525,7 +6092,8 @@ def _lastmile_worker(board_path, target_nets, attempt_budget, margin,
                 netclass_resolver=resolver, include_nets={net},
                 attempts_per_pair=8, maze_max_mm=0.0,
                 maze_margin_mm=2.0, bridge_fast=True,
-                wall_timeout_s=allowance, per_net_timeout_s=allowance)
+                wall_timeout_s=allowance, per_net_timeout_s=allowance,
+                simple_planar_pairs=16)
             board.BuildConnectivity()
             net_code = board.GetNetcodeFromNetname(net)
             components = cec_fr.net_connectivity_component_count(
@@ -5539,11 +6107,12 @@ def _lastmile_worker(board_path, target_nets, attempt_budget, margin,
         deep = None
         if unresolved and remaining > 0.0:
             deep = cec_fr.synthesize_lastmile(
-                board, max_mm=25.0, min_w=0.2, clearance=0.0, cap=8,
+                board, max_mm=max_route_mm, min_w=0.2, clearance=0.0, cap=8,
                 netclass_resolver=resolver, include_nets=set(unresolved),
-                attempts_per_pair=int(attempt_budget), maze_max_mm=25.0,
+                attempts_per_pair=int(attempt_budget), maze_max_mm=max_route_mm,
                 maze_margin_mm=float(margin), prefer_bridge=True,
                 wall_timeout_s=remaining,
+                simple_planar_pairs=16 if remaining <= 600. else 0,
                 per_net_timeout_s=max(
                     4.0, remaining / max(1, len(unresolved))))
             stage_rows.append({"stage": "deep_remaining",
@@ -5559,30 +6128,300 @@ def _lastmile_worker(board_path, target_nets, attempt_budget, margin,
         }
     else:
         report = cec_fr.synthesize_lastmile(
-            board, max_mm=25.0, min_w=0.2, clearance=0.0, cap=8,
+            board, max_mm=max_route_mm, min_w=0.2, clearance=0.0, cap=8,
             netclass_resolver=resolver, include_nets=set(nets),
-            attempts_per_pair=int(attempt_budget), maze_max_mm=25.0,
+            attempts_per_pair=int(attempt_budget), maze_max_mm=max_route_mm,
             maze_margin_mm=float(margin), prefer_bridge=False,
             wall_timeout_s=wall_timeout_s,
-            per_net_timeout_s=per_net_timeout_s)
+            per_net_timeout_s=per_net_timeout_s,
+            simple_planar_pairs=(16 if wall_timeout_s is not None
+                and 0 < float(wall_timeout_s) <= 600. else 0))
+    report['residual_search_domain_mm'] = max_route_mm
     if report.get("closed"):
         _save_with_reconciled_endpoint_neckdowns(board_path, board, report)
     return report
 
 
+def _close_certificate_component_pair(board, window, *, board_path,
+                                      prefer_bridge, wall_timeout_s,
+                                      primary_pair_fraction=0.5,
+                                      max_alternatives=6,
+                                      max_shift_mm=8.0,seat_pair_first=False):
+    """Share one finite lease across attachments on the SAME two islands.
+
+    The original certificate is a witness, not a requirement to attach to one
+    particular pad. Both via and component relocation use this portfolio so
+    moving a cell cannot silently disable the native-connected alternatives.
+    Planning grants no rip-up, plane, width or clearance exception. Every
+    attempt still goes through the ordinary exact-pair route authorities.
+    """
+    if not math.isfinite(wall_timeout_s) or wall_timeout_s <= 0:
+        raise ValueError("component pair budget must be finite and positive")
+    if type(seat_pair_first)is not bool:
+        raise ValueError('explicit_certificate_seat_pair_policy_required')
+    pair_policy=dict(seat_pair_first=True)if seat_pair_first else {}
+    if (not math.isfinite(primary_pair_fraction)
+            or not 0 < primary_pair_fraction < 1):
+        raise ValueError("primary pair fraction must be in (0, 1)")
+    if (isinstance(max_alternatives, bool)
+            or not isinstance(max_alternatives, int)
+            or not 0 <= max_alternatives <= 32
+            or not math.isfinite(max_shift_mm) or not 0 <= max_shift_mm <= 80):
+        raise ValueError("component attachment domain must be bounded")
+    import cec_certified_island_access as island_access
+    started = time.monotonic()
+    attachment_plan = None
+    attempts = []
+    info = board.GetNetInfo().GetNetItem(window.net)
+    if info is not None and len(window.endpoints) == 2:
+        code = int(info.GetNetCode())
+        spec = dict(cec_fr._project_netclass_resolver(board_path)(window.net) or {})
+        width = int(round(max(.15, window.width_mm,
+                              float(spec.get("track_width") or 0.0)) * MM))
+        clearance = int(round(max(window.clearance_mm,
+                                  float(spec.get("clearance") or 0.0)) * MM))
+        floor = max(1, int(board.GetDesignSettings().m_TrackMinWidth))
+        anchors = [_certificate_endpoint_anchor(board, endpoint, code,
+                    width, clearance, floor) for endpoint in window.endpoints]
+        if all(anchor is not None for anchor in anchors):
+            route_span=max(25.0, min(80.0, window.distance_mm + 8.0))
+            attachment_plan = island_access.plan(board, code,
+                [(anchor[3], anchor[0].x, anchor[0].y) for anchor in anchors],
+                limit=max_alternatives,
+                max_mm=route_span,
+                max_shift_mm=max_shift_mm, class_width_nm=width,
+                # The native DRC pair is only a witness. An unchanged
+                # full-stack contact on that SAME component may lie beyond
+                # its local alias radius yet inside the existing route
+                # domain. This tier creates no new barrel or routing waiver.
+                existing_access_shift_mm=route_span, interior_contacts=True)
+    remaining = max(0.0, wall_timeout_s - (time.monotonic() - started))
+    reserve = bool(attachment_plan and attachment_plan.get("candidates")
+                   and remaining > 2.0)
+    primary_budget = remaining * (primary_pair_fraction if reserve else 1.0)
+    if attachment_plan is not None:
+        attachment_plan.update(primary_budget_s=primary_budget,
+            alternative_reserve_s=remaining-primary_budget,
+            policy="primary_then_native_connected_alternatives")
+    changed, original = _close_certificate_pair(
+        board, window, board_path=board_path, prefer_bridge=prefer_bridge,
+        wall_timeout_s=primary_budget,**pair_policy)
+    detail = dict(original)
+    if (not changed and reserve and original.get("refusal") in {
+            "certificate_pair_no_exact_clear_path", "certificate_pair_search_timeout"}):
+        candidates = attachment_plan["candidates"]
+        for index, candidate in enumerate(candidates):
+            remaining = wall_timeout_s - (time.monotonic() - started)
+            if remaining <= 1.0:
+                attachment_plan["stop"] = "island_pair_wall_budget"
+                break
+            allowance = remaining / max(1, len(candidates)-index)
+            alternative = NegotiationWindow(**{
+                **asdict(window), "endpoints": tuple(candidate["endpoints"]),
+                "distance_mm": candidate["distance_mm"]})
+            changed, attempt = _close_certificate_pair(
+                board, alternative, board_path=board_path,
+                prefer_bridge=prefer_bridge, wall_timeout_s=allowance,**pair_policy)
+            attempts.append(dict(candidate=candidate, wall_budget_s=allowance,
+                                 changed=changed, completion=attempt))
+            if changed:
+                detail = dict(attempt)
+                break
+    detail["search_scope"] = ("certificate_component_pair" if attempts
+                              else "certificate_exact_pair")
+    detail["timed_out"] = bool(not changed and (
+        original.get("refusal") == "certificate_pair_search_timeout"
+        or any(row["completion"].get("refusal") == "certificate_pair_search_timeout"
+               for row in attempts)
+        or (attachment_plan or {}).get("stop") == "island_pair_wall_budget"))
+    if attachment_plan is not None:
+        detail.update(original_pair=original,
+                      island_attachment_plan=attachment_plan,
+                      island_attachment_attempts=attempts)
+    return changed, detail
+
+
+def _certified_via_target_worker(board_path, target_row, wall_timeout_s, *,
+                                 primary_pair_fraction=0.5, additive_only=False,
+                                 seat_pair_first=False):
+    """Close the named pair only; never silently widen a live certificate.
+
+    Older persisted plans without endpoint evidence retain a bounded legacy
+    net search. A present but malformed/stale pair fails closed instead of
+    routing some other island. The parent still admits the whole composite
+    board, including the relocated via's owning net and every protected rule.
+    """
+    if not math.isfinite(wall_timeout_s) or wall_timeout_s <= 0:
+        raise ValueError("via target budget must be finite and positive")
+    if type(seat_pair_first)is not bool:
+        raise ValueError('explicit_certificate_seat_pair_policy_required')
+    if (not math.isfinite(primary_pair_fraction)
+            or not 0 < primary_pair_fraction < 1):
+        raise ValueError("primary pair fraction must be in (0, 1)")
+    if "route_endpoints" not in target_row:
+        report = _lastmile_worker(
+            board_path, (target_row["target_net"],), 24, 8.0, True,
+            wall_timeout_s)
+        report["search_scope"] = "legacy_net_without_endpoint_evidence"
+        return report
+    endpoints = target_row["route_endpoints"]
+    valid = isinstance(endpoints, (list, tuple)) and len(endpoints) == 2
+    if valid:
+        try:
+            valid = all(isinstance(item, dict) and all(
+                math.isfinite(float(item[key])) for key in ("x_mm", "y_mm"))
+                for item in endpoints)
+        except (KeyError, TypeError, ValueError):
+            valid = False
+    if not valid:
+        return {"closed": 0, "search_scope": "certificate_exact_pair",
+                "refusal": "certificate_pair_invalid", "timed_out": False}
+    started = time.monotonic()
+    board = pcbnew.LoadBoard(board_path)
+    original_track_uuids = {item.m_Uuid.AsString() for item in board.GetTracks()}
+    net = str(target_row["target_net"])
+    code = board.GetNetcodeFromNetname(net)
+    before = (cec_fr.net_connectivity_component_count(board, code)
+              if code > 0 else None)
+    window = NegotiationWindow(
+        net=net, distance_mm=float(target_row.get("distance_mm") or 0.0),
+        width_mm=float(target_row.get("width_mm") or 0.25),
+        clearance_mm=float(target_row.get("clearance_mm") or 0.0),
+        blocker_uuids=(), blocker_nets=(), blocker_hits=0,
+        omitted_movable_blockers=0, fixed_blocker_hits=0,
+        trapped_endpoints=0, endpoints=tuple(copy.deepcopy(endpoints)),
+        priority=())
+    # An authored contour can cover a pre-existing pad-clearance pocket.
+    # Do not globally switch the router to filled polygons: that would permit
+    # long cuts through power reservations after other routes move. Admit only
+    # a short direct pad-to-pad link whose entire clearance envelope already
+    # misses the frozen fill, and re-prove no power copper loss after refill.
+    import cec_frozen_pour_void as pour_void
+    resolver = cec_fr._project_netclass_resolver(board_path)
+    spec = dict(resolver(net) or {})
+    void_plan, frozen_fills, fill_control = None, None, None
+    void_endpoints = endpoints
+    if not protected_net_reason(net, width_mm=window.width_mm):
+        width = int(round(max(window.width_mm, float(spec.get('track_width') or 0.0),
+                              int(board.GetDesignSettings().m_TrackMinWidth)/MM) * MM))
+        clearance = int(round(max(window.clearance_mm, float(spec.get('clearance') or 0.0)) * MM))
+        void_plan = pour_void.plan(board, endpoints, net_code=code,
+            width_nm=width, clearance_nm=clearance)
+        if void_plan is None:
+            # Native DRC may name the end of an existing pad-attached track.
+            # Reuse only native-proven points on those same two islands;
+            # proximity to an unrelated same-net pad is never connectivity.
+            import cec_certified_island_access as island_access
+            anchors = [_certificate_endpoint_anchor(board, endpoint, code,
+                width, clearance, int(board.GetDesignSettings().m_TrackMinWidth))
+                for endpoint in endpoints]
+            if all(anchor is not None for anchor in anchors):
+                access = island_access.plan(board, code,
+                    [(anchor[3], anchor[0].x, anchor[0].y) for anchor in anchors],
+                    limit=8, max_mm=2.0, max_shift_mm=2.0, class_width_nm=width)
+                for candidate in access.get('candidates', ()):
+                    if time.monotonic()-started >= wall_timeout_s:
+                        break
+                    void_plan = pour_void.plan(board, candidate['endpoints'],
+                        net_code=code, width_nm=width, clearance_nm=clearance)
+                    if void_plan:
+                        void_endpoints = candidate['endpoints']
+                        void_plan['evidence']['certified_component_endpoints'] = candidate['endpoints']
+                        break
+    if void_plan and not additive_only:
+        try:
+            frozen_fills, fill_control = pour_void.refreshed_control(board)
+            if frozen_fills is None:
+                return dict(closed=0, refusal='frozen_pour_control_copper_loss',
+                    frozen_pour_control=fill_control, timed_out=False)
+            # The control refill is now the exact native search state. Recheck
+            # the entire clearance envelope rather than reusing stale voids.
+            void_plan = pour_void.plan(board, void_endpoints, net_code=code,
+                width_nm=width, clearance_nm=clearance)
+            if void_plan is None:
+                return dict(closed=0, refusal='frozen_pour_control_changed_void',
+                    frozen_pour_control=fill_control, timed_out=False)
+            void_plan['evidence']['certified_component_endpoints'] = void_endpoints
+        except ValueError as exc:
+            return dict(closed=0, refusal='frozen_pour_control_unavailable',
+                error=str(exc), timed_out=False)
+    remaining = max(0.0, wall_timeout_s - (time.monotonic() - started))
+    if void_plan:
+        geometry = _lay_ops(board, void_plan['operations'], code, lock=False)
+        changed, evidence = True, dict(closed=1, refused=0,
+            frozen_pour_void=void_plan['evidence'], frozen_pour_control=fill_control,
+            exact_pair_geometry=geometry)
+    elif remaining > 0.0:
+        changed, evidence = _close_certificate_component_pair(
+            board, window, board_path=board_path, prefer_bridge=True,
+            wall_timeout_s=remaining, primary_pair_fraction=primary_pair_fraction,
+            **(dict(seat_pair_first=True)if seat_pair_first else {}))
+    else:
+        changed, evidence = False, dict(refusal="certificate_pair_search_timeout",
+                                       timed_out=True)
+    # A component attachment authorizes adding a branch to retained source
+    # metal, not shortening its old unlocked segment at an interior contact.
+    # The legacy whole-board collinear cleanup can trim that source segment
+    # even when copper-union connectivity is unchanged. Keep this additive
+    # contract literal, independently of whether the outer caller also
+    # requested the more restrictive additive-only portfolio.
+    retain_attachment_source = bool(
+        evidence.get('search_scope') == 'certificate_component_pair'
+        or any(endpoint.get('kind') == 'track_contact' for endpoint in endpoints))
+    if changed and not additive_only and not retain_attachment_source:
+        board.BuildConnectivity()
+    after = (cec_fr.net_connectivity_component_count(board, code)
+             if code > 0 else None)
+    report = {**evidence, "search_scope": evidence.get("search_scope", "certificate_exact_pair"),
+              "route_endpoints": copy.deepcopy(endpoints),
+              "components_before": before, "components_after": after,
+              "closed": int(evidence.get("closed") or 0) if changed else 0,
+              "timed_out": bool(evidence.get("timed_out")),
+              "elapsed_s": round(time.monotonic() - started, 3),
+              "wall_budget_s": float(wall_timeout_s)}
+    if changed:
+        if additive_only or retain_attachment_source:
+            import cec_additive_pair_repair
+            cec_additive_pair_repair.save_native_additions(
+                board_path,board,report,original_track_uuids)
+        else:
+            _save_with_reconciled_endpoint_neckdowns(board_path, board, report)
+        if frozen_fills is not None:
+            proof = pour_void.preservation(frozen_fills, board)
+            report['frozen_pour_preservation'] = proof
+            if not proof['ok']:
+                report.update(closed=0, refusal='frozen_pour_copper_loss')
+    return report
+
+
 def _exact_relocated_connections_worker(board_path, target_row, move,
-                                        wall_timeout_s=30.0):
+                                        wall_timeout_s=30.0, *,
+                                        recover_target_budget=True,
+                                        pair_budget_cap_s=20.0,
+                                        recovery_min_gain_s=1.0,
+                                        target_budget_fraction=0.6):
     """Reconnect a moved support cell to its certified live boundaries.
 
     Relocation already records the exact far end of every removed incident
     segment, and its refusal certificate records the target net's live remote
     endpoint.  Searching every disconnected island on either net discards
     that information and can spend a minute proving the wrong pair.  Route
-    only those pad-to-node pairs first, with the ordinary layer, clearance,
-    edge, POFV, and endpoint-neckdown guards.  The caller still performs a
+    those pad-to-node pairs first, then bounded native-connected attachment
+    alternatives on exactly the same two islands, with ordinary layer,
+    clearance, edge, POFV, and endpoint-neckdown guards. The caller still performs a
     whole-board connectivity and DRC admission after the composite move.
     """
 
+    if (not math.isfinite(wall_timeout_s) or wall_timeout_s <= 0
+            or type(recover_target_budget) is not bool
+            or not math.isfinite(pair_budget_cap_s)
+            or not 0 < pair_budget_cap_s <= 120
+            or not math.isfinite(recovery_min_gain_s)
+            or not 0 < recovery_min_gain_s <= 120
+            or type(target_budget_fraction) not in (int, float)
+            or not math.isfinite(target_budget_fraction)
+            or not 0 <= target_budget_fraction <= 0.9):
+        raise ValueError("relocated pair search budgets must be finite and bounded")
     board = pcbnew.LoadBoard(board_path)
     target = FootprintRepairTarget(**target_row)
     fp = board.FindFootprintByReference(target.ref)
@@ -5599,7 +6438,12 @@ def _exact_relocated_connections_worker(board_path, target_row, move,
         "x_mm", target.endpoint_x_mm))
     target_y_mm = float(endpoint_override.get(
         "y_mm", target.endpoint_y_mm))
-    if target_pads:
+    if target.motion == "away_from_endpoint" and target.route_endpoints:
+        pairs.append({
+            "role": "target", "net": str(target.target_net),
+            "route_endpoints": [dict(item) for item in target.route_endpoints],
+        })
+    elif target_pads:
         remote = pcbnew.VECTOR2I(
             int(round(target_x_mm * MM)), int(round(target_y_mm * MM)))
         pad = min(target_pads, key=lambda item: math.hypot(
@@ -5622,12 +6466,15 @@ def _exact_relocated_connections_worker(board_path, target_row, move,
             "x_mm": float(anchor.get("x_mm") or 0.0),
             "y_mm": float(anchor.get("y_mm") or 0.0),
             "track_uuid": str(anchor.get("track_uuid") or ""),
+            **({"route_endpoints": copy.deepcopy(anchor['route_endpoints'])}
+               if anchor.get('route_endpoints') else {}),
         })
 
     started = time.monotonic()
     closed = []
     refused = []
     target_closed = False
+    deferred_target = None
     for index, pair in enumerate(pairs):
         if pair.get("refusal"):
             refused.append(pair)
@@ -5638,21 +6485,31 @@ def _exact_relocated_connections_worker(board_path, target_row, move,
             refused.append({**pair,
                             "refusal": "relocated_pair_budget_exhausted"})
             continue
-        footprint = board.FindFootprintByReference(pair["ref"])
-        pad = (None if footprint is None else next(
-            (item for item in footprint.Pads()
-             if str(item.GetNumber()) == pair["pad"]
-             and str(item.GetNetname()) == pair["net"]), None))
-        if pad is None:
-            refused.append({**pair,
-                            "refusal": "relocated_pair_pad_not_live"})
-            continue
-        distance_mm = math.hypot(
-            pad.GetCenter().x / MM - pair["x_mm"],
-            pad.GetCenter().y / MM - pair["y_mm"])
+        route_endpoints = tuple(pair.get("route_endpoints") or ())
+        if route_endpoints:
+            # This transaction moved a foreign obstruction, not a member of
+            # the signal pair. The exact router rebinds both original origins
+            # to live same-net copper; never invent a signal pad on the moved
+            # component or replace the pair with an arbitrary island search.
+            distance_mm = target.distance_mm
+        else:
+            footprint = board.FindFootprintByReference(pair["ref"])
+            pad = (None if footprint is None else next(
+                (item for item in footprint.Pads()
+                 if str(item.GetNumber()) == pair["pad"]
+                 and str(item.GetNetname()) == pair["net"]), None))
+            if pad is None:
+                refused.append({**pair,
+                                "refusal": "relocated_pair_pad_not_live"})
+                continue
+            distance_mm = math.hypot(
+                pad.GetCenter().x / MM - pair["x_mm"],
+                pad.GetCenter().y / MM - pair["y_mm"])
         resolver = cec_fr._project_netclass_resolver(board_path)
         spec = dict(resolver(pair["net"]) or {})
-        if pair["role"] == "target" and endpoint_override:
+        if route_endpoints:
+            pass
+        elif pair["role"] == "target" and endpoint_override:
             remote_endpoint = {
                 key: endpoint_override[key]
                 for key in ("kind", "ref", "pad", "uuid", "x_mm", "y_mm")
@@ -5669,6 +6526,10 @@ def _exact_relocated_connections_worker(board_path, target_row, move,
         else:
             remote_endpoint = {"kind": "node", "x_mm": pair["x_mm"],
                                "y_mm": pair["y_mm"]}
+        if not route_endpoints:
+            route_endpoints = (
+                remote_endpoint,
+                {"kind": "pad", "ref": pair["ref"], "pad": pair["pad"]})
         window = NegotiationWindow(
             net=pair["net"], distance_mm=float(distance_mm),
             width_mm=max(0.15, float(spec.get("track_width") or 0.0)),
@@ -5676,38 +6537,119 @@ def _exact_relocated_connections_worker(board_path, target_row, move,
             blocker_uuids=(), blocker_nets=(), blocker_hits=0,
             omitted_movable_blockers=0, fixed_blocker_hits=0,
             trapped_endpoints=0,
-            endpoints=(
-                remote_endpoint,
-                {"kind": "pad", "ref": pair["ref"],
-                 "pad": pair["pad"]}),
+            endpoints=route_endpoints,
             priority=(index,), local_pin_escape=True)
-        # Share the finite wall clock fairly across the remaining exact pairs.
-        allowance = max(1.0, min(20.0, remaining / max(
-            1, len(pairs) - index)))
-        changed, detail = _close_certificate_pair(
+        # The certified missing target is the reason for this transaction.
+        # Merely putting it first is insufficient when a large fanout divides
+        # its lease into 1-2 seconds. Give it a real first search BEFORE cheap
+        # support stubs can occupy its escapes, retaining a bounded support
+        # reserve. This changes effort/order only, never geometric rules or
+        # the requirement to restore every support and pass final admission.
+        allowance = min(pair_budget_cap_s, remaining, max(
+            1.0, remaining / max(1, len(pairs) - index)))
+        if pair['role'] == 'target' and len(pairs)-index > 1:
+            allowance = max(allowance, min(pair_budget_cap_s,
+                                          remaining*target_budget_fraction))
+        changed, detail = _close_certificate_component_pair(
             board, window, board_path=board_path, prefer_bridge=False,
             wall_timeout_s=allowance)
         row = {**pair, "distance_mm": round(distance_mm, 6),
-               "completion": detail}
+               "completion": detail, "wall_budget_s": allowance,
+               "remaining_at_dispatch_s": remaining}
         if not changed:
             row["refusal"] = str(detail.get("refusal") or
                                   "relocated_pair_not_closed")
             refused.append(row)
+            if pair["role"] == "target" and (
+                    row["refusal"] == "certificate_pair_search_timeout"
+                    or (row["refusal"] == "certificate_pair_no_exact_clear_path"
+                        and detail.get("timed_out") is True)):
+                deferred_target = (window, row, allowance)
             continue
         board.BuildConnectivity()
         closed.append(row)
         if pair["role"] == "target":
             target_closed = True
 
+    # The initial fair lease protects every disturbed branch. Once those
+    # exact restoration obligations have completed, return unused time to a
+    # timed-out target instead of abandoning most of the worker's budget.
+    # This is ONE larger attempt on the same two live islands, not an
+    # unbounded retry loop or authority to route another same-net component.
+    support_expected = sum(pair.get("role") == "support" for pair in pairs)
+    support_restored = sum(row["role"] == "support" for row in closed)
+    remaining = max(0.0, float(wall_timeout_s) - (time.monotonic() - started))
+    recovery = dict(attempted=False, remaining_s=remaining,
+        support_expected=support_expected, support_restored=support_restored,
+        policy="one_larger_target_lease_after_exact_support_restoration",
+        release_authority=False)
+    if not recover_target_budget:
+        recovery["stop"] = "disabled"
+    elif target_closed or deferred_target is None:
+        recovery["stop"] = "target_closed_or_not_timed_out"
+    elif support_restored != support_expected:
+        recovery["stop"] = "support_restoration_incomplete"
+    else:
+        window, previous, initial_allowance = deferred_target
+        allowance = min(pair_budget_cap_s, remaining)
+        recovery.update(initial_budget_s=initial_allowance,
+                        proposed_budget_s=allowance)
+        if allowance < initial_allowance + recovery_min_gain_s:
+            recovery["stop"] = "no_larger_remaining_lease"
+        else:
+            recovery.update(attempted=True, wall_budget_s=allowance,
+                            initial_completion=previous["completion"])
+            changed, detail = _close_certificate_component_pair(
+                board, window, board_path=board_path, prefer_bridge=False,
+                wall_timeout_s=allowance)
+            recovery.update(changed=changed, completion=detail,
+                stop="target_closed" if changed else "bounded_target_retry_refused")
+            row = {**previous, "completion": detail}
+            refused.remove(previous)
+            if changed:
+                row.pop("refusal", None)
+                board.BuildConnectivity()
+                closed.append(row)
+                target_closed = True
+            else:
+                row["refusal"] = str(detail.get("refusal") or
+                                      "relocated_pair_not_closed")
+                refused.append(row)
+
+    # Closing a pad-to-anchor pair does not prove the entire return/support
+    # net is connected. A moved pad can have bridged more than one island;
+    # the old set-of-successful-pairs shortcut suppressed required recovery.
+    # Use the same native graph query as final last-mile completion. Missing
+    # or zero-component nets are not qualified as closed.
+    board.BuildConnectivity()
+    support_nets = {str(row.get('net') or '') for row in pairs
+                    if row.get('role') == 'support'}
+    support_nets.update(_relocation_support_nets(move, target.target_net))
+    support_nets.discard('')
+    support_components = {}
+    for net in sorted(support_nets):
+        try:
+            code = board.GetNetcodeFromNetname(net)
+        except (KeyError, IndexError):
+            code = 0
+        support_components[net] = (cec_fr.net_connectivity_component_count(board, code)
+                                   if code > 0 else None)
     report = {
         "schema": 1, "closed": len(closed),
         "target_closed": bool(target_closed),
         "support_closed": sum(row["role"] == "support" for row in closed),
-        "support_closed_nets": sorted({
+        "support_anchor_closed_nets": sorted({
             row["net"] for row in closed if row["role"] == "support"}),
+        "support_components_after": support_components,
+        "support_closed_nets": sorted(net for net, count in support_components.items()
+                                      if count == 1),
         "support_expected": sum(row.get("role") == "support"
                                 and not row.get("refusal") for row in pairs),
         "closed_details": closed, "refused": refused,
+        "target_budget_recovery": recovery,
+        "budget_policy": dict(name='critical_target_first_with_support_reserve',
+            target_fraction=target_budget_fraction, pair_cap_s=pair_budget_cap_s,
+            transaction_wall_s=wall_timeout_s, release_authority=False),
         "elapsed_s": round(time.monotonic() - started, 3),
     }
     if closed:
@@ -5773,7 +6715,8 @@ def _broad_canonical_worker(board_path, target_nets):
         # still available later under an exact refusal certificate.
         bridge_fast=True,
         wall_timeout_s=inner_timeout_s,
-        per_net_timeout_s=inner_timeout_s)
+        per_net_timeout_s=inner_timeout_s,
+        simple_planar_pairs=16 if inner_timeout_s <= 600. else 0)
     if report.get("closed"):
         _save_with_reconciled_endpoint_neckdowns(board_path, board, report)
     return report
@@ -5786,7 +6729,145 @@ def _completion_net(detail: dict) -> str:
     return str(certificate.get("net") or detail.get("net") or "")
 
 
-def _rank_single_net_closure_targets(open_nets, completion) -> list[str]:
+def _compact_negotiation_outcomes(prior, attempts=(), *, negotiation_stop=None):
+    """Keep measured search outcomes, never coordinates or route authority.
+
+    Visit counts alone cannot distinguish a completed closure, a bounded
+    refusal, and an IPC failure. The existing placement scheduler needs that
+    distinction when a normal coordinator resumes from its compact sidecar.
+    A timeout is only a reason to try a different bounded degree of freedom;
+    it is not a proof of geometric impossibility or permission to move a part.
+    """
+    keys = ('proven_close_nets', 'timed_out_nets', 'exhausted_nets')
+    result = {key: set() for key in keys}
+    if isinstance(prior, dict):
+        for key in keys:
+            values = prior.get(key)
+            if isinstance(values, list):
+                result[key].update(sorted({v for v in values
+                    if isinstance(v, str) and 0 < len(v) <= 512})[:256])
+    terminal, retryable = {}, set()
+    for row in attempts:
+        if not isinstance(row, dict) or row.get('stage') != 'atomic_negotiation':
+            continue
+        window, phases = row.get('window'), row.get('phases')
+        window = window if isinstance(window, dict) else {}
+        phases = phases if isinstance(phases, dict) else {}
+        close = phases.get('close')
+        close = close if isinstance(close, dict) else {}
+        completion, net = close.get('completion'), window.get('net')
+        if not isinstance(net, str) or not 0 < len(net) <= 512:
+            continue
+        if row.get('decision') == 'worker_error':
+            retryable.add(net)
+            continue
+        if not isinstance(completion, dict):
+            continue
+        closed = completion.get('closed')
+        measured = type(closed) is int and closed >= 0
+        if measured and closed > 0:
+            result['proven_close_nets'].add(net)
+        if (completion.get('timed_out') is True or
+                (measured and row.get('decision') == 'blocked_net_search_timeout')):
+            result['timed_out_nets'].add(net)
+            retryable.add(net)
+        elif measured and closed == 0 and row.get('decision') in {
+                'blocked_net_still_refused', 'blocked_net_unroutable',
+                'blocked_net_search_exhausted'}:
+            variant = row.get('variant', 0)
+            if type(variant) is int and 0 <= variant <= 64:
+                terminal.setdefault(net, set()).add(variant)
+    if negotiation_stop == 'no_admissible_negotiation':
+        result['exhausted_nets'].update(net for net, variants in terminal.items()
+                                      if len(variants) >= 2 and net not in retryable)
+    for key in ('timed_out_nets', 'exhausted_nets'):
+        result[key].difference_update(result['proven_close_nets'])
+    return {key: sorted(values)[:256] for key, values in result.items()}
+
+
+def route_search_history(prior, attempts=(), *, negotiation_stop=None,
+                         pose_scope=None, placement_plan=None, geometry_changed=False):
+    """Bounded search-cost memory only; never geometry or no-path authority."""
+    attempts = tuple(attempts or ())
+    stages = ('broad_canonical_closure', 'deep_route_portfolio')
+    source = prior.get('route_search_history') if isinstance(prior, dict) else {}
+    source = source if isinstance(source, dict) else {}
+    counts = {stage: {} for stage in stages}
+    negotiation_visits = {}
+    saved_outcomes = {}
+    saved_poses = {}
+    if source.get('algorithm_revision') == REPAIR_ALGORITHM_REVISION:
+        saved_outcomes = source.get('negotiation_outcomes') or {}
+        saved_poses = source.get('placement_poses') or {}
+        saved_stages = source.get('stages')
+        saved_stages = saved_stages if isinstance(saved_stages, dict) else {}
+        for stage in stages:
+            saved = saved_stages.get(stage)
+            saved = saved if isinstance(saved, dict) else {}
+            for net, value in sorted((k,v) for k,v in saved.items()
+                    if isinstance(k,str) and 0 < len(k) <= 512)[:256]:
+                if isinstance(net, str) and isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                    counts[stage][net] = min(value, 1000000)
+        saved = source.get('negotiation_visits')
+        if isinstance(saved, dict):
+            for net, value in sorted((k, v) for k, v in saved.items()
+                                     if isinstance(k, str) and 0 < len(k) <= 512)[:256]:
+                if net and isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                    negotiation_visits[net] = min(value, 1000000)
+    for row in attempts:
+        if not isinstance(row, dict):
+            continue
+        stage, net = row.get('stage'), row.get('net')
+        if stage in counts and isinstance(net, str) and 0 < len(net) <= 512:
+            counts[stage][net] = min(1000000, counts[stage].get(net, 0) + 1)
+        if stage == 'atomic_negotiation':
+            window = row.get('window') or {}
+            phases = row.get('phases') or {}
+            if not isinstance(window, dict) or not isinstance(phases, dict):
+                continue
+            close = phases.get('close') or {}
+            if not isinstance(close, dict):
+                continue
+            net = window.get('net')
+            # A startup/IPC failure is not sampled geometry. Count only a
+            # completed search report, including an honestly reported timeout.
+            if (isinstance(net, str) and 0 < len(net) <= 512
+                    and isinstance(close.get('completion'), dict)):
+                negotiation_visits[net] = min(
+                    1000000, negotiation_visits.get(net, 0) + 1)
+    import cec_route_pose_history as poses
+    history = dict(schema=1, algorithm_revision=REPAIR_ALGORITHM_REVISION,
+                stages={stage: dict(sorted(rows.items())[:256]) for stage, rows in counts.items()},
+                negotiation_visits=dict(sorted(negotiation_visits.items())[:256]),
+                negotiation_outcomes=_compact_negotiation_outcomes(
+                    saved_outcomes, attempts, negotiation_stop=negotiation_stop),
+                placement_poses=poses.merge(saved_poses, current_scope=pose_scope,
+                    plan=placement_plan, geometry_changed=geometry_changed),
+                release_authority=False)
+    # The coordinator's sidecar reader has a 64 KiB bound. Keep headroom for
+    # the outer source digest and JSON formatting, even with long net names.
+    # Dropped hints never drop live targets; those simply become untried again.
+    names = sorted(set().union(*[set(rows) for rows in history['stages'].values()],
+        set(history['negotiation_visits']),
+        *[set(rows) for rows in history['negotiation_outcomes'].values()]))
+    while len(json.dumps(history, indent=2).encode('utf-8')) > 48 * 1024:
+        pose_rows = history['placement_poses'].get('rejected_keys', [])
+        if pose_rows:
+            history['placement_poses']['rejected_keys'] = pose_rows[:len(pose_rows)//2]
+        names = names[:len(names)//2]
+        retained = set(names)
+        history['stages'] = {stage: {net: value for net, value in rows.items()
+            if net in retained} for stage, rows in history['stages'].items()}
+        history['negotiation_visits'] = {net: value for net, value in
+            history['negotiation_visits'].items() if net in retained}
+        history['negotiation_outcomes'] = {key: [net for net in rows if net in retained]
+            for key, rows in history['negotiation_outcomes'].items()}
+        history['storage_truncated'] = True
+    return history
+
+
+def _rank_single_net_closure_targets(open_nets, completion, *, history=None,
+                                    stage=None, value_first=False) -> list[str]:
     """Schedule certified/local residuals before unknown long connections.
 
     A multi-net last-mile call is sequential inside one KiCad process.  One
@@ -5797,7 +6878,7 @@ def _rank_single_net_closure_targets(open_nets, completion) -> list[str]:
     remain eligible but cannot starve evidence-backed local work.
     """
 
-    distances = {}
+    distances, opportunities = {}, {}
     for row in refusal_certificates(completion):
         detail = row.get("detail") or {}
         net = _completion_net(detail)
@@ -5808,9 +6889,14 @@ def _rank_single_net_closure_targets(open_nets, completion) -> list[str]:
         except (TypeError, ValueError):
             distance = float("inf")
         distances[net] = min(distance, distances.get(net, float("inf")))
+        opportunities[net] = opportunities.get(net, 0) + 1
+    visits = (route_search_history({'route_search_history': history}).get(
+        'stages', {}).get(stage) or {})
     return sorted(
         {str(net) for net in (open_nets or ()) if str(net)},
         key=lambda net: (
+            visits.get(net, 0),
+            -opportunities.get(net, 0) if value_first else 0,
             0 if net in distances else 1,
             distances.get(net, float("inf")),
             net,
@@ -5903,6 +6989,83 @@ def _defer_support_relocation(footprint_plan, negotiation_plan,
         and current_nets <= (prior_timeouts | prior_exhausted))
 
 
+def _support_relocation_schedule(footprint_plan, negotiation_plan, prior_report=None):
+    """Defer a support only to route windows for its own refused net.
+
+    A board-wide Boolean made an unrelated retryable window suppress every
+    support transaction, including nets with no movable route blocker. This
+    partitions existing certified targets; it neither creates motion authority
+    nor declares a route impossible. The same transactional admission applies.
+    Legacy targets without a net conservatively keep the board-wide ordering.
+    """
+    eligible, deferred = [], []
+    windows = list((negotiation_plan or {}).get('windows') or ())
+    for target in (footprint_plan or {}).get('targets') or ():
+        net = str(target.get('target_net') or '')
+        related = [row for row in windows if not net or str(row.get('net') or '') == net]
+        postpone = _defer_support_relocation(
+            {'targets': [target]}, {'windows': related}, prior_report)
+        (deferred if postpone else eligible).append(target)
+    return dict(eligible=eligible, deferred=deferred,
+                policy='same_net_route_windows_before_support_motion',
+                release_authority=False, exhaustion_is_no_path_proof=False)
+
+
+def _native_support_aperture_schedule(board_path, schedule, *, support_limits=None,
+                                      craft_policy=None, generated_locked_uuids=(),
+                                      effort=None):
+    """Let a freshly witnessed land escape precede unrelated copper work.
+
+    The normal route-first order cannot clear a component land. Probe at most
+    two already-certified supports, then rank witnessed escape menus before
+    speculative moves. Include already-eligible supports: discovering their
+    aperture only inside a late transaction can leave no target-route budget.
+    No stale proposal, timeout, or failed probe changes eligibility; this is
+    not a no-path or release proof.
+    """
+    import cec_support_pin_aperture as aperture
+    result = copy.deepcopy(schedule)
+    proposals, evidence = {}, []
+    identity = lambda row: (str(row.get('ref') or ''), str(row.get('target_net') or ''))
+    targets = list(result.get('eligible') or ()) + list(result.get('deferred') or ())
+    deferred_keys = {identity(t) for t in result.get('deferred') or ()}
+    witnessed = []
+    for target in targets[:2]:
+        key = identity(target)
+        if not all(key):
+            continue
+        if effort is not None and (not effort.available('support_pin_aperture_probe')
+                                    or effort.remaining_wall_s() < 10.0):
+            break
+        row = dict(ref=key[0], target_net=key[1], count=0, release_authority=False)
+        evidence.append(row)
+        try:
+            candidates = _spawn_apply(aperture.worker,
+                (board_path, target, support_limits, craft_policy, tuple(generated_locked_uuids)),
+                timeout_s=10.0)
+            if not isinstance(candidates, list) or any(
+                    not isinstance(c, dict) or c.get('generator') != 'native_support_pin_aperture'
+                    or not isinstance(c.get('pin_aperture'), dict)
+                    or c['pin_aperture'].get('remaining_route_proof_required') is not True
+                    or c['pin_aperture'].get('release_authority') is not False
+                    for c in candidates):
+                raise ValueError('invalid native aperture proposal response')
+            row['count'] = len(candidates)
+        except Exception as exc:
+            row['error'] = '%s: %s' % (type(exc).__name__, exc)
+            continue
+        if candidates:
+            proposals[key] = candidates
+            witnessed.append(target)
+            result['deferred'] = [t for t in result['deferred'] if identity(t) != key]
+    result['eligible'] = witnessed + [t for t in result.get('eligible') or ()
+                                     if identity(t) not in proposals]
+    result['native_pin_aperture_intake'] = dict(targets=evidence,
+        promoted=len(set(proposals) & deferred_keys), witnessed=len(proposals),
+        release_authority=False, exhaustion_is_no_path_proof=False)
+    return result, proposals
+
+
 def _drc_dangling_targets(drc_data):
     """Return exact route UUIDs identified by KiCad as dangling copper."""
     rows = {}
@@ -5921,29 +7084,126 @@ def _drc_dangling_targets(drc_data):
 
 
 def _drc_dangling_cleanup_worker(board_path, max_iterations=8):
-    """Delete only KiCad-proven dangling route items until the cascade settles.
+    """Settle DRC dangling routes and independently proved orphan barrels.
 
-    Locked router output is not authorship here: an item enters this pass only
-    when the current KiCad DRC names its exact UUID as dangling.  The caller
+    Locked router output is not authorship here: ordinary dangling cleanup
+    requires the current KiCad DRC to name the exact UUID. Generated local
+    capacitor-return kernels additionally require actual lost factory-owner
+    evidence and their independently received dual-plane/in-pad proof. An error-named
+    through barrel may instead report a foreign short; retirement additionally
+    requires complete enabled-layer native isolation from every same-net pad,
+    route and authored zone. Groups/reservations and uncertain scopes refuse.
+    The caller
     still evaluates the complete candidate transactionally and rejects any
     connectivity, pair, or DRC regression.
     """
+    import cec_native_isolated_vias as isolated
+    import cec_stale_local_ground_via as stale_ground
+    import cec_ground_elbow_reflow as ground_elbow
+    import cec_redundant_local_ground_return as ground_kernel
+    import cec_additive_route_receiving as native_additions
+    import cec_force_current as native_force
+    import cec_field_coupling as field_snapshot
     removed = []
+    orphan_proofs = []
+    stale_ground_proofs = []
+    ground_elbow_proofs = []
+    ground_kernel_proofs = []
     stop = "iteration_budget"
     with tempfile.TemporaryDirectory(prefix="cec_dangling_probe_") as work:
         for iteration in range(max(1, int(max_iterations))):
             raw = _run_drc(
                 board_path, os.path.join(work, "drc-%02d.json" % iteration))
             targets = _drc_dangling_targets(raw)
-            if not targets:
-                stop = "settled"
-                break
             board = pcbnew.LoadBoard(board_path)
+            # A stranded generated local return is NOT an isolated ordinary
+            # via: it still touches reference planes. Require its dedicated
+            # double-plane/nearby-bridge proof, then independently receive
+            # the saved native subtraction BEFORE adopting this private step.
+            stranded=stale_ground.discover_from_drc(board,raw,
+                authorize_source_locked=True,timeout_s=2.)
+            if stranded['complete'] and stranded['plans']:
+                proposal=stranded['plans'][0]
+                trial=native_force._copy_family(Path(board_path),Path(work)/('stale-ground-%02d'%iteration))
+                stale_ground.subtract(board,proposal)
+                native_additions._ground_refill(board)
+                field_snapshot._save_field_snapshot(board,trial)
+                proof=stale_ground.receive(board_path,trial,proposal,board_hint=None,timeout_s=10.)
+                if not proof['ok'] or not proof['complete']:
+                    raise ValueError('stranded_local_ground_saved_receiving_refused:'+str(proof['errors']))
+                shutil.copyfile(trial,board_path)
+                stale_ground_proofs.append(dict(iteration=iteration,proposal=proposal,receiving=proof))
+                removed.append(dict(iteration=iteration,uuid=proposal['via_uuid'],
+                    type='stranded_local_ground_via',item='PCB_VIA',net='GND',locked=proposal['source_locked']))
+                del board
+                # Return ONE independently received source step to the outer
+                # full-board admission. Bundling unrelated dangling cuts here
+                # could reject this valid improvement or touch force copper
+                # before the source/current/Kelvin guards see the next state.
+                stop='single_received_stale_local_ground_step'
+                break
+            # An old exact-ID factory DRU can conceal a lost POFV owner from
+            # native DRC. Only independently retyped generated capacitor
+            # kernels may use this additional actual-owner discovery tier.
+            kernels=ground_kernel.discover_from_drc(board,board_path,raw,
+                authorize_source_locked=True,include_source_factory_debt=True,timeout_s=2.)
+            if kernels['complete'] and kernels['plans']:
+                proposal=kernels['plans'][0]
+                trial=native_force._copy_family(Path(board_path),Path(work)/('ground-kernel-%02d'%iteration))
+                ground_kernel.subtract(board,proposal)
+                native_additions._ground_refill(board)
+                field_snapshot._save_field_snapshot(board,trial)
+                proof=ground_kernel.receive(board_path,trial,proposal,board_hint=None,timeout_s=10.)
+                if not proof['ok'] or not proof['complete']:
+                    raise ValueError('obsolete_ground_kernel_saved_receiving_refused:'+str(proof['errors']))
+                shutil.copyfile(trial,board_path)
+                ground_kernel_proofs.append(dict(iteration=iteration,proposal=proposal,receiving=proof))
+                for uid in proposal['retired_track_uuids']:
+                    removed.append(dict(iteration=iteration,uuid=uid,type='obsolete_local_ground_kernel',
+                        item='PCB_VIA' if uid==proposal['via_uuid'] else 'PCB_TRACK',net='GND'))
+                del board
+                stop='single_received_obsolete_ground_kernel_step'
+                break
+            elbows=ground_elbow.discover_from_drc(board,raw,
+                authorize_source_locked=True,timeout_s=2.)
+            if elbows['complete'] and elbows['plans']:
+                proposal=elbows['plans'][0]
+                trial=native_force._copy_family(Path(board_path),Path(work)/('ground-elbow-%02d'%iteration))
+                incoming=ground_elbow.materialize(board,proposal)
+                native_additions._ground_refill(board)
+                field_snapshot._save_field_snapshot(board,trial)
+                proof=ground_elbow.receive(board_path,trial,proposal,board_hint=None,timeout_s=10.)
+                if not proof['ok'] or not proof['complete']:
+                    raise ValueError('source_ground_elbow_saved_receiving_refused:'+str(proof['errors']))
+                shutil.copyfile(trial,board_path)
+                ground_elbow_proofs.append(dict(iteration=iteration,
+                    scope={k:proposal[k] for k in ('seed_uuid','authorize_source_locked')},
+                    proposal={k:v for k,v in proposal.items() if k!='source_binding'},
+                    added_track_uuids=incoming,receiving=proof))
+                for uid in proposal['retired_track_uuids']:
+                    removed.append(dict(iteration=iteration,uuid=uid,
+                        type='source_ground_elbow_reconstruction',item='PCB_TRACK',net='GND'))
+                del board
+                stop='single_received_source_ground_elbow_step'
+                break
+            native_orphans = isolated.discover_from_drc(board, raw,
+                authorize_source_locked=True, timeout_s=2.)
+            proof = native_orphans['plan'] if native_orphans['complete'] else None
+            if proof is not None:
+                isolated.apply(board, proof, timeout_s=2.)
+                orphan_proofs.append(dict(iteration=iteration, **proof))
+                for row in proof['witnesses']:
+                    removed.append(dict(iteration=iteration, uuid=row['via_uuid'],
+                        type='native_isolated_via', item='PCB_VIA',
+                        net=row['net'], locked=row['locked']))
+            if not targets and proof is None:
+                stop = "settled" if native_orphans['complete'] else "orphan_inventory_incomplete"
+                break
             items = {_uuid(item): item for item in board.GetTracks()
                      if _uuid(item)}
             selected = [(uid, targets[uid], items[uid])
                         for uid in sorted(targets) if uid in items]
-            if not selected:
+            if not selected and proof is None:
                 stop = "drc_uuid_not_found"
                 break
             for uid, kind, item in selected:
@@ -5961,7 +7221,7 @@ def _drc_dangling_cleanup_worker(board_path, max_iterations=8):
                 # place of a BOARD and fail before the monotonic scorer sees a
                 # valid pruned candidate.
                 board.Delete(item)
-            pcbnew.SaveBoard(board_path, board)
+            field_snapshot._save_field_snapshot(board, board_path)
             selected.clear()
             items.clear()
             del board
@@ -5972,11 +7232,16 @@ def _drc_dangling_cleanup_worker(board_path, max_iterations=8):
         "iterations": (max((row["iteration"] for row in removed), default=-1)
                        + 1),
         "stop": stop,
+        "native_orphan_proofs": orphan_proofs,
+        "stale_local_ground_proofs": stale_ground_proofs,
+        "ground_elbow_proofs": ground_elbow_proofs,
+        "obsolete_local_ground_kernel_proofs": ground_kernel_proofs,
+        "full_board_admission_still_required": True,
     }
 
 
 def _footprint_candidate_key(ref, candidate):
-    """Stable identity for one deterministic support-placement pose."""
+    """Geometry-only ranking key. Never use this as a search-history key."""
 
     companions = tuple(sorted(
         str(item) for item in
@@ -5984,6 +7249,10 @@ def _footprint_candidate_key(ref, candidate):
     identity_ref = str(ref or "")
     if companions:
         identity_ref += "|" + ",".join(companions)
+    elif candidate.get('mobility_companion_refs') is not None:
+        # Explicitly moving the owner alone differs from inheriting the
+        # target's required rigid companions at the very same displacement.
+        identity_ref += "|[]"
 
     return (
         identity_ref,
@@ -5994,49 +7263,12 @@ def _footprint_candidate_key(ref, candidate):
 
 
 def _prior_footprint_candidate_keys(report):
-    """Collect already-scored or bounded-out placement poses recursively."""
+    """Read only source-scoped measured keys, never a raw historical plan."""
 
-    if (report or {}).get("algorithm_revision") != \
-            REPAIR_ALGORITHM_REVISION:
-        # A geometry/search change can make an old rejected pose legal.  Pose
-        # memory is valid only within the exact algorithm revision that
-        # produced the refusal.
-        return set()
-    keys = set()
-    retry_keys = set()
-    for row in (((report or {}).get("plan") or {}).get(
-            "placement_candidate_history") or ()):
-        if isinstance(row, (list, tuple)) and len(row) == 4 and row[0]:
-            keys.add((str(row[0]), round(float(row[1]), 6),
-                      round(float(row[2]), 6), round(float(row[3]), 6)))
-
-    def visit(value):
-        if isinstance(value, dict):
-            if (value.get("stage") in {
-                    "footprint_relocation", "endpoint_owner_relocation"}
-                    and isinstance(value.get("candidate"), dict)):
-                timed_out = (
-                    value.get("decision") ==
-                    "component_transaction_worker_error"
-                    and "WorkerPoolStalled" in str(value.get("error") or "")
-                    and value.get(
-                        "placement_copper_restoration_budget_s") is None)
-                target = value.get("target") or {}
-                key = _footprint_candidate_key(
-                    target.get("ref"), value["candidate"])
-                if key[0] and timed_out:
-                    retry_keys.add(key)
-                    keys.discard(key)
-                elif key[0] and key not in retry_keys:
-                        keys.add(key)
-            for child in value.values():
-                visit(child)
-        elif isinstance(value, (list, tuple)):
-            for child in value:
-                visit(child)
-
-    visit(report or {})
-    return keys - retry_keys
+    import cec_route_pose_history as poses
+    report = report if isinstance(report, dict) else {}
+    compact = route_search_history(report)
+    return poses.read(compact.get('placement_poses'), report.get('route_pose_scope'))
 
 
 def _prior_has_footprint_attempts(report):
@@ -6064,22 +7296,34 @@ def _prior_has_footprint_attempts(report):
     return found
 
 
-def _placement_frontier_advanced(*sweeps) -> bool:
-    """Return whether this wave accepted a placement transaction.
+def _placement_frontier_advanced(*sweeps, pose_scope=None) -> bool:
+    """End an accepted move or a resumable, newly measured pose slice.
 
     A current refusal may continue to name a support or endpoint owner after
     every deterministic pose for that object has already been measured.  The
     presence of a target is therefore not proof that the placement frontier
     advanced.  A rejected pose leaves placement and every route certificate
-    byte-for-byte valid, so ending the slice there only manufactures another
-    identical wave.  Only an accepted move invalidates the current route graph
-    and justifies a placement-only slice; all refusals fall through to the next
-    route/via degree of freedom in the same bounded transaction.
+    byte-for-byte valid. Without a current resumable scope, refusals must fall
+    through rather than manufacture an identical next wave. With exact scoped
+    pose memory, however, a measured rejection plus an unvisited finite menu
+    is useful progress: the next slice skips those poses. Do not replay already
+    exhausted route windows merely because this slice did not change copper.
+    Callers enter after same-net route-window precedence, or a fresh native
+    component-land witness that specifically preempts that ordering.
     """
 
-    return any(
+    if any(
         bool((sweep or {}).get("accepted"))
-        for sweep in sweeps)
+        for sweep in sweeps):
+        return True
+    import cec_route_pose_history as poses
+    if not poses.valid_scope(pose_scope):
+        return False
+    unvisited = any(type((row.get('frontier') or {}).get('unvisited')) is int
+        and row['frontier']['unvisited'] > 0
+        for sweep in sweeps for row in (sweep or {}).get('candidate_frontiers', []))
+    measured, _retry = poses.measured_keys(list(sweeps))
+    return unvisited and bool(measured)
 
 
 def _retarget_preserved_anchors_for_via_move(
@@ -6127,11 +7371,12 @@ def _retarget_preserved_anchors_for_via_move(
 def _persist_placement_candidate_history(plan, prior_candidates=()):
     """Persist deterministic pose memory on normal and bounded-stop exits."""
 
-    placement_history = set(prior_candidates or ())
-    placement_history.update(_prior_footprint_candidate_keys({
-        "algorithm_revision": REPAIR_ALGORITHM_REVISION,
-        "plan": plan,
-    }))
+    import cec_route_pose_history as poses
+    placement_history = {key for row in prior_candidates or ()
+                         if (key := poses.key(row)) is not None}
+    measured, retry = poses.measured_keys(plan)
+    placement_history.update(measured)
+    placement_history.difference_update(retry)
     plan["placement_candidate_history"] = [
         list(key) for key in sorted(placement_history)
     ]
@@ -6573,10 +7818,18 @@ def _normalize_pad_owned_via_to_profile_worker(
                     profile, diameter_mm, drill_mm)
             if not allowed:
                 continue
+            # A centre outside its owner can still clip that (or another)
+            # pad. Dogbone ownership never waives full-land containment.
+            blocked, overlaps = _fab.via_at_pad_conflicts(
+                board, position, diameter_nm, drill_nm, net_code)
+            if blocked is not None:
+                continue
             via.SetWidth(diameter_nm)
             via.SetDrill(drill_nm)
             evidence = cec_fr.group_local_pofv_signal_vias(board, [via])
             if not evidence:
+                via.SetWidth(int(round(old_diameter * MM)))
+                via.SetDrill(int(round(old_drill * MM)))
                 return False, {"refusal": "pofv_group_qualification_failed"}
             pcbnew.SaveBoard(board_path, board)
             rule = cec_fr.ensure_local_pofv_signal_via_rule(
@@ -6702,7 +7955,7 @@ def _attempt_route_certificate_via_clearance(
                 exact = _spawn_apply(
                     _exact_relocated_connections_worker,
                     (normalized_trial, target_row, candidate_move, 35.0),
-                    timeout_s=40.0)
+                    timeout_s=40.0, search_budget_arg=3)
                 normalization_row["exact_reconnect"] = exact
                 if exact.get("target_closed"):
                     normalization_row.update({
@@ -6802,7 +8055,7 @@ def _attempt_route_certificate_via_clearance(
             exact = _spawn_apply(
                 _exact_relocated_connections_worker,
                 (trial, target_row, candidate_move, 35.0),
-                timeout_s=40.0)
+                timeout_s=40.0, search_budget_arg=3)
             row["exact_reconnect"] = exact
             if not exact.get("target_closed"):
                 row.update({"accepted": False,
@@ -6866,7 +8119,8 @@ def _attempt_target_endpoint_retreat(
         _copy_board_family(trial, target_route_baseline)
         exact = _spawn_apply(
             _exact_relocated_connections_worker,
-            (trial, target_row, candidate_move, 35.0), timeout_s=40.0)
+            (trial, target_row, candidate_move, 35.0), timeout_s=40.0,
+            search_budget_arg=3)
         row["exact_reconnect"] = exact
         if not exact.get("target_closed"):
             row.update({"accepted": False,
@@ -6913,7 +8167,8 @@ def _attempt_target_endpoint_access(
         _copy_board_family(trial, target_route_baseline)
         exact = _spawn_apply(
             _exact_relocated_connections_worker,
-            (trial, target_row, candidate_move, 30.0), timeout_s=35.0)
+            (trial, target_row, candidate_move, 30.0), timeout_s=35.0,
+            search_budget_arg=3)
         row = {"candidate": candidate, "exact_reconnect": exact}
         if not exact.get("target_closed"):
             row.update({"accepted": False,
@@ -6988,7 +8243,8 @@ def _attempt_alternate_placement_route_order(
 
     exact = _spawn_apply(
         _exact_relocated_connections_worker,
-        (alternate, target_row, move, 35.0), timeout_s=40.0)
+        (alternate, target_row, move, 35.0), timeout_s=40.0,
+        search_budget_arg=3)
     evidence["exact_reconnect"] = exact
     if not exact.get("target_closed"):
         evidence.update({
@@ -7005,6 +8261,108 @@ def _attempt_alternate_placement_route_order(
     return True, evidence, exact
 
 
+def _record_placement_sweep_result(sweep, target_row, result):
+    """Retain proposal refusals even when none reached a native trial.
+
+    The parent used to keep only attempted moves, dropping the finite frontier
+    and every domain rejection. This is diagnostic evidence, not eligibility,
+    retry history, or authority to move copper on another board revision.
+    """
+    sweep['attempts'].extend(result['attempts'])
+    frontier = result.get('candidate_frontier')
+    if frontier is not None:
+        snapshot = copy.deepcopy(frontier)
+        for name in ('fixed_via_domain', 'support_motion_domain'):
+            domain = snapshot.get(name)
+            if domain is None:
+                continue
+            # Eligible poses are reproduced by the generator. Keep counts,
+            # and the reason/pose of each refusal, without duplicating large
+            # occupancy maps and copper UUID arrays in the parent report.
+            domain['eligible_count'] = len(domain.pop('eligible', ()))
+            for rejected in domain.get('rejected', ()):
+                rejected['candidate'] = {key: value for key, value in
+                    rejected['candidate'].items() if key in (
+                        'dx_mm', 'dy_mm', 'rotation_delta_deg',
+                        'mobility_companion_refs', 'generator')}
+        sweep.setdefault('candidate_frontiers', []).append(dict(
+            ref=target_row['ref'], target_net=target_row['target_net'],
+            stop=result.get('stop'), frontier=snapshot))
+
+
+def _refresh_deferred_supports(board_path, before, initial_plan,
+                               fresh_completion, fresh_negotiation, *,
+                               report, work_dir, effort, prior_report=None,
+                               skip_candidate_keys=(), generated_locked_uuids=(),
+                               support_limits=None, craft_policy=None,
+                               prior_refresh=None, token_prefix='refresh'):
+    """Reconsider obsolete deferrals using a fresh native support plan.
+
+Only previously deferred, untried support/net identities are eligible here.
+An absent old window does not authorize motion: current refusal evidence must
+still name the support, its own fresh windows retain precedence, and the same
+bounded, independently gated relocation transaction is used. At most two
+supports/two poses each are reconsidered, stopping at the first adoption.
+The caller attaches report before entry so a bounded worker stop retains it.
+"""
+    report.update(schema=1, adopted=False, release_authority=False,
+                  stop='no_deferred_support', sweep=dict(
+                      schema=1, targets=[], attempts=[], accepted=[]))
+    old_deferred = (initial_plan.get('support_schedule') or {}).get('deferred') or ()
+    identity = lambda row: (str(row.get('ref') or ''), str(row.get('target_net') or ''))
+    pending = {identity(row) for row in old_deferred if all(identity(row))}
+    tried = {identity(row.get('target') or {})
+             for row in (initial_plan.get('sweep') or {}).get('attempts') or ()}
+    refreshed = {identity(row.get('target') or {})
+                 for row in ((prior_refresh or {}).get('sweep') or {}).get('attempts') or ()}
+    tried.update(refreshed)
+    pending.difference_update(tried)
+    if not pending:
+        return report
+    remaining_targets = max(0, 2-len(refreshed))
+    if not remaining_targets:
+        report['stop'] = 'shared_support_refresh_budget'
+        return report
+    if (not isinstance(fresh_negotiation, dict)
+            or 'windows' not in fresh_negotiation or fresh_negotiation.get('skipped')
+            or fresh_negotiation.get('error')):
+        report['stop'] = 'fresh_negotiation_unavailable'
+        return report
+    if not effort.available('support_deferral_refresh'):
+        report['stop'] = 'effort_budget'
+        return report
+    report['stop'] = 'planning_fresh_support'
+    current_plan = _spawn_apply(_footprint_plan_worker,
+                               (board_path, fresh_completion, 4))
+    # Do not resurrect a ref solely from old certificates or from a vanished
+    # route window. The fresh planner must independently retain that target.
+    current_plan['targets'] = [row for row in current_plan.get('targets') or ()
+                               if identity(row) in pending]
+    schedule = _support_relocation_schedule(current_plan, fresh_negotiation, prior_report)
+    report.update(fresh_plan=current_plan, support_schedule=schedule,
+                  stop='no_newly_eligible_support')
+    sweep = report['sweep']
+    sweep['targets'] = list(schedule['eligible'])[:remaining_targets]
+    for index, target in enumerate(sweep['targets']):
+        report['stop'] = 'measuring_fresh_support'
+        result = _attempt_footprint_relocation(
+            board_path, before, target, work_dir=work_dir,
+            token='%s-%02d' % (token_prefix, index), effort=effort, max_candidates=2,
+            skip_candidate_keys=skip_candidate_keys,
+            generated_locked_uuids=generated_locked_uuids,
+            support_limits=support_limits, craft_policy=craft_policy)
+        _record_placement_sweep_result(sweep, target, result)
+        report['stop'] = result.get('stop', 'candidate_exhausted')
+        if result['adopted']:
+            sweep['accepted'].append(result['accepted'])
+            report.update(adopted=True, accepted=result['accepted'], after=result['after'],
+                          stop='accepted_one_remeasure_required')
+            break
+        if effort.stop_reason:
+            break
+    return report
+
+
 def _attempt_footprint_relocation(board_path, before, target_row, *,
                                   work_dir, token, effort=None,
                                   max_candidates=8,
@@ -7014,20 +8372,101 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                                   max_branch_tracks=12,
                                   generated_locked_uuids=(),
                                   candidate_override=None,
-                                  allow_route_expansion=True):
+                                  allow_route_expansion=True, support_limits=None,
+                                  craft_policy=None):
     """Try one trapped-pin support-cell re-seat as an atomic transaction."""
 
     target = FootprintRepairTarget(**target_row)
-    skipped = set(skip_candidate_keys or ())
+    import cec_support_craft_gate as craft
+    import cec_route_pose_history as poses
+    import cec_support_motion
+    # Establish the stage's scope BEFORE occupancy ranking as well as before
+    # final pose filtering. Previously every small-IC candidate was rejected
+    # by the two-pad support default, so this stage never reached a router.
+    if stage_name == 'endpoint_owner_relocation':
+        if (type(max_copper_pads) is not int
+                or not 3 <= max_copper_pads <= cec_support_motion.MAX_OWNER_COPPER_PADS):
+            raise ValueError('invalid endpoint-owner pad scope')
+        support_limits = cec_support_motion.limits(**{
+            **(support_limits or {}), 'max_owner_copper_pads': max_copper_pads})
+    elif support_limits is not None:
+        support_limits = cec_support_motion.limits(**{
+            **support_limits, 'max_owner_copper_pads': 2})
+    search_context = dict(stage=stage_name, max_copper_pads=max_copper_pads,
+                          max_branch_tracks=max_branch_tracks)
+    craft_baseline = None
+    skipped = {key for value in skip_candidate_keys or ()
+               if (key := poses.key(value)) is not None}
     proposed_candidates = (
         list(candidate_override) if candidate_override is not None else
-        _combined_footprint_relocation_candidates(board_path, target_row))
+        _combined_footprint_relocation_candidates(board_path, target_row,
+            generated_locked_uuids=generated_locked_uuids,
+            **(dict(support_limits=support_limits) if support_limits is not None else {})))
+    aperture_proposals = dict(count=sum(
+        c.get('generator') == 'native_support_pin_aperture' for c in proposed_candidates),
+        release_authority=False)
+    if candidate_override is None and max_copper_pads == 2:
+        import cec_support_pin_aperture as aperture
+        try:
+            native_apertures = _spawn_apply(aperture.worker,
+                (board_path,target_row,support_limits,craft_policy,tuple(generated_locked_uuids)),
+                timeout_s=10.0)
+            aperture_proposals['count'] = len(native_apertures)
+            identities = {poses.candidate_key(target_row,c,search_context) for c in native_apertures}
+            proposed_candidates = native_apertures + [c for c in proposed_candidates
+                if poses.candidate_key(target_row,c,search_context) not in identities]
+        except Exception as exc:
+            aperture_proposals['error'] = '%s: %s' % (type(exc).__name__,exc)
+    support_domain = (_spawn_apply(cec_support_motion.filter_candidates,
+        (board_path, target_row, proposed_candidates, support_limits))
+        if support_limits is not None else
+        dict(eligible=proposed_candidates, rejected=[], release_authority=False))
+    import cec_fixed_pofv_mobility as fixed_pofv
+    fixed_via_domain = _spawn_apply(fixed_pofv.filter_candidates,
+        (board_path, target_row, support_domain['eligible'], tuple(generated_locked_uuids)))
     candidates = [
-        candidate for candidate in proposed_candidates
-        if _footprint_candidate_key(target.ref, candidate) not in skipped
+        candidate for candidate in fixed_via_domain['eligible']
+        if poses.candidate_key(target_row, candidate, search_context) not in skipped
+        and poses.physical_key(target_row, candidate, search_context) not in skipped
+        and poses.craft_geometry_key(target_row, candidate, search_context) not in skipped
     ]
+    # Rank the finite eligible menu before spending the transaction budget.
+    # This predictor never removes a pose or writes measured refusal history.
+    # Native geometry/craft and route reconstruction still own admission.
+    import cec_support_pose_rank as craft_rank
+    try:
+        ranked = _spawn_apply(craft_rank.rank_candidates,
+            (board_path, target_row, candidates, craft_policy), timeout_s=10.0)
+        candidates = ranked['candidates']
+        ranking = {key: value for key, value in ranked.items() if key != 'candidates'}
+    except Exception as exc:
+        ranking = dict(error='%s: %s' % (type(exc).__name__, exc),
+                       release_authority=False, admission_authority=False)
     rows = []
     target_closed_seen = False
+    primary_attempts = 0
+    early_stop_reason = None
+
+    def candidate_frontier():
+        # This is scheduling evidence, never a native rejection cache or a
+        # proof that no layout/path exists outside this finite proposal menu.
+        return {
+            "generated": len(proposed_candidates),
+            **({'support_motion_domain': support_domain} if support_limits is not None else {}),
+            "prior_skipped": len(fixed_via_domain['eligible']) - len(candidates),
+            "physical_prior_skipped": sum(
+                poses.physical_key(target_row, candidate, search_context) in skipped
+                for candidate in fixed_via_domain['eligible']),
+            "craft_geometry_prior_skipped": sum(
+                poses.craft_geometry_key(target_row, candidate, search_context) in skipped
+                for candidate in fixed_via_domain['eligible']),
+            "fixed_via_domain": fixed_via_domain,
+            "electrical_pose_ranking": ranking,
+            "native_pin_aperture_proposals": aperture_proposals,
+            "scheduled": primary_attempts,
+            "unvisited": max(0, len(candidates) - primary_attempts),
+            "exhaustion_is_no_path_proof": False,
+        }
     # ``max_candidates`` is a per-certified-target bound.  Sharing one effort
     # stage key across the outer target loop let the first difficult passive
     # consume the entire placement allowance and silently skipped every later
@@ -7038,6 +8477,7 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
         if effort is not None and not effort.claim(
                 effort_stage, stage_limit=max_candidates):
             break
+        primary_attempts += 1
         trial = os.path.join(
             work_dir, "footprint-%s-%02d.kicad_pcb" % (token, index))
         _copy_board_family(board_path, trial)
@@ -7048,7 +8488,7 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
         effective_target = FootprintRepairTarget(**effective_target_row)
         candidate_started = time.monotonic()
         row = {"stage": stage_name, "target": effective_target_row,
-               "candidate": candidate}
+               "candidate": candidate, "search_context": dict(search_context)}
 
         def record_row():
             """Publish one pose with its complete transaction wall cost."""
@@ -7067,6 +8507,18 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
             if not changed:
                 row.update({"accepted": False,
                             "decision": move.get("refusal")})
+                record_row()
+                continue
+            if craft_baseline is None:
+                craft_baseline = _spawn_apply(craft.measure, (board_path, craft_policy, 'routed'),
+                                             timeout_s=30.0)
+            craft_geometry = _spawn_apply(craft.measure, (trial, craft_policy, 'geometry'),
+                                           timeout_s=30.0)
+            craft_preflight = craft.compare(
+                dict(craft_baseline, gates={}), craft_geometry)
+            row['electrical_geometry_preflight'] = craft_preflight
+            if not craft_preflight['accepted']:
+                row.update(accepted=False, decision=craft_preflight['decision'])
                 record_row()
                 continue
             if candidate.get("route_access_endpoint"):
@@ -7206,7 +8658,8 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
             _copy_board_family(trial, target_route_baseline)
             exact_reconnect = _spawn_apply(
                 _exact_relocated_connections_worker,
-                (trial, effective_target_row, move, 35.0), timeout_s=40.0)
+                (trial, effective_target_row, move, 35.0), timeout_s=40.0,
+                search_budget_arg=3)
             row["exact_reconnect"] = exact_reconnect
             if not exact_reconnect.get("target_closed"):
                 target_route_baseline = None
@@ -7267,7 +8720,7 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                         retry = _spawn_apply(
                             _exact_relocated_connections_worker,
                             (trial, effective_target_row, move, 35.0),
-                            timeout_s=40.0)
+                            timeout_s=40.0, search_budget_arg=3)
                         row["exact_reconnect_after_route_evacuation"] = retry
                         exact_reconnect = retry
                         target_report = retry
@@ -7401,7 +8854,8 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                             max_branch_tracks=max_branch_tracks,
                             generated_locked_uuids=generated_locked_uuids,
                             candidate_override=(expanded_candidate,),
-                            allow_route_expansion=False)
+                            allow_route_expansion=False, support_limits=support_limits,
+                            craft_policy=craft_policy)
                         row["route_aware_expansion"] = expansion
                         if expansion.get("adopted"):
                             row.update({
@@ -7416,11 +8870,13 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                                 "accepted": expansion["accepted"],
                                 "attempts": rows + list(
                                     expansion.get("attempts") or ()),
+                                "candidate_frontier": candidate_frontier(),
                             }
                 row.update({"accepted": False,
                             "decision": "target_still_refused"})
                 record_row()
                 if index >= 5 and not target_closed_seen:
+                    early_stop_reason = "nonproductive_prefix_budget"
                     break
                 continue
             target_closed_seen = True
@@ -7515,7 +8971,7 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                     len(affected), 24, 8.0)
                 row["support_completion"] = _spawn_apply(
                     _lastmile_worker,
-                    (trial, affected, 24, 8.0, False,
+                    (trial, affected, 24, 8.0, True,
                      support_timeout_s),
                     timeout_s=min(300.0, support_timeout_s + 5.0))
             # One certificate identifies one missing component edge, not
@@ -7569,6 +9025,13 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                 drc_data = _run_drc(trial, drc_path)
             after = _spawn_apply(_score_worker, (trial, drc_path))
             ok, decision = _accepts(before, after)
+            if ok:
+                craft_after = _spawn_apply(craft.measure, (trial, craft_policy, 'routed'),
+                                          timeout_s=30.0)
+                row['electrical_craft_admission'] = craft.compare(craft_baseline, craft_after)
+                row['electrical_craft_after'] = craft_after
+                if not row['electrical_craft_admission']['accepted']:
+                    ok, decision = False, row['electrical_craft_admission']['decision']
             row.update({"after": after, "accepted": ok,
                         "decision": decision})
             record_row()
@@ -7576,18 +9039,27 @@ def _attempt_footprint_relocation(board_path, before, target_row, *,
                 continue
             _copy_board_family(trial, board_path)
             return {"adopted": True, "after": after,
-                    "accepted": row, "attempts": rows}
+                    "accepted": row, "attempts": rows,
+                    "candidate_frontier": candidate_frontier()}
         except Exception as exc:                         # noqa: BLE001
             row.update({"accepted": False,
                         "decision": "component_transaction_worker_error",
                         "error": "%s: %s" % (
                             type(exc).__name__, str(exc)[:600])})
+            diagnostics = getattr(exc, 'certificate_worker_diagnostics', None)
+            if isinstance(diagnostics, dict):
+                row['worker_failure'] = dict(diagnostics)
             record_row()
+    frontier = candidate_frontier()
+    fallback_stop = (
+        (early_stop_reason or "candidate_trial_budget")
+        if frontier["unvisited"] else "candidate_exhausted")
     return {"adopted": False, "attempts": rows,
             "prior_candidates_skipped": len(skipped),
+            "candidate_frontier": frontier,
             "stop": (effort.stage_stop(
-                effort_stage, "candidate_exhausted")
-                if effort is not None else "candidate_exhausted")}
+                effort_stage, fallback_stop)
+                if effort is not None else fallback_stop)}
 
 
 def _relocation_support_nets(move, target_net):
@@ -7658,12 +9130,39 @@ def _new_generated_track_conflicts_worker(
 
 def _attempt_congestion_via_relocation(
         board_path, before, target_row, *, work_dir, token,
-        generated_locked_uuids=(), effort=None, max_candidates=8):
+        generated_locked_uuids=(), effort=None, max_candidates=8,
+        stage_budget_s=None, max_consecutive_timeouts=2):
+    """Isolate an early strategy's budget without expiring later strategies."""
+    parent_deadline = _WORKER_DEADLINE.get()
+    deadline_token = None
+    if stage_budget_s is not None:
+        if not math.isfinite(stage_budget_s) or stage_budget_s <= 0:
+            raise ValueError("via stage budget must be finite and positive")
+        deadline = time.monotonic() + stage_budget_s
+        if parent_deadline is not None:
+            deadline = min(deadline, parent_deadline)
+        deadline_token = _WORKER_DEADLINE.set(deadline)
+    try:
+        return _attempt_congestion_via_relocation_impl(
+            board_path, before, target_row, work_dir=work_dir, token=token,
+            generated_locked_uuids=generated_locked_uuids, effort=effort,
+            max_candidates=max_candidates,
+            max_consecutive_timeouts=max_consecutive_timeouts)
+    finally:
+        if deadline_token is not None:
+            _WORKER_DEADLINE.reset(deadline_token)
+
+
+def _attempt_congestion_via_relocation_impl(
+        board_path, before, target_row, *, work_dir, token,
+        generated_locked_uuids=(), effort=None, max_candidates=8,
+        max_consecutive_timeouts=2):
     """Move one refusal-named via, then close and score the blocked net."""
 
     via_row = dict(target_row["via"])
     target = ViaRepairTarget(**via_row)
     rows = []
+    consecutive_timeouts = 0
     # A refusal vector says where congestion wants the barrel to move; its
     # incident stubs say which motions remain electrically cheap.  Interleave
     # both constraints so a small candidate budget samples reachable angular
@@ -7676,6 +9175,10 @@ def _attempt_congestion_via_relocation(
         target, owner_directions=owner_directions))[
             :max(0, int(max_candidates))]
     for index, (dx_nm, dy_nm, step_mm, direction) in enumerate(offsets):
+        deadline = _WORKER_DEADLINE.get()
+        if deadline is not None and time.monotonic() >= deadline:
+            return {"adopted": False, "attempts": rows,
+                    "stop": "via_stage_wall_budget"}
         if effort is not None and not effort.claim(
                 "congestion_via_relocation", stage_limit=max_candidates):
             break
@@ -7685,6 +9188,7 @@ def _attempt_congestion_via_relocation(
         row = {
             "stage": "congestion_via_relocation", "target": target_row,
             "step_mm": step_mm, "direction": list(direction),
+            "phase": "via_reseat",
         }
         try:
             changed, move = _spawn_apply(
@@ -7697,16 +9201,33 @@ def _attempt_congestion_via_relocation(
                             "decision": move.get("refusal")})
                 rows.append(row)
                 continue
+            close_timeout = _atomic_close_timeout_s(24, 8.0)
+            deadline = _WORKER_DEADLINE.get()
+            if deadline is not None:
+                close_timeout = min(close_timeout, deadline - time.monotonic())
+            if close_timeout <= 1.0:
+                row.update(accepted=False, decision="target_budget_unavailable")
+                rows.append(row)
+                return {"adopted": False, "attempts": rows,
+                        "stop": "via_stage_wall_budget"}
+            # Leave time for native save/IPC. Previously the child defaulted
+            # to a 75 s net search while the parent killed it after 45 s.
+            target_budget = close_timeout - min(5.0, close_timeout * 0.2)
+            row.update(phase="target_completion", target_budget_s=target_budget,
+                       target_watchdog_s=close_timeout)
             completion = _spawn_apply(
-                _lastmile_worker,
-                (trial, (target_row["target_net"],), 24, 8.0, True),
-                timeout_s=25.0)
+                _certified_via_target_worker,
+                (trial, target_row, target_budget), timeout_s=close_timeout)
+            consecutive_timeouts = 0
             row["target_completion"] = completion
             if not completion.get("closed"):
                 row.update({"accepted": False,
-                            "decision": "target_still_refused"})
+                            "decision": ("target_search_timeout"
+                                         if completion.get("timed_out") else
+                                         "target_still_refused")})
                 rows.append(row)
                 continue
+            row["phase"] = "whole_board_admission"
             _spawn_apply(_refill_worker, (trial,))
             drc_path = os.path.join(
                 work_dir, "congestion-via-%s-%02d-drc.json" %
@@ -7780,6 +9301,11 @@ def _attempt_congestion_via_relocation(
                     type(exc).__name__, str(exc)[:600]),
             })
             rows.append(row)
+            if isinstance(exc, cec_process_pool.WorkerPoolStalled):
+                consecutive_timeouts += 1
+                if consecutive_timeouts >= max(1, int(max_consecutive_timeouts)):
+                    return {"adopted": False, "attempts": rows,
+                            "stop": "repeated_via_worker_timeout"}
     return {
         "adopted": False, "attempts": rows,
         "stop": (effort.stage_stop(
@@ -7898,17 +9424,39 @@ def _atomic_negotiation_variants(window: NegotiationWindow, deep_retry: bool):
     """Return a bounded least-invasive-first topology portfolio."""
 
     bridge_candidate = bool(window.local_pin_escape)
-    variants = [(12, 4.0, 2, False)]
+    # A complete surface-ray cut authorizes those exact edges only. Broadening
+    # to their neighbours can remove the very via dogbone that makes a blocked
+    # ground detour redundant. Broader certified windows remain alternatives.
+    local_hops = 0 if window.surface_escape_cut else 2
+    deep_hops = 0 if window.surface_escape_cut else 4
+    variants = [(12, 4.0, local_hops, False)]
     if bridge_candidate:
-        variants.append((12, 4.0, 2, True))
+        variants.append((12, 4.0, local_hops, True))
     if deep_retry:
         breadth_margin = min(
             20.0, max(8.0, round(float(window.distance_mm) * 0.55, 1)))
-        variants.append((1, breadth_margin, 4, bridge_candidate))
+        variants.append((1, breadth_margin, deep_hops, bridge_candidate))
         board_scale_margin = min(
             25.0, max(12.0, round(float(window.distance_mm) + 8.0, 1)))
-        variants.append((4, board_scale_margin, 4, bridge_candidate))
+        variants.append((4, board_scale_margin, deep_hops, bridge_candidate))
     return variants
+
+
+def _restore_order_modes(snapshot_rows):
+    """Do not spend a second native worker on an identical restoration order.
+
+    The implementation groups by net, then independently sorts boundaries
+    within each group. Only a different sequence of net groups can change
+    the copper seen by later groups. Keep both orders when that is possible.
+    """
+    if len({row["net"] for row in snapshot_rows}) <= 1:
+        return ("hardest_first",)
+    def net_order(sign):
+        rows = sorted(snapshot_rows, key=lambda row: (
+            sign * row["width"], sign * row["source_length_nm"], row["net"]))
+        return tuple(dict.fromkeys(row["net"] for row in rows))
+    return (("hardest_first", "easiest_first")
+            if net_order(-1) != net_order(1) else ("hardest_first",))
 
 
 def _attempt_atomic_negotiation(board_path, before, window_row, *,
@@ -8102,8 +9650,8 @@ def _attempt_atomic_negotiation(board_path, before, window_row, *,
             restore_timeout_s = min(
                 90.0, max(restore_timeout_s,
                           15.0 + 6.0 * max(1, len(snapshots))))
-            for restore_index, order_mode in enumerate(
-                    ("hardest_first", "easiest_first")):
+            row["restore_order_modes"] = list(_restore_order_modes(snapshots))
+            for restore_index, order_mode in enumerate(row["restore_order_modes"]):
                 if restore_index:
                     _copy_board_family(restore_seed, trial)
                 restored, restore_evidence = _spawn_apply(
@@ -8346,19 +9894,34 @@ def _prioritize_windows_by_proven_close(windows, prior_report):
             exhausted.update(
                 net for net, variants in terminal_variants.items()
                 if len(variants) >= 2 and net not in retryable_nets)
-    rows = list(windows or ())
-    rows.sort(key=lambda row: (
-        0 if str(row.get("net") or "") in proven else
-        2 if str(row.get("net") or "") in (timed_out | exhausted) else 1,
-        tuple(row.get("priority") or ()),
-        str(row.get("net") or ""),
-    ))
+    compact = route_search_history(prior_report)
+    visits = compact.get('negotiation_visits', {})
+    outcomes = compact['negotiation_outcomes']
+    proven.update(outcomes['proven_close_nets'])
+    timed_out.update(outcomes['timed_out_nets'])
+    exhausted.update(outcomes['exhausted_nets'])
+    # The planner already round-robins nets, but the old global priority sort
+    # undid that fairness and made one net's alternate cuts monopolize a wave.
+    # Rank within each net; give every current net its first window before
+    # considering any net's second. Cost history orders peers, never removes
+    # a window or asserts that a timed-out geometry is impossible.
+    by_net = {}
+    for row in sorted(windows or (), key=lambda row: tuple(row.get('priority') or ())):
+        by_net.setdefault(str(row.get('net') or ''), []).append(row)
+    net_order = sorted(by_net, key=lambda net: (
+        0 if net in proven else 2 if net in (timed_out | exhausted) else 1,
+        visits.get(net, 0), tuple(by_net[net][0].get('priority') or ()), net))
+    rows = [by_net[net][index]
+            for index in range(max((len(group) for group in by_net.values()), default=0))
+            for net in net_order if index < len(by_net[net])]
     return rows, {
         "algorithm_revision": REPAIR_ALGORITHM_REVISION,
         "proven_close_nets": sorted(proven),
         "timed_out_nets": sorted(timed_out - proven),
         "exhausted_nets": sorted(exhausted - proven),
         "policy": "proven_close_then_untried_then_prior_timeout",
+        "window_schedule": "history_ranked_net_round_robin",
+        "negotiation_visits": visits,
     }
 
 
@@ -8378,6 +9941,29 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
 
     started = time.monotonic()
     work = tempfile.mkdtemp(prefix="cec_cert_repair_")
+    schedule_input = completion or {}
+    import cec_route_copper_lineage
+    authored_baseline=cec_route_copper_lineage.resolve_authored_baseline(board_path,authored_baseline)
+    origin_sha256=(hashlib.sha256(Path(authored_baseline).read_bytes()).hexdigest()
+        if authored_baseline and Path(authored_baseline).is_file() else None)
+    route_craft_policy = dict(schedule_input.get('route_pose_policy') or {})
+    import cec_support_motion
+    support_limits = schedule_input.get('support_placement_limits')
+    if support_limits is not None:
+        support_limits = cec_support_motion.limits(**support_limits)
+    import cec_route_pose_history as poses
+    try:
+        pose_scope = poses.scope(board_path, revision=REPAIR_ALGORITHM_REVISION,
+            policy=schedule_input.get('route_pose_policy'), motion_limits=support_limits,
+            authored_baseline=authored_baseline,
+            native_version=pcbnew.GetBuildVersion(), effort=dict(max_targets=max_targets,
+                close_blocked_nets=close_blocked_nets, negotiate=negotiate,
+                max_windows=max_windows, max_blockers_per_window=max_blockers_per_window,
+                max_detour_ratio=max_detour_ratio, deep_retry=deep_retry,
+                max_attempts=max_attempts, wall_budget_s=wall_budget_s,
+                lastmile_attempts=lastmile_attempts, lastmile_margins=lastmile_margins))
+    except (OSError, ValueError, TypeError, OverflowError):
+        pose_scope = None  # Unreadable hints cannot stop native search.
     attempts = []
     effort = RepairEffortBudget(
         max_attempts=max_attempts, wall_budget_s=wall_budget_s,
@@ -8395,6 +9981,33 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         before = _spawn_apply(_score_worker, (current, drc_path))
         baseline = dict(before)
         accepted = []
+        # A native residual already binds the exact current PCB/rules. Try
+        # additive island attachment before spending the budget rediscovering
+        # the whole net or moving its neighbours. Only one accepted change is
+        # allowed per snapshot; all subsequent planners need a fresh survey.
+        import cec_additive_pair_repair as additive
+        completion, additive_intake = additive.prepare_completion(
+            board_path, current, completion)
+        additive_plan = additive.sweep(
+            current, before, completion, work_dir=work, effort=effort,
+            stage_budget_s=min(60.0, effort.remaining_wall_s() * 0.25),
+            max_targets=max_targets) if close_blocked_nets else {
+                "attempts": [], "adopted": False, "stop": "closure_disabled"}
+        attempts.extend(additive_plan["attempts"])
+        plan = {"certified_additive": additive_plan}
+        plan["certified_additive_intake"] = additive_intake
+        if additive_plan["adopted"]:
+            before = additive_plan["after"]
+            accepted.append(additive_plan["accepted"])
+            completion = _spawn_apply(additive.fresh_completion, (current,))
+            drc_data = _run_drc(current, drc_path)
+        # A private-family copy or adopted route requires a new native
+        # snapshot, not new search amnesia. Reattach only bounded cost hints;
+        # never reattach the old geometry certificates or source identity.
+        completion = dict(completion or {},
+            route_pose_scope=pose_scope,
+            route_search_history=route_search_history(schedule_input, attempts,
+                pose_scope=pose_scope, geometry_changed=bool(accepted)))
         # Both the open-net list and the blocker geometry must come from the
         # exact current board.  A historical oracle is useful provenance, but
         # its nested certificates become stale after the first accepted move.
@@ -8427,7 +10040,14 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             and prior_output
             and os.path.abspath(prior_output) == os.path.abspath(board_path)
             and prior_planning_evidence.get("refused_details"))
-        if reuse_prior_evidence:
+        if additive.bound_snapshot(current, completion):
+            live_probe_failed = True
+            live_probe = {
+                "schema": 1, "reused_current_residual": True,
+                "fallback": "exact_board_and_rule_bound_residual",
+                "refused_details": [],
+            }
+        elif reuse_prior_evidence:
             # An unchanged predecessor's output is byte-for-byte the board now
             # supplied as input.  Its live-filtered planning evidence is
             # therefore current; replaying the all-open-net probe only burns
@@ -8511,6 +10131,8 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         negotiation_plan["prior_schedule_evidence"] = \
             prior_schedule_evidence
         plan["negotiation"] = negotiation_plan
+        plan["certified_additive"] = additive_plan
+        plan["certified_additive_intake"] = additive_intake
         plan["live_refusal_probe"] = live_probe
         # Persist the exact live-filtered evidence used by both planners.  A
         # later bounded wave must not lose trapped-support authority merely
@@ -8538,15 +10160,22 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         footprint_sweep = {"schema": 1, "targets": footprint_plan["targets"],
                            "attempts": [], "accepted": [],
                            "stop": "no_eligible_trapped_support"}
-        footprint_targets = list(footprint_plan["targets"])
-        support_relocation_deferred = _defer_support_relocation(
+        support_schedule = _support_relocation_schedule(
             footprint_plan, negotiation_plan, completion)
-        if support_relocation_deferred:
-            footprint_targets = []
+        support_schedule, witnessed_supports = _native_support_aperture_schedule(
+            current, support_schedule, support_limits=support_limits,
+            craft_policy=route_craft_policy, generated_locked_uuids=generated_locked_uuids,
+            effort=effort)
+        footprint_plan['support_schedule'] = support_schedule
+        footprint_targets = list(support_schedule['eligible'])
+        if support_schedule['deferred'] and not footprint_targets:
             footprint_sweep["stop"] = \
                 "deferred_until_movable_route_windows_exhausted"
-        prior_footprint_candidates = _prior_footprint_candidate_keys(
-            completion)
+        prior_footprint_candidates = (_prior_footprint_candidate_keys(completion)
+                                     if not accepted else set())
+        footprint_plan['pose_history_intake'] = dict(
+            scope=pose_scope, prior_key_count=len(prior_footprint_candidates),
+            release_authority=False)
         for footprint_index, target_row in enumerate(footprint_targets):
             result = _attempt_footprint_relocation(
                 current, before, target_row, work_dir=work,
@@ -8556,9 +10185,12 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 # waves skip these exact deterministic poses and continue the
                 # finite ladder rather than restarting it.
                 max_candidates=2,
+                candidate_override=witnessed_supports.get((
+                    str(target_row.get('ref') or ''), str(target_row.get('target_net') or ''))),
                 skip_candidate_keys=prior_footprint_candidates,
-                generated_locked_uuids=generated_locked_uuids)
-            footprint_sweep["attempts"].extend(result["attempts"])
+                generated_locked_uuids=generated_locked_uuids, support_limits=support_limits,
+                craft_policy=route_craft_policy)
+            _record_placement_sweep_result(footprint_sweep, target_row, result)
             if not result["adopted"]:
                 footprint_sweep["stop"] = result.get(
                     "stop", "candidate_exhausted")
@@ -8600,13 +10232,21 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             }
             if early_congestion_via_plan["targets"]:
                 early_congestion_via_attempted = True
+            early_via_budget_s = min(60.0, effort.remaining_wall_s() * 0.25)
+            early_via_deadline = time.monotonic() + early_via_budget_s
+            early_via_sweep["wall_budget_s"] = early_via_budget_s
             for via_index, target_row in enumerate(
                     early_congestion_via_plan["targets"]):
+                early_via_remaining_s = early_via_deadline - time.monotonic()
+                if early_via_remaining_s <= 0:
+                    early_via_sweep["stop"] = "via_stage_wall_budget"
+                    break
                 result = _attempt_congestion_via_relocation(
                     current, before, target_row, work_dir=work,
                     token="early-%02d" % via_index,
                     generated_locked_uuids=generated_locked_uuids,
-                    effort=effort, max_candidates=8)
+                    effort=effort, max_candidates=8,
+                    stage_budget_s=early_via_remaining_s)
                 early_via_sweep["attempts"].extend(result["attempts"])
                 if not result["adopted"]:
                     early_via_sweep["stop"] = result.get(
@@ -8626,39 +10266,40 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             plan["congestion_via_relocation"] = \
                 early_congestion_via_plan
 
-        # Once both exact route windows and small support motion have reached
-        # their measured fixed point, spend the next bounded slice on the
-        # trapped endpoint owner before replaying lower-value route/via
-        # variants.  This is the placement equivalent of routing critical
-        # nets first: a sealed IC pad cannot be repaired by moving only its
-        # clear peer or by repeating the same whole-net maze.
+        # A fresh native pad-lane witness may preempt same-net route retries:
+        # those windows do not necessarily own the obstructing component land.
+        # Without that witness keep the established route/support fixed-point
+        # ordering. This changes scheduling, never placement or route admission.
         early_owner_attempted = False
         early_owner_plan = None
-        if (not support_relocation_deferred
-                and not footprint_sweep["accepted"]
+        if (not footprint_sweep["accepted"]
                 and not effort.stop_reason
                 and effort.available("endpoint_owner_relocation_early")):
             early_owner_plan = _spawn_apply(
-                _endpoint_owner_plan_worker,
-                (current, planning_completion, 4))
+                _endpoint_owner_lane_plan_worker,
+                (current, planning_completion, 4, support_limits))
             early_owner_plan["board"] = os.path.abspath(board_path)
+            early_targets = _early_owner_targets(early_owner_plan, support_schedule)
             early_owner_sweep = {
-                "schema": 1, "targets": early_owner_plan["targets"],
+                "schema": 1, "targets": [target for target, _ in early_targets],
                 "attempts": [], "accepted": [],
                 "stop": "no_eligible_owner",
-                "schedule": "after_route_and_support_fixed_point",
+                "schedule": ("native_pad_lane_before_route_replay"
+                    if any(lanes for _, lanes in early_targets)
+                    else "after_route_and_support_fixed_point"),
             }
-            for owner_index, target_row in enumerate(
-                    early_owner_plan["targets"]):
+            for owner_index, (target_row, lane_candidates) in enumerate(early_targets):
                 result = _attempt_footprint_relocation(
                     current, before, target_row, work_dir=work,
                     token="owner-early-%02d" % owner_index,
                     effort=effort, max_candidates=1,
                     skip_candidate_keys=prior_footprint_candidates,
                     stage_name="endpoint_owner_relocation",
-                    max_copper_pads=16, max_branch_tracks=64,
-                    generated_locked_uuids=generated_locked_uuids)
-                early_owner_sweep["attempts"].extend(result["attempts"])
+                    max_copper_pads=16, max_branch_tracks=8 if lane_candidates else 64,
+                    candidate_override=lane_candidates,
+                    generated_locked_uuids=generated_locked_uuids, support_limits=support_limits,
+                    craft_policy=route_craft_policy)
+                _record_placement_sweep_result(early_owner_sweep, target_row, result)
                 if not result["adopted"]:
                     early_owner_sweep["stop"] = result.get(
                         "stop", "candidate_exhausted")
@@ -8673,14 +10314,14 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 break
             early_owner_plan["sweep"] = early_owner_sweep
             plan["endpoint_owner_relocation"] = early_owner_plan
-            early_owner_attempted = True
+            early_owner_attempted = bool(early_targets)
             placement_frontier_advanced = _placement_frontier_advanced(
-                footprint_sweep, early_owner_sweep)
+                footprint_sweep, early_owner_sweep, pose_scope=pose_scope)
             early_owner_sweep["frontier_advanced"] = \
                 placement_frontier_advanced
-            # This wave entered placement only because current route windows
-            # had already reached a measured fixed point.  End the logical
-            # slice after its finite support/owner frontier; replaying route
+            # This wave either reached a route fixed point or witnessed a
+            # specific component-land obstruction. End the logical slice
+            # after its finite support/owner frontier; replaying route
             # and via searches in the same wave wastes the remaining wall
             # clock and delays the next remembered placement poses.  Normal
             # report/final-board publication still runs below, and an accepted
@@ -9426,7 +11067,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             16, max(0, int(max_attempts)) // 4)
         for closure_round in range(3):
             target_nets = _rank_single_net_closure_targets(
-                before.get("unconn_nets") or (), fresh_completion)
+                before.get("unconn_nets") or (), fresh_completion,
+                history=route_search_history(schedule_input, attempts),
+                stage='broad_canonical_closure')
             if closure_frontier is not None:
                 target_nets = [
                     net for net in target_nets if net in closure_frontier]
@@ -9559,7 +11202,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             deep_route_timeout_s = 30.0
         deep_route_inner_s = max(5.0, deep_route_timeout_s - 3.0)
         deep_targets = _rank_single_net_closure_targets(
-            before.get("unconn_nets") or (), fresh_completion)
+            before.get("unconn_nets") or (), fresh_completion,
+            history=route_search_history(schedule_input, attempts),
+            stage='deep_route_portfolio', value_first=True)
         deep_targets = deep_targets[:min(4, canonical_net_cap)]
         for net_index, net in enumerate(deep_targets):
             if not effort.claim_before_reserve(
@@ -9582,7 +11227,11 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             try:
                 completion_report = _spawn_apply(
                     _lastmile_worker,
-                    (trial, (net,), 24, 8.0, True,
+                    # The canonical breadth pass has already run. Give this
+                    # net its full deep allowance instead of spending 65% of
+                    # it repeating that pass. The ordinary exact portfolio
+                    # still includes via bridges after same-layer attempts.
+                    (trial, (net,), 24, 8.0, False,
                      deep_route_inner_s),
                     timeout_s=deep_route_timeout_s)
             except cec_process_pool.WorkerPoolStalled as exc:
@@ -9660,7 +11309,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                  max_blockers_per_window, generated_locked_uuids))
             ordered_windows, prior_schedule = \
                 _prioritize_windows_by_proven_close(
-                    fresh_negotiation_plan.get("windows") or (), completion)
+                    fresh_negotiation_plan.get("windows") or (),
+                    dict(completion or {}, route_search_history=
+                         route_search_history(completion, attempts)))
             fresh_negotiation_plan["windows"] = ordered_windows
             fresh_negotiation_plan["prior_outcome_schedule"] = prior_schedule
         else:
@@ -9671,11 +11322,37 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         fresh_negotiation_plan["board"] = os.path.abspath(board_path)
         plan["fresh_negotiation"] = fresh_negotiation_plan
 
+        # Fresh closure certificates may make an old route window ineligible
+        # (for example, a current-width/power classification can exclude it).
+        # A support must not remain deferred forever to that vanished window,
+        # or spend the remaining slice negotiating unrelated nets instead.
+        refreshed_support = {}
+        plan['post_route_support_refresh'] = refreshed_support
+        _refresh_deferred_supports(
+            current, before, footprint_plan, fresh_completion, fresh_negotiation_plan,
+            report=refreshed_support, work_dir=work, effort=effort,
+            prior_report=(dict(completion or {}, route_search_history=
+                              route_search_history(completion, attempts))
+                          if not accepted else None),
+            skip_candidate_keys=prior_footprint_candidates if not accepted else (),
+            generated_locked_uuids=generated_locked_uuids, support_limits=support_limits,
+            craft_policy=route_craft_policy)
+        if refreshed_support.get('adopted'):
+            before = refreshed_support['after']
+            accepted.append(refreshed_support['accepted'])
+            # Every window above predates the move. End this slice with its
+            # measured improvement, never negotiate stale geometry afterward.
+            fresh_negotiation_plan['windows'] = []
+            fresh_negotiation_plan['skipped'] = 'support_remeasure_required'
+            effort.stop_reason = 'placement_slice_complete'
+            effort.stop_stage = 'support_deferral_refresh'
+
         # Atomic negotiated rip-up: remove a bounded certificate-named blocker
         # set, route the refused net first, restore every displaced branch, and
         # admit only the composite full-board improvement.  The original
         # certificate set is stale after one adoption, so stop and let the next
         # wave remeasure rather than chaining speculative surgery.
+        negotiation_attempt_offset = len(attempts)
         if negotiate and before["unconnected"] > 0:
             adopted_window = False
             for window_index, window_row in enumerate(
@@ -9873,7 +11550,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                      max_blockers_per_window, generated_locked_uuids))
                 cycle_windows_ordered, cycle_prior_schedule = \
                     _prioritize_windows_by_proven_close(
-                        cycle_plan.get("windows") or (), completion)
+                        cycle_plan.get("windows") or (),
+                        dict(completion or {}, route_search_history=
+                             route_search_history(completion, attempts)))
                 cycle_plan["windows"] = cycle_windows_ordered
                 cycle_plan["prior_outcome_schedule"] = \
                     cycle_prior_schedule
@@ -10053,6 +11732,43 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "final_completion": post_route_refusal_evidence,
         }
 
+        # The first refresh precedes the final atomic route trials. If those
+        # trials newly reach a bounded no-gain outcome, consume that evidence
+        # now instead of ending a wave with an unused placement budget. Only
+        # unchanged failed negotiations qualify; any adopted geometry needs
+        # its own fresh cycle. Current native planners still grant all motion
+        # authority. Measured timeout/exhaustion only changes stage ordering.
+        negotiation_status = plan.get('negotiation_sweep') or {}
+        if (negotiation_status.get('stop') == 'no_admissible_negotiation'
+                and not any(row.get('accepted')
+                            for row in negotiation_status.get('rounds') or ())
+                and effort.available('post_negotiation_support_refresh')):
+            generated_locked_uuids = _spawn_apply(
+                _generated_locked_route_uuids, (current, authored_baseline))
+            support_windows = _spawn_apply(_negotiation_plan_worker,
+                (current, fresh_completion, max_windows,
+                 max_blockers_per_window, generated_locked_uuids))
+            support_history = route_search_history(None,
+                attempts[negotiation_attempt_offset:],
+                negotiation_stop=negotiation_status['stop'])
+            post_support = {}
+            plan['post_negotiation_support_refresh'] = post_support
+            _refresh_deferred_supports(
+                current, before, footprint_plan, fresh_completion, support_windows,
+                report=post_support, work_dir=work, effort=effort,
+                prior_report={'route_search_history': support_history},
+                skip_candidate_keys=prior_footprint_candidates if not accepted else (),
+                generated_locked_uuids=generated_locked_uuids,
+                support_limits=support_limits, craft_policy=route_craft_policy,
+                prior_refresh=refreshed_support, token_prefix='post-negotiate-refresh')
+            post_support['ordering_outcomes'] = support_history['negotiation_outcomes']
+            if post_support.get('adopted'):
+                before = post_support['after']
+                accepted.append(post_support['accepted'])
+            if _placement_frontier_advanced(post_support.get('sweep'), pose_scope=pose_scope):
+                effort.stop_reason = 'placement_slice_complete'
+                effort.stop_stage = 'post_negotiation_support_refresh'
+
         # If exact live evidence did not expose a generated via before route
         # replay, re-plan once from the richer post-route certificates.  Never
         # replay the same finite via ladder twice in one wave.
@@ -10107,7 +11823,8 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             generated_locked_uuids = _spawn_apply(
                 _generated_locked_route_uuids, (current, authored_baseline))
             owner_plan = _spawn_apply(
-                _endpoint_owner_plan_worker, (current, fresh_completion, 4))
+                _endpoint_owner_plan_worker, (current, fresh_completion, 4,
+                    (support_limits or {}).get('max_refs', cec_support_motion.MAX_REFS)))
             owner_plan["board"] = os.path.abspath(board_path)
             owner_sweep = {
                 "schema": 1, "targets": owner_plan["targets"],
@@ -10121,8 +11838,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                 token="owner-%02d" % owner_index, effort=effort,
                 max_candidates=6, stage_name="endpoint_owner_relocation",
                 max_copper_pads=16, max_branch_tracks=64,
-                generated_locked_uuids=generated_locked_uuids)
-            owner_sweep["attempts"].extend(result["attempts"])
+                generated_locked_uuids=generated_locked_uuids, support_limits=support_limits,
+                craft_policy=route_craft_policy)
+            _record_placement_sweep_result(owner_sweep, target_row, result)
             if not result["adopted"]:
                 owner_sweep["stop"] = result.get(
                     "stop", "candidate_exhausted")
@@ -10179,12 +11897,26 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         # This is deliberately after the last certificate repair: otherwise a
         # successful final bridge can reintroduce Manhattan elbows after an
         # earlier cosmetic pass.  Authored locked copper is immutable; only
-        # UUIDs proven absent from the authored baseline may be chamfered.
+        # explicitly proven generated UUIDs may be chamfered. The polish
+        # transaction independently preserves every other locked primitive.
         route_polish = {
             "schema": 1, "adopted": False,
             "chosen": "baseline", "skipped": "effort_budget",
         }
-        if effort.claim("route_polish", stage_limit=1):
+        try:
+            polish_boundary = _spawn_apply(
+                _route_polish_boundary_worker, (board_path, out_path), timeout_s=10.0)
+        except Exception as exc:                     # noqa: BLE001
+            polish_boundary = dict(ok=False, error='%s: %s' %
+                (type(exc).__name__, str(exc)[:400]), release_authority=False)
+        if not polish_boundary.get('ok'):
+            route_polish['skipped'] = 'placement_boundary_unknown'
+        elif polish_boundary['placement_changed']:
+            route_polish['skipped'] = 'placement_revalidation_required'
+        elif not _residual_polish_ready(before, accepted,
+                placement_changed=polish_boundary['placement_changed']):
+            route_polish["skipped"] = "no_repair_progress"
+        elif effort.claim("route_polish", stage_limit=1):
             try:
                 import cec_fab_repair
                 route_polish = cec_fab_repair.repair_admitted(
@@ -10211,10 +11943,14 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
                     "decision": "repair_error",
                     "error": route_polish["error"],
                 })
+        route_polish['placement_boundary'] = polish_boundary
         final = dict(before)
         return {
             "schema": SCHEMA,
             "algorithm_revision": REPAIR_ALGORITHM_REVISION,
+            "route_search_history": route_search_history(schedule_input, attempts,
+                pose_scope=pose_scope, placement_plan=plan, geometry_changed=bool(accepted),
+                negotiation_stop=(plan.get('negotiation_sweep') or {}).get('stop')),
             "input": os.path.abspath(board_path),
             "output": os.path.abspath(out_path),
             "baseline": baseline,
@@ -10227,6 +11963,7 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "generated_locked_authority": {
                 "authored_baseline": (os.path.abspath(authored_baseline)
                                        if authored_baseline else None),
+                "origin_sha256": origin_sha256,
                 "eligible_uuid_count": len(generated_locked_uuids),
             },
             "attempts": attempts,
@@ -10269,6 +12006,10 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
         return {
             "schema": SCHEMA,
             "algorithm_revision": REPAIR_ALGORITHM_REVISION,
+            "route_search_history": route_search_history(schedule_input, attempts,
+                pose_scope=pose_scope, placement_plan=partial_plan,
+                geometry_changed=bool(locals().get('accepted')),
+                negotiation_stop=(partial_plan.get('negotiation_sweep') or {}).get('stop')),
             "input": os.path.abspath(board_path),
             "output": os.path.abspath(out_path),
             "baseline": baseline_row or None,
@@ -10278,6 +12019,7 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
             "generated_locked_authority": {
                 "authored_baseline": (os.path.abspath(authored_baseline)
                                        if authored_baseline else None),
+                "origin_sha256": origin_sha256,
                 "eligible_uuid_count": len(
                     locals().get("generated_locked_uuids") or ()),
             },
@@ -10295,6 +12037,9 @@ def repair_board(board_path: str, out_path: str, completion: dict | None, *,
     finally:
         _WORKER_DEADLINE.reset(deadline_token)
         shutil.rmtree(work, ignore_errors=True)
+        if origin_sha256 is not None and (not Path(authored_baseline).is_file()
+                or hashlib.sha256(Path(authored_baseline).read_bytes()).hexdigest()!=origin_sha256):
+            raise ValueError('authored_route_origin_changed_during_repair')
 
 
 def _load_json(path: str | None) -> dict:

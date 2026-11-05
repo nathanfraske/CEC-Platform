@@ -47,10 +47,17 @@ def _seg_pt_d2(x, y, sx, sy, ex, ey):
     return (qx - x) ** 2 + (qy - y) ** 2
 
 
-def lay_force_lanes(board, *, lock=True, verbose=True):
+def lay_force_lanes(board, *, lock=True, verbose=True, access_report=None,
+                    preserved_nets=()):
     """Lay the six force lanes onto *board* (open pcbnew BOARD). Returns
     {lane: {"vias": k} | "MISSING PADS" | "REFUSED: <collider>"}. Caller saves."""
     import pcbnew
+    import cec_portal_copper
+    if preserved_nets:
+        import cec_frozen_copper
+        cec_frozen_copper.require_present(board, preserved_nets)
+    portal_report = cec_portal_copper.required_ground_portals(
+        board, board_path=board.GetFileName())
     fcu, bcu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
     nets = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
@@ -81,6 +88,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             pads.append((ref, p_.GetNumber(), p_.GetNetname(), pos.x / MM, pos.y / MM,
                          half, hx, hy))
 
+    from cec_rail_geometry import locked_segment
     lock_vias, lock_segs = [], []
     for t in board.GetTracks():
         if t.Type() == pcbnew.PCB_VIA_T and t.IsLocked():
@@ -88,8 +96,8 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
             lock_vias.append((pos.x / MM, pos.y / MM))
         elif t.IsLocked():
             s_, e_ = t.GetStart(), t.GetEnd()
-            lock_segs.append((t.GetNetname(), s_.x / MM, s_.y / MM, e_.x / MM, e_.y / MM,
-                              t.GetWidth() / MM))
+            lock_segs.append(locked_segment(t.GetNetname(), s_.x / MM, s_.y / MM,
+                              e_.x / MM, e_.y / MM, width_mm=t.GetWidth() / MM))
 
     added = []
 
@@ -184,8 +192,15 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
     j4_gnd_y = j4_gnd[0] if j4_gnd else None
 
     report = {}
+    frozen = set(preserved_nets or ())
     for n in range(1, 7):
         hi, lo = hi_net(n, nets), f"/SENSEP{n}_LO"
+        if {hi, lo} & frozen:
+            if {hi, lo} <= frozen:
+                report[n] = {"preserved": True, "nets": sorted({hi, lo}), "vias": 0}
+            else:
+                report[n] = "REFUSED: partially frozen lane requires explicit topology replacement"
+            continue
         rs1 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == hi), None)
         rs2 = next(((x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == f"RS{n}" and net == lo), None)
         j3p = [(x, y) for r, pn, net, x, y, h_, hx_, hy_ in pads if r == "J3" and net == hi]
@@ -214,21 +229,9 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         own = {hi, lo}
         col = lane_collider(hi_plan, {hi})
         if col:
-            # HOOK-DESCENT fallback (lane 6 vs the right-edge RJ-45): drop on an
-            # offset column clear of the obstacle, approach the shunt from ABOVE
-            # (the cell's validated top-entry window), same 2.5mm cross-section.
-            for hx in (rs1[0] - 3.5, rs1[0] + 3.5, rs1[0] - 4.5):
-                hook = hi_plan[:3] + [
-                    (xn, j3_gnd_y + 1.9, xn, fan_y, 2.5, fcu),
-                    (xn, fan_y, hx, fan_y, 2.5, fcu),
-                    (hx, fan_y, hx, rs1[1] - 1.2, 2.5, fcu),
-                    (hx, rs1[1] - 1.2, rs1[0], rs1[1] - 1.2, 2.5, fcu),
-                    (rs1[0], rs1[1] - 1.2, rs1[0], rs1[1], 2.5, fcu),
-                ]
-                if lane_collider(hook, {hi}) is None:
-                    hi_plan, col = hook, None
-                    break
-        if col:
+            # The lane owns this corridor. Moving a lower-priority component
+            # into it must fail placement; silently adding a lateral hook
+            # hid that conflict while reporting the lane as successfully laid.
             report[n] = "REFUSED: HI vs " + col
             continue
 
@@ -331,8 +334,8 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                     if _n2 == hi:                  # per-leg own net (audit #2):
                         continue                   # LO copper IS foreign to a HI tap
                     _s2, _e2 = _t.GetStart(), _t.GetEnd()
-                    _run.append((_n2, _s2.x / MM, _s2.y / MM, _e2.x / MM, _e2.y / MM,
-                                 _t.GetWidth() / MM))
+                    _run.append(locked_segment(_n2, _s2.x / MM, _s2.y / MM,
+                        _e2.x / MM, _e2.y / MM, width_mm=_t.GetWidth() / MM))
                 for net_, sx_, sy_, ex_, ey_, _lw2 in list(lock_segs) + _run:
                     if net_ == hi:
                         continue
@@ -368,7 +371,7 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
                 continue
             for _seg in _laid:
                 track(hi, *_seg[:4], _seg[4], _seg[5])
-                lock_segs.append((hi, _seg[0], _seg[1], _seg[2], _seg[3]))
+                lock_segs.append(locked_segment(hi, *_seg[:4], width_mm=_seg[4]))
             if verbose:
                 print("[force-lanes] HI tap laid: lane %d -> %s.%s (%.1f,%.1f, %d seg)"
                       % (n, r_, pn_, px_, py_, len(_laid)), flush=True)
@@ -383,4 +386,11 @@ def lay_force_lanes(board, *, lock=True, verbose=True):
         track(lo, xn4, j4_gnd_y - 1.9, xn4, j4_gnd_y + 1.9, 0.95, bcu)
         track(lo, xn4, j4_gnd_y + 1.9, p4[0], p4[1], 1.5, bcu)
         report[n] = {"vias": len(sites)}
+    replan = cec_portal_copper.replan_owned_tracks(
+        board, added, portal_report["portals"])
+    if access_report is not None:
+        access_report.update(reservations=portal_report, replan=replan)
+    if verbose and (replan["changed"] or replan["refused"]):
+        print("[force-lanes] ground-portal negotiation: %d full-width detours, %d refusals" %
+              (replan["changed"], len(replan["refused"])), flush=True)
     return report

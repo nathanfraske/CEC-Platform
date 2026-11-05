@@ -137,6 +137,7 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
         try:
             import pcbnew
             import cec_fr
+            import cec_slab_pour
         except ImportError:
             self.skipTest("pcbnew not available")
 
@@ -167,6 +168,7 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
         try:
             import pcbnew
             import cec_fr
+            import cec_slab_pour
         except ImportError:
             self.skipTest("pcbnew not available")
 
@@ -198,8 +200,15 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
              "field_kind": "terminal", "x_mm": 15.0, "y_mm": 13.0},
         ]
 
-        reseated, report = cec_fr.reseat_overunder_vias(
-            board, frozen, pours)
+        # The field transaction must use its immutable spatial snapshot, not
+        # fall back to rebuilding every foreign-track shape for every lattice
+        # candidate.  Collision semantics remain exact: the blocked member is
+        # still reseated and both final barrels materialize.
+        with mock.patch.object(
+                cec_slab_pour, "via_clear_of_foreign_tracks",
+                side_effect=AssertionError("quadratic fallback used")):
+            reseated, report = cec_fr.reseat_overunder_vias(
+                board, frozen, pours)
 
         self.assertTrue(report["ok"])
         self.assertTrue(report["changed"])
@@ -208,6 +217,70 @@ class TestOverunderViaNetPersistence(unittest.TestCase):
         self.assertNotEqual(reseated[0]["y_mm"], 10.0)
         self.assertEqual(reseated[1], frozen[1])
         self.assertEqual(len(cec_fr.add_overunder_vias(board, reseated)), 2)
+
+    def test_frozen_field_accepts_front_to_inner_power_overlap(self):
+        try:
+            import pcbnew
+            import cec_fr
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        board = pcbnew.CreateEmptyBoard()
+        board.SetCopperLayerCount(6)
+        rail = pcbnew.NETINFO_ITEM(board, "+5V_TEST")
+        board.Add(rail)
+        # Exact minimum landing: 0.9 mm via plus 0.05 mm copper per side.
+        polygon = [[5.0, 9.5], [25.0, 9.5],
+                   [25.0, 10.5], [5.0, 10.5]]
+        pours = [
+            {"net": "+5V_TEST", "layer": "F.Cu", "polygon": polygon},
+            {"net": "+5V_TEST", "layer": "In3.Cu", "polygon": polygon},
+        ]
+        frozen = [{"net": "+5V_TEST", "x_mm": 15.0, "y_mm": 10.0}]
+
+        reseated, report = cec_fr.reseat_overunder_vias(
+            board, frozen, pours)
+
+        self.assertTrue(report["ok"], report)
+        self.assertFalse(report["changed"])
+        self.assertEqual(reseated, frozen)
+        self.assertIn(["F.Cu", "In3.Cu"],
+                      report["overlap_layer_pairs"]["+5V_TEST"])
+
+    def test_legacy_vias_recover_disjoint_transition_fields(self):
+        try:
+            import pcbnew
+            import cec_fr
+        except ImportError:
+            self.skipTest("pcbnew not available")
+
+        board = pcbnew.CreateEmptyBoard()
+        board.SetCopperLayerCount(6)
+        board.Add(pcbnew.NETINFO_ITEM(board, "+5V_TEST"))
+        left = [[5.0, 5.0], [9.0, 5.0], [9.0, 9.0], [5.0, 9.0]]
+        right = [[15.0, 5.0], [19.0, 5.0],
+                 [19.0, 9.0], [15.0, 9.0]]
+        pours = [
+            {"net": "+5V_TEST", "layer": layer, "polygon": polygon}
+            for layer in ("F.Cu", "In3.Cu")
+            for polygon in (left, right)
+        ]
+        # Legacy states identify neither transition field. Both barrels are
+        # already valid, but they occupy different pairwise-overlap islands.
+        frozen = [
+            {"net": "+5V_TEST", "x_mm": 7.0, "y_mm": 7.0},
+            {"net": "+5V_TEST", "x_mm": 17.0, "y_mm": 7.0},
+        ]
+
+        reseated, report = cec_fr.reseat_overunder_vias(
+            board, frozen, pours)
+
+        self.assertTrue(report["ok"], report)
+        self.assertFalse(report["changed"])
+        self.assertEqual(report["preserved"], 2)
+        self.assertEqual(reseated, frozen)
+        self.assertEqual(
+            report["recovered_field_partitions"]["+5V_TEST"], 2)
 
     def test_stale_filled_ground_plane_cannot_steal_rail_via_net(self):
         try:
@@ -932,6 +1005,39 @@ class TestPickupOwnNetExempt(unittest.TestCase):
             board, include_nets={"+5VSB"}, include_refs={"U1"})
         self.assertEqual((selected["groups"], selected["linked"]), (1, 1))
 
+    def test_same_footprint_local_clusters_ignore_remote_same_rail_pin(self):
+        """A duplicated land bank is local topology; a remote package pin on
+        the same rail remains an independent plane terminal."""
+        import pcbnew
+        import cec_fr
+
+        board = self._one_pad_board()
+        footprint = next(iter(board.GetFootprints()))
+        footprint.SetReference("U1")
+        net = board.GetNetInfo().GetNetItem("+5VSB")
+        first = next(iter(footprint.Pads()))
+        first.SetNumber("1")
+        first.SetPosition(pcbnew.VECTOR2I_MM(5.0, 2.5))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        for number, x_mm in (("2", 5.8), ("6", 10.0)):
+            pad = pcbnew.PAD(footprint)
+            pad.SetNumber(number)
+            pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+            pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+            pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+            pad.SetPosition(pcbnew.VECTOR2I_MM(x_mm, 2.5))
+            pad.SetLayerSet(layers); pad.SetNet(net); footprint.Add(pad)
+
+        result = cec_fr.synthesize_same_footprint_links(
+            board, max_mm=1.0, local_cluster_only=True)
+
+        self.assertEqual((result["groups"], result["linked"],
+                          result["refused"]), (1, 1, 0))
+        self.assertEqual(result["ignored"], 1)
+        linked = [row for row in result["detail"]
+                  if row.get("status") == "linked"]
+        self.assertEqual({linked[0]["from"], linked[0]["to"]}, {"1", "2"})
+
     def test_connector_power_bank_uses_bounded_wider_local_span(self):
         """Repeated connector power lands remain one local bank even when
         they span farther than a compact IC's ordinary join limit."""
@@ -1325,6 +1431,36 @@ class TestPickupOwnNetExempt(unittest.TestCase):
         self.assertIn(surface_link_id, remaining)
         self.assertEqual(result["detail"][0]["replacement"],
                          "none-unlanded-pofv")
+
+    def test_pad_connected_pofv_seeds_inner_generated_pour(self):
+        import pcbnew
+        import cec_slab_pour
+
+        board = self._one_pad_board()
+        board.SetCopperLayerCount(6)
+        board.SetLayerName(pcbnew.In3_Cu, "PWR")
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pad.GetPosition())
+        via.SetWidth(pcbnew.FromMM(0.35))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetNet(pad.GetNet())
+        board.Add(via)
+        pos = pad.GetPosition()
+        x, y = pos.x / 1e6, pos.y / 1e6
+        pour = {
+            "net": pad.GetNetname(),
+            "layer": "In3.Cu",
+            "name": "pourfirst:%s:0" % pad.GetNetname(),
+            "polygon": [(x - 1, y - 1), (x + 1, y - 1),
+                        (x + 1, y + 1), (x - 1, y + 1)],
+        }
+
+        kept, report = cec_slab_pour.prune_unseeded_pour_components(
+            board, [pour])
+
+        self.assertEqual(kept, [pour])
+        self.assertEqual(report["removed"], 0)
 
     def test_file_cleanup_reconciles_pofv_after_zone_reaper(self):
         import pcbnew
@@ -1923,12 +2059,21 @@ class TestRouteArtifactContracts(unittest.TestCase):
                 json.dump({"board_sig": "owned", "specs": []}, fh)
             with open(os.path.splitext(src)[0] + ".railreport.json", "w",
                       encoding="utf-8") as fh:
-                json.dump({"laid": 2}, fh)
+                json.dump({"board": "source.kicad_pcb", "laid": 2}, fh)
+            with open(os.path.splitext(src)[0] + ".cellreport.json", "w",
+                      encoding="utf-8") as fh:
+                json.dump({"board": "source.kicad_pcb", "laid": 4}, fh)
             with open(os.path.splitext(src)[0] + ".pourfirst-state.json", "w",
                       encoding="utf-8") as fh:
                 json.dump({"placement_scope": "complete",
+                           "skeleton": (os.path.splitext(src)[0]
+                                        + ".pourfirst-skeleton.kicad_pcb"),
                            "frozen_nets": ["+VIN"]}, fh)
-            cec_fr.copy_project_sidecars(src, dst)
+            with open(os.path.splitext(src)[0]
+                      + ".pourfirst-skeleton.kicad_pcb", "w",
+                      encoding="utf-8") as fh:
+                fh.write("exact skeleton")
+            copied = cec_fr.copy_project_sidecars(src, dst)
             with open(os.path.splitext(dst)[0] + ".kicad_pro", encoding="utf-8") as fh:
                 pro = json.load(fh)
             self.assertEqual(pro["meta"]["filename"], "renamed.kicad_pro")
@@ -1938,11 +2083,28 @@ class TestRouteArtifactContracts(unittest.TestCase):
                 self.assertEqual(json.load(fh)["board_sig"], "owned")
             with open(os.path.splitext(dst)[0] + ".railreport.json",
                       encoding="utf-8") as fh:
-                self.assertEqual(json.load(fh)["laid"], 2)
+                rail = json.load(fh)
+                self.assertEqual(rail["laid"], 2)
+                self.assertEqual(rail["board"], "renamed.kicad_pcb")
+            with open(os.path.splitext(dst)[0] + ".cellreport.json",
+                      encoding="utf-8") as fh:
+                cell = json.load(fh)
+                self.assertEqual(cell["laid"], 4)
+                self.assertEqual(cell["board"], "renamed.kicad_pcb")
             with open(os.path.splitext(dst)[0] + ".pourfirst-state.json",
                       encoding="utf-8") as fh:
+                state = json.load(fh)
+                self.assertEqual(state["frozen_nets"], ["+VIN"])
                 self.assertEqual(
-                    json.load(fh)["frozen_nets"], ["+VIN"])
+                    state["skeleton"],
+                    os.path.splitext(dst)[0]
+                    + ".pourfirst-skeleton.kicad_pcb")
+            destination_skeleton = (
+                os.path.splitext(dst)[0]
+                + ".pourfirst-skeleton.kicad_pcb")
+            with open(destination_skeleton, encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), "exact skeleton")
+            self.assertIn(destination_skeleton, copied)
 
 
 

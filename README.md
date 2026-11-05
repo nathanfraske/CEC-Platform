@@ -14,6 +14,19 @@ This repository holds the **KiCad 10 hardware design sources** (schematics,
 layouts, the shared component library), the fabrication snapshots, and the
 tooling that checks them.
 
+## PCB engineering entry points
+
+Layout work now starts with the [frontier-directed workbench](docs/agent-directed-pcb-pipeline.md),
+implemented in `src/cec_pipeline/` and exposed through one direct/MCP API.
+The model authors connected placement, route and power-copper transactions;
+independent native validators gate them. Legacy search engines are optional
+backends, not the default decision loop.
+
+The nine [pinned review controls](checkpoints/README.md) include portable PCB,
+rule, actual footprint-library and native-report evidence. Review closure is
+not manufacturing release. See the [repository module map](docs/repository-map.md)
+for source, domain data, historical experiments, runtime and validation paths.
+
 > **Ground truth.** [`CEC-Platform-Ground-Truth-Spec.md`](CEC-Platform-Ground-Truth-Spec.md)
 > is the canonical specification and holds precedence over everything else,
 > including [`CLAUDE.md`](CLAUDE.md). Read the spec before making any design

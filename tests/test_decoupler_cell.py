@@ -3,6 +3,7 @@ import os
 import pickle
 import tempfile
 import sys
+import time
 import unittest
 from unittest import mock
 from types import SimpleNamespace
@@ -23,6 +24,244 @@ except ImportError:
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")
 class DecouplerCellTests(unittest.TestCase):
+    def test_local_supply_cheap_topologies_precede_maze_under_one_budget(self):
+        modes, deadlines = [], []
+        def impl(*_args, **kwargs):
+            modes.append(kwargs['allow_maze'])
+            deadlines.append(kwargs['deadline_monotonic'])
+            self.assertFalse(cell.cec_search_budget.exhausted())
+            if kwargs['allow_maze']:
+                return {'status': 'fixture-complete'}, None
+            return None, 'no guarded local supply path within locality bound'
+        with mock.patch.object(cell, '_add_supply_link_impl', side_effect=impl):
+            result, error = cell._add_supply_link(None, None, None, lock=True,
+                                                  search_work_limit=8)
+        self.assertIsNone(error)
+        self.assertEqual(modes, [False, True])
+        self.assertEqual(deadlines[0], deadlines[1])
+        self.assertEqual(result['search_work']['work_used'], 2)
+        self.assertEqual([t['work_used'] for t in result['search_tiers']], [1, 1])
+        self.assertIsNone(cell.cec_search_budget.stop_status())
+
+    def test_local_supply_exhaustion_does_not_reset_work_for_next_tier(self):
+        def impl(*_args, **kwargs):
+            self.assertFalse(cell.cec_search_budget.exhausted())
+            return None, 'no guarded local supply path within locality bound'
+        diagnostic = {}
+        with mock.patch.object(cell, '_add_supply_link_impl', side_effect=impl) as worker:
+            result, error = cell._add_supply_link(None, None, None, lock=True,
+                diagnostics=diagnostic, search_work_limit=1)
+        self.assertIsNone(result)
+        self.assertEqual(worker.call_count, 1)
+        self.assertEqual(error, 'local supply search budget exhausted without a path')
+        self.assertEqual(diagnostic['search']['work_used'], 1)
+        self.assertFalse(diagnostic['search']['exhaustion_is_no_path_proof'])
+        self.assertIsNone(cell.cec_search_budget.stop_status())
+
+    def test_missing_recognized_supply_pin_cannot_disappear_from_coverage(self):
+        board = pcbnew.BOARD()
+        fp = pcbnew.FOOTPRINT(board)
+        fp.SetReference('U100'); fp.SetValue('TPS2121RUXR')
+        board.Add(fp)
+        with self.assertRaisesRegex(ValueError, 'required bypass supply pad'):
+            cell.cec_constraints._device_bypass_assignment(board)
+
+    def _shared_column_fixture(self):
+        board, _assignment = self._board()
+        self._qualified_pofv_limits(board)
+        owner = board.FindFootprintByReference('U1').FindPadByNumber('2')
+        cap = board.FindFootprintByReference('C1').FindPadByNumber('1')
+        cap.SetPosition(pcbnew.VECTOR2I_MM(12,10))
+        cap.GetParentFootprint().FindPadByNumber('2').SetPosition(pcbnew.VECTOR2I_MM(12,11))
+        owner.GetParentFootprint().SetReference('IC_SHARER')
+        cap.GetParentFootprint().SetReference('HF_A')
+        wall = pcbnew.FOOTPRINT(board)
+        wall.SetReference('FOREIGN_SURFACE_WALL')
+        pad = pcbnew.PAD(wall)
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+        pad.SetSize(pcbnew.VECTOR2I_MM(.4,4))
+        pad.SetPosition(pcbnew.VECTOR2I_MM(11,10))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        pad.SetLayerSet(layers)
+        pad.SetNetCode(board.GetNetcodeFromNetname('GND'))
+        wall.Add(pad); board.Add(wall)
+        return board, owner, cap
+
+    def test_multiple_supply_caps_reuse_exact_owner_barrel_without_duplicate_drill(self):
+        board, owner, cap = self._shared_column_fixture()
+        first, error = cell._add_supply_link(board, owner, cap, lock=True)
+        self.assertIsNone(error)
+        self.assertEqual(first['status'], 'via-in-pad-bridge')
+        before_ids = {t.m_Uuid.AsString() for t in board.GetTracks()}
+        column = next(t for t in board.GetTracks() if t.GetClass()=='PCB_VIA'
+                      and t.GetPosition()==owner.GetPosition())
+        uid = column.m_Uuid.AsString()
+        second_fp = pcbnew.FOOTPRINT(board)
+        second_fp.SetReference('HF_B')
+        second = pcbnew.PAD(second_fp)
+        second.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        second.SetShape(pcbnew.PAD_SHAPE_RECT)
+        second.SetSize(pcbnew.VECTOR2I_MM(.8,.8))
+        second.SetPosition(pcbnew.VECTOR2I_MM(12,8.5))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        second.SetLayerSet(layers); second.SetNetCode(owner.GetNetCode())
+        second_fp.Add(second); board.Add(second_fp)
+        result, error = cell._add_supply_link(board, owner, second, lock=True)
+        self.assertIsNone(error)
+        self.assertEqual(result['reused_endpoint_via_uuids'], [uid])
+        self.assertEqual(result['vias'], 1)
+        self.assertEqual(result['endpoint_modes'], ['existing-via','pofv'])
+        self.assertEqual(sum(t.GetClass()=='PCB_VIA' and t.GetPosition()==owner.GetPosition()
+                             for t in board.GetTracks()), 1)
+        self.assertTrue(before_ids <= {t.m_Uuid.AsString() for t in board.GetTracks()})
+        self.assertIsNotNone(cell._shortest_track_path_mm(board, owner, second))
+
+    def test_two_existing_endpoint_columns_need_only_track_operations(self):
+        board, owner, cap = self._shared_column_fixture()
+        existing = []
+        for pad in (owner, cap):
+            via = pcbnew.PCB_VIA(board)
+            via.SetPosition(pad.GetPosition())
+            via.SetWidth(pcbnew.FromMM(.35)); via.SetDrill(pcbnew.FromMM(.25))
+            via.SetViaType(pcbnew.VIATYPE_THROUGH)
+            via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            via.SetNetCode(pad.GetNetCode()); board.Add(via)
+            existing.append(via.m_Uuid.AsString())
+        result, error = cell._add_supply_link(board, owner, cap, lock=True)
+        self.assertIsNone(error)
+        self.assertEqual(result['vias'], 0)
+        self.assertEqual(result['reused_endpoint_via_uuids'], sorted(existing))
+        self.assertEqual(result['via_diameter_mm'], .35)
+        self.assertEqual(sum(t.GetClass()=='PCB_VIA' for t in board.GetTracks()), 2)
+
+    def test_existing_supply_column_rejects_wrong_net_duplicate_and_bad_ring(self):
+        for case in ('wrong-net','duplicate','bad-ring','off-center'):
+            with self.subTest(case=case):
+                board, owner, _cap = self._shared_column_fixture()
+                via = pcbnew.PCB_VIA(board)
+                at = owner.GetPosition()
+                via.SetPosition(pcbnew.VECTOR2I(at.x+(1 if case=='off-center' else 0), at.y))
+                via.SetWidth(pcbnew.FromMM(.8 if case=='bad-ring' else .35))
+                via.SetDrill(pcbnew.FromMM(.75 if case=='bad-ring' else .25))
+                via.SetViaType(pcbnew.VIATYPE_THROUGH)
+                via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+                via.SetNetCode(board.GetNetcodeFromNetname('GND')
+                               if case=='wrong-net' else owner.GetNetCode())
+                board.Add(via)
+                if case=='duplicate':
+                    other = via.Duplicate(); board.Add(other)
+                spec = cell._netclass(board, owner.GetNetname())
+                self.assertIsNone(cell._existing_supply_column(
+                    board, owner, spec, pcbnew.FromMM(.2)))
+
+    def test_nearby_via_does_not_hide_long_ground_detour(self):
+        board, _ = self._board()
+        pad = board.FindFootprintByReference('C1').FindPadByNumber('2')
+        p = pad.GetPosition()
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I(p.x + pcbnew.FromMM(.8), p.y))
+        via.SetWidth(pcbnew.FromMM(.6)); via.SetDrill(pcbnew.FromMM(.3))
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNetCode(pad.GetNetCode()); board.Add(via)
+        points = [p, pcbnew.VECTOR2I(p.x, p.y + pcbnew.FromMM(10)),
+                  pcbnew.VECTOR2I(via.GetPosition().x, p.y + pcbnew.FromMM(10)),
+                  via.GetPosition()]
+        for a, b in zip(points, points[1:]):
+            track = pcbnew.PCB_TRACK(board)
+            track.SetStart(a); track.SetEnd(b); track.SetWidth(pcbnew.FromMM(.2))
+            track.SetLayer(pcbnew.F_Cu); track.SetNetCode(pad.GetNetCode())
+            board.Add(track)
+        self.assertAlmostEqual(cell._shortest_track_path_mm(board, pad, via), 20.8)
+        self.assertIsNone(cell._existing_return(board, pad, 1.5))
+        # Deliberately hairline synthetic fragments with a real 10 um gap.
+        # They are not fabrication dimensions; coarse graph snapping used to
+        # turn such separate objects into a false short-copper proof.
+        for a,b in [(p,pcbnew.VECTOR2I(p.x+445000,p.y)),
+                    (pcbnew.VECTOR2I(p.x+455000,p.y),via.GetPosition())]:
+            fragment=pcbnew.PCB_TRACK(board)
+            fragment.SetStart(a); fragment.SetEnd(b); fragment.SetWidth(4000)
+            fragment.SetLayer(pcbnew.F_Cu); fragment.SetNetCode(pad.GetNetCode())
+            board.Add(fragment)
+        self.assertIsNone(cell._existing_return(board, pad, 1.5))
+        short = pcbnew.PCB_TRACK(board)
+        short.SetStart(p); short.SetEnd(via.GetPosition())
+        short.SetWidth(pcbnew.FromMM(.2)); short.SetLayer(pcbnew.F_Cu)
+        short.SetNetCode(pad.GetNetCode()); board.Add(short)
+        self.assertAlmostEqual(cell._existing_return(board, pad, 1.5)[0], .8)
+
+    def test_local_filled_ground_return_preserved_but_split_fill_refused(self):
+        board, _ = self._board()
+        pad = board.FindFootprintByReference('C1').FindPadByNumber('2')
+        via = pcbnew.PCB_VIA(board)
+        via.SetPosition(pcbnew.VECTOR2I_MM(12.2, 11))
+        via.SetWidth(pcbnew.FromMM(.6)); via.SetDrill(pcbnew.FromMM(.3))
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNetCode(pad.GetNetCode()); board.Add(via)
+        zone = pcbnew.ZONE(board)
+        zone.SetLayer(pcbnew.F_Cu); zone.SetNetCode(pad.GetNetCode())
+        zone.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_NEVER)
+        outline = zone.Outline(); outline.NewOutline()
+        for x, y in [(9,9), (14,9), (14,13), (9,13)]:
+            outline.Append(pcbnew.FromMM(x), pcbnew.FromMM(y))
+        board.Add(zone); pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        self.assertAlmostEqual(cell._existing_return(board, pad, 1.5)[0], 1.2)
+        self.assertIsNone(cell._shortest_track_path_mm(board, pad, via))
+        zone.UnFill()
+        outline.NewHole()
+        for x,y in [(11.55,9.1),(11.75,9.1),(11.75,12.9),(11.55,12.9)]:
+            outline.Append(pcbnew.FromMM(x),pcbnew.FromMM(y),0,0)
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        filled=zone.GetFilledPolysList(pcbnew.F_Cu)
+        self.assertTrue(filled.Contains(pad.GetPosition()))
+        self.assertTrue(filled.Contains(via.GetPosition()))
+        self.assertIsNone(cell._straight_filled_return_mm(board, pad, via))
+        zone.UnFill()
+        self.assertIsNone(cell._straight_filled_return_mm(board, pad, via))
+
+    def test_pofv_search_rejects_overlong_first_layer_and_tries_next(self):
+        board, _ = self._board()
+        self._qualified_pofv_limits(board)
+        owner = board.FindFootprintByReference("U1").FindPadByNumber("2")
+        cap = board.FindFootprintByReference("C1").FindPadByNumber("1")
+        start, end = owner.GetPosition(), cap.GetPosition()
+        width = pcbnew.FromMM(.25)
+        detour = pcbnew.VECTOR2I_MM(10, 13)
+        checks = []
+        def accept(ops):
+            length = sum((op[2]-op[1]).EuclideanNorm()/cell.MM
+                         for op in ops if op[0] != "via")
+            checks.append(length)
+            return length <= 2.
+        with mock.patch.object(cell.cec_fr, "_guarded_profiled_lastmile_legs",
+                side_effect=[[(start,detour,width),(detour,end,width)],
+                             [(start,end,width)]]):
+            ops, meta = cell._pofv_supply_bridge_ops(board, owner, cap, width,
+                pcbnew.FromMM(.2), owner.GetNetCode(),
+                [pcbnew.In1_Cu,pcbnew.In2_Cu], cell._netclass(board,"+3V3"),
+                ops_ok=accept, deadline_monotonic=time.monotonic()+2.)
+        self.assertIsNotNone(meta)
+        self.assertEqual(len(checks), 2)
+        self.assertGreater(checks[0], 2.)
+        self.assertLessEqual(checks[1], 2.)
+        self.assertEqual([op[4] for op in ops if op[0]!="via"], [pcbnew.In2_Cu])
+        self.assertEqual(len(list(board.GetTracks())), 0)
+
+    def test_pofv_search_honors_expired_shared_deadline(self):
+        board, _ = self._board()
+        owner = board.FindFootprintByReference("U1").FindPadByNumber("2")
+        cap = board.FindFootprintByReference("C1").FindPadByNumber("1")
+        with mock.patch.object(cell.cec_fr, "_guarded_profiled_lastmile_legs") as search:
+            ops, meta = cell._pofv_supply_bridge_ops(board, owner, cap, pcbnew.FromMM(.25),
+                pcbnew.FromMM(.2), owner.GetNetCode(), [pcbnew.In1_Cu],
+                cell._netclass(board,"+3V3"), deadline_monotonic=time.monotonic()-1.)
+        self.assertIsNone(ops)
+        self.assertIsNone(meta)
+        search.assert_not_called()
+
     def test_assigned_cell_order_is_electrical_not_serialization_order(self):
         class Owner:
             def __init__(self, pad_count):
@@ -100,7 +339,10 @@ class DecouplerCellTests(unittest.TestCase):
             def GetTracks(self):
                 return list(self.items)
 
-            def Remove(self, item):
+            def Groups(self):
+                return []
+
+            def Delete(self, item):
                 self.items.remove(item)
 
         report = {
@@ -193,7 +435,10 @@ class DecouplerCellTests(unittest.TestCase):
             def GetTracks(self):
                 return list(self.items)
 
-            def Remove(self, item):
+            def Groups(self):
+                return []
+
+            def Delete(self, item):
                 self.items.remove(item)
 
             def BuildConnectivity(self):
@@ -238,6 +483,9 @@ class DecouplerCellTests(unittest.TestCase):
     def test_guarded_shared_ground_link_uses_one_qualified_local_via(self):
         class Board:
             def GetTracks(self):
+                return []
+
+            def Groups(self):
                 return []
 
             def BuildConnectivity(self):
@@ -292,6 +540,14 @@ class DecouplerCellTests(unittest.TestCase):
             def GetParentFootprint(self):
                 return self.parent
 
+            def GetAttribute(self):
+                return pcbnew.PAD_ATTRIB_SMD
+
+            def GetLayerSet(self):
+                layers = pcbnew.LSET()
+                layers.AddLayer(pcbnew.F_Cu)
+                return layers
+
             def GetNetCode(self):
                 return 1
 
@@ -330,6 +586,7 @@ class DecouplerCellTests(unittest.TestCase):
 
         with mock.patch.object(
                 cell, "_existing_return", side_effect=existing), \
+                mock.patch.object(cell, "_reconnect_existing_ground_via", return_value=None), \
                 mock.patch.object(
                     cell, "_add_supply_link",
                     return_value=(link, None)) as add_link:
@@ -389,6 +646,56 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(missing["U30"]["nearest_ref"], "C30")
         self.assertGreater(missing["U11"]["nearest_mm"], 3.5)
         self.assertGreater(missing["U30"]["nearest_mm"], 3.5)
+
+    def test_declared_owners_reserve_multiple_caps_at_one_supply_pin(self):
+        board = pcbnew.BOARD()
+        nets = {}
+        for name in ("GND", "+3V3"):
+            net = pcbnew.NETINFO_ITEM(board, name)
+            board.Add(net)
+            nets[name] = net
+
+        def footprint(ref, value, supply_x, owner=None):
+            fp = pcbnew.FOOTPRINT(board)
+            fp.SetReference(ref)
+            fp.SetValue(value)
+            if owner:
+                fp.SetField("BypassOwner", owner)
+                fp.GetField("BypassOwner").SetVisible(False)
+            pad_rows = (("2", "+3V3", supply_x, 10.0),
+                        ("1", "GND", supply_x, 11.0)) \
+                if ref.startswith("U") else \
+                (("1", "+3V3", supply_x, 10.0),
+                 ("2", "GND", supply_x, 11.0))
+            for number, net_name, x, y in pad_rows:
+                pad = pcbnew.PAD(fp)
+                pad.SetPadName(number)
+                pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+                pad.SetShape(pcbnew.PAD_SHAPE_RECT)
+                pad.SetSize(pcbnew.VECTOR2I_MM(0.8, 0.8))
+                pad.SetPosition(pcbnew.VECTOR2I_MM(x, y))
+                layers = pcbnew.LSET()
+                layers.AddLayer(pcbnew.F_Cu)
+                pad.SetLayerSet(layers)
+                pad.SetNet(nets[net_name])
+                fp.Add(pad)
+            board.Add(fp)
+
+        footprint("U1", "ESP32-S3-WROOM-1", 10.0)
+        # Undeclared decoys are closer, but they must remain in the common
+        # pool when source-level ownership names the actual local pair.
+        footprint("C3", "10uF", 10.5)
+        footprint("C17", "100nF", 10.6)
+        footprint("C11", "22uF", 12.0, "U1.2")
+        footprint("C36", "100nF", 12.2, "U1.2")
+
+        assignment = cell.cec_constraints._device_bypass_assignment(board)
+        assigned = {row["requirement"]["kind"]: row["cap_ref"]
+                    for row in assignment["assigned"].values()}
+        self.assertEqual(assignment["missing"], [])
+        self.assertEqual(assigned, {
+            "100n": "C36", "at-least-10u": "C11",
+        })
 
     def test_tja1051_vio_bypass_is_assigned_between_vio_and_vcc(self):
         board = pcbnew.BOARD()
@@ -606,8 +913,40 @@ class DecouplerCellTests(unittest.TestCase):
         }
         return board, assignment
 
-    def test_selected_jlc_profile_uses_pofv_for_both_ground_pads(self):
+    def test_locked_foreign_trunk_ground_refusal_has_upstream_certificate(self):
         board, assignment = self._board()
+        net = pcbnew.NETINFO_ITEM(board, "POWER_OTHER"); board.Add(net)
+        track = pcbnew.PCB_TRACK(board)
+        track.SetStart(pcbnew.VECTOR2I_MM(6., 11.))
+        track.SetEnd(pcbnew.VECTOR2I_MM(15., 11.))
+        track.SetWidth(pcbnew.FromMM(4.))
+        track.SetLayer(pcbnew.B_Cu); track.SetNet(net); track.SetLocked(True)
+        board.Add(track)
+        uid = track.m_Uuid.AsString()
+        report = cell.synthesize_board(board, assignment=assignment)
+        assert not report["ok"]
+        certificate = report["refused"][0]["certificate"]["ground_return"]
+        attempts = certificate["attempts"]
+        assert len(attempts) == 4  # both owners, both ordering alternatives
+        assert all(a["evidence"]["repair_stage"] == "upstream_owned_copper_replan"
+                   for a in attempts)
+        assert all(uid in a["evidence"]["protected_blocker_uuids"] for a in attempts)
+        assert all(a["evidence"]["pad_center"]["copper_admission"]["layer"] == "B.Cu"
+                   for a in attempts)
+        assert {t.m_Uuid.AsString() for t in board.GetTracks()} == {uid}
+        json.dumps(certificate)  # durable, no native objects in worker evidence
+
+    def _qualified_pofv_limits(self, board):
+        # This fixture explicitly models a board whose absolute native floors
+        # admit the selected filled/capped geometry; the default BOARD does not.
+        limits = board.GetDesignSettings()
+        limits.m_ViasMinSize = pcbnew.FromMM(.35)
+        limits.m_MinThroughDrill = pcbnew.FromMM(.25)
+        limits.m_ViasMinAnnularWidth = pcbnew.FromMM(.05)
+
+    def test_selected_jlc_profile_uses_pofv_and_guarded_shared_ground(self):
+        board, assignment = self._board()
+        self._qualified_pofv_limits(board)
         with mock.patch.object(
                 cell.cec_constraints, "_device_bypass_assignment",
                 return_value=assignment):
@@ -615,11 +954,11 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertTrue(report["ok"], report["refused"])
         self.assertEqual(report["generated_item_count"], 2)
         self.assertEqual(
-            {row["kind"] for row in report["generated_items"]}, {"PCB_VIA"})
+            {row["kind"] for row in report["generated_items"]}, {"PCB_VIA", "PCB_TRACK"})
         self.assertEqual(
             {row["ground_return"]["status"] for row in report["cells"]},
-            {"via-in-pad"})
-        self.assertEqual(len(report["required_via_uuids"]), 2)
+            {"reused-ground-barrel"})
+        self.assertEqual(len(report["required_via_uuids"]), 1)
         vias = [item for item in board.GetTracks()
                 if item.GetClass() == "PCB_VIA"]
         expected_diameter, expected_drill = (0.35, 0.25)
@@ -629,10 +968,10 @@ class DecouplerCellTests(unittest.TestCase):
                           for via in vias}, {round(expected_diameter, 3)})
         returns = [row[key]
                    for row in report["cells"]
-                   for key in ("ground_return", "owner_ground_return")]
+                   for key in ("owner_ground_return",)]
         self.assertTrue(all(
             row["endpoint_limited_local_via"]
-            and row["qualified_process_exception"]
+            and not row["qualified_process_exception"]
             and row["diameter_mm"] == expected_diameter
             and row["drill_mm"] == expected_drill
             for row in returns))
@@ -772,6 +1111,75 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(report["drc_regression"], {})
         self.assertEqual(report["drc_reclassification"], {"clearance": 1})
 
+    def test_partial_preroute_refills_trial_and_retains_rejected_child_before_rollback(self):
+        import hashlib
+        board, _assignment = self._board()
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.kicad_pcb")
+            destination = os.path.join(directory, "priority.kicad_pcb")
+            pcbnew.SaveBoard(source, board)
+            with open(source, "rb") as stream:
+                original = stream.read()
+            score = SimpleNamespace(
+                drc=0, unconnected=2, kelvin_ok=True, diffpair_ok=True,
+                drc_types={})
+            synthesized = {
+                "schema": 1, "ok": False, "requirements": 2,
+                "owned": 1, "refused": [{"reason": "work_limit"}],
+                "cells": [], "generated_items": [],
+                "generated_item_count": 1,
+                "required_via_uuids": [], "partial_supply_nets": []}
+
+            def refill(path):
+                trial = pcbnew.LoadBoard(path)
+                trial.SetTitleBlock(pcbnew.TITLE_BLOCK())
+                props = trial.GetProperties()
+                props["TEST_REFILLED_TRIAL"] = "yes"
+                trial.SetProperties(props)
+                pcbnew.SaveBoard(path, trial)
+
+            with mock.patch.object(cell, "synthesize_board", return_value=synthesized), \
+                    mock.patch("cec_score.score", return_value=score), \
+                    mock.patch.object(cell.cec_fr, "refill_zones", side_effect=refill) as fill:
+                report = cell.synthesize_pre_route(source, destination)
+            fill.assert_called_once_with(destination)
+            self.assertFalse(report["ok"])
+            self.assertFalse(report["priority_complete"])
+            self.assertTrue(report["rolled_back"])
+            self.assertTrue(report["zone_refill"]["ok"])
+            rejected = report["rejected_artifact"]
+            self.assertFalse(rejected["checkpoint_authority"])
+            self.assertFalse(rejected["release_authority"])
+            with open(rejected["board"], "rb") as stream:
+                child = stream.read()
+            self.assertNotEqual(child, original)
+            self.assertEqual(rejected["sha256"], hashlib.sha256(child).hexdigest())
+            self.assertEqual(rejected["score"], report["after"])
+            with open(destination, "rb") as stream:
+                self.assertEqual(stream.read(), original)
+
+    def test_partial_preroute_refill_error_stays_fail_closed(self):
+        board, _assignment = self._board()
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.kicad_pcb")
+            destination = os.path.join(directory, "priority.kicad_pcb")
+            pcbnew.SaveBoard(source, board)
+            score = SimpleNamespace(
+                drc=0, unconnected=2, kelvin_ok=True, diffpair_ok=True,
+                drc_types={})
+            synthesized = {
+                "ok": False, "owned": 1, "refused": [{"reason": "work_limit"}],
+                "generated_items": [], "generated_item_count": 1}
+            with mock.patch.object(cell, "synthesize_board", return_value=synthesized), \
+                    mock.patch("cec_score.score", return_value=score), \
+                    mock.patch.object(cell.cec_fr, "refill_zones", side_effect=RuntimeError("fill failed")):
+                report = cell.synthesize_pre_route(source, destination)
+            self.assertFalse(report["ok"])
+            self.assertFalse(report["priority_complete"])
+            self.assertFalse(report["zone_refill"]["ok"])
+            self.assertIn("fill failed", report["zone_refill_error"])
+            self.assertFalse(report["rejected_artifact"]["zones_refilled"])
+
     def test_routed_seed_ripup_is_local_and_preserves_locked_priority_copper(self):
         def add_foreign(board, *, locked):
             net = pcbnew.NETINFO_ITEM(
@@ -878,7 +1286,7 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertTrue(audit["ok"], audit["refused"])
         row = audit["cells"][0]
         self.assertLessEqual(row["supply_path_mm"], 1.35)
-        self.assertEqual(row["cap_ground_return_mm"], 0.0)
+        self.assertEqual(row["cap_ground_return_mm"], 1.0)
         self.assertEqual(row["owner_ground_return_mm"], 0.0)
 
     def test_final_audit_accepts_bounded_explicit_shared_ground_entry(self):
@@ -985,7 +1393,7 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertIn(pcbnew.FromMM(0.2), widths)
         self.assertEqual(report["width_mm"], 1.0)
 
-    def test_shared_ground_entry_uses_bounded_full_cell_neckdown(self):
+    def test_shared_ground_entry_cannot_own_unqualified_full_cell_neckdown(self):
         board, _assignment = self._board()
         ground = next(net for net in
                       board.GetNetInfo().NetsByNetcode().values()
@@ -1014,15 +1422,9 @@ class DecouplerCellTests(unittest.TestCase):
                 board, owner, cap, lock=True,
                 link_role="shared-ground-entry")
 
-        self.assertIsNone(error)
-        self.assertEqual(report["status"], "shared-ground-neckdown")
-        self.assertEqual(report["width_mm"], 0.3)
-        self.assertEqual(report["class_width_mm"], 0.5)
-        self.assertLessEqual(report["length_mm"], report["max_local_mm"])
-        self.assertEqual(
-            report["endpoint_neckdown"]["group"],
-            cell.ENDPOINT_NECKDOWN_GROUP)
-        self.assertTrue(all(item.IsLocked() for item in report["items"]))
+        self.assertIsNone(report)
+        self.assertIn("no guarded local shared-ground path", error)
+        self.assertEqual(len(list(board.GetTracks())), 0)
 
     def test_shared_ground_entry_refuses_before_multilayer_maze(self):
         board, _assignment = self._board()
@@ -1089,7 +1491,7 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertEqual(
             sum(primitive["kind"] == "via"
                 and primitive["net"] == "GND"
-                for primitive in report["primitives"]), 2)
+                for primitive in report["primitives"]), 1)
 
     def test_file_reservation_probe_is_process_isolated(self):
         expected = {"schema": 1, "ok": True, "primitives": []}
@@ -1191,6 +1593,37 @@ class DecouplerCellTests(unittest.TestCase):
         bridge.assert_called_once()
         self.assertIsInstance(
             bridge.call_args.kwargs.get("foreign_cache"), dict)
+
+    def test_supply_link_applies_one_bounded_deadline_to_all_maze_fallbacks(self):
+        board, _assignment = self._board()
+        owner = board.FindFootprintByReference("U1").FindPadByNumber("2")
+        cap = board.FindFootprintByReference("C1").FindPadByNumber("1")
+        certificate = {
+            "schema": 1, "search": {}, "dominant_blockers": [],
+            "layers": []}
+        with mock.patch.object(
+                cell.cec_fr, "_guarded_profiled_lastmile_legs",
+                return_value=None) as guarded, mock.patch.object(
+                    cell, "_pofv_supply_bridge_ops",
+                    return_value=(None, None)), mock.patch.object(
+                        cell.cec_fr, "_lastmile_bridge",
+                        return_value=None) as bridge, mock.patch.object(
+                            cell.cec_fr, "_lastmile_refusal_certificate",
+                            return_value=certificate):
+            result, error = cell._add_supply_link(
+                board, owner, cap, lock=True, diagnostics={},
+                search_timeout_s=1.25)
+
+        self.assertIsNone(result)
+        self.assertIn("path", error)
+        guarded_deadlines = {
+            call.kwargs["deadline_monotonic"]
+            for call in guarded.call_args_list}
+        self.assertEqual(len(guarded_deadlines), 1)
+        self.assertEqual(
+            bridge.call_args.kwargs["deadline_monotonic"],
+            next(iter(guarded_deadlines)))
+        self.assertGreater(next(iter(guarded_deadlines)), time.monotonic())
 
     def test_supply_link_rejects_guarded_but_nonlocal_path_before_mutation(self):
         board, _assignment = self._board()
@@ -1393,8 +1826,8 @@ class DecouplerCellTests(unittest.TestCase):
 
         self.assertTrue(report["ok"], report["refused"])
         self.assertEqual(report["pads"], 2)
-        self.assertEqual(report["via_in_pad"], 2)
-        self.assertEqual(len(report["required_via_uuids"]), 2)
+        self.assertEqual(report["via_in_pad"], 1)
+        self.assertEqual(len(report["required_via_uuids"]), 1)
         self.assertEqual(report["protected_nets"], ["GND"])
 
     def test_ground_dogbone_cannot_partially_overlap_source_pad(self):
@@ -1481,6 +1914,37 @@ class DecouplerCellTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertIn("cap-to-owner GND gap", report["refused"][0]["reason"])
 
+    def test_portal_scan_reads_each_live_epoch_without_global_rebuild(self):
+        state = {"epoch": 0, "built": -1}
+        builds, lookups = [], []
+        def rebuild():
+            state["built"] = state["epoch"]
+            builds.append(state["built"])
+        pads = [SimpleNamespace(
+            GetAttribute=lambda: pcbnew.PAD_ATTRIB_SMD,
+            GetNetname=lambda: "GND", GetPadName=lambda i=i: str(i),
+            GetPosition=lambda: pcbnew.VECTOR2I_MM(10., 10.)) for i in range(5)]
+        board = SimpleNamespace(
+            GetFootprints=lambda: [SimpleNamespace(GetReference=lambda: "GROUND_DEVICE", Pads=lambda: pads)],
+            GetTracks=lambda: [], BuildConnectivity=rebuild)
+        portal = {"status": "covered", "via_uuid": "existing", "items": []}
+        def existing(_board, _pad, _reach, *, rebuild=True):
+            self.assertFalse(rebuild)
+            lookups.append(state["epoch"])
+            return (0., SimpleNamespace(GetPosition=lambda: pcbnew.VECTOR2I_MM(10., 10.)))
+        def attempted_mutation(*a, **kw):
+            state["epoch"] += 1
+            return None, None, None, "no legal shared entry"
+        with mock.patch.object(cell, "_add_ground_return", side_effect=[
+                (portal, None)] * 3 + [(None, "blocked")] * 2), \
+                mock.patch.object(cell, "_existing_return", side_effect=existing), \
+                mock.patch.object(cell, "_add_ground_return_pair", side_effect=attempted_mutation):
+            report = cell.synthesize_ground_plane_access_board(board)
+        self.assertEqual(len(lookups), 6)
+        self.assertEqual(lookups, [0, 0, 0, 3, 3, 3])
+        self.assertEqual(builds, [])
+        self.assertEqual(len(report["refused"]), 2)
+
     def test_bulk_electrolytic_cannot_own_local_bypass_requirement(self):
         board, _assignment = self._board()
         owner = board.FindFootprintByReference("U1")
@@ -1490,7 +1954,17 @@ class DecouplerCellTests(unittest.TestCase):
                  if net.GetNetname() == "+3V3"))
         owner.FindPadByNumber("1").SetNet(
             next(net for net in board.GetNetInfo().NetsByNetcode().values()
-                 if net.GetNetname() == "GND"))
+                 if net.GetNetname() == "+3V3"))
+        # The fixture must contain all three real TPS supply pins; missing or
+        # grounded mandatory pins now fail coverage instead of disappearing.
+        supply = pcbnew.PAD(owner)
+        supply.SetPadName('7'); supply.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        supply.SetShape(pcbnew.PAD_SHAPE_RECT)
+        supply.SetSize(pcbnew.VECTOR2I_MM(.8,.8))
+        supply.SetPosition(pcbnew.VECTOR2I_MM(10,9))
+        layers = pcbnew.LSET(); layers.AddLayer(pcbnew.F_Cu)
+        supply.SetLayerSet(layers)
+        supply.SetNetCode(owner.FindPadByNumber('2').GetNetCode()); owner.Add(supply)
         ceramic = board.FindFootprintByReference("C1")
         ceramic.SetValue("1uF")
         ceramic.SetFPID(pcbnew.LIB_ID("Capacitor_SMD", "C_0603_1608Metric"))

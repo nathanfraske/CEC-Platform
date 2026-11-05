@@ -10,7 +10,7 @@
 #
 #   GEOMETRY     local_pads / pad_global / courtyard_bbox / part_half
 #                -- footprint pad + courtyard math, KiCad-rotation correct, with an
-#                   optional antenna-keepout trim (e.g. the ESP32-C6 MINI when no Wi-Fi).
+#                   RF exclusion is separate from the physical module envelope.
 #   PASSIVES     verify_passives(nets, spec)        -- netlist-verified ownership check.
 #                auto_cluster(P, comps, spec, ...)  -- geometry-driven: place each
 #                   decoupler just outside its OWNER IC's power-pad, courtyard-aware,
@@ -83,6 +83,31 @@ def local_pads(libid):
 _PADSZ_CACHE = {}
 _PADBOX_CACHE = {}
 _PADGEOM_CACHE = {}
+_PHYSICAL_PADS_CACHE = {}
+
+
+def local_physical_pads(libid):
+    """All electrical lands, preserving repeated pin numbers and pad type."""
+    if libid not in _PHYSICAL_PADS_CACHE:
+        nick, name = libid.split(":")
+        with open(fp_path(nick, name), encoding="utf-8") as handle:
+            source = handle.read()
+        rows = []
+        for match in re.finditer(r'\(pad ', source):
+            block = carve(source, match.start())
+            head = re.match(r'\(pad "([^"]*)"\s+(\w+)', block)
+            at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', block)
+            size = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', block)
+            if not head or not head[1] or head[2] == "np_thru_hole":
+                continue
+            if not at or not size:
+                raise ValueError("missing physical pad geometry in %s" % libid)
+            rows.append({"number": head[1], "x": float(at[1]),
+                         "y": float(at[2]), "width": float(size[1]),
+                         "height": float(size[2]),
+                         "tht": head[2] == "thru_hole"})
+        _PHYSICAL_PADS_CACHE[libid] = tuple(rows)
+    return [dict(row) for row in _PHYSICAL_PADS_CACHE[libid]]
 
 
 def local_pad_boxes(libid):
@@ -219,30 +244,25 @@ def _crtyd_local(libid):
 
 
 def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
-    """Global courtyard bbox (xmin,xmax,ymin,ymax) of a placed footprint. If
-    drop_keepout, trim an RF-module antenna keepout (a courtyard lobe extending far
-    past the pad rows) to the pad band -- used when wireless is unpopulated. The footprint
-    parse is memoized (see _crtyd_local), so this is cheap even under auto_cluster's relaxation."""
-    pts, circles, pad_lo, pad_hi = _crtyd_local(libid)
+    """Global physical courtyard bbox (xmin,xmax,ymin,ymax).
+
+    ``drop_keepout`` remains accepted for legacy callers, but cannot trim the
+    physical envelope. A padless band can be real substrate, not RF clearance.
+    Disable RF rule areas separately or select a reviewed body-only footprint;
+    never infer a smaller body from the locations of electrical pads.
+    """
+    pts, circles, _pad_lo, _pad_hi = _crtyd_local(libid)
     xs = []; ys = []
     for (lx, ly) in pts:
-        if drop_keepout and ly < pad_lo - 3.0:          # antenna lobe past the pads
-            ly = pad_lo - 1.0
-        elif drop_keepout and ly > pad_hi + 3.0:
-            ly = pad_hi + 1.0
         dx, dy = _rot(lx, ly, rot); xs.append(x + dx); ys.append(y + dy)
     for (cx, cy, r) in circles:                         # a circle is rotation-invariant: rotate the
-        if drop_keepout and cy < pad_lo - 3.0:          # centre, then expand by +/- the radius
-            cy = pad_lo - 1.0
-        elif drop_keepout and cy > pad_hi + 3.0:
-            cy = pad_hi + 1.0
+        # centre, then expand by +/- the radius
         dx, dy = _rot(cx, cy, rot)
         xs += [x + dx - r, x + dx + r]; ys += [y + dy - r, y + dy + r]
     # PAD-TRUTH UNION (2026-07-23, the D5 class): a courtyard that fails to cover
     # the pad copper (easyeda body-only courtyards) under-sizes every placement
     # model -- union the real pad extents so seats/colliders match what DRC and
-    # the board edge actually see. Pads are never keepout-trimmed (they ARE the
-    # band the trim preserves).
+    # the board edge actually see. Neither pads nor physical bodies are trimmed.
     for (px0, py0, px1, py1) in local_pad_boxes(libid):
         for (lx, ly) in ((px0, py0), (px1, py0), (px0, py1), (px1, py1)):
             dx, dy = _rot(lx, ly, rot)
@@ -531,7 +551,11 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
         x, y = m[0], m[1]
         mfp = (m[2] if len(m) > 2 and m[2] else
                "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via")
-        fps.append(place(mfp, f"H{i}", x, y, 0,
+        # A dropped optional mount must not renumber surviving alignment
+        # datums. Older callers retain positional H<i> enumeration; explicit
+        # materialization carries the source identity as the fourth element.
+        mref = m[3] if len(m) > 3 else f"H{i}"
+        fps.append(place(mfp, mref, x, y, 0,
                          padnet, code_of, gnd_all=True))
     for i, (x, y) in enumerate(fiducials, 1):
         # assembly fiducials (round-2 item 6, 2026-07-08): the placer always PLANNED
@@ -619,9 +643,10 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 doc = doc.replace(_stale,
                                   f'(6 "In2.Cu" signal "{inner_label}")', 1)
                 break
-    # drop the RF antenna keepout courtyard lobe (no wireless) where requested
-    if drop_keepout:
-        doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body
+    # Wired-only projects select reviewed body-only footprint definitions.
+    # Never rewrite a coordinate literal across a whole board: an unrelated
+    # pad/trace/outline can legitimately contain the same numeric value, and
+    # shrinking a courtyard does not remove a physical module or RF rule area.
     with open(out, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(doc)
     print(f"WROTE {os.path.relpath(out, ROOT)}  board={W}x{H:.0f}mm  parts={len(fps)}")

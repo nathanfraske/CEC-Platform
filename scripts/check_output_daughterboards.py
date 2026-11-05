@@ -28,6 +28,17 @@ import json, os, re, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
+# Current BETA uses bolt-mounted XFCN contacts. Never claim current keying
+# from the retired blade generator's hypothetical pitch grid.
+if __name__ == '__main__' and '--legacy-blades' not in sys.argv:
+    from cec_output_mount_audit import main as current_mount_audit
+    args = sys.argv[1:]
+    if '--out' not in args:
+        args += ['--out', os.path.join(ROOT, 'build', 'output-mount-audit.json')]
+    raise SystemExit(current_mount_audit(args))
+if '--legacy-blades' in sys.argv:
+    sys.argv.remove('--legacy-blades')
+    print('LEGACY BLADE CHECK ONLY -- NOT CURRENT BETA QUALIFICATION', file=sys.stderr)
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
     "godb", os.path.join(ROOT, "scripts", "gen-output-daughterboard.py"))

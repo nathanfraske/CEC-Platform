@@ -83,6 +83,11 @@ class RoutePreflightTest(unittest.TestCase):
 
     def test_critical_probe_preserves_pair_endpoint_stations_for_placement(self):
         precision = mock.Mock()
+        prefilter = {"PKG@F.Cu": {
+            "checked": 192,
+            "rejection_counts": {"terminal: blocked launch": 96},
+            "rejection_samples": [{"reason": "terminal: blocked launch",
+                                   "detail": {"foreign_copper": False}}]}}
         stations = [
             {"id": "U2", "kind": "same-footprint-pair",
              "physical_refs": ["U2"], "center": [10.0, 10.0]},
@@ -98,6 +103,7 @@ class RoutePreflightTest(unittest.TestCase):
                 "name": "CAN", "p": "/CAN_H", "n": "/CAN_L",
                 "refused": "detour", "endpoint_stations": stations,
                 "failed_edge": ["U2", "R11|R12"],
+                "candidate_prefilter": prefilter,
             }]},
         }
         precision._pads_on_net.return_value = []
@@ -113,11 +119,14 @@ class RoutePreflightTest(unittest.TestCase):
                          stations)
         self.assertEqual(result["refused"][0]["failed_edge"],
                          ["U2", "R11|R12"])
+        self.assertEqual(result["refused"][0]["candidate_prefilter"], prefilter)
         compact = rp.compact_placement_evidence({
             "critical_routes": result})
         self.assertEqual(
             compact["critical_pair_refused"][0]["endpoint_stations"],
             stations)
+        self.assertEqual(compact["critical_pair_refused"][0]["candidate_prefilter"],
+                         prefilter)
 
     def test_critical_probe_does_not_promote_global_grid_blockers(self):
         precision = mock.Mock()
@@ -206,6 +215,28 @@ class RoutePreflightTest(unittest.TestCase):
         self.assertEqual(rp.priority_kelvin_avoid(
             reservation, policy="power-first"),
             tuple(reservation["corridors"]))
+
+    def test_critical_first_keeps_only_immutable_power_portals(self):
+        movable = {
+            "net": "/PWR", "layer": "In2.Cu", "kind": "frozen_pour",
+            "x0": 1.0, "y0": 2.0, "x1": 5.0, "y1": 6.0,
+        }
+        portal = {
+            "net": "/PWR", "layer": "In2.Cu",
+            "kind": "terminal_portal", "name": "terminal-portal:F2.1",
+            "x0": 2.0, "y0": 3.0, "x1": 2.8, "y1": 3.8,
+        }
+        reservation = {
+            "enabled": True, "corridors": [movable, portal],
+        }
+        self.assertEqual(rp.priority_pair_avoid(
+            "board.kicad_pcb", reservation, policy="critical-first"), (
+                (2.0, 3.0, 2.8, 3.8,
+                 "terminal-portal:F2.1", "In2.Cu"),))
+        self.assertEqual(rp.priority_kelvin_avoid(
+            reservation, policy="critical-first"), (portal,))
+        self.assertEqual(rp.priority_kelvin_avoid(
+            reservation, policy="power-first"), (movable, portal))
 
     def test_incremental_context_does_not_recompile_priority_routes(self):
         with mock.patch.object(
@@ -405,8 +436,13 @@ class RoutePreflightTest(unittest.TestCase):
                 "refused": [{"p": "/DP", "n": "/DN",
                              "refs": ["J_USB", "D6", "U1"],
                              "blocker_refs": ["C8", "R10"]}]},
-            "criticality": {"pin_access_blocked_count": 1,
-                            "unroutable_count": 1},
+            "criticality": {
+                "pin_access_blocked_count": 1,
+                "unroutable_count": 1,
+                "unroutable_connections": [{
+                    "net": "/CRIT", "failure_scope": "terminal_boxed",
+                }],
+            },
             "stackup": {"blocked_cell_count": 7,
                         "blocked_cells_per_layer": [3, 4]},
             "congestion": {"unroutable_count": 3,
@@ -427,7 +463,12 @@ class RoutePreflightTest(unittest.TestCase):
         }
         evidence = rp.compact_placement_evidence(report)
         self.assertEqual(evidence["fanout_blocked_count"], 1)
+        self.assertEqual(
+            evidence["critical_unroutable_connections"], [{
+                "net": "/CRIT", "failure_scope": "terminal_boxed",
+            }])
         self.assertEqual(evidence["critical_pair_refused_count"], 1)
+        self.assertEqual(evidence["critical_pair_remaining_edge_count"], 1)
         self.assertEqual(evidence["critical_pair_refs"],
                          ["D6", "J_USB", "U1"])
         self.assertEqual(evidence["critical_pair_blocker_refs"],
@@ -449,10 +490,35 @@ class RoutePreflightTest(unittest.TestCase):
         self.assertEqual(evidence["future_reservation_refused_count"], 1)
         self.assertEqual(evidence["future_reservation_rect_count"], 486)
         self.assertEqual(rp.placement_evidence_key(evidence),
-                         (0, 3, 0, 1, 1, 1, 2, 3,
+                         (0, 3, 0, 1, 1, 1, 1, 2, 3,
                           0, 1, 6, 4, 10, 2, 3, 99, 5.0, 8.0))
         self.assertGreater(rp.placement_evidence_key({"error": "boom"}),
                            rp.placement_evidence_key(evidence))
+
+    def test_multidrop_partial_edge_completion_is_monotonic_progress(self):
+        def evidence(remaining):
+            return rp.compact_placement_evidence({
+                "critical_routes": {
+                    "pairs_ok": False,
+                    "refused": [{
+                        "name": "BUS", "p": "/BUS_P", "n": "/BUS_N",
+                        "refs": ["J1", "J2", "J3", "U1"],
+                        "total_edge_count": 3,
+                        "completed_edge_count": 3 - remaining,
+                        "remaining_edge_count": remaining,
+                    }],
+                },
+            })
+
+        baseline = evidence(3)
+        progressed = evidence(1)
+
+        self.assertEqual(
+            baseline["critical_pair_refused_count"],
+            progressed["critical_pair_refused_count"])
+        self.assertLess(
+            rp.placement_evidence_key(progressed),
+            rp.placement_evidence_key(baseline))
 
     def test_compact_pair_blockers_only_names_fully_refused_terminal(self):
         report = {
@@ -598,6 +664,43 @@ class RoutePreflightTest(unittest.TestCase):
         self.assertEqual(summary["owned_nets"], ["/RAIL"])
         self.assertIn((0, 5, 4), blocked[0])
         self.assertNotIn((1, 5, 4), blocked[0])
+
+    def test_local_supply_qualification_is_connection_identity_scoped(self):
+        fake_pcbnew = mock.Mock()
+        fake_pcbnew.LoadBoard.return_value = object()
+        fake_cells = mock.Mock()
+        fake_cells.audit_supply_access_board.return_value = {
+            "ok": True, "requirements": 1, "accessible": 1,
+            "cells": [{
+                "owner": "U11", "pin": "2", "rail": "/KVM_5V_IN",
+                "cap": "C22", "status": "accessible",
+                "supply": {"status": "linked", "layer": "F.Cu",
+                           "length_mm": 1.29, "direct_mm": 1.221},
+            }],
+        }
+        rows = [
+            {"index": 0, "net": "/KVM_5V_IN",
+             "src": (0, 4, 4), "dst": (0, 5, 5)},
+            {"index": 1, "net": "/KVM_5V_IN",
+             "src": (0, 8, 8), "dst": (0, 9, 9)},
+        ]
+        terminals = (
+            {"src": ({"ref": "C22", "pad": "1"},),
+             "dst": ({"ref": "U11", "pad": "2"},)},
+            {"src": ({"ref": "F5", "pad": "2"},),
+             "dst": ({"ref": "C23", "pad": "1"},)},
+        )
+        with mock.patch.dict(
+                sys.modules,
+                {"pcbnew": fake_pcbnew, "cec_decoupler_cell": fake_cells}):
+            report = rp._qualify_local_supply_unroutables(
+                "candidate.kicad_pcb", rows, terminals)
+
+        self.assertEqual([row["index"] for row in report["qualified"]], [0])
+        self.assertEqual([row["index"] for row in report["remaining"]], [1])
+        self.assertEqual(report["qualified"][0]["authority"],
+                         "exact_local_bypass_cell")
+        self.assertEqual(report["qualified"][0]["length_mm"], 1.29)
 
     def _array_access(self):
         pads = []

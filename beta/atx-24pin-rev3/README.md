@@ -14,8 +14,13 @@
 > link and `J2` remains the dedicated Hub power connector. The dead-bug
 > assembly has the ATX input `J3` on the bottom edge and the output blade/signal
 > field on the top edge. The reflected Hub puts its four RJ-45 mouths on the
-> assembly right. The mechanical contract is an 18 mm board gap with an M2.5
-> conductive ground-lug standoff. All earlier flat/synced-copy/"PCB not
+> assembly right. **2026-09-22 correction:** the mechanical target is now 22 mm;
+> the old 18 mm / M2.5 hardware is rejected for over-insertion. ASB-2022E supports
+> and SSCF-M2-5-A2 screws are selected, with slim plated M2 lugs in the paired
+> seeds. The conditional 3D stack checks pass; physical release remains withheld.
+> Use `docs/hub-atx-stack-placement-inputs-20260922.json`, with the evidence in
+> `docs/hub-atx-3d-placement-qualification-2026-09-22.md`. Do not treat the
+> hardware BOM as an order approval. All earlier flat/synced-copy/"PCB not
 > started" prose below is historical provenance, not current build guidance.
 
 > **STATUS (2026-07-04, spec §2.8 v1.4.0 output-architecture revision, owner-ratified):** the

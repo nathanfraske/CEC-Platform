@@ -22,6 +22,8 @@ sys.path.insert(0, HERE)
 import cec_pcb_reconcile  # noqa: E402
 import cec_pcb  # noqa: E402
 import cec_sch_gates  # noqa: E402
+import cec_footprint_fields  # noqa: E402
+import cec_component_jumper_metadata as jumper_metadata  # noqa: E402
 
 
 def _schematic_pad_nets(schematic):
@@ -168,7 +170,8 @@ def _load_missing_footprint(board, ref, part):
 
 def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
                 extra_pad_nets=None, add_missing=False,
-                replace_mismatched_footprints=False):
+                replace_mismatched_footprints=False, preserve_locked_nets=(),
+                preserve_locked_uuids=()):
     """Apply the schematic netlist plus explicit board-only electrical lands.
 
     ``extra_pad_nets`` maps ``(reference, pad_number)`` to a net name.  This is
@@ -180,6 +183,10 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     """
     pad_nets, schematic_refs = _schematic_pad_nets(schematic)
     inventory = cec_sch_gates.inventory(schematic)
+    # Explicit actual component metadata, not generic footprint-library data.
+    # Empty hierarchies have no schematic-owned PCB metadata to synchronize.
+    jumper_contracts, jumper_observation = (
+        jumper_metadata.observe(schematic, timeout_s=10.) if inventory else ({}, None))
     schematic_paths = (
         cec_pcb_reconcile.symbol_paths(schematic) if add_missing else {})
     # KiCad's exported netlist may include PWR_FLAG and power-symbol records,
@@ -198,24 +205,63 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     pad_nets.update(extra_pad_nets)
     board = pcbnew.LoadBoard(pcb_path)
     remove_refs = set(remove_refs)
-    # KiCad 10 SWIG proxies become unusable after the first board.Remove().
-    # Snapshot every container and complete all pad edits before any removal.
+    # Snapshot selections before mutation. Permanent retirement uses native
+    # destruction, never borrowed-proxy ownership transfer through Remove().
     footprints = list(board.GetFootprints())
     tracks = list(board.GetTracks())
     zones = list(board.Zones())
+    # Rule areas are mechanical/routing constraints, not copper. Replacement
+    # may rip pours, but must retain native vent, antenna and assembly guards.
+    copper_zones = [zone for zone in zones if not zone.GetIsRuleArea()]
+    rule_areas = [zone for zone in zones if zone.GetIsRuleArea()]
+    preserved_nets = set(preserve_locked_nets or ())
+    preserved_uuids = set(preserve_locked_uuids or ())
+    preserving = bool(preserved_nets or preserved_uuids)
+    if preserving and not rip_all_copper:
+        raise ValueError("locked preservation requires an explicit copper replacement")
+    import cec_frozen_copper
+    selected_items = cec_frozen_copper.require_items(board, preserved_uuids)
+    retained = [item for item in tracks
+                if item.IsLocked() and (str(item.GetNetname()) in preserved_nets
+                    or str(item.m_Uuid.AsString()) in selected_items)]
+    if preserving:
+        changes = cec_frozen_copper.topology_changes(
+            board, pad_nets, inventory, preserved_nets, remove_refs)
+        if changes:
+            raise ValueError("frozen copper topology changed: %s" % changes[:12])
+        missing_nets = preserved_nets - {str(item.GetNetname()) for item in retained}
+        if missing_nets:
+            raise ValueError("frozen copper absent on declared net(s): %s" % sorted(missing_nets))
+        live_nets = set(pad_nets.values())
+        stale_items = {str(item.GetNetname()) for item in retained
+                       if not item.GetNetname() or str(item.GetNetname()) not in live_nets}
+        if stale_items:
+            raise ValueError("frozen item net absent from current hierarchy: %s" % sorted(stale_items))
+        stale_zones = {str(zone.GetNetname()) for zone in zones
+                       if not zone.GetIsRuleArea() and zone.GetNetname()
+                       and str(zone.GetNetname()) not in live_nets}
+        if stale_zones:
+            raise ValueError("frozen zone net absent from current hierarchy: %s" % sorted(stale_zones))
+    retained_ids = {str(item.m_Uuid.AsString()) for item in retained}
     report = {
         "footprints_before": len(footprints),
         "tracks_before": len(tracks),
         "zones_before": len(zones),
+        "preserved_rule_areas": len(rule_areas),
         "removed_refs": [],
         "pads_reassigned": 0,
         "pads_cleared": 0,
         "values_updated": 0,
+        "fields_updated": 0,
         "assembly_flags_updated": 0,
         "added_refs": [],
         "added_placements_mm": {},
         "replaced_footprints": [],
         "zones_refilled": 0,
+        "jumper_metadata_updated_refs": [],
+        "preserved_locked_tracks": len(retained),
+        "preserved_locked_nets": sorted(preserved_nets),
+        "preserved_locked_uuids": sorted(preserved_uuids),
     }
 
     net_objects = {str(name): net for name, net in
@@ -273,6 +319,9 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
             if footprint.GetValue() != value:
                 footprint.SetValue(value)
                 report["values_updated"] += 1
+            report["fields_updated"] += \
+                cec_footprint_fields.apply_schematic_fields(
+                    footprint, expected_part)
             expected_dnp = bool(expected_part.get("dnp", False))
             expected_bom_excluded = not bool(expected_part.get("in_bom", True))
             expected_pos_excluded = (
@@ -312,6 +361,9 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
         pending = set(missing)
         for ref in sorted(missing, key=lambda item: (-pin_count(item), item)):
             footprint = _load_missing_footprint(board, ref, inventory[ref])
+            report["fields_updated"] += \
+                cec_footprint_fields.apply_schematic_fields(
+                    footprint, inventory[ref])
             path = schematic_paths.get(ref)
             if not path:
                 raise RuntimeError(
@@ -330,12 +382,14 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     # Removals are deliberately last: no board container or child proxy is
     # dereferenced after this point.
     if rip_all_copper:
-        for item in tracks:
-            board.Remove(item)
-        for zone in zones:
-            board.Remove(zone)
-    for footprint in retired_footprints:
-        board.Remove(footprint)
+        from cec_native_items import discard_items
+        discarded_tracks = [item for item in tracks
+                            if str(item.m_Uuid.AsString()) not in retained_ids]
+        discard_items(board, discarded_tracks + ([] if preserving else copper_zones)
+                      + retired_footprints)
+    else:
+        from cec_native_items import discard_items
+        discard_items(board, retired_footprints)
 
     # Zone polygons are authored routing authority, while their filled copper
     # is a cache derived from pads and clearances.  Preserve the polygons and
@@ -344,7 +398,8 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
     if report["replaced_footprints"] and zones and not rip_all_copper:
         for zone in zones:
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         report["zones_refilled"] = len(zones)
 
     report["footprints_after"] = (
@@ -352,14 +407,21 @@ def synchronize(schematic, pcb_path, remove_refs=(), rip_all_copper=False,
         - len(retired_footprints)
         + len(report["added_refs"])
         + len(report["replaced_footprints"]))
-    report["tracks_after"] = 0 if rip_all_copper else len(tracks)
-    report["zones_after"] = 0 if rip_all_copper else len(zones)
+    report["tracks_after"] = len(retained) if rip_all_copper else len(tracks)
+    report["zones_after"] = (len(rule_areas) if rip_all_copper and not preserving else len(zones))
+    if rip_all_copper and preserving:
+        for zone in zones:
+            zone.UnFill()
 
     target_dir = os.path.dirname(os.path.abspath(pcb_path))
     fd, temporary = tempfile.mkstemp(suffix=".kicad_pcb", dir=target_dir)
     os.close(fd)
     try:
         pcbnew.SaveBoard(temporary, board)
+        report["jumper_metadata_updated_refs"] = jumper_metadata.apply_saved(
+            temporary, jumper_contracts, timeout_s=10.)
+        if jumper_observation is not None:
+            jumper_metadata.check_observation(jumper_observation)
         os.replace(temporary, pcb_path)
     finally:
         if os.path.exists(temporary):
@@ -373,6 +435,10 @@ def main(argv=None):
     parser.add_argument("--pcb", required=True)
     parser.add_argument("--remove-ref", action="append", default=[])
     parser.add_argument("--rip-all-copper", action="store_true")
+    parser.add_argument("--preserve-locked-net", action="append", default=[],
+                        help="retain locked conductors on this net during copper replacement")
+    parser.add_argument("--preserve-locked-uuid", action="append", default=[],
+                        help="retain this locked item, not all conductors on its net")
     parser.add_argument(
         "--add-missing", action="store_true",
         help=("materialize missing schematic footprints at deterministic, "
@@ -402,7 +468,8 @@ def main(argv=None):
         extra_pad_nets[key] = net
     report = synchronize(args.schematic, args.pcb, args.remove_ref,
                          args.rip_all_copper, extra_pad_nets, args.add_missing,
-                         args.replace_mismatched_footprints)
+                         args.replace_mismatched_footprints, args.preserve_locked_net,
+                         args.preserve_locked_uuid)
     for key, value in report.items():
         print(f"{key}={value}")
     if report["unexpected_board_refs"] or report["missing_schematic_refs"]:

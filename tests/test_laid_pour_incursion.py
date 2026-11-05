@@ -113,6 +113,29 @@ class TestLaidPourIncursion(unittest.TestCase):
             pcbnew.FromMM(0.2), {signal.GetNetCode()},
             drill_nm=pcbnew.FromMM(0.3), net_code=signal.GetNetCode()))
 
+    def test_ground_like_zone_name_cannot_waive_non_ground_power_protection(self):
+        board, _power, signal = _board()
+        zone = next(iter(board.Zones()))
+        zone.SetZoneName('GND Plane misleading name')
+        start, end = pcbnew.VECTOR2I_MM(2, 5), pcbnew.VECTOR2I_MM(8, 5)
+        for cache in (None, {}):
+            self.assertFalse(FR._tap_foreign_clear(
+                board, start, end, pcbnew.FromMM(.25), pcbnew.F_Cu,
+                pcbnew.FromMM(.2), {signal.GetNetCode()}, foreign_cache=cache))
+        track = pcbnew.PCB_TRACK(board); track.SetNet(signal); track.SetLayer(pcbnew.F_Cu)
+        track.SetWidth(pcbnew.FromMM(.25)); track.SetStart(start); track.SetEnd(end)
+        board.Add(track)
+        self.assertEqual(C.laid_pour_incursion_summary(board)['n_tracks'], 1)
+
+    def test_cached_zone_collision_failure_is_refused_not_a_clear_route(self):
+        class UnsupportedShape:
+            def Collide(self, *_args):
+                raise RuntimeError('native shape unavailable')
+        rows = [(UnsupportedShape(), None, None, 0)]
+        self.assertFalse(FR._snapshot_foreign_clear(
+            pcbnew.VECTOR2I_MM(2, 5), pcbnew.VECTOR2I_MM(8, 5),
+            pcbnew.FromMM(.25), pcbnew.FromMM(.2), rows, []))
+
     def test_overunder_source_outline_is_clipped_around_foreign_pad(self):
         from shapely.geometry import Point, Polygon
 

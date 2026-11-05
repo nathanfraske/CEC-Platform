@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "board": "pcie-8pin-2port",
+  "params": {
+    "respect_antenna_keepout": false,
+    "net_current_contracts": {
+      "/SENSEC": 39.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "/VBUS_J5": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "net_current_contract_notes": [
+      "The cable basis is three 12V pins at approximately 13 A per pin.",
+      "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite."
+    ]
+  }
+}

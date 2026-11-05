@@ -71,7 +71,11 @@ def _board_render_valid(path):
         if len(xs) < max(64, int(mask.size * 0.01)):
             return False
         extent = ((xs.max() - xs.min() + 1) * (ys.max() - ys.min() + 1))
-        return extent >= int(mask.size * 0.08)
+        # Scattered pads can span the entire board while the substrate and
+        # copper are absent. Extent alone admitted precisely that failed
+        # native render. Require substantial support inside that extent too.
+        return (extent >= int(mask.size * 0.08)
+                and len(xs) >= int(extent * 0.10))
     except Exception:                                  # noqa: BLE001
         # A missing image-validation dependency must not make rendering
         # unusable; artifact existence/return-code checks remain the fallback.
@@ -211,7 +215,8 @@ def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, ti
             ["kicad-cli", "pcb", "render", "-o", str(out_png),
              "--side", side, src], out_png, timeout=timeout,
             validator=_board_render_valid)
-        if r.returncode == 0 and os.path.isfile(str(out_png)):
+        if (r.returncode == 0 and os.path.isfile(str(out_png))
+                and _board_render_valid(str(out_png))):
             return str(out_png)
         _render_failure("%s-side board render" % side, r)
         return None

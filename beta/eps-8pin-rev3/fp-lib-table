@@ -17,4 +17,5 @@
   (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Connector_Screw")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_Screw.pretty")(options "")(descr "CEC reviewed XFCN high-current screw-terminal footprints; prototype qualification gated"))
+  (lib (name "cec-Package_DFN_QFN")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_DFN_QFN.pretty")(options "")(descr "Vendored, pinned"))
 )

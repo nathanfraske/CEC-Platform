@@ -108,17 +108,16 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None, params=
                     except Exception:
                         pass
 
-        # 2c. POWER-ESCAPE -- the constraint registry's `ic-power-ground-connected` emits a power_escape
-        #     directive for every IC whose power/GND pad FR left stranded (a tight Kelvin placement boxes
-        #     the sense IC's shunt-facing GND in the keepout). Drop a do-no-harm GND stitch via per flagged
-        #     IC -> bonds it to the inner GND plane; a boxed-in pin that can't take a clean via is SKIPPED
-        #     and stays flagged. (+3V3 has no plane under the locked GND-inner stackup -> trace/finish.)
+        # 2c. POWER-ESCAPE -- only actual one-terminal native islands become
+        #     local targets. A fragmented rail does not make every connected
+        #     IC on that rail a stranded placement/ground-via repair target.
+        #     Native qualification remains mandatory; boxed entries stay open.
         esc_info = {}
+        esc_ics = []
         if ok:
+            import cec_power_connectivity as power
             _, pre_dirs = cec_place._check(routed_path, ctx)
-            esc_ics = sorted({d.get("ic") for d in pre_dirs
-                              if (d.get("directive") == "power_escape" or d.get("type") == "power_escape")
-                              and d.get("ic")})
+            esc_ics = power.local_escape_ic_refs(pre_dirs)
             if esc_ics:
                 r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
                                     "--escape-gnd", routed_path, routed_path, ",".join(esc_ics)],
@@ -142,8 +141,8 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None, params=
         #     to the vias while nudging the conflicting traces aside. This is what distributes +3V3 to the
         #     boxed sensors; only a genuinely fixed-pad-boxed redundant pin is left.
         resv_info = {}
-        if ok and "ic-power-ground-connected" in fails:
-            plan = cec_hc.escape_reservations(routed_path, esc_ics or None, nets=("GND", "+3V3"))
+        if ok and "ic-power-ground-connected" in fails and esc_ics:
+            plan = cec_hc.escape_reservations(routed_path, esc_ics, nets=("GND", "+3V3"))
             if plan.get("vias"):
                 placed_v = os.path.join(out, "placed_v_%d.kicad_pcb" % it)
                 subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),

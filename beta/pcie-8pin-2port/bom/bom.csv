@@ -1,8 +1,8 @@
 Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
 "C1,C2",2,1uF,C_0603_1608Metric,CL10A105KB8NNNC,Samsung,C15849,,,,,,
-"C3,C4,C5,C8,C10,C11,C20,C21,C30,C31,C40,C41,C43",13,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do,,,U4 IN2 (VBUS) bypass.
+"C3,C4,C5,C8,C10,C11,C20,C21,C30,C31,C40,C41,C43,C46,C47",15,100nF,C_0402_1005Metric,CL05B104KO5NNNC,Samsung,C1525,,,https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do,,,"C43/C46/C47 are the pin-adjacent U4 IN2/IN1/OUT high-frequency X7R bypasses."
 C42,1,2.2uF,C_0603_1608Metric,CL10A225KO8NNNC,Samsung,C23630,,,,,,"U4 soft-start cap (~10ms output ramp, hub-proven value)."
-"C6,C9,C44,C45",4,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do,,,"U4 IN2 (VBUS) bulk (additional to the existing C9 on the same node).,U4 OUT (VCC_RJ45) local X5R bypass; place directly at OUT and GND."
+"C6,C9,C44,C45",4,10uF,C_0805_2012Metric,CL21A106KAYNNNE,Samsung,C15850,,,https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do,,,"U4 IN1/IN2 bulk and VCC_RJ45 switchover reservoir; separate 100nF parts own the pin-adjacent high-frequency bypass roles."
 C7,1,4.7uF,C_0805_2012Metric,CL21A475KAQNNNE,Samsung,C1779,,,https://product.samsungsem.com/mlcc/CL21A475KAQNNN.do,,,LP5907 output bulk; 4.7uF keeps the complete nominal +3V3 network inside the 10uF documented application range.
 "D1,D4",2,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,HXY MOSFET,C5261083,,,https://www.lcsc.com/datasheet/C5261083.pdf,,,
 D3,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf,,,
@@ -10,7 +10,7 @@ F1,1,750mA/16V PTC,R_1206_3216Metric,1206L075/16WR,Littelfuse,C371166,,,,,,"750m
 FB1,1,MPZ2012S601AT000,C_0805_2012Metric,MPZ2012S601AT000,TDK,C21519,,,,,,
 FB2,1,0R,C_0805_2012Metric,0R-0805-jumper,Generic,,,,,,,
 J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
-J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
+J5,1,USB-C 2.0,USB_C_Receptacle_GCT_USB4215-03-A,USB4215-03-A,GCT,C37616412,,,https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/6328/USB4215-03-A.pdf,,,
 J_IN1,1,C1 PSU,Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal,45586-0005,Molex,,,,,,,
 J_IN2,1,C2 PSU,Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal,45586-0005,Molex,,,,,,,
 "PWR201,PWR202",2,GND,,,,,,,,,,

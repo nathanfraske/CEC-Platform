@@ -40,6 +40,125 @@ _DIRECTIONS = (
 )
 
 
+_IMMUTABLE_POWER_RESERVATION_KINDS = frozenset({
+    "terminal_portal",
+})
+
+
+def _immutable_power_terminal_portals(board, asks, board_path):
+    """Return exact keepouts for unavoidable SMD-to-stack power portals.
+
+    Critical-first means that a movable rail corridor must yield to a
+    precision pair.  It does *not* mean that the pair may occupy the centre of
+    an SMD power land whose only fabrication-qualified stack transition is a
+    via in pad.  That column is pin-access geometry, not a speculative pour.
+
+    Discover those columns from the active fabrication profile and the real
+    board pads.  The helper is deliberately self-gating: boards without an
+    approved POFV process, non-SMD lands, pads outside the requested power
+    inventory, and centres that fail the centralized POFV containment check
+    produce no reservation.  A later power compiler still performs the full
+    all-layer copper collision test before it actually drills the via.
+    """
+    import pcbnew
+    import cec_fab_profile
+
+    requested = {
+        str((row or {}).get("net") or "")
+        for row in (asks or ())
+        if str((row or {}).get("net") or "")
+    }
+    if not requested:
+        return []
+    try:
+        profile_name = cec_fab_profile.active_profile_name(
+            board, hint=board_path)
+        profile = (cec_fab_profile.get_profile(profile_name)
+                   if profile_name else None)
+        geometry = cec_fab_profile.preferred_pofv_geometry(profile)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return []
+    if (not isinstance(geometry, (tuple, list))
+            or len(geometry) < 2
+            or not all(isinstance(value, (int, float))
+                       for value in geometry[:2])):
+        return []
+    diameter_mm, drill_mm = (float(geometry[0]), float(geometry[1]))
+    try:
+        layers = tuple(cec_fab_profile.routing_layers(
+            board, hint=board_path, include_power=True))
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return []
+    rows = []
+    seen = set()
+    for footprint in board.GetFootprints():
+        ref = str(footprint.GetReference() or "")
+        for pad in footprint.Pads():
+            net = str(pad.GetNetname() or "")
+            if (net not in requested
+                    or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD):
+                continue
+            at = pad.GetPosition()
+            blocking, allowed = cec_fab_profile.via_at_pad_conflicts(
+                board, at, int(round(diameter_mm * 1.0e6)),
+                int(round(drill_mm * 1.0e6)), pad.GetNetCode())
+            if blocking is not None or not allowed:
+                continue
+            try:
+                netclass = board.GetNetInfo().GetNetItem(
+                    net).GetNetClassSlow()
+                clearance_mm = max(0.25, netclass.GetClearance() / 1.0e6)
+            except Exception:                           # noqa: BLE001
+                clearance_mm = 0.25
+            radius = diameter_mm / 2.0 + clearance_mm
+            x, y = at.x / 1.0e6, at.y / 1.0e6
+            for layer in layers:
+                signature = (net, ref, str(pad.GetPadName() or ""),
+                             str(layer), round(x, 6), round(y, 6))
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                rows.append({
+                    "net": net,
+                    "layer": str(layer),
+                    "kind": "terminal_portal",
+                    "name": "terminal-portal:%s.%s" % (
+                        ref, str(pad.GetPadName() or "")),
+                    "ref": ref,
+                    "pad": str(pad.GetPadName() or ""),
+                    "diameter_mm": diameter_mm,
+                    "drill_mm": drill_mm,
+                    "x0": round(x - radius, 6),
+                    "y0": round(y - radius, 6),
+                    "x1": round(x + radius, 6),
+                    "y1": round(y + radius, 6),
+                })
+    return rows
+
+
+def _append_terminal_portals(corridors, board, asks, board_path):
+    """Append and count immutable portal rows without duplicating authority."""
+    rows = list(corridors or ())
+    signatures = {
+        (str(row.get("kind") or ""), str(row.get("net") or ""),
+         str(row.get("ref") or ""), str(row.get("pad") or ""),
+         str(row.get("layer") or ""))
+        for row in rows if isinstance(row, dict)
+    }
+    added = 0
+    for row in _immutable_power_terminal_portals(board, asks, board_path):
+        signature = (
+            str(row.get("kind") or ""), str(row.get("net") or ""),
+            str(row.get("ref") or ""), str(row.get("pad") or ""),
+            str(row.get("layer") or ""))
+        if signature in signatures:
+            continue
+        signatures.add(signature)
+        rows.append(row)
+        added += 1
+    return rows, added
+
+
 def _compile_prospective_route_reservations(board_path, board, pour_hints):
     """Solve exact current corridors for an unfrozen placement finalist.
 
@@ -99,7 +218,8 @@ def _compile_prospective_route_reservations(board_path, board, pour_hints):
         exact, reserved = cec_slab_pour.reservation_from_search(
             net, row.get("ok", False), row.get("path_cells") or {},
             row.get("bridges") or [], row.get("rcells") or {},
-            row.get("foreign") or {}, grid)
+            row.get("foreign") or {}, grid,
+            terminal_anchors=row.get("anchors") or {})
         report[net] = {
             "reserved": bool(reserved),
             "rects": len(exact) if reserved else 0,
@@ -147,6 +267,8 @@ def _compile_prospective_route_reservations(board_path, board, pour_hints):
         corridors.extend(cec_slab_pour.bridge_via_reservations(
             via_rows, cec_fab_profile.routing_layers(
                 board, hint=board_path, include_power=True)))
+    corridors, terminal_portal_count = _append_terminal_portals(
+        corridors, board, asks, board_path)
 
     digest = hashlib.sha256(json.dumps({
         "corridors": corridors, "report": report,
@@ -160,6 +282,7 @@ def _compile_prospective_route_reservations(board_path, board, pour_hints):
         "reserved_nets": sorted(reserved_nets),
         "pour_rect_count": pour_rect_count,
         "bridge_via_count": len(via_rows),
+        "terminal_portal_count": terminal_portal_count,
     }
 
 
@@ -211,6 +334,10 @@ def compile_route_reservations(board_path, *, board=None):
         # power compiler. Deduplicate for forward compatibility with states
         # that may persist these rows directly.
         state_vias = list(state.get("vias") or ())
+        reservation_board = board or pcbnew.LoadBoard(board_path)
+        if reservation_board is None:
+            raise RuntimeError(
+                "frozen route reservation could not load its board")
         signatures = {
             (str(row.get("net") or ""),
              str(row.get("layer") or ""),
@@ -222,10 +349,6 @@ def compile_route_reservations(board_path, *, board=None):
             for row in corridors
         }
         if state_vias:
-            reservation_board = board or pcbnew.LoadBoard(board_path)
-            if reservation_board is None:
-                raise RuntimeError(
-                    "frozen via reservation could not load its board")
             via_rows = cec_slab_pour.bridge_via_reservations(
                 state_vias,
                 cec_fab_profile.routing_layers(
@@ -243,6 +366,9 @@ def compile_route_reservations(board_path, *, board=None):
                 if signature not in signatures:
                     corridors.append(row)
                     signatures.add(signature)
+        corridors, terminal_portal_count = _append_terminal_portals(
+            corridors, reservation_board,
+            state.get("pours") or (), board_path)
         # Corridors reserve the routed spine, but a concave pour can include
         # terminal/manifold copper outside that spine.  Precision and global
         # routing must see the same exact Manhattan rectangle union used by the
@@ -277,7 +403,8 @@ def compile_route_reservations(board_path, *, board=None):
                 "state_path": state_path,
                 "frozen_nets": list(frozen),
                 "frozen_via_count": len(state_vias),
-                "frozen_pour_rect_count": len(frozen_pour_rows)}
+                "frozen_pour_rect_count": len(frozen_pour_rows),
+                "terminal_portal_count": terminal_portal_count}
 
     board = board or pcbnew.LoadBoard(board_path)
     if board is None:
@@ -293,13 +420,16 @@ def compile_route_reservations(board_path, *, board=None):
     compiled = cec_slab_pour.reserve_pour_corridors(
         board, pours, verbose=False)
     corridors = list(compiled.get("corridors") or ())
+    corridors, terminal_portal_count = _append_terminal_portals(
+        corridors, board, pours, board_path)
     report = dict(compiled.get("report") or {})
     digest = hashlib.sha256(json.dumps({
         "corridors": corridors, "report": report,
     }, sort_keys=True, separators=(",", ":"), default=str).encode(
         "utf-8")).hexdigest()
     return {"enabled": True, "corridors": corridors, "report": report,
-            "fingerprint": digest}
+            "fingerprint": digest,
+            "terminal_portal_count": terminal_portal_count}
 
 
 def apply_route_reservations(conns, stackup, blocked_cells, reservations,
@@ -358,7 +488,10 @@ def apply_route_reservations(conns, stackup, blocked_cells, reservations,
                      if any(owner != net for owner in cell_owners))
         filtered_blocked.append(cells)
     filtered_stackup = dict(stackup)
-    for key in ("allowed_layers_by_conn", "net_kinds", "netclasses"):
+    for key in ("allowed_layers_by_conn", "net_kinds", "netclasses",
+                "_connection_terminals"):
+        if key.startswith("_") and key not in stackup:
+            continue
         values = tuple(stackup.get(key) or ())
         if len(values) != len(conns):
             raise ValueError("stackup %s length does not match connections" % key)
@@ -383,7 +516,10 @@ def apply_preowned_connections(conns, stackup, blocked_cells, owned_nets):
     keep = [index for index, conn in enumerate(conns)
             if str(conn[0]) not in owned]
     filtered = dict(stackup)
-    for key in ("allowed_layers_by_conn", "net_kinds", "netclasses"):
+    for key in ("allowed_layers_by_conn", "net_kinds", "netclasses",
+                "_connection_terminals"):
+        if key.startswith("_") and key not in stackup:
+            continue
         values = tuple(stackup.get(key) or ())
         if len(values) != len(conns):
             raise ValueError("stackup %s length does not match connections" % key)
@@ -799,12 +935,24 @@ def priority_pair_avoid(board_path, reservations=None, *, policy=None):
 
     Exact pad/copper/edge checks remain active in both modes.  Only the
     *replannable future power* rectangles are omitted in critical-first mode;
-    final power admission must then solve around the locked pair.  This is not
-    permission to route over materialized copper or canonical fixed keepouts.
+    final power admission must then solve around the locked pair.  Immutable
+    terminal portal columns remain obstacles in either order: a later rail
+    cannot move an SMD land's fabrication-qualified via-in-pad centre.  This
+    is not permission to route over materialized copper or canonical fixed
+    keepouts.
     """
     selected = route_priority_policy(policy)
     if selected == "power-first" and (reservations or {}).get("enabled"):
         return precision_pair_avoid(board_path, reservations)
+    if selected == "critical-first" and (reservations or {}).get("enabled"):
+        immutable = [
+            row for row in ((reservations or {}).get("corridors") or ())
+            if str((row or {}).get("kind") or "")
+            in _IMMUTABLE_POWER_RESERVATION_KINDS
+        ]
+        if immutable:
+            return precision_pair_avoid(
+                board_path, {"enabled": True, "corridors": immutable})
     return ()
 
 
@@ -814,13 +962,19 @@ def priority_kelvin_avoid(reservations=None, *, policy=None):
     Kelvin and coupled pairs share one executable priority decision.  Under
     ``critical-first`` neither may be refused by replannable future-power
     rectangles; the later exact power reconciliation must route around their
-    locked copper.  ``power-first`` retains the frozen corridor obstacles for
-    both.  Centralizing this prevents preflight and production from silently
+    locked copper.  Unavoidable terminal portal columns remain visible in
+    either mode.  ``power-first`` retains every frozen corridor obstacle.
+    Centralizing this prevents preflight and production from silently
     implementing different owner orders.
     """
     selected = route_priority_policy(policy)
     if selected == "power-first" and (reservations or {}).get("enabled"):
         return tuple((reservations or {}).get("corridors") or ())
+    if selected == "critical-first" and (reservations or {}).get("enabled"):
+        return tuple(
+            row for row in ((reservations or {}).get("corridors") or ())
+            if str((row or {}).get("kind") or "")
+            in _IMMUTABLE_POWER_RESERVATION_KINDS)
     return ()
 
 
@@ -847,9 +1001,14 @@ def _probe_critical_pairs_on_board(board, board_path, *, avoid=(),
             "layer_refusals",
             "fully_owned", "flow_leg_refusal", "flow_leg_order",
             "flow_leg_difficulty", "flow_through_pad_closure",
-            "local_pad_closure",
+            "package_pad_preclosure",
+            "local_pad_closure", "local_pad_normalization",
             "post_closure_geometry", "pair_search_budget_s",
-            "pair_search_budget_exhausted", "failure_certificate")
+            "pair_search_budget_exhausted", "search_inconclusive",
+            "search_completion", "failure_certificate",
+            "candidate_prefilter",
+            "completed_edge_count", "total_edge_count",
+            "remaining_edge_count", "completed_edges")
 
     def blocker_refs(value):
         refs = set()
@@ -937,7 +1096,32 @@ def _probe_critical_pairs_on_board(board, board_path, *, avoid=(),
             key=lambda item: (-item[1], item[0]))[:24]]
 
     def compact(row):
+        from cec_search_completion import annotate_refusal
+        row = annotate_refusal(row)
         result = {key: row[key] for key in keep if key in row}
+        # Capture diagnostics BEFORE dropping the large raw local-search tree.
+        # Summarizing later in the placer cannot recover discarded phase data.
+        from cec_probe_evidence import compact_pair_search_trace
+        result['search_trace'] = compact_pair_search_trace(row)
+        pair_quality = row.get("route_quality") or {}
+        if pair_quality:
+            # Keep the immediate whole-graph cause at the placement boundary.
+            # The former projection retained only the generic refusal string,
+            # making a completed tree with one bad bend indistinguishable from
+            # an unexplained router failure after the disposable worker exited.
+            result["pair_route_quality"] = {
+                "ok": bool(pair_quality.get("ok")),
+                "geometry_ok": bool(pair_quality.get("geometry_ok")),
+                "blocking_count": int(
+                    pair_quality.get("blocking_count", 0) or 0),
+                "issue_count": int(
+                    pair_quality.get("issue_count", 0) or 0),
+                "non_octilinear_count": int(
+                    pair_quality.get("non_octilinear_count", 0) or 0),
+                "issues": list(pair_quality.get("issues") or ())[:12],
+            }
+        if row.get("detour_admission"):
+            result["detour_admission"] = dict(row["detour_admission"])
         refs = set(result.get("refs") or ())
         for net in (row.get("p"), row.get("n")):
             if not net:
@@ -989,15 +1173,31 @@ def _probe_critical_pairs_on_board(board, board_path, *, avoid=(),
     pairs_ok = bool(report.get("pairs_ok"))
     kelvin_ok = not kelvin_refused
     quality_refused = []
-    for row in route_quality.get("issues") or ():
-        if row.get("severity") != "blocking":
+    quality_rows = [row for row in route_quality.get('issues') or ()
+                    if row.get('severity') == 'blocking']
+    # The generator's admission requires BOTH graph quality and octilinear
+    # geometry. Geometry witnesses live in a separate channel, not `issues`.
+    # Dropping them turns an explained refusal into an opaque false flag.
+    if route_quality.get('geometry_ok') is False:
+        quality_rows.extend(dict(row, reported_severity=row.get('severity'),
+            severity='blocking', admission_gate='octilinear_geometry')
+            for row in route_quality.get('non_octilinear') or ())
+    seen_quality = set()
+    for row in quality_rows:
+        identity = json.dumps({key:row.get(key) for key in (
+            'type','uuid','track_uuids','net','layer','at_mm','start_mm','end_mm')},
+            sort_keys=True)
+        if identity in seen_quality:
             continue
+        seen_quality.add(identity)
         compact_issue = {
             key: row[key] for key in (
                 "type", "severity", "net", "layer", "at_mm",
                 "neighbors_mm", "opening_angle_deg", "path_turn_deg",
                 "track_uuids", "segment_lengths_mm", "widths_mm",
-                "message") if key in row}
+                "message", "uuid", "start_mm", "end_mm", "heading_deg",
+                "nearest_family", "heading_error_nm", "length_mm", "locked",
+                "reported_severity", "admission_gate") if key in row}
         net = str(row.get("net") or "")
         compact_issue["refs"] = sorted({
             str(pad[0]) for pad in
@@ -1007,15 +1207,24 @@ def _probe_critical_pairs_on_board(board, board_path, *, avoid=(),
     # ``pairs_ok=False`` without either an explicit pair row or a quality row.
     quality_error = (not pairs_ok and not (pairs.get("refused") or ())
                      and not quality_refused)
+    from cec_probe_evidence import compact_pair_launch_contracts
+    launch_contracts = compact_pair_launch_contracts(pairs.get('schedule'))
 
     return {
+        **({'future_pair_launch_contracts': launch_contracts}
+           if launch_contracts['count'] else {}),
+        **({'group_order_repair':pairs['group_order_repair']}
+           if pairs.get('group_order_repair') else {}),
         "pairs_ok": pairs_ok,
         "kelvin_ok": kelvin_ok,
         "critical_routes_ok": pairs_ok and kelvin_ok,
         "route_quality": {
-            "ok": bool(route_quality.get("ok")),
-            "blocking_count": int(
-                route_quality.get("blocking_count", 0) or 0),
+            "ok": (bool(route_quality.get("ok")) and not quality_refused
+                   and route_quality.get('geometry_ok') is not False),
+            "geometry_ok": route_quality.get("geometry_ok"),
+            "non_octilinear_count": int(route_quality.get('non_octilinear_count', 0) or 0),
+            "blocking_count": max(len(quality_refused), int(
+                route_quality.get("blocking_count", 0) or 0)),
             "refused": quality_refused,
             "error": ("pairs_ok false without refusal evidence"
                       if quality_error else None),
@@ -1153,6 +1362,153 @@ def _connection_net(row):
     if isinstance(row, (tuple, list)) and row:
         return str(row[0])
     return ""
+
+
+def _qualify_existing_copper_unroutables(board_path, rows, connection_terminals):
+    """Discharge only exact physical endpoints already joined by native copper.
+
+    Raster reachability is a planning prediction, not a reason to reroute an
+    existing connection. Never infer connectivity from a net name, shared
+    zone object, nearby position or duplicate logical pin number.
+    """
+    rows = list(rows or ())
+    report = {'schema': 1, 'qualified': [], 'remaining': []}
+    if not rows:
+        return report
+    try:
+        import pcbnew
+        board = pcbnew.LoadBoard(str(board_path))
+        board.BuildConnectivity()
+        connectivity = board.GetConnectivity()
+        pads = {pad.m_Uuid.AsString(): pad for fp in board.GetFootprints() for pad in fp.Pads()}
+        cache = {}
+        for row in rows:
+            index = int(row.get('index', -1))
+            identity = connection_terminals[index] if 0 <= index < len(connection_terminals) else {}
+            records = list(identity.get('src') or ()) + list(identity.get('dst') or ())
+            valid = bool(identity.get('src') and identity.get('dst'))
+            ids = set()
+            for record in records:
+                uuid = record.get('uuid')
+                pad = pads.get(uuid)
+                if (pad is None or pad.GetNetname() != _connection_net(row)
+                        or pad.GetParentFootprint().GetReference() != record.get('ref')
+                        or str(pad.GetNumber()) != str(record.get('pad'))
+                        or tuple(round(v/1e6, 6) for v in (pad.GetPosition().x, pad.GetPosition().y))
+                           != tuple(record.get('position_mm') or ())):
+                    valid = False
+                    break
+                ids.add(uuid)
+            if valid and len(ids) >= 2:
+                seed = min(ids)
+                if seed not in cache:
+                    cache[seed] = {seed} | {
+                        item.m_Uuid.AsString() for item in connectivity.GetConnectedItems(pads[seed])
+                        if item.GetClass() == 'PAD' and item.GetNetname() == _connection_net(row)}
+                valid = ids <= cache[seed]
+            else:
+                valid = False
+            if valid:
+                report['qualified'].append(dict(row, authority='native_connected_pad_endpoints',
+                                                pad_uuids=sorted(ids)))
+            else:
+                report['remaining'].append(row)
+    except Exception as exc:
+        return dict(schema=1, qualified=[], remaining=rows,
+                    error=type(exc).__name__+': '+str(exc))
+    return report
+
+
+def _qualify_local_supply_unroutables(
+        board_path, unroutable_rows, connection_terminals):
+    """Discharge only exact MST edges owned by a proved local bypass cell.
+
+    The global router is deliberately cardinal and coarse. A nearby IC supply
+    pad and its assigned capacitor can therefore occupy diagonally adjacent
+    cells whose two cardinal bridge cells are foreign-pad obstacles, even
+    though the detailed local-cell authority has an exact guarded octilinear
+    path. Join the unroutable edge to its endpoint pad identities and require
+    that independent authority before removing it from corridor accounting.
+    A same-name rail elsewhere is never waived.
+    """
+    rows = list(unroutable_rows or ())
+    terminals = tuple(connection_terminals or ())
+    if not rows:
+        return {"schema": 1, "qualified": [], "remaining": []}
+    try:
+        import pcbnew
+        import cec_decoupler_cell
+        board = pcbnew.LoadBoard(str(board_path))
+        access = cec_decoupler_cell.audit_supply_access_board(board)
+    except Exception as exc:                             # noqa: BLE001
+        return {
+            "schema": 1, "qualified": [], "remaining": rows,
+            "error": "%s: %s" % (type(exc).__name__, exc),
+        }
+
+    accessible = [
+        cell for cell in (access.get("cells") or ())
+        if cell.get("status") == "accessible"
+        and isinstance(cell.get("supply"), dict)
+        and cell["supply"].get("status") in {
+            "linked", "via-in-pad-bridge"}
+    ]
+
+    def endpoint_refs(records):
+        return {str(record.get("ref", ""))
+                for record in (records or ()) if record.get("ref")}
+
+    def endpoint_pads(records, ref):
+        return {str(record.get("pad", ""))
+                for record in (records or ())
+                if str(record.get("ref", "")) == str(ref)}
+
+    qualified = []
+    remaining = []
+    for row in rows:
+        index = int(row.get("index", -1))
+        identity = terminals[index] if 0 <= index < len(terminals) else {}
+        src_records = identity.get("src") or ()
+        dst_records = identity.get("dst") or ()
+        src_refs, dst_refs = (endpoint_refs(src_records),
+                              endpoint_refs(dst_records))
+        matched = None
+        for cell in accessible:
+            if str(cell.get("rail", "")) != _connection_net(row):
+                continue
+            owner, cap = str(cell.get("owner", "")), str(cell.get("cap", ""))
+            split = ((owner in src_refs and cap in dst_refs)
+                     or (owner in dst_refs and cap in src_refs))
+            if not split:
+                continue
+            owner_records = src_records if owner in src_refs else dst_records
+            if str(cell.get("pin", "")) not in endpoint_pads(
+                    owner_records, owner):
+                continue
+            matched = cell
+            break
+        if matched is None:
+            remaining.append(row)
+            continue
+        supply = matched.get("supply") or {}
+        qualified.append({
+            **row,
+            "authority": "exact_local_bypass_cell",
+            "owner": matched.get("owner"),
+            "owner_pin": matched.get("pin"),
+            "capacitor": matched.get("cap"),
+            "supply_status": supply.get("status"),
+            "layer": supply.get("layer"),
+            "layers": supply.get("layers"),
+            "length_mm": supply.get("length_mm"),
+            "direct_mm": supply.get("direct_mm"),
+        })
+    return {
+        "schema": 1, "qualified": qualified, "remaining": remaining,
+        "authority_ok": bool(access.get("ok")),
+        "authority_requirements": int(access.get("requirements", 0) or 0),
+        "authority_accessible": int(access.get("accessible", 0) or 0),
+    }
 
 
 def _annotate_blockage_witnesses(rows, pin_access, stackup, *, limit=24):
@@ -1488,6 +1844,8 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
         for net in (row.get("p"), row.get("n")) if net}
     conns, stackup, blocked_cells = apply_preowned_connections(
         conns, stackup, blocked_cells, pair_owned_nets)
+    connection_terminals = tuple(
+        stackup.pop("_connection_terminals", ()) or ())
     pin_access = analyze_pin_access(board_path)
     fanout = plan_array_fanouts(pin_access)
     available_nets = {conn[0] for conn in conns}
@@ -1535,8 +1893,7 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
         }
         connection_priorities = [
             priority_by_net[conn[0]] for conn in conns]
-        routed = ccr.route_problem(
-            conns, height, width, backend=backend, grid_mm=grid_mm,
+        routing_options = dict(backend=backend, grid_mm=grid_mm,
             iters=iters, foreign_cells=foreign,
             blocked_cells_by_conn=blocked_cells,
             L=len(stackup["layer_names"]),
@@ -1552,6 +1909,50 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
             plateau_patience=min(max(2, int(plateau_patience)),
                                  max(2, int(iters))),
             plateau_min_delta=float(plateau_min_delta))
+        routed = ccr.route_problem(conns, height, width, **routing_options)
+        raw_unroutable = [
+            {"index": index, "net": conns[index][0],
+             "src": tuple(conns[index][1]), "dst": tuple(conns[index][2])}
+            for index, path in enumerate(routed.get("paths_by_conn") or ())
+            if path is None]
+        existing_copper = _qualify_existing_copper_unroutables(
+            board_path, raw_unroutable, connection_terminals)
+        local_supply = _qualify_local_supply_unroutables(
+            board_path, existing_copper['remaining'], connection_terminals)
+        effective_unroutable = list(local_supply.get("remaining") or ())
+        locally_qualified_indices = {
+            int(row.get("index", -1))
+            for row in (list(local_supply.get("qualified") or ())
+                        + list(existing_copper.get('qualified') or ())) }
+        # Local-cell proofs can expose a legal global entry at a capacitor
+        # even when the IC pad is raster-enclosed. Compose those exact escape
+        # edges, then re-negotiate the ENTIRE workload once so the replacement
+        # corridor is accounted for in congestion and priority ownership.
+        # Merely sharing a rail or finding a local path never waives a remote
+        # connection. Detailed routing and saved-board signoff stay unchanged.
+        import cec_qualified_escape
+        portal_conns, portal_report = cec_qualified_escape.propose(
+            board_path, conns, connection_terminals, blocked_cells, stackup,
+            effective_unroutable,
+            list(local_supply.get('qualified') or ())
+            + list(existing_copper.get('qualified') or ()))
+        portal_report['accepted'] = False
+        if portal_report.get('proposed'):
+            retry = ccr.route_problem(portal_conns, height, width, **routing_options)
+            portal_report.update(
+                retry_wall_s=retry['wall_s'],
+                retry_unroutable_count=retry['unroutable_count'])
+            if cec_qualified_escape.admit_retry(
+                    routed['paths_by_conn'], retry['paths_by_conn'],
+                    independently_qualified=locally_qualified_indices):
+                portal_report['accepted'] = True
+                effective_unroutable = [
+                    {'index': i, 'net': conns[i][0],
+                     'src': tuple(conns[i][1]), 'dst': tuple(conns[i][2])}
+                    for i, path in enumerate(retry['paths_by_conn'])
+                    if path is None and i not in locally_qualified_indices]
+                retry['wall_s'] += routed['wall_s']
+                routed = retry
         congestion = {
             "backend": routed["backend"], "cost_mode": routed["cost_mode"],
             "backend_requested": routed.get("backend_requested"),
@@ -1560,13 +1961,22 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
             "wall_s": routed["wall_s"], "iters": routed["iters_used"],
             "residual_overuse": routed["residual_overuse"],
             "residual_overuse_escaped": routed["residual_overuse_escaped"],
-            "unroutable_count": routed["unroutable_count"],
-            "unroutable_connections": routed["unroutable_connections"],
+            "unroutable_count": len(effective_unroutable),
+            "unroutable_connections": effective_unroutable[:64],
+            "raw_unroutable_count": len(raw_unroutable),
+            "raw_unroutable_connections": raw_unroutable[:64],
+            "local_supply_qualification": local_supply,
+            "existing_copper_qualification": existing_copper,
+            "qualified_escape_retry": portal_report,
             "negotiation": routed.get("negotiation") or {},
             **routed["congestion"],
         }
         congestion["blockage_witnesses"] = _annotate_blockage_witnesses(
-            routed.get("blockage_witnesses") or (), pin_access, stackup)
+            [row for row in (routed.get("blockage_witnesses") or ())
+             if not (row.get("kind") == "unroutable"
+                     and int(row.get("connection_index", -1))
+                     in locally_qualified_indices)],
+            pin_access, stackup)
         if routed.get("route_awareness_service"):
             congestion["route_awareness_service"] = dict(
                 routed["route_awareness_service"])
@@ -1578,6 +1988,21 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
                 routed["usage"], routed["congestion"]["capacity"],
                 stackup["layer_names"], heatmap_path)
             congestion["heatmap"] = os.path.abspath(heatmap_path)
+    ordinary_unroutable = max(
+        0, int((congestion or {}).get("unroutable_count", 0) or 0)
+        - int((congestion or {}).get(
+            "critical_unroutable_count", 0) or 0))
+    warnings = {}
+    if pin_access["blocked_count"]:
+        warnings["ordinary_pads_without_straight_escape"] = \
+            pin_access["blocked_count"]
+    if ordinary_unroutable:
+        # The negotiated raster is a planning oracle, not final connectivity.
+        # Ordinary residuals become explicit obligations for the bounded
+        # detailed router and remain subject to exact DRC/unconnected signoff.
+        # Refusing them here made coarse quantization a stronger authority
+        # than the physical router while adding no safety.
+        warnings["ordinary_unroutable_connections"] = ordinary_unroutable
     return {
         "schema": 1, "board": os.path.abspath(board_path),
         "board_hint": board_hint or policy.get("board"),
@@ -1599,6 +2024,11 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
             "pin_access_blocked_count": critical_pin_blocked,
             "unroutable_count": int(
                 (congestion or {}).get("critical_unroutable_count", 0) or 0),
+            "unroutable_connections": [
+                row for row in
+                ((congestion or {}).get("unroutable_connections") or ())
+                if _connection_net(row) in critical_nets
+            ],
         },
         # A missing 1.25 mm straight ray on an ordinary perimeter pad is a
         # congestion warning, not proof that a shorter neck-down or local maze
@@ -1611,10 +2041,8 @@ def analyze(board_path, *, grid_mm=0.5, iters=40, backend="auto",
                  and critical_pin_blocked == 0
                  and fanout["blocked"] == 0
                  and (congestion is None
-                      or congestion["unroutable_count"] == 0)),
-        "warnings": ({"ordinary_pads_without_straight_escape":
-                      pin_access["blocked_count"]}
-                     if pin_access["blocked_count"] else {}),
+                      or congestion["critical_unroutable_count"] == 0)),
+        "warnings": warnings,
         "wall_s": round(time.monotonic() - started, 3),
     }
 
@@ -1626,7 +2054,10 @@ def analyze_multiresolution(board_path, *, grid_mm=0.5, iters=40,
                             plateau_patience=8,
                             plateau_min_delta=1.0,
                             critical_nets=None, board_hint=None,
-                            run_future_congestion=False):
+                            run_future_congestion=False,
+                            critical_rescue_factor=0.5,
+                            critical_rescue_iters=4,
+                            critical_rescue_floor_mm=0.25):
     """Run deterministic coarse-to-fine physical preflight.
 
     The coarser level cheaply exposes macro bottlenecks and layer starvation;
@@ -1669,6 +2100,53 @@ def analyze_multiresolution(board_path, *, grid_mm=0.5, iters=40,
                 and isinstance(report.get("route_reservations"), dict)):
             compiled_priority_routes = (
                 report["critical_routes"], report["route_reservations"])
+    # A placement must not be rejected merely because a speed-oriented grid
+    # quantizes a narrow but legal channel out of existence.  This is most
+    # damaging for important nets: the placer then burns whole co-optimization
+    # epochs moving unrelated parts while the actual detailed geometry was
+    # routable all along.  When (and only when) the requested level reports a
+    # critical global-reachability failure, run one bounded finer proof.  The
+    # exact pair/critical compiler is reused, so this rescue spends compute on
+    # raster reachability rather than repeating high-precision work.
+    requested_final = reports[-1]
+    critical_before = int(
+        ((requested_final.get("criticality") or {}).get(
+            "unroutable_count", 0)) or 0)
+    rescue = {
+        "applicable": bool(critical_before),
+        "ran": False,
+        "critical_unroutable_before": critical_before,
+    }
+    rescue_factor = float(critical_rescue_factor)
+    rescue_floor = max(0.05, float(critical_rescue_floor_mm))
+    rescue_resolution = max(rescue_floor, round(fine * rescue_factor, 6))
+    if (critical_before > 0 and 0.0 < rescue_factor < 1.0
+            and rescue_resolution < fine - 1e-9):
+        rescue_report = analyze(
+            board_path, grid_mm=rescue_resolution,
+            iters=max(1, min(int(iters), int(critical_rescue_iters))),
+            backend=backend, run_congestion=True,
+            heatmap_path=heatmap_path,
+            early_stop_plateau=early_stop_plateau,
+            plateau_patience=min(
+                max(2, int(plateau_patience)),
+                max(2, int(critical_rescue_iters))),
+            plateau_min_delta=plateau_min_delta,
+            critical_nets=critical_nets,
+            board_hint=board_hint,
+            run_future_congestion=bool(run_future_congestion),
+            compiled_priority_routes=compiled_priority_routes)
+        levels.append(rescue_resolution)
+        reports.append(rescue_report)
+        rescue.update({
+            "ran": True,
+            "grid_mm": rescue_resolution,
+            "iters": max(1, min(int(iters), int(critical_rescue_iters))),
+            "critical_unroutable_after": int(
+                ((rescue_report.get("criticality") or {}).get(
+                    "unroutable_count", 0)) or 0),
+            "gate_after": bool(rescue_report.get("gate")),
+        })
     final = reports[-1]
     levels_summary = []
     for report, resolution in zip(reports, levels):
@@ -1694,7 +2172,9 @@ def analyze_multiresolution(board_path, *, grid_mm=0.5, iters=40,
         })
     final["multiresolution"] = {
         "schema": 1, "levels": levels_summary,
-        "authoritative_grid_mm": fine,
+        "requested_grid_mm": fine,
+        "authoritative_grid_mm": levels[-1],
+        "critical_rescue": rescue,
         "agreement": len({(row["gate"], row["unroutable_count"] == 0,
                             row["residual_overuse_escaped"] == 0.0)
                            for row in levels_summary}) == 1,
@@ -1869,13 +2349,32 @@ def compact_placement_evidence(report, *, blocked_limit=24,
             str(ref) for row in refused_pairs
             for ref in (row.get("blocker_refs") or ())
             if ref and str(ref) not in pair_refs}
+
+    def remaining_pair_edges(row):
+        if row.get("remaining_edge_count") is not None:
+            return max(0, int(row.get("remaining_edge_count") or 0))
+        stations = list(row.get("endpoint_stations") or ())
+        # A connected tree with N stations owns N-1 edges. Old compact
+        # reports did not retain explicit progress; fail closed to at least
+        # one unresolved edge rather than letting missing evidence rank as
+        # complete.
+        return max(1, len(stations) - 1) if stations else 1
+
+    critical_pair_remaining_edge_count = sum(
+        remaining_pair_edges(row) for row in refused_pairs)
     return {
+        **({'critical_pair_launch_contracts': critical_routes['future_pair_launch_contracts']}
+           if critical_routes.get('future_pair_launch_contracts') else {}),
+        **({'critical_pair_order_repair':critical_routes['group_order_repair']}
+           if critical_routes.get('group_order_repair') else {}),
         "wall_s": report.get("wall_s"),
         "gate": report.get("gate"),
         "fanout_blocked_count": int(fanout.get("blocked", 0) or 0),
         "critical_pair_refused_count": (
             len(refused_pairs)
             + critical_error_count),
+        "critical_pair_remaining_edge_count": int(
+            critical_pair_remaining_edge_count + critical_error_count),
         "critical_pair_error": critical_routes.get("error"),
         "critical_pair_refused": refused_pairs,
         "critical_pair_failure_certificates": [{
@@ -1914,6 +2413,9 @@ def compact_placement_evidence(report, *, blocked_limit=24,
             critical.get("pin_access_blocked_count", 0) or 0),
         "critical_unroutable_count": int(
             critical.get("unroutable_count", 0) or 0),
+        "critical_unroutable_connections": list(
+            critical.get("unroutable_connections") or ())[
+                :int(connection_limit)],
         # A missing straight escape ray is a warning rather than proof of
         # impossibility, but it is a strong placement-ranking signal.
         "pin_access_blocked_count":
@@ -1924,6 +2426,15 @@ def compact_placement_evidence(report, *, blocked_limit=24,
         "unroutable_connections":
             list(congestion.get("unroutable_connections") or ())[
                 :int(connection_limit)],
+        "raw_unroutable_count": int(
+            congestion.get("raw_unroutable_count",
+                           congestion.get("unroutable_count", 0)) or 0),
+        "local_supply_qualification": dict(
+            congestion.get("local_supply_qualification") or {}),
+        "qualified_escape_retry": dict(
+            congestion.get("qualified_escape_retry") or {}),
+        "existing_copper_qualification": dict(
+            congestion.get("existing_copper_qualification") or {}),
         "residual_overuse": float(
             congestion.get("residual_overuse", 0.0) or 0.0),
         "residual_overuse_escaped": float(
@@ -1973,11 +2484,23 @@ def compact_placement_evidence(report, *, blocked_limit=24,
     }
 
 
+PLACEMENT_EVIDENCE_FIELDS = (
+    'error', 'critical_route_refused_count', 'critical_declaration_error_count',
+    'critical_pin_access_blocked_count', 'critical_unroutable_count',
+    'critical_pair_remaining_edge_count', 'fanout_blocked_count',
+    'pin_access_blocked_count', 'unroutable_count', 'future_congestion_missing',
+    'future_reservation_refused_count', 'future_reservation_crossings',
+    'future_critical_corridor_conflicts', 'future_overflow_units',
+    'future_corridor_obstacle_crossings', 'future_expected_via_count',
+    'future_wire_demand_units', 'residual_overuse_escaped', 'residual_overuse',
+)
+
+
 def placement_evidence_key(evidence):
     """Best-first lexicographic key for physically preflighted placements."""
     if not isinstance(evidence, dict) or evidence.get("error"):
         return (1, 999999, 999999, 999999, 999999, 999999, 999999,
-                999999, 999999, 999999, 999999, 999999, 1.0e30,
+                999999, 999999, 999999, 999999, 999999, 999999, 1.0e30,
                 1.0e30, 1.0e30, 1.0e30, 1.0e30, 1.0e30)
     return (
         0,
@@ -1987,6 +2510,7 @@ def placement_evidence_key(evidence):
         int(evidence.get("critical_declaration_error_count", 0) or 0),
         int(evidence.get("critical_pin_access_blocked_count", 0) or 0),
         int(evidence.get("critical_unroutable_count", 0) or 0),
+        int(evidence.get("critical_pair_remaining_edge_count", 0) or 0),
         int(evidence.get("fanout_blocked_count", 0) or 0),
         int(evidence.get("pin_access_blocked_count", 0) or 0),
         int(evidence.get("unroutable_count", 0) or 0),

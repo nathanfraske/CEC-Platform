@@ -1593,10 +1593,11 @@
 		(property "Reference" "C6" (at 204.47 101.6 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "10uF" (at 204.47 104.14 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL21A106KAYNNNE" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C15850" (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U4 IN1 (+5VSB) 10uF X5R bulk; C46 is the pin-adjacent high-frequency bypass." (at 203.2 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "0fca1828-6cbf-41a4-8b57-152873211bde"))
 		(pin "2" (uuid "ef9a2e13-3be9-4b97-98bc-9d86fc2206f5"))
 		(instances

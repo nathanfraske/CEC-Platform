@@ -22,7 +22,7 @@
 #
 #   python3 scripts/cec_constraints.py <board.kicad_pcb> [...] [--radio] [--json]
 # ============================================================================
-import os, re, sys, json, math, collections, subprocess, tempfile
+import os, re, sys, json, math, collections, subprocess, tempfile, time
 from dataclasses import dataclass, field, asdict
 
 import pcbnew
@@ -39,6 +39,7 @@ import cec_sch_gates  # noqa: E402 -- hierarchy-aware assembly inventory
 import cec_spice_sanity  # noqa: E402 -- KiCad netlist parser used for exact freshness
 import cec_impedance  # noqa: E402 -- profile-aware coupled-pair geometry
 import cec_device_bypass  # noqa: E402 -- shared device/cap rules with placer
+import cec_footprint_fields  # noqa: E402 -- schematic metadata carried into PCB
 
 
 # Board geometry is serialized on an integer-nanometre grid, while placement
@@ -139,6 +140,12 @@ REGISTRY = [
            "coordinates. H1 is the coincident plated M2 GND lug on both boards.",
       source="owner ruling 2026-08-01; structural segmented mezzanine contract",
       status="ratified"),
+    C(id="paired-assembly-envelope", title="Opposing assembly bodies retain declared clearance",
+      category="mechanical", severity="hard", checkable="yes", directive="pin",
+      rule="Explicit paired-board policy requires complete body coverage, verified contacts, "
+           "bounded local gap and a hash-pinned mate. Design allocations do not grant release.",
+      source="paired mechanical envelope contract; owner stack qualification request 2026-09-22",
+      status="ratified"),
     C(id="high-current-pour-integrity", title="No same-layer trace cuts the high-current pour",
       category="high-current", severity="hard", checkable="yes", directive="keepout",
       rule="A foreign-net trace on the SAME layer as a 12V/_HI/_LO pour must not pass through it -- the "
@@ -191,9 +198,12 @@ REGISTRY = [
            "current-sense IC input pad on that net (HI-inner -> IN+, LO-inner -> IN-) -- §6.8 four-wire "
            "sense taps the shunt element only. BUILT generatively at route time by "
            "cec_fr.synthesize_kelvin_taps (directive=inner_tap) into the open window "
-           "cec_fr.derive_power_pours leaves at the shunt; FULLY checked (checkable=yes) -- the generative "
-           "tap guarantees a resolvable thin stub, so the old checked==0 N/A escape no longer fires.",
-      source="user review 2026-06-07; spec §6.8; generative tap 2026-06-27", status="ratified",
+           "cec_fr.derive_power_pours leaves at the shunt. Independently checked against actual native "
+           "pad departure and input contact, with the force terminal removed from branch connectivity. "
+           "A missing resolvable stub is N/A here, never a connectivity pass; missing-route and bypass "
+           "gates still apply. Voltage-only branches do not inherit the input departure rule.",
+      source="user review 2026-06-07; spec §6.8; generative tap 2026-06-27; "
+             "docs/slab-pour-design-2026-07-24.md tap-form ruling", status="ratified",
       params={"inner_min_mm": 0.1, "ina_reach_mm": 0.9}),
     C(id="kelvin-sense-no-connector-tap",
       title="Kelvin sense input connects to the heavy net by the shunt tap ALONE (no parallel tap)",
@@ -335,10 +345,12 @@ REGISTRY = [
       status="ratified"),
     C(id="ic-power-ground-connected", title="Every IC's power + GND pins are connected",
       category="placement", severity="hard", checkable="yes", directive="power_escape",
-      rule="No IC (U*) has an unconnected power(+3V3/+5VSB/VBUS/VCC/VDD) or GND pad -- a stranded supply or "
-           "ground pin is an unpowered / floating part (a dead sensor). A TIGHT Kelvin/adjacency placement "
-           "that boxes a sense IC against its shunt must still let that IC's shunt-facing power/GND pins "
-           "escape (via to a plane / short stub), or the loop's own power-escape pass connects them.",
+      rule="Actual IC supply roles come from selected-device contracts/native symbol power types, not "
+           "measurement-input voltage net names. Every supply/GND net must form one native terminal "
+           "component; missing, unnetted, grounded supply or unresolved power-pin roles block signoff. "
+           "Local power escape targets only isolated native terminal islands; split multi-terminal domains "
+           "require net reconstruction, not moving all ICs. Connectivity alone does not establish "
+           "energization, current rating, Kelvin isolation or release qualification.",
       source="adversarial verify-workflow 2026-06-07 (lens-3: tight-Kelvin INA238 +3V3/GND stranded)",
       status="ratified"),
     C(id="board-routing-complete", title="0 unconnected ratlines (fully routed)",
@@ -505,7 +517,7 @@ CL25_CLASSES = {
 # refusal fires there too -- the SAME region-keyed rule the route accept gate uses.
 INTAKE_CHECKS = (CL25_CLASSES["sch-pcb-sync"] + CL25_CLASSES["bom-lint"]
                  + CL25_CLASSES["netlist-assertions"]
-                 + ["no-foreign-on-high-current-pour"])
+                 + ["no-foreign-on-high-current-pour", "paired-assembly-envelope"])
 
 # Geometry defects on an explicitly admitted derived/routed input belong to
 # the route repair stage, not source admission.  Keep this allow-list narrow:
@@ -663,7 +675,7 @@ def _drc_json(path, ctx):
     try:
         proc = subprocess.run([cli, "pcb", "drc", "--format", "json",
                                "-o", out, path], capture_output=True, text=True,
-                              timeout=300)
+                              timeout=10)
         if proc.returncode:
             raise RuntimeError("kicad-cli DRC exited %d: %s"
                                % (proc.returncode, (proc.stderr or proc.stdout).strip()[:500]))
@@ -903,22 +915,6 @@ _MEZZ_SEGMENTS = {
     for s in cec_mezz.SEGMENTS
 }
 
-# The mating datum is derived from the nominal stack boards, not from a runtime
-# routing-growth outline.  The ATX force-rail wave may add height below the
-# nominal 74x55 frame; that must not silently move the already-authoritative
-# mating seats.  The Hub is physically reflected about X for the face-to-face
-# dead-bug assembly, so both its offsets and connector angles are conjugated.
-_MEZZ_SIDES = {
-    "atx-24pin-rev3": {
-        "mirror_x": False, "assembly_dc": (0.0, 0.0),
-        "nominal_outline": cec_mezz.STACK["atx_outline_mm"],
-    },
-    "hub-standard-rev2": {"mirror_x": True,
-                          "assembly_dc": cec_mezz.STACK["hub_assembly_dc_mm"],
-                          "nominal_outline": cec_mezz.STACK["hub_outline_mm"]},
-}
-
-
 def _mezz_side(by_ref, path):
     """Resolve the assembly side from fitted hardware before the filename.
 
@@ -930,11 +926,10 @@ def _mezz_side(by_ref, path):
     j6p = by_ref.get("J6P")
     token = j6p.GetFPIDAsString().upper() if j6p is not None else ""
     if "PINSOCKET" in token:
-        return _MEZZ_SIDES["hub-standard-rev2"]
+        return cec_mezz.SIDES["socket"]
     if "PINHEADER" in token:
-        return _MEZZ_SIDES["atx-24pin-rev3"]
-    norm = os.path.normpath(path).lower()
-    return next((v for k, v in _MEZZ_SIDES.items() if k in norm), None)
+        return cec_mezz.SIDES["header"]
+    return cec_mezz.side_for_path(path)
 
 
 def _mezz_net_role(net):
@@ -958,17 +953,39 @@ def _mezz_net_role(net):
 def _chk_mezzanine_segment_contract(board, path, ctx):
     """Validate both halves against one center-relative mating definition.
 
-    A per-board shared-frame check is sufficient: if each board has the same
-    segment offsets, rotations, and role-normalized pin map, translating their
-    board centers makes all three connector fields and H1 coincident.
+    Compare every physical contact in a canonical header frame, not merely
+    origins/angles. A reflected origin with a same-handed footprint is invalid.
     """
     by_ref = {fp.GetReference(): fp for fp in board.GetFootprints()}
     present = set(_MEZZ_SEGMENTS) & set(by_ref)
-    target_path = any(s in os.path.normpath(path).lower()
-                      for s in ("atx-24pin-rev3", "hub-standard-rev2"))
+    target_path = cec_mezz.path_is_stack_member(path)
     if not present and not target_path:
         return None, "not a segmented Hub/24-pin mezzanine board"
     errors = []
+    # A compacted matched assembly may have a different approved seat layout
+    # from the legacy center-relative generator. Explicit review context binds
+    # BOTH saved boards and the unchanged contract; it is never a Boolean
+    # waiver of contact, role, face, lug or clearance checks.
+    import cec_assembly_instance as assembly_instance
+    instance = (ctx or {}).get(assembly_instance.CONTEXT_KEY)
+    selected = None
+    if instance is not None:
+        selected = assembly_instance.check(board, path, instance, ROOT)
+        ctx['assembly_envelope'] = selected
+        expected_pairs = {(ref, ref) for ref in _MEZZ_SEGMENTS}
+        measured_pairs = {tuple(pair) for pair in selected['selected_instance']['mating_pairs']}
+        if not expected_pairs.issubset(measured_pairs):
+            errors.append('selected assembly contract omits a required segmented contact field')
+        if (len(selected.get('contacts', [])) != len(measured_pairs)
+                or not all(row.get('ok') is True for row in selected.get('contacts', []))):
+            errors.append('selected assembly numbered physical contact registration failed')
+        if not selected.get('authority_unchanged'):
+            errors.append('selected assembly authority changed during review')
+        lug_pair = [cec_mezz.GROUND_LUG['ref']] * 2
+        if (lug_pair not in selected['selected_instance']['hardware_anchor_pairs']
+                or not selected.get('hardware')
+                or not all(row.get('ok') is True for row in selected['hardware'])):
+            errors.append('selected assembly lacks coincident qualified ground-lug geometry')
     missing = sorted(set(_MEZZ_SEGMENTS) - set(by_ref))
     if missing:
         errors.append("missing segment(s) %s" % ",".join(missing))
@@ -976,14 +993,10 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
     side = _mezz_side(by_ref, path)
     if side:
         # The connector/lug seats belong to the ratified assembly datum, not
-        # to the mutable laminate perimeter.  Compaction and bounded fallback
-        # growth keep the outline origin fixed; deriving these seats from the
-        # candidate W/H moved a physically mated interface whenever the
-        # placer tested a different board size.  Use the declared nominal
-        # frame at the live outline origin.  Pads-in-bounds independently
-        # rejects any shrink that would cut into the fixed hardware.
-        nominal_w, nominal_h = map(float, side["nominal_outline"])
-        cx, cy = x0 + nominal_w / 2.0, y0 + nominal_h / 2.0
+        # to the mutable laminate perimeter. Both extent AND origin can change
+        # during compaction. The explicit datum must not follow either edge.
+        from cec_stack_fit_screen import frame_center
+        cx, cy = frame_center(side, (x1-x0,y1-y0))
         mirror_x = bool(side["mirror_x"])
         ax, ay = side.get("assembly_dc", (0.0, 0.0))
     else:
@@ -991,6 +1004,7 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         mirror_x = False
         ax, ay = 0.0, 0.0
     tol = 0.05
+    from cec_stack_fit_screen import mating_rotation, posed_contacts, contact_registration
     for ref, (seat, pin_roles, fp_token) in _MEZZ_SEGMENTS.items():
         fp = by_ref.get(ref)
         if fp is None:
@@ -999,21 +1013,42 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         got = (_mm(pos.x), _mm(pos.y), float(fp.GetOrientationDegrees()) % 360.0)
         want = (cx + (-(seat[0] - ax) if mirror_x else seat[0] - ax),
                 cy + seat[1] - ay,
-                ((180.0 - seat[2]) if mirror_x else seat[2]) % 360.0)
-        if (abs(got[0] - want[0]) > tol or abs(got[1] - want[1]) > tol
+                mating_rotation(seat[2], assembly_mirror_x=mirror_x,
+                    footprint_mirror_axis=(side or {}).get("footprint_mirror_axis")))
+        if selected is None and (abs(got[0] - want[0]) > tol or abs(got[1] - want[1]) > tol
                 or abs(((got[2] - want[2] + 180.0) % 360.0) - 180.0) > 0.01):
             errors.append("%s seat (%.2f,%.2f,%.1f), expected (%.2f,%.2f,%.1f)" %
                           ((ref,) + got + want))
         if fp_token not in fp.GetFPIDAsString().upper():
             errors.append("%s footprint %s, expected %s" %
                           (ref, fp.GetFPIDAsString(), fp_token))
+        if side and board.GetLayerName(fp.GetLayer()) != side['component_layer']:
+            errors.append('%s component face is %s, expected inward %s' %
+                (ref,board.GetLayerName(fp.GetLayer()),side['component_layer']))
         got_roles = {int(p.GetNumber()): _mezz_net_role(p.GetNetname())
                      for p in fp.Pads() if str(p.GetNumber()).isdigit()}
         if got_roles != pin_roles:
             errors.append("%s pin roles %r, expected %r" %
                           (ref, got_roles, pin_roles))
+        canonical = posed_contacts(cec_mezz.local_contacts(next(
+            s for s in cec_mezz.SEGMENTS if s["ref"] == ref)), seat[:2], seat[2])
+        measured = [dict(id=p.GetNumber(), xy=[_mm(p.GetPosition().x),
+                        _mm(p.GetPosition().y)], role=_mezz_net_role(p.GetNetname()))
+                    for p in fp.Pads()]
+        transform = ([-1, 0, 0, 1, cx+ax, ay-cy] if mirror_x
+                     else [1, 0, 0, 1, ax-cx, ay-cy])
+        try:
+            registration = contact_registration(canonical, measured, transform,
+                                                 tolerance_mm=tol)
+            if selected is None and not registration["ok"]:
+                errors.append("%s physical contact registration failed: %s" %
+                    (ref, registration.get("reason") or "%d contact(s), %.3fmm max" %
+                     (registration["mismatched"], registration["max_offset_mm"])))
+        except ValueError as exc:
+            errors.append("%s physical contact registration invalid: %s" % (ref, exc))
 
-    lug = by_ref.get("H1")
+    lug_ref = cec_mezz.GROUND_LUG["ref"]
+    lug = by_ref.get(lug_ref)
     if lug is None:
         errors.append("missing shared H1 M2 ground lug")
     else:
@@ -1021,7 +1056,7 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         lug_dx, lug_dy = cec_mezz.GROUND_LUG["dc"]
         want = (cx + (-(lug_dx - ax) if mirror_x else lug_dx - ax),
                 cy + lug_dy - ay)
-        if abs(_mm(pos.x) - want[0]) > tol or abs(_mm(pos.y) - want[1]) > tol:
+        if selected is None and (abs(_mm(pos.x) - want[0]) > tol or abs(_mm(pos.y) - want[1]) > tol):
             errors.append("H1 seat (%.2f,%.2f), expected (%.2f,%.2f)" %
                           (_mm(pos.x), _mm(pos.y), want[0], want[1]))
         if cec_mezz.GROUND_LUG["footprint"].split(":", 1)[-1].upper() \
@@ -1040,7 +1075,8 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
         if (center is None
                 or abs(_mm(center.GetDrillSize().x) - cec_mezz.GROUND_LUG["drill_mm"]) > 0.01
                 or abs(_mm(center.GetSize().x) - cec_mezz.GROUND_LUG["land_mm"]) > 0.01):
-            errors.append("H1 lacks the specified 2.7mm M2.5 hole / 5.0mm lug land")
+            errors.append("H1 lacks the specified %.2fmm hole / %.2fmm lug land" %
+                          (cec_mezz.GROUND_LUG['drill_mm'], cec_mezz.GROUND_LUG['land_mm']))
         if (center is None or not center.GetLayerSet().Contains(pcbnew.F_Mask)
                 or not center.GetLayerSet().Contains(pcbnew.B_Mask)):
             errors.append("H1 lug land is not exposed on both outer faces")
@@ -1048,10 +1084,36 @@ def _chk_mezzanine_segment_contract(board, path, ctx):
     if errors:
         return False, "; ".join(errors[:8]) + (
             " (+%d more)" % (len(errors) - 8) if len(errors) > 8 else "")
-    return True, "J6P/J6C/J6D seats and pin roles match; H1 is a coincident plated GND lug"
+    return True, "J6P/J6C/J6D physical contacts and roles match the assembly frame; H1 is a coincident plated GND lug"
 
 
 # -- checkers ----------------------------------------------------------------
+@checker("paired-assembly-envelope")
+def _chk_paired_assembly_envelope(board,path,ctx):
+    import cec_board_policy
+    from cec_assembly_envelope import policy_check, failure_reasons
+    import cec_assembly_instance as assembly_instance
+    instance = (ctx or {}).get(assembly_instance.CONTEXT_KEY)
+    if instance is not None:
+        result = assembly_instance.check(board, path, instance, ROOT)
+        ctx['assembly_envelope'] = result
+        if not result['ok']:
+            return False, 'selected paired assembly envelope failed: ' + str(failure_reasons(result))
+        return True, ('exact selected pair contacts, bodies, hardware, vertical bounds and both vent '
+                      'reservations fit; physical release remains separate')
+    policy=cec_board_policy.params((ctx or {}).get('sch') or path).get('assembly_envelope')
+    if not policy:
+        props={str(k):str(v) for k,v in board.GetProperties().asdict().items()}
+        raw=props.get('CEC_ASSEMBLY_POLICY')
+        policy=json.loads(str(raw)) if raw else None
+    if not policy:return None,'no paired assembly declared'
+    result=policy_check(board,policy,ROOT)
+    ctx['assembly_envelope']=result
+    if not result['ok']:
+        return False,'paired assembly envelope failed: '+str(failure_reasons(result))
+    return True,'paired bodies, hardware and engagement fit declared placement bounds; physical release remains separate'
+
+
 @checker("kelvin-sense-fcu-no-via")
 def _chk_kelvin_fcu(board, path, ctx):
     sense = _sense_nets(board)
@@ -1081,6 +1143,26 @@ def _chk_kelvin_fcu(board, path, ctx):
 
 @checker("kelvin-sense-adjacent-shunt")
 def _chk_kelvin_adj(board, path, ctx):
+    import cec_current_topology
+    import cec_sense_topology
+    domains = cec_current_topology.board_current_domains(board, path)
+    anchor_refs = {ref for domain in domains.values() if domain.get("complete")
+                   for ref in domain.get("authority_refs", ())}
+    topology = cec_sense_topology.board_evidence(board, anchor_refs=anchor_refs)
+    # Retain the existing filtered-lane 1 mm lateral rule. Resolve the actual
+    # filter chain first and measure in the shunt's own frame; nearest X can
+    # silently validate a different lane or reject a rotated valid assembly.
+    filtered = cec_sense_topology.filtered_alignment(
+        board, topology, tolerance_mm=1.0)
+    ctx["sense_input_topology"] = topology
+    failed = [row for row in filtered["details"] if not row["ok"]]
+    if failed:
+        return (False, "sense input topology/alignment unproved: " + "; ".join(
+            "%s: %s" % (row["ref"], row.get("reason") or
+                "%.3fmm from its shunt axis" % row["lateral_offset_mm"])
+            for row in failed[:6]),
+            [dict(row, type="sense_topology", a=row["ref"],
+                  b=row.get("anchor_ref")) for row in failed])
     kelvin, _ = cec_score._derive_pairs(_nets(board))
     by_net = _pads_by_net(board)
     max_mm = _param("kelvin-sense-adjacent-shunt", "max_mm", 5.0)
@@ -1100,23 +1182,9 @@ def _chk_kelvin_adj(board, path, ctx):
             return False, "Kelvin loop > %.0fmm: %s" % (max_mm, "; ".join(fails)), payload
         if oks:
             return True, "direct-sense ICs <= %.0fmm from shunt: %s" % (max_mm, "; ".join(oks))
-    # filtered lanes (INA240 behind an RC): the sense path is the in-column shunt->filter->INA, so the
-    # adjacency that matters is the INA being column-aligned with its shunt (calibration from the swarm review).
-    inas = [fp for fp in board.GetFootprints() if "INA2" in _val(fp).upper()]
-    shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
-    if not inas or not shunts:
-        return None, "no sense IC / shunt pair to check"
-    tol, fails = 1.0, []
-    for ina in inas:
-        ix = _mm(ina.GetPosition().x)
-        s = min(shunts, key=lambda sh: abs(_mm(sh.GetPosition().x) - ix))
-        dx = abs(_mm(s.GetPosition().x) - ix)
-        if dx > tol:
-            fails.append("%s<->%s dX=%.2f" % (ina.GetReference(), s.GetReference(), dx))
-    if fails:
-        return (False, "filtered lane INA not column-aligned with its shunt: " + "; ".join(fails[:6]),
-                [{"type": "align", "a": f.split("<")[0], "axis": "X"} for f in fails[:6]])
-    return True, "filtered lanes: all %d INA240 column-aligned with their shunt (<=%.1fmm dX)" % (len(inas), tol)
+    if filtered["checked"]:
+        return True, "filtered lanes: %d inputs resolved and aligned with their actual shunt axes (<=1.0mm)" % filtered["checked"]
+    return None, "no sense IC / shunt pair to check"
 
 
 @checker("logo-bcu-keepout")
@@ -1188,6 +1256,8 @@ def _via_pad_overlaps(board):
                 continue
             pnet = pad.GetNetname()
             rec = {"ref": ref, "pad": pad.GetPadName(), "pad_net": pnet, "via_net": vnet,
+                   "via_uuid": via.m_Uuid.AsString(), "pad_uuid": pad.m_Uuid.AsString(),
+                   "footprint_uuid": pad.GetParentFootprint().m_Uuid.AsString(),
                    "x": round(_mm(vpos.x), 3), "y": round(_mm(vpos.y), 3)}
             if vnet != pnet:
                 diff.append(rec)
@@ -1294,7 +1364,7 @@ def canonical_high_current_pours(path, *, board=None):
     pockets and falsely removes legal signal/PI copper from those empty areas.
     """
     import cec_fr
-    state = {}
+    state = {};explicitly_unowned=False
     state_path = os.environ.get("CEC_POURFIRST_STATE", "").strip()
     if state_path:
         state = cec_fr._pourfirst_state()
@@ -1310,16 +1380,24 @@ def canonical_high_current_pours(path, *, board=None):
         if state.get("placement_scope") != "complete":
             raise ValueError(
                 "pour-first state is not complete-placement authority")
-        frozen = {str(net) for net in state.get("frozen_nets") or ()}
-        pours = [dict(row) for row in state.get("pours") or ()
+        frozen_rows=state.get("frozen_nets")
+        pour_rows=state.get("pours")
+        explicitly_unowned=(frozen_rows==[] and pour_rows==[])
+        frozen = {str(net) for net in frozen_rows or ()}
+        pours = [dict(row) for row in pour_rows or ()
                  if str((row or {}).get("net") or "") in frozen]
-        if not frozen or not pours:
+        if not explicitly_unowned and (not frozen or not pours):
             raise ValueError("pour-first state has no frozen pour geometry")
         if any(str(row.get("provenance") or "") == "uniform_stamp"
                for row in pours):
             raise ValueError(
                 "legacy uniform_stamp geometry is not route authority")
-        return pours
+        if not explicitly_unowned:
+            return pours
+        # An explicit empty owner list means NO frozen execution authority,
+        # not "this board has no copper". Read actual native territories below
+        # instead of rejecting a complete-placement metadata-only state.
+        # Missing/partial declared frozen geometry still fails above.
     # A fully routed artifact can outlive or be copied without its executable
     # pour-first sidecar.  Its named pipeline zones are then stronger authority
     # than a fresh pad-derived corridor estimate: they are the exact copper
@@ -1332,7 +1410,8 @@ def canonical_high_current_pours(path, *, board=None):
             name = str(zone.GetZoneName() or "")
             net = str(zone.GetNetname() or "")
             if (zone.GetIsRuleArea()
-                    or not name.startswith(cec_fr.PIPELINE_POUR_PREFIXES)
+                    or (not explicitly_unowned
+                        and not name.startswith(cec_fr.PIPELINE_POUR_PREFIXES))
                     or not (net.endswith(("_HI", "_LO"))
                             or "12V" in net.upper())):
                 continue
@@ -1342,19 +1421,46 @@ def canonical_high_current_pours(path, *, board=None):
                     continue
                 for index in range(outline.OutlineCount()):
                     contour = outline.COutline(index)
-                    polygon = [
-                        [_mm(contour.CPoint(point).x),
-                         _mm(contour.CPoint(point).y)]
-                        for point in range(contour.PointCount())]
-                    if len(polygon) >= 3:
+                    if contour.ArcCount():
+                        raise ValueError("native high-current outline needs explicit arc geometry")
+                    if outline.HoleCount(index):
+                        # Consumers of this legacy interface accept simple
+                        # polygons, not signed holes. Partition the ACTUAL
+                        # native outer-minus-holes into exact integer slabs.
+                        # Never convex-fill a window or silently skip its net.
+                        import time
+                        import cec_exact_outline_topology as topology
+                        rings=[]
+                        for chain in [contour,*[outline.Hole(index,j) for j in range(outline.HoleCount(index))]]:
+                            if chain.ArcCount():
+                                raise ValueError('native high-current hole needs explicit arc geometry')
+                            rings.append([[int(chain.CPoint(k).x),int(chain.CPoint(k).y)]
+                                for k in range(chain.PointCount())])
+                        polygons=[[[x/1e6,y/1e6] for x,y in piece] for piece in topology.partition_one_polygon(
+                            [rings],deadline_monotonic=time.monotonic()+2.)]
+                    else:
+                        polygons = [[
+                            [_mm(contour.CPoint(point).x),
+                             _mm(contour.CPoint(point).y)]
+                            for point in range(contour.PointCount())]]
+                    for polygon in polygons:
+                        if len(polygon)<3:
+                            raise ValueError('native high-current outline has no positive region')
                         recovered.append({
                             "name": name, "net": net,
                             "layer": pcbnew.LayerName(layer),
                             "polygon": polygon,
                             "provenance": "board_zone_recovery",
+                            "zone_uuid": zone.m_Uuid.AsString(),
+                            "capacity_qualified": False,
                         })
         if recovered:
             return recovered
+    if state and explicitly_unowned:
+        # Never replace a source-owned empty execution list with a speculative
+        # pad-derived slab. With actual force copper missing/unknown, the
+        # independent caller's has-copper check remains fail-closed.
+        raise ValueError("explicit empty freeze list has no recoverable native force territory")
     recipe = {
         "CEC_SHUNT_GAP": "1",
         "CEC_SHUNT_GAP_MM": "6.5",
@@ -1446,7 +1552,7 @@ def _derive_pour_boxes(board, path):
     by_net = _pads_by_net(board)
     shared = _shared_bus_conns(kelvin, by_net)
     shared_force_nets = _shared_bus_force_nets(by_net, shared)
-    layer_id = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
+    import cec_power_guard_geometry
     boxes, own = [], set()
     for pr in pours:
         net = pr["net"]
@@ -1456,9 +1562,13 @@ def _derive_pour_boxes(board, path):
         own.add(net)
     owned_pours = [pr for pr in pours if pr.get("net") in own]
     for region in _exact_pour_rectangles(owned_pours):
+        try:
+            layer = cec_power_guard_geometry.copper_layer(board, region['layer'])
+        except ValueError as exc:
+            raise PourRegionError(str(exc)) from exc
         boxes.append((
             region["net"],
-            layer_id.get(region["layer"], pcbnew.F_Cu),
+            layer,
             region["x0"], region["x1"],
             region["y0"], region["y1"]))
     if not boxes:
@@ -1626,7 +1736,7 @@ def high_current_pour_regions(board_path):
     return [
         {
             "net": net,
-            "layer": board.GetLayerName(layer),
+            "layer": pcbnew.LayerName(layer),
             "x0": float(x0), "x1": float(x1),
             "y0": float(y0), "y1": float(y1),
         }
@@ -2111,12 +2221,14 @@ def _filtered_kelvin_force_stub_uuids(board):
 
 @checker("kelvin-sense-from-inner-pad")
 def _chk_kelvin_inner(board, path, ctx):
-    """Verify each Kelvin tree leaves the inner shunt edge and reaches every sense input.
+    """Prove actual native-pad departure and input reach independently of synthesis.
 
-    A valid tap may be bent and may branch to both the precision and fast-sense
-    amplifiers.  Therefore the electrical object checked here is a connected
-    thin-track F.Cu tree, not one artificially straight segment.
+    A nearby endpoint on the inward half is insufficient: the conductor must
+    actually exit inward. Cut the force terminal from the connectivity graph
+    when separating Kelvin input trees from legitimate voltage-only branches.
+    Other Kelvin gates retain ownership of force bypass, layers and vias.
     """
+    from cec_kelvin_departure import audit_pad_departures
     if _track_count(board) == 0:
         return None, "floorplan (route-time)"
     shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
@@ -2135,13 +2247,18 @@ def _chk_kelvin_inner(board, path, ctx):
             want = _kelvin_input_pad_name(fp, nn)
             if nn in sense and want is not None and p.GetPadName() == want:
                 ina_pads[nn].append((fp, p))
-    components = _kelvin_thin_components(board, sense)
+    tracks = [t for t in board.GetTracks()
+              if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense
+              and _mm(t.GetWidth()) <= 0.4]
+    connectivity_pads = [p for fp in board.GetFootprints() for p in fp.Pads()
+                         if p.GetNetname() in sense]
+    connectivity_vias = [t for t in board.GetTracks()
+                         if t.GetClass()=='PCB_VIA' and t.GetNetname() in sense]
     bad, checked, payload = [], 0, []
     for sh in shunts:
         pads = list(sh.Pads())
-        if len(pads) < 2:
+        if len(pads) != 2:
             continue
-        cen = [p.GetPosition() for p in pads]
         for i, pad in enumerate(pads):
             net = pad.GetNetname()
             if net not in sense:
@@ -2149,46 +2266,30 @@ def _chk_kelvin_inner(board, path, ctx):
             targets = ina_pads.get(net, [])
             if not targets:
                 continue                                     # no INA input pad on this net -> N/A here
-            pc, other = pad.GetPosition(), cen[1 - i] if len(pads) == 2 else cen[(i + 1) % len(pads)]
-            ix, iy = _mm(other.x) - _mm(pc.x), _mm(other.y) - _mm(pc.y)   # inner direction (toward other terminal)
-            inn = math.hypot(ix, iy) or 1.0
-            ix, iy = ix / inn, iy / inn
-            sz = pad.GetSize()
-            pad_reach = math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + 0.3
-            touching = [comp for comp in components.get(net, [])
-                        if _kelvin_component_touches(comp, pad, extra=0.3)]
-            if not touching:
-                continue                                     # no stub resolvable on this pad -> not checked
+            report = audit_pad_departures(
+                pad, pads[1-i].GetPosition(), tracks, inner_min_mm=inner_min,
+                target_pads=[target for _fp, target in targets],
+                connectivity_pads=connectivity_pads,connectivity_vias=connectivity_vias)
+            # The electrical input contract makes this obligation applicable
+            # on a routed board. Zero native source contacts are a missing
+            # Kelvin route, not N/A. Otherwise an all-disconnected cohort can
+            # appear PASS, then turn into a "new" failure when one input is
+            # correctly connected. Keep the zero-track floorplan exemption
+            # above, but never skip a resolved, stranded input here.
             checked += 1
-            best_inner = None
-            valid_tree = None
-            for comp in touching:
-                # The shunt-side endpoint must start on the pad's inward half;
-                # merely crossing the pad centre is not a Kelvin inner-edge tap.
-                for seg in comp["segments"]:
-                    for ex_abs, ey_abs in ((seg[0], seg[1]), (seg[2], seg[3])):
-                        ex, ey = ex_abs - _mm(pc.x), ey_abs - _mm(pc.y)
-                        if math.hypot(ex, ey) <= pad_reach:
-                            inner = ex * ix + ey * iy
-                            best_inner = inner if best_inner is None else max(best_inner, inner)
-                if (best_inner is not None and best_inner >= inner_min
-                        and all(_kelvin_component_touches(comp, target)
-                                for _target_fp, target in targets)):
-                    valid_tree = comp
-                    break
-            if valid_tree is not None:
+            if report["ok"]:
                 continue
-            why = ("not inner edge" if best_inner is None or best_inner < inner_min
-                   else "F.Cu Kelvin tree does not reach every IN+/IN- input")
+            why = (report["issues"][0]["reason"] if report["issues"] else report["reason"])
             bad.append("%s pad %s (%s)" % (sh.GetReference(), pad.GetPadName(), why))
             payload.append({"type": "inner_tap", "shunt": sh.GetReference(),
-                            "pad": pad.GetPadName(), "net": net, "why": why})
+                            "pad": pad.GetPadName(), "net": net, "why": why,
+                            "native_departure": report})
     if checked == 0:
         return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
     if bad:
         return (False, "Kelvin sense not tapped from the inner shunt edge to every IN+/IN-: "
                 + "; ".join(bad[:6]), payload)
-    return True, "Kelvin inner-edge F.Cu trees reach every IN+/IN- (%d shunt pad(s))" % checked
+    return True, "Native Kelvin inner-edge departures reach every IN+/IN- (%d shunt pad(s))" % checked
 
 
 # IN+/IN- input pad NAME per current-sense part (Vbus is deliberately absent -- it is a high-Z
@@ -2452,48 +2553,9 @@ def _chk_diffpair(board, path, ctx):
 
 
 def _coupled_pair_names(board):
-    """Return USB naming variants plus CAN_H/CAN_L as physical pairs.
-
-    CAN is deliberately included even though KiCad's ``_P/_N`` auto-pair
-    convention does not discover it.
-    """
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values()
-             if n.GetNetname()}
-    pairs, seen = [], set()
-
-    def add(kind, p, n):
-        key = frozenset((p, n))
-        if p in names and n in names and key not in seen:
-            pairs.append((kind, p, n))
-            seen.add(key)
-
-    _kelvin, derived = cec_score._derive_pairs(names)
-    for p, n in derived:
-        kind = "usb" if "USB" in p.upper() else ("can" if "CAN" in p.upper() else "diff")
-        add(kind, p, n)
-    def add_leaf_pair(kind, p_leaf, n_leaf):
-        """Pair special-name leaves without discarding hierarchy.
-
-        KiCad saves a hierarchical CAN bus as ``/sheet/CAN_H`` and
-        ``/sheet/CAN_L``.  Exact comparisons against ``/CAN_H`` silently made
-        those nets invisible to the physical pair gate, even though the later
-        signoff skew audit found them.  Derive the mate in the *same hierarchy*
-        so repeated sheet-local buses remain distinct and unambiguous.
-        """
-        for p in sorted(names):
-            leaf = p.rsplit("/", 1)[-1]
-            if leaf != p_leaf:
-                continue
-            prefix = p[:-len(p_leaf)] if p_leaf else p
-            add(kind, p, prefix + n_leaf)
-
-    for p_leaf, n_leaf in (("USB_DP", "USB_DM"),
-                           ("USB_D+", "USB_D-")):
-        add_leaf_pair("usb", p_leaf, n_leaf)
-    for p_leaf, n_leaf in (("CAN_H", "CAN_L"),
-                           ("CAN_H_BUS", "CAN_L_BUS")):
-        add_leaf_pair("can", p_leaf, n_leaf)
-    return pairs
+    """Use the same electrical identity as routing, measured independently."""
+    from cec_pair_semantics import coupled_pair_names
+    return coupled_pair_names(board)
 
 
 def _point_segment_mm(point, segment):
@@ -2780,7 +2842,7 @@ def pair_coupling_contract(kind, coupling, member_lengths,
     }
 
 
-def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
+def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5, only_pair=None):
     """Physical USB/CAN route-quality verdict for the final filled board.
 
     This intentionally goes beyond connectivity/DRC: it measures skew, coupling,
@@ -2790,6 +2852,15 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
     """
     b = board or pcbnew.LoadBoard(board_path)
     pairs = _coupled_pair_names(b)
+    if only_pair is not None:
+        if (type(only_pair) not in (list, tuple) or len(only_pair) != 2
+                or any(type(net) is not str or not net for net in only_pair)
+                or only_pair[0] == only_pair[1]):
+            raise ValueError('explicit_existing_physical_pair_scope_required')
+        selected = [row for row in pairs if tuple(row[1:]) == tuple(only_pair)]
+        if len(selected) != 1:
+            raise ValueError('unique_existing_physical_pair_scope_required')
+        pairs = selected
     if not pairs:
         return {"applicable": False, "ok": True, "pairs": [], "violations": []}
     profile_name = cec_fab.active_profile_name(b, hint=board_path)
@@ -2818,7 +2889,10 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
     # evidence into each physical pair verdict.
     import cec_route_quality
     pair_nets = {net for _kind, pnet, nnet in pairs for net in (pnet, nnet)}
-    topology = cec_route_quality.analyze_board(b, critical_nets=pair_nets)
+    pair_track_scope = {item.m_Uuid.AsString() for item in b.GetTracks()
+                        if item.GetNetname() in pair_nets}
+    topology = cec_route_quality.analyze_board(b, critical_nets=pair_nets,
+                                            track_uuid_scope=pair_track_scope)
     topology_by_net = collections.defaultdict(list)
     for issue in (list(topology.get("issues", ()))
                   + list(topology.get("non_octilinear", ()))):
@@ -2870,8 +2944,10 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
         # the 2.8mm hand-routed boards.  Use that same authority here so an
         # intermediate pair candidate cannot pass a looser 5.0mm gate and then
         # fail signoff without any intervening geometry change.
-        skew_limit = 3.81 if kind == "usb" else 4.0
-        skew = abs(p_len - n_len)
+        import cec_pair_skew
+        skew_admission = cec_pair_skew.evaluate(kind, p_len, n_len)
+        skew_limit = skew_admission['limit_mm']
+        skew = skew_admission['skew_mm']
         p_span = _net_pad_mst_mm(b, pnet)
         n_span = _net_pad_mst_mm(b, nnet)
         detour_limit = 2.0
@@ -2879,7 +2955,7 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
         n_detour = n_len / n_span if n_span >= 2.0 else None
         if not p_tracks or not n_tracks:
             violations.append("one or both legs have no routed track segments")
-        if skew > skew_limit + 1e-6:
+        if not skew_admission['ok']:
             violations.append("skew %.2fmm exceeds %.2fmm" % (skew, skew_limit))
         if any(value is not None and value > detour_limit + 1e-9
                for value in (p_detour, n_detour)):
@@ -2949,10 +3025,23 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                     "(spacing=%smm, limit=1.50mm)" %
                     [round(value, 3)
                      for value in matched_transition_spacing])
-        if max(len(p_route_vias), len(n_route_vias)) > 2:
+        # A branched bus has parallel taps, not one serial path through every
+        # barrel. Only an independently reconstructed exact native tree can
+        # replace global counting with its worst actual terminal path. Cycles,
+        # unknown contacts and incomplete inventories retain the
+        # conservative existing count. The limit remains two in either case.
+        import cec_pair_serial_paths
+        serial_paths = cec_pair_serial_paths.analyze(b,
+            dict(kind=kind,p=pnet,n=nnet),
+            p_route_vias=p_route_vias,n_route_vias=n_route_vias)
+        series_p,series_n = len(p_route_vias),len(n_route_vias)
+        if serial_paths.get('exact_native_contact_tree') is True and serial_paths.get('complete') is True:
+            series_p = serial_paths['max_route_transition_vias_p']
+            series_n = serial_paths['max_route_transition_vias_n']
+        if max(series_p,series_n) > 2:
             violations.append(
                 "more than two route-transition vias per leg P=%d N=%d" %
-                (len(p_route_vias), len(n_route_vias)))
+                (series_p,series_n))
         missing_returns = []
         endpoint_ids = {
             via.m_Uuid.AsString()
@@ -2992,6 +3081,9 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                     at.x / 1e6, at.y / 1e6,
                     _via_width_mm(via) / 2.0
                     + pair_clearance + float(sample_mm) / 2.0))
+        import cec_pth_pair_returns
+        pth_reference_cache = {}
+        pth_reference_samples = 0
         for track in p_tracks + n_tracks:
             seg = segment(track)
             x0, y0, x1, y1 = seg
@@ -3000,6 +3092,11 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
             layer = layer_name(track)
             ref = reference_layer(layer)
             polys = filled_gnd(ref) if ref else []
+            cell_key = (track.GetNetname(), layer, ref)
+            if cell_key not in pth_reference_cache:
+                pth_reference_cache[cell_key] = (
+                    cec_pth_pair_returns.reference_cells(b, track.GetNetname(),
+                        b.GetLayerID(layer), b.GetLayerID(ref), polys) if ref else [])
             for i in range(count):
                 u = (i + 0.5) / count
                 x, y = x0 + (x1 - x0) * u, y0 + (y1 - y0) * u
@@ -3015,6 +3112,13 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                 transition_cell = (not filled_reference and any(
                     math.hypot(x - vx, y - vy) <= radius + 1e-9
                     for vx, vy, radius in return_supported_vias))
+                pth_cell = (not filled_reference and not transition_cell
+                    and cec_pth_pair_returns.contains_sample(point,
+                        pth_reference_cache[cell_key], clearance_mm=pair_clearance,
+                        sample_mm=sample_mm))
+                if pth_cell:
+                    pth_reference_samples += 1
+                    transition_cell = True
                 if transition_cell:
                     transition_reference_samples += 1
                 else:
@@ -3064,6 +3168,13 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                "detour_ratio_n": (None if n_detour is None
                                    else round(n_detour, 3)),
                "detour_ratio_limit": detour_limit,
+               "detour_ratio_applicability": {
+                   "schema": 1,
+                   "method": "native_terminal_mst_minimum_span",
+                   "minimum_endpoint_mst_mm": 2.0,
+                   "endpoint_mst_unrounded_mm": {"p": p_span, "n": n_span},
+                   "applicable": {"p": p_detour is not None,
+                                  "n": n_detour is not None}},
                "skew_mm": round(skew, 3), "layers": sorted(used_layers),
                "vias_p": len(p_vias), "vias_n": len(n_vias),
                "endpoint_pofv_p": len(p_endpoint_vias),
@@ -3071,12 +3182,14 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
                "bounded_interleaved_endpoint_fan_in": endpoint_fan_in,
                "route_transition_vias_p": len(p_route_vias),
                "route_transition_vias_n": len(n_route_vias),
+               "serial_transition_paths": serial_paths,
                "transition_pair_spacing_mm": [
                    round(value, 3)
                    for value in matched_transition_spacing],
                "missing_return_vias": missing_returns,
                "reference_coverage_pct": round(100.0 * ref_fraction, 1),
                "transition_reference_samples": transition_reference_samples,
+               "plated_terminal_reference_samples": pth_reference_samples,
                "coupled_coverage_pct": round(100.0 * coupled_fraction, 1),
                "uncoupled_length_mm": round(uncoupled_mm, 3),
                "uncoupled_length_budget_mm": uncoupled_budget_mm,
@@ -3085,10 +3198,19 @@ def high_speed_pair_summary(board_path, *, board=None, sample_mm=0.5):
         pair_rows.append(row)
         all_violations.extend("%s %s/%s: %s" % (kind.upper(), pnet, nnet, msg)
                               for msg in violations)
-    return {"applicable": True, "ok": not all_violations,
+    report = {"applicable": True, "ok": not all_violations,
             "profile": profile_name, "pairs": pair_rows,
             "violations": all_violations,
             "route_quality": topology}
+    if only_pair is not None:
+        # Draft owners need the exact same per-pair measurement without
+        # repeatedly evaluating unrelated, provably immutable pairs. This
+        # explicit subset is NEVER a whole-board or release verdict. The
+        # production checker above calls the unchanged all-pairs default.
+        report.update(explicit_existing_pair_scope=list(only_pair),
+                      all_board_pairs_evaluated=False,
+                      whole_board_pair_qualification=False)
+    return report
 
 
 @checker("high-speed-pair-physical-integrity")
@@ -3131,20 +3253,40 @@ def _chk_pn_naming(board, path, ctx):
 
 @checker("mount-holes-present-clear")
 def _chk_mounts(board, path, ctx):
+    import cec_board_policy
+    policy = cec_board_policy.params((ctx or {}).get("sch") or path,
+        board_hint=(ctx or {}).get("board_hint") or os.environ.get("CEC_THERMAL_BOARD_HINT"))
+    if policy.get("mount_holes_required"):
+        from cec_mounting_contract import board_evidence
+        from cec_synth_pipeline import place_mechanical, _required_mount_refs
+        x0, y0, x1, y1 = cec_board_geometry.outline_bbox_mm(board)
+        poses, _ = place_mechanical(x1-x0, y1-y0, policy)
+        result = board_evidence(board,
+            {r: poses[r][:2] for r in _required_mount_refs(policy)},
+            drill_mm=policy.get("mount_drill_mm"),
+            hardware_diameter_mm=policy.get("mount_hardware_diameter_mm"),
+            clearance_mm=policy.get("mount_hardware_clearance_mm", .25),
+            contact_diameter_mm=policy.get("mount_contact_diameter_mm"),
+            hole_type=policy.get("mount_hole_type"), net_name=policy.get("mount_net"))
+        return result["ok"], ("%d required mounts: " % result["required_count"] +
+            ("count, drill, corner positions and both-face hardware envelopes pass"
+             if result["ok"] else json.dumps(result["violations"]))), result
     want = _param("mount-holes-present-clear", "min_count", 3)
     clear = _param("mount-holes-present-clear", "clear_mm", 2.0)
     mounts = [fp for fp in board.GetFootprints() if _is(fp, "MountingHole", "MOUNT")]
     if len(mounts) < want:
         # Dead-bug stack alternative: three independently located plated
         # mezzanine segments provide the multi-point structural restraint and
-        # H1 is the plated M2.5 ground/retention lug.  Counting only standalone
+        # H1 is the plated M2 ground/retention lug.  Counting only standalone
         # M3 footprints incorrectly rejects this intentional retention system.
+        segment_refs = set(_MEZZ_SEGMENTS)
+        lug_ref = cec_mezz.GROUND_LUG["ref"]
         segs = {fp.GetReference(): fp for fp in board.GetFootprints()
-                if fp.GetReference() in ("J6P", "J6C", "J6D")}
-        lug = next((fp for fp in mounts if fp.GetReference() == "H1"
+                if fp.GetReference() in segment_refs}
+        lug = next((fp for fp in mounts if fp.GetReference() == lug_ref
                     and any((p.GetNetname() or "").upper() == "GND"
                             and p.GetDrillSize().x > 0 for p in fp.Pads())), None)
-        plated = (len(segs) == 3 and all(
+        plated = (set(segs) == segment_refs and all(
             list(fp.Pads()) and all(p.GetDrillSize().x > 0 for p in fp.Pads())
             for fp in segs.values()))
         if lug is None or not plated:
@@ -3152,7 +3294,7 @@ def _chk_mounts(board, path, ctx):
                     "stack-retention alternative)" % (len(mounts), want),
                     [{"type": "add", "what": "mounting_hole", "need": want - len(mounts)}])
         return True, ("segmented stack retention present: plated J6P/J6C/J6D at three locations "
-                      "+ GND-tied M2.5 H1 lug")
+                      "+ GND-tied M2 H1 lug")
     conns = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("J") and list(fp.Pads())]
     near = [(mh.GetReference(), j.GetReference(), _min_pad_dist_mm(mh, j))
             for mh in mounts for j in conns if _min_pad_dist_mm(mh, j) < clear]
@@ -3302,7 +3444,7 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
     """
     caps = []
     for fp in board.GetFootprints():
-        if not fp.GetReference().startswith("C"):
+        if not cec_device_bypass.capacitor_identity(fp.GetReference(),fp.GetFPIDAsString()):
             continue
         dnp, excluded = _fp_assembly_state(fp)
         if dnp or excluded:
@@ -3322,6 +3464,8 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
             caps.append({
                 "ref": fp.GetReference(), "fp": fp,
                 "net_pads": net_pads, "farads": farads,
+                "declared_owner": cec_device_bypass.declared_owner(
+                    cec_footprint_fields.footprint_properties(fp)),
                 # Compatibility fields for diagnostics which display the
                 # ordinary rail/GND orientation.  Matching below uses
                 # net_pads, so a rail-to-rail capacitor has no ambiguous
@@ -3342,14 +3486,20 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
     requirements = []
     for fp in board.GetFootprints():
         ref, value = fp.GetReference(), _val(fp)
-        if not ref.startswith("U"):
-            continue
+        # Device/package contracts, not a U-prefix, identify required bypass
+        # pins. Imported or renamed ICs must retain the same manufacturer
+        # requirements. Unknown/passive values yield no catalog requirement.
         dnp, excluded = _fp_assembly_state(fp)
         if dnp or excluded:
             continue
         for pin_number, kind, max_mm, source in \
-                cec_device_bypass.requirements_for_value(value, project_max_mm):
+                cec_device_bypass.requirements_for_value(value, project_max_mm,
+                    mpn=cec_footprint_fields.footprint_properties(fp).get('MPN'),
+                    footprint=fp.GetFPIDAsString()):
             pad = _numbered_pad(fp, pin_number)
+            if not pad or not pad.GetNetname() or _ground_net(pad.GetNetname()):
+                raise ValueError('%s pin %s: required bypass supply pad is missing, unnetted, or grounded' %
+                                 (ref, pin_number))
             if pad and pad.GetNetname() and not _ground_net(pad.GetNetname()):
                 requirements.append({
                     "id": "%s:%s:%s" % (ref, pin_number, kind),
@@ -3364,6 +3514,11 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                     value, project_max_mm):
             pad = _numbered_pad(fp, pin_number)
             return_pad = _numbered_pad(fp, return_pin)
+            if (not pad or not return_pad or not pad.GetNetname()
+                    or not return_pad.GetNetname()
+                    or pad.GetNetname() == return_pad.GetNetname()):
+                raise ValueError('%s pins %s/%s: required rail-to-rail bypass endpoints are invalid' %
+                                 (ref, pin_number, return_pin))
             if (pad and return_pad and pad.GetNetname()
                     and return_pad.GetNetname()
                     and pad.GetNetname() != return_pad.GetNetname()):
@@ -3378,7 +3533,22 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
                     "max_mm": max_mm, "source": source,
                 })
 
+    known_devices = {req['ref'] for req in requirements}
+    active_fps = {fp.GetReference(): fp for fp in board.GetFootprints()
+                  if (fp.GetReference().startswith("U") or fp.GetReference() in known_devices)
+                  and not any(_fp_assembly_state(fp))}
+    pin_nets = {(ref, p.GetNumber()): p.GetNetname()
+                for ref, fp in active_fps.items() for p in fp.Pads()}
+    requirements = cec_device_bypass.bind_declared_requirements(
+        requirements, caps, pin_nets, project_max_mm=project_max_mm, is_ground=_ground_net)
+    for req in requirements:
+        if "pad" not in req:
+            req["pad"] = _numbered_pad(active_fps[req["ref"]], req["pin"])
+            req["return_pad"] = None
+
     def compatible(req, cap):
+        if req.get("cap_ref") and req["cap_ref"] != cap["ref"]:
+            return False
         if (req["rail"] not in cap["net_pads"]
                 or req.get("return_rail", "GND") not in cap["net_pads"]):
             return False
@@ -3409,7 +3579,11 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
     for req in requirements:
         owner_requirement_count[req["ref"]] = (
             owner_requirement_count.get(req["ref"], 0) + 1)
-    reserved_caps = {
+    declared_reserved = {
+        cap_index for cap_index, cap in enumerate(caps)
+        if cap.get("declared_owner")
+    }
+    reference_reserved = {
         cap_index
         for req_index, req in enumerate(requirements)
         for cap_index, _dist in raw_compatible[req_index]
@@ -3417,14 +3591,25 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
             and cec_device_bypass.reference_affinity(
                 caps[cap_index]["ref"], req["ref"]))
     }
+    reserved_caps = declared_reserved | reference_reserved
+
+    def declared_match(cap, req):
+        owner = cap.get("declared_owner")
+        return bool(owner and owner[0] == req["ref"]
+                    and (not owner[1] or owner[1] == req["pin"]))
+
     for index, req in enumerate(requirements):
+        declared = [
+            item for item in raw_compatible[index]
+            if declared_match(caps[item[0]], req)
+        ]
         affinity = [
             item for item in raw_compatible[index]
             if (owner_requirement_count.get(req["ref"]) == 1
                 and cec_device_bypass.reference_affinity(
                     caps[item[0]]["ref"], req["ref"]))
         ]
-        all_candidates = affinity or [
+        all_candidates = declared or affinity or [
             item for item in raw_compatible[index]
             if item[0] not in reserved_caps
         ]
@@ -3435,27 +3620,10 @@ def _device_bypass_assignment(board, *, project_max_mm=3.5):
             if _within_physical_distance_limit(item[1], req["max_mm"])
         ]
 
-    cap_owner = {}
-    assigned_index = {}
-
-    def augment(req_index, seen_caps):
-        for cap_index, dist in edges[req_index]:
-            if cap_index in seen_caps:
-                continue
-            seen_caps.add(cap_index)
-            previous = cap_owner.get(cap_index)
-            if previous is None or augment(previous, seen_caps):
-                cap_owner[cap_index] = req_index
-                assigned_index[req_index] = (cap_index, dist)
-                if previous is not None:
-                    assigned_index.pop(previous, None)
-                return True
-        return False
-
-    for req_index in sorted(range(len(requirements)), key=lambda i: (
+    assigned_index = cec_device_bypass.distinct_assignment(
+        edges, sorted(range(len(requirements)), key=lambda i: (
             len(edges[i]), requirements[i]["rail"], requirements[i]["ref"],
-            requirements[i]["pin"])):
-        augment(req_index, set())
+            requirements[i]["pin"])))
 
     assigned = {}
     missing = []
@@ -3684,25 +3852,50 @@ def _chk_buck_switch_cell(board, path, ctx):
 def _chk_ic_power(board, path, ctx):
     if _track_count(board) == 0:
         return None, "floorplan (route-time connectivity check)"
-    POWER = ("+3V3", "+5VSB", "+5V", "VBUS", "VCC", "VDD", "+3.3")
-    bad = []                                                  # (ic_ref, net)
-    for net, descs in _unconnected(path, ctx):
-        nu = (net or "").upper()
-        if not (nu == "GND" or any(p in nu for p in POWER)):
-            continue
-        for d in descs:
-            m = re.search(r"of (U\w+)\b", d)                  # "Pad 6 [+3V3] of U10 on F.Cu"
-            if m:
-                bad.append((m.group(1), net))
-    bad = sorted(set(bad))
+    import cec_power_connectivity as power
+    # Airwire endpoints are arbitrary spanning-tree representatives, not a
+    # complete or stable power-pin inventory. Use private native adjacency:
+    # no BuildConnectivity/SaveBoard operation may relabel source material.
+    native = power.inventory(board, timeout_s=10.)
+    terminals = power.fragmented_ics(native)
+    bad = sorted({(r['ic'], r['net']) for r in terminals})
+    pin_errors = native['supply_pin_contract_errors']
+    unresolved = native['unresolved_ic_pin_roles']
+    if pin_errors:
+        return (False, 'IC supply pin contracts invalid [%d]: ' % len(pin_errors)
+                + ', '.join('%s.%s %s' % (r['ic'], r['pin'], r['reason']) for r in pin_errors[:8]),
+                [dict(type='power_pin_contract', **r) for r in pin_errors])
     if bad:
-        ics = sorted({r for r, _ in bad})
         more = "" if len(bad) <= 8 else " (+%d more)" % (len(bad) - 8)
-        return (False, "IC power/ground STRANDED (unpowered/floating pin) [%d]: " % len(bad)
-                + ", ".join("%s[%s]" % (r, n) for r, n in bad[:8]) + more,
-                [{"type": "power_escape", "ic": r, "nets": sorted({n for rr, n in bad if rr == r})}
-                 for r in ics])
-    return True, "every IC power + GND pad is connected"
+        isolated = [t for t in terminals if t['isolated_terminal']]
+        power_isolated = [t for t in isolated if t['role'] != 'ground_reference']
+        reference_isolated = [t for t in isolated if t['role'] == 'ground_reference']
+        local_ics = sorted({t['ic'] for t in power_isolated})
+        # All ICs on a split rail are affected; that does NOT make each
+        # connected IC pad a stranded placement target. Local escape work is
+        # issued only for one-terminal native islands. The remaining domain
+        # problem belongs to net/component reconstruction, not moving every IC.
+        domains = [dict(type='power_net_partition', net=n['net'],
+            component_count=n['component_count'],
+            component_pad_uuids=[c['pad_uuids'] for c in n['components']],
+            native_terminals=[t for t in terminals if t['net'] == n['net']],
+            energization_inferred=False) for n in native['nets']
+            if not n['connected'] and any(t['net'] == n['net'] for t in terminals)]
+        return (False, "IC power/ground/tied-reference domains FRAGMENTED [%d IC/net groups]: " % len(bad)
+                + ", ".join("%s[%s]" % (r, n) for r, n in bad[:8]) + more
+                + ('; %d pin roles unresolved' % len(unresolved) if unresolved else ''),
+                [{"type": "power_escape", "ic": r, "nets": sorted({t['net'] for t in power_isolated if t['ic'] == r}),
+                  "native_terminals": [t for t in power_isolated if t['ic'] == r],
+                  "energization_inferred": False}
+                 for r in local_ics]
+                 + [dict(type='reference_escape', ic=t['ic'], nets=[t['net']],
+                     native_terminals=[t], energization_inferred=False)
+                    for t in reference_isolated] + domains
+                 + [dict(type='power_pin_role_unresolved', **r) for r in unresolved])
+    if unresolved:
+        return (False, 'IC power-named pin roles unresolved [%d]; no connectivity qualification' % len(unresolved),
+                [dict(type='power_pin_role_unresolved', **r) for r in unresolved])
+    return True, "every identified IC supply/GND net forms one native terminal component (not energization/current qualification)"
 
 
 @checker("board-routing-complete")
@@ -3733,7 +3926,10 @@ def _legal_neckdown_uuids(path, ctx):
         import cec_fr
         probe = pcbnew.LoadBoard(path)
         report = cec_fr.normalize_netclass_geometry(probe, path)
-        legal.update(report.get("legal_neckdown_uuids") or ())
+        # The probe may split an unlocked original and reuse its UUID for a
+        # legal short piece. Only a full-original coverage proof can exempt
+        # that UUID on the untouched artifact being signed off.
+        legal.update(report.get("legal_original_neckdown_uuids") or ())
     except Exception:                                    # noqa: BLE001
         legal = set()
     ctx[key] = sorted(legal)
@@ -3915,73 +4111,70 @@ def _validated_local_pofv_signal_uuids(board, path, ctx):
         ctx[key] = []
         return set()
 
-    reach_mm = 1.50
-    endpoint_tol_mm = 0.005
-
-    def point_mm(point):
-        return _mm(point.x), _mm(point.y)
-
-    def same_point(a, b):
-        return math.dist(point_mm(a), point_mm(b)) <= endpoint_tol_mm
-
-    pads_by_net = collections.defaultdict(list)
-    for footprint in board.GetFootprints():
-        for pad in footprint.Pads():
-            if (pad.GetNetCode() > 0
-                    and int(pad.GetAttribute())
-                    == int(pcbnew.PAD_ATTRIB_SMD)):
-                pads_by_net[pad.GetNetCode()].append(pad)
-
-    tracks_by_net = collections.defaultdict(list)
-    for item in board.GetTracks():
-        if item.Type() == pcbnew.PCB_TRACE_T and item.GetNetCode() > 0:
-            tracks_by_net[item.GetNetCode()].append(item)
-
+    qualification_cache = {}
     legal = set()
     for via in board.GetTracks():
-        if (via.GetClass() != "PCB_VIA" or not group.ContainsItem(via)
-                or int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH)):
+        if via.GetClass() != "PCB_VIA" or not group.ContainsItem(via):
             continue
-        diameter = _via_width_mm(via)
-        drill = _mm(via.GetDrillValue())
-        # A netclass can deliberately require more copper than the board-wide
-        # via floor.  Re-prove every owned barrel; the caller decides whether
-        # its particular class actually needs the narrowly scoped exception.
-        valid, _reason = cec_fab.pofv_dimensions(
-            profile, diameter, drill)
-        if not valid:
-            continue
-        via_point = via.GetPosition()
-        nearby_pads = [
-            pad for pad in pads_by_net.get(via.GetNetCode(), ())
-            if math.dist(point_mm(via_point), point_mm(pad.GetPosition()))
-            <= reach_mm + GEOMETRY_COMPARISON_TOLERANCE_MM]
-        if not nearby_pads:
-            continue
-        # The generator emits a direct pad-to-seat dogbone.  Requiring that
-        # exact bounded edge is intentionally stricter than mere same-net
-        # connectivity elsewhere on the board.
-        joined = False
-        for track in tracks_by_net.get(via.GetNetCode(), ()):
-            if same_point(track.GetStart(), via_point):
-                other = track.GetEnd()
-            elif same_point(track.GetEnd(), via_point):
-                other = track.GetStart()
-            else:
-                continue
-            for pad in nearby_pads:
-                try:
-                    lands_on_pad = bool(pad.HitTest(other))
-                except Exception:                       # noqa: BLE001
-                    lands_on_pad = same_point(other, pad.GetPosition())
-                if lands_on_pad:
-                    joined = True
-                    break
-            if joined:
-                break
-        if joined:
+        valid, _reason = cec_fab.local_pofv_via_decision(
+            board, via, cache=qualification_cache,allow_source_track_body=True)
+        if valid:
             legal.add(via.m_Uuid.AsString())
     ctx[key] = sorted(legal)
+    return legal
+
+
+def _validated_current_supply_escape_uuids(board, current_contract, profile_name, domains):
+    """Re-prove generated fine supply-pin prefixes against their CURRENT floor.
+
+    Netclass qualification alone sees no neckdown when a 0.2 mm class masks
+    an executable 0.48 mm load requirement. Only exact generated group items
+    at manufacturer-typed supply lands can use the existing bounded prefix
+    policy. Aggregate source/sink domains and measurement lands are excluded;
+    no label, arbitrary thin body, barrel or whole-net waiver is introduced.
+    """
+    import cec_fr as fr
+    import cec_device_power_roles as roles
+    from cec_route_dimensions import current_trace_widths
+    group=next((g for g in board.Groups() if g.GetName()==fr.ENDPOINT_NECKDOWN_GROUP),None)
+    if group is None:return set()
+    cohorts=collections.defaultdict(list)
+    for item in board.GetTracks():
+        if item.GetClass()!='PCB_TRACK' or not group.ContainsItem(item):continue
+        net=str(item.GetNetname())
+        if net in domains or net.rsplit('/',1)[-1]=='GND':continue
+        authority=current_contract(net)
+        if not authority or not authority.get('amps'):continue
+        layer=board.GetLayerName(item.GetLayer())
+        required=math.ceil(current_trace_widths(authority,(layer,),profile_name,rise_c=30.)[layer]*1e6)
+        if item.GetWidth()<required:cohorts[(net,int(item.GetLayer()),required)].append(item)
+    supply_pads=[]
+    for fp in board.GetFootprints():
+        contract=roles.footprint_contract(fp)
+        if not contract:continue
+        supply_pads.extend(p for p in fp.Pads() if contract['pins'].get(str(p.GetNumber())) in
+            ('power_input','power_output') and p.GetAttribute()==pcbnew.PAD_ATTRIB_SMD and not p.HasHole())
+    legal=set()
+    for (net,layer,required),items in cohorts.items():
+        qualified,_=fr._qualified_endpoint_neckdown_tracks(board,items,required,
+            required_clearance=int(board.GetDesignSettings().m_MinClearance))
+        # A qualified component must launch on a real selected supply pin.
+        # Do not promote a narrow monitor/divider or capacitor-only branch.
+        eligible=[p for p in supply_pads if p.GetNetname()==net and p.IsOnLayer(layer)
+            and min(p.GetSize().x,p.GetSize().y)<required]
+        by_uid={t.m_Uuid.AsString():t for t in qualified}
+        while by_uid:
+            seed=by_uid.pop(min(by_uid));component=[seed];queue=[seed]
+            while queue:
+                t=queue.pop();ends={tuple(t.GetStart()),tuple(t.GetEnd())}
+                for uid,peer in list(by_uid.items()):
+                    if ends & {tuple(peer.GetStart()),tuple(peer.GetEnd())}:
+                        component.append(peer);queue.append(peer);del by_uid[uid]
+            if not any(p.GetEffectiveShape(layer).Collide(at,0)
+                for p in eligible for t in component for at in (t.GetStart(),t.GetEnd())):continue
+            # The independent shared classifier owns the 1.5 mm maximum,
+            # non-branching component and full-width support obligation.
+            legal.update(t.m_Uuid.AsString() for t in component)
     return legal
 
 
@@ -4003,34 +4196,16 @@ def _chk_tw(board, path, ctx):
         import cec_current_topology
         current_domains = cec_current_topology.board_current_domains(
             board, board_hint=path)
-    except Exception:                                  # noqa: BLE001
-        cec_current_topology = None
-        current_domains = {}
+    except Exception as exc:                           # noqa: BLE001
+        # Missing/ambiguous current authority is not permission to fall back
+        # to signal widths. Keep the refusal and structured failure evidence.
+        return False, str(exc), [{"type": "current_authority_binding",
+            "evidence": getattr(exc, "evidence", {"error": str(exc)})}]
 
     def current_contract(net):
-        if net.rsplit("/", 1)[-1] == "GND":
-            static = (None if gnd_current is None else {
-                "amps": gnd_current, "geometry_margin": 1.25,
-                "margin_included": False, "source": "board_return_basis",
-            })
-        else:
-            static = csp.spec_net_current_contract(path, net)
-        if static is not None:
-            return static
-        # Isolated routing workers deliberately use anonymous artifact names.
-        # The exact source/sink authority is already identity-stable through
-        # CEC_THERMAL_BOARD_HINT; width signoff must consume that same current
-        # rather than silently degrade to "no rated net" after a board copy.
-        domain = current_domains.get(net) or {}
-        amps = domain.get("amps")
-        if not domain.get("complete") or amps is None:
-            return None
-        return {
-            "amps": float(amps),
-            "geometry_margin": 1.25,
-            "margin_included": False,
-            "source": "current_domain_authority",
-        }
+        import cec_current_topology as topology
+        return topology.current_contract_for_net(
+            net, path, current_domains, ground_amps=gnd_current)
 
     # A track fully embedded in its own filled zone is not the load-bearing
     # cross-section; the zone/pour-width gates own that copper. Merely having a
@@ -4065,18 +4240,56 @@ def _chk_tw(board, path, ctx):
 
     sense = _sense_nets(board)
     legal_neckdowns = _legal_neckdown_uuids(path, ctx)
+    legal_neckdowns |= _validated_current_supply_escape_uuids(
+        board,current_contract,profile_name,current_domains)
     filtered_kelvin = _filtered_kelvin_force_stub_uuids(board)
+    # A known non-load input leaf is not a source/sink trunk even when the
+    # latter is still underqualified. Exact native partition receiving keeps
+    # every actual current-path failure intact; no guessed load or thin power
+    # branch exemption is granted by this classification.
+    import cec_measurement_current_branch
+    measurement_leaves = cec_measurement_current_branch.inventory(
+        board,path,current_domains)
+    typed_measurement = set(measurement_leaves['uuids'])
+    import cec_resistive_monitor_branch
+    resistive_leaves=cec_resistive_monitor_branch.inventory(board,path,current_domains)
+    typed_measurement.update(resistive_leaves['uuids'])
+    import cec_control_current_branch
+    control_leaves=cec_control_current_branch.inventory(board,path,current_domains)
+    typed_control=set(control_leaves['uuids'])
+    import cec_supply_consumer_branch
+    consumer_leaves=cec_supply_consumer_branch.inventory(board,board_hint=path)
+    consumer_tracks=consumer_leaves['all_owned_track_requirements']
+    import cec_auxiliary_attachment_current
+    auxiliary_leaves=cec_auxiliary_attachment_current.inventory(board,board_hint=path)
+    auxiliary_tracks=auxiliary_leaves['track_requirements']
+    overlapping_local_owners=set(consumer_tracks)&set(auxiliary_tracks)
+    if overlapping_local_owners:
+        # Two local classifiers cannot compete to lower one conductor's
+        # aggregate floor. Retain that floor and make receiving incomplete.
+        auxiliary_leaves=dict(auxiliary_leaves,complete=False,track_requirements={},
+            refusals=[*auxiliary_leaves['refusals'],
+                'auxiliary_and_consumer_material_ownership_overlap'],
+            overlapping_track_uuids=sorted(overlapping_local_owners))
+        auxiliary_tracks={}
     bad, checked, poured = [], 0, 0
-    distributed_returns = pin_neckdowns = kelvin_stubs = 0
+    distributed_returns = pin_neckdowns = kelvin_stubs = measurement_stubs = 0
     domain_removed = collections.defaultdict(set)
     domain_requirements = collections.defaultdict(list)
+    domain_segments = collections.defaultdict(list)
     for t in board.GetTracks():
         if t.Type() != pcbnew.PCB_TRACE_T:
             continue
         n = t.GetNetname()
         if include_current_nets and n not in include_current_nets:
             continue
-        contract = current_contract(n)
+        # Exact positively received local consumer copper uses its existing
+        # source-declared allowance. Unknown/partial proofs fall back to the
+        # unchanged aggregate requirement, never to ordinary signal sizing.
+        uid=str(t.m_Uuid.AsString())
+        consumer=consumer_tracks.get(uid) if uid not in overlapping_local_owners else None
+        local=consumer or auxiliary_tracks.get(uid)
+        contract = local['current_authority'] if local else current_contract(n)
         amps = contract.get("amps") if contract else None
         # Explicit current authority, rather than a historical 1 A heuristic,
         # decides whether copper must be proven.  This keeps fused USB/service
@@ -4098,21 +4311,34 @@ def _chk_tw(board, path, ctx):
         if t.m_Uuid.AsString() in filtered_kelvin:
             kelvin_stubs += 1
             continue
+        if t.m_Uuid.AsString() in typed_measurement:
+            measurement_stubs += 1
+            continue
+        if t.m_Uuid.AsString() in typed_control:
+            # Manufacturer-typed exclusive enable leaves are not aggregate
+            # source/sink trunks. The collective cut proof above preserves
+            # every actual current-terminal partition and grants no rating.
+            continue
         if embedded(t):
             poured += 1
             continue
-        # Direct INA2xx Kelvin stubs can share the force net name. Their
-        # zero-via/F.Cu/inner-pad topology is independently hard-gated.
-        if n in sense:
+        # Direct INA2xx monitoring stubs may share a force net name, but that
+        # does not exempt its source/sink-bound trunk from capacity proof.
+        # The rated subgraph below permits thin monitoring leaves only when
+        # an independent rated source-to-sink path survives their exclusion.
+        if n in sense and not (current_domains.get(n) or {}).get("complete"):
             continue
         lid = int(t.GetLayer())
         layer = cec_fab.COPPER_LAYER_IDS.get(lid, board.GetLayerName(lid))
         try:
-            required = cec_fab.ipc2221_required_width_mm(
-                amps, layer, profile_name=profile_name, rise_c=30.0,
-                margin=float(contract.get("geometry_margin", 1.25)))
+            from cec_route_dimensions import current_trace_widths
+            required = current_trace_widths(
+                contract, (layer,), profile_name, rise_c=30.0)[layer]
+            if local:
+                required=max(required,local['required_mm'])
         except ValueError as exc:
-            bad.append((n, layer, _mm(t.GetWidth()), None, str(exc)))
+            bad.append((n, layer, _mm(t.GetWidth()), None, str(exc),
+                        str(t.m_Uuid.AsString()), contract))
             continue
         actual = _mm(t.GetWidth())
         if actual + 0.001 < required:
@@ -4120,22 +4346,44 @@ def _chk_tw(board, path, ctx):
             if domain.get("complete"):
                 domain_removed[n].add(t.m_Uuid.AsString())
                 domain_requirements[n].append(required)
+                domain_segments[n].append({
+                    "uuid": t.m_Uuid.AsString(), "layer": layer,
+                    "actual_mm": actual, "required_mm": required,
+                    "start_mm": [_mm(t.GetStart().x), _mm(t.GetStart().y)],
+                    "end_mm": [_mm(t.GetEnd().x), _mm(t.GetEnd().y)],
+                })
                 continue
             bad.append((n, layer, actual, required,
                         "not inside its own filled zone; basis=%s" %
-                        contract.get("source", "unknown")))
+                        contract.get("source", "unknown"),
+                        str(t.m_Uuid.AsString()), contract))
     domain_bad = []
     domain_proofs = {}
+    original_proofs = {}
     if domain_removed and cec_current_topology is not None:
+        from cec_native_items import discard_items
+        # Distinguish a width bottleneck from a path that was already open.
+        # Without this counterfactual the repair scheduler widens copper when
+        # connectivity must first be restored. Both remain release failures.
+        original_proofs = {
+            net: cec_current_topology.authority_connectivity(
+                board, net, board_hint=path)
+            for net in sorted(domain_removed)
+        }
         probe = pcbnew.LoadBoard(path)
         remove_ids = set().union(*domain_removed.values())
+        remove_items = []
         for item in list(probe.GetTracks()):
             try:
                 uuid = item.m_Uuid.AsString()
             except Exception:                          # noqa: BLE001
                 continue
             if uuid in remove_ids:
-                probe.Remove(item)
+                remove_items.append(item)
+        # The rated-subgraph copy permanently discards these tracks. Detach
+        # transfers borrowed SWIG objects to Python ownership and corrupts
+        # the registry used by the following reload on affected KiCad builds.
+        discard_items(probe, remove_items)
         # KiCad's in-process connectivity object may retain removed SWIG
         # items. Serialize/reload the throwaway artifact before the proof; the
         # production artifact is never changed.
@@ -4158,7 +4406,7 @@ def _chk_tw(board, path, ctx):
         detail = "; ".join("%s %s %.3fmm<%smm (%s)" %
                            (n, layer, actual,
                             ("?" if required is None else "%.3f" % required), why)
-                           for n, layer, actual, required, why in bad[:8])
+                           for n, layer, actual, required, why, _uuid, _contract in bad[:8])
         domain_detail = "; ".join(
             "%s has no source-to-sink path after removing %d segment(s) "
             "below %.3fmm (%s)" % (net, count, required, reason)
@@ -4166,25 +4414,51 @@ def _chk_tw(board, path, ctx):
         joined = "; ".join(part for part in (detail, domain_detail) if part)
         return (False, "%d current-model violation(s): %s" %
                 (len(bad) + len(domain_bad), joined),
-                [{"type": "keepout", "reserve": "pour_or_widen", "net": n,
-                  "layer": layer, "actual_mm": actual, "required_mm": required}
-                 for n, layer, actual, required, _why in bad[:20]]
+                [{"type": "current_debt_inventory", "schema": 1,
+                  "complete": True, "violation_count": len(bad)+len(domain_bad),
+                  "trace_fault_count": len(bad), "domain_fault_count": len(domain_bad),
+                  "typed_measurement_branch_receiving": measurement_leaves,
+                  "typed_resistive_monitor_receiving": resistive_leaves,
+                  "typed_control_branch_receiving": control_leaves,
+                  "typed_supply_consumer_receiving": consumer_leaves,
+                  "typed_auxiliary_attachment_receiving": auxiliary_leaves,
+                  "release_authority": False}]
+                + [{"type": "keepout", "reserve": "pour_or_widen", "net": n,
+                  "uuid": uuid, "layer": layer, "actual_mm": actual,
+                  "required_mm": required, "reason": why,
+                  "current_authority": contract}
+                 for n, layer, actual, required, why, uuid, contract in bad]
                 + [{"type": "current_domain_path", "net": net,
                     "required_mm": required,
+                    "current_authority": current_contract(net),
                     "removed_undersized_segments": count,
-                    "reason": reason}
-                   for net, required, count, reason in domain_bad[:20]])
+                    "reason": reason,
+                    "repair_class": (
+                        "undersized_power_path" if original_proofs[net].get("connected")
+                        else "preexisting_open_with_undersized_copper"),
+                    "original_connectivity": original_proofs[net],
+                    "rated_connectivity": domain_proofs[net],
+                    "undersized_segments": sorted(
+                        domain_segments[net], key=lambda item: item["uuid"])}
+                   for net, required, count, reason in domain_bad])
+    if auxiliary_leaves.get('complete') is not True:
+        return (None, 'incomplete typed auxiliary attachment current inventory; '
+                'unchanged aggregate requirements retained',
+                [{"type": "current_debt_inventory", "schema": 1, "complete": False,
+                  "typed_auxiliary_attachment_receiving": auxiliary_leaves,
+                  "release_authority": False}])
     if checked == 0:
         return None, "no routed net with a ratified current model"
     return True, ("%d current-model trace segment(s) checked against %s; %d embedded in "
                   "their own filled zone; %d bounded pin neck-down(s); %d "
                   "topology-proven filtered Kelvin stub(s); %d "
+                  "manufacturer-typed nonload input leaf segment(s) with unchanged native current terminals; %d "
                   "distributed GND entry segment(s) delegated to current-"
                   "injection/DCIR plane gates; %d undersized side-branch "
                   "segment(s) removed while proving %d aggregate current "
                   "domain(s)" %
                   (checked, profile_name, poured, pin_neckdowns, kelvin_stubs,
-                   distributed_returns,
+                   measurement_stubs, distributed_returns,
                    sum(len(rows) for rows in domain_removed.values()),
                    len(domain_proofs)))
 
@@ -4325,43 +4599,10 @@ def _project_file(board_path, ext):
 
 
 def _netclass_rules(board_path):
-    """Parse the sibling .kicad_pro net_settings: returns (classes, resolve) where
-    classes = {name: {track_width, via_diameter, via_drill}} and resolve(net) -> class
-    name (explicit assignment first, then first matching wildcard pattern, else Default).
-    None if no project file / no classes (self-gating)."""
-    import fnmatch
-    pro = _project_file(board_path, ".kicad_pro")
-    if not pro:
-        return None
-    try:
-        with open(pro, encoding="utf-8") as f:
-            ns = json.load(f).get("net_settings", {})
-    except Exception:
-        return None
-    classes = {}
-    for c in ns.get("classes", []):
-        classes[c.get("name", "")] = {k: c[k] for k in
-                                      ("track_width", "via_diameter", "via_drill",
-                                       "diff_pair_width", "diff_pair_gap")
-                                      if k in c}
-    if not classes:
-        return None
-    assignments = ns.get("netclass_assignments") or {}
-    patterns = [(p.get("netclass"), p.get("pattern")) for p in (ns.get("netclass_patterns") or [])
-                if p.get("netclass") in classes and p.get("pattern")]
-
-    def resolve(net):
-        a = assignments.get(net)
-        if a:
-            name = a[0] if isinstance(a, list) else a
-            if name in classes:
-                return name
-        for name, pat in patterns:
-            if fnmatch.fnmatchcase(net, pat):
-                return name
-        return "Default"
-    return classes, resolve
-
+    """Common hierarchy-aware project authority; malformed inputs fail closed."""
+    from cec_route_dimensions import NetclassTable
+    table = NetclassTable.from_board_path(board_path)
+    return (table.classes, table.resolve_name) if table.classes else None
 
 def _via_width_mm(t):
     """PCB_VIA width with the KiCad-10 layer-arg form (no-arg GetWidth() asserts on
@@ -4378,6 +4619,8 @@ def _chk_netclass_geom(board, path, ctx):
     if nc is None:
         return None, "no .kicad_pro netclasses found (project file absent or empty net_settings)"
     classes, resolve = nc
+    import cec_route_dimensions as dimensions
+    dimension_limits = dimensions.board_limits(board)
     if not any(t.Type() == pcbnew.PCB_TRACE_T or isinstance(t, pcbnew.PCB_VIA)
                for t in board.GetTracks()):
         return None, "unrouted floorplan (no tracks/vias to conform)"
@@ -4399,13 +4642,15 @@ def _chk_netclass_geom(board, path, ctx):
     legal_pofv_signals = _validated_local_pofv_signal_uuids(
         board, path, ctx)
     bad = collections.defaultdict(lambda: collections.Counter())
+    bad_uuids = collections.defaultdict(set)
     qualified_pofv = 0
     for t in board.GetTracks():
         net = t.GetNetname()
         if not net:
             continue
         cls = resolve(net)
-        minima = classes.get(cls, {})
+        minima = dimensions.compile_spec(
+            classes.get(cls, {}), limits=dimension_limits)
         if isinstance(t, pcbnew.PCB_VIA):
             if t.m_Uuid.AsString() in legal_pofv_signals:
                 continue                  # exact, locally re-proven POFV dogbone
@@ -4423,8 +4668,10 @@ def _chk_netclass_geom(board, path, ctx):
             dr = minima.get("via_drill")
             if d and _via_width_mm(t) < d - tol:
                 bad[(net, cls)]["via_dia"] += 1
+                bad_uuids[(net, cls, "via_dia")].add(t.m_Uuid.AsString())
             if dr and _mm(t.GetDrillValue()) < dr - tol:
                 bad[(net, cls)]["via_drill"] += 1
+                bad_uuids[(net, cls, "via_drill")].add(t.m_Uuid.AsString())
         elif t.Type() == pcbnew.PCB_TRACE_T:
             w = (minima.get("diff_pair_width") if net in pair_nets else None) \
                 or minima.get("track_width")
@@ -4434,6 +4681,7 @@ def _chk_netclass_geom(board, path, ctx):
                 continue                  # bounded, classifier-proven pin escape
             if w and _mm(t.GetWidth()) < w - tol:
                 bad[(net, cls)]["track"] += 1
+                bad_uuids[(net, cls, "track")].add(t.m_Uuid.AsString())
     if bad:
         worst = sorted(bad.items(), key=lambda kv: -sum(kv[1].values()))
         det = "; ".join("%s[%s] %s" % (net, cls, ",".join("%s x%d" % (k, n) for k, n in cnt.items()))
@@ -4441,7 +4689,8 @@ def _chk_netclass_geom(board, path, ctx):
         total = sum(sum(c.values()) for c in bad.values())
         # payload: per-(net,class,kind) counts -- the CL-11 fixture invariants assert these
         # NET-SCOPED (e.g. zero via hits on /SENSEP* post-fix while GND track hits remain).
-        payload = [{"net": net, "class": cls, "kind": k, "count": n}
+        payload = [{"net": net, "class": cls, "kind": k, "count": n,
+                    "uuids": sorted(bad_uuids[(net, cls, k)])}
                    for (net, cls), cnt in bad.items() for k, n in cnt.items()]
         return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
     return True, (
@@ -4598,19 +4847,24 @@ def _schematic_component_signatures(sch, inventory, ctx):
     The result is cached because intake also runs ERC on the same schematic.
     """
     key = "_sch_component_signatures::" + os.path.abspath(sch)
+    import cec_component_jumper_metadata as jumper
     if key in ctx:
+        jumper.check_observation(ctx[key + "::observation"])
         return ctx[key]
+    deadline = time.monotonic() + 10.
+    files = jumper._hierarchy(sch, deadline=deadline)
     cli = cec_toolchain.kicad_cli()
     if not cli:
         raise RuntimeError("kicad-cli unavailable for exact schematic/PCB sync")
     fd, out = tempfile.mkstemp(prefix="cec_sync_", suffix=".net")
     os.close(fd)
     try:
+        jumper._clock(deadline)
         proc = subprocess.run(
             [cli, "sch", "export", "netlist", "-o", out, sch],
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=deadline - time.monotonic(),
         )
         if proc.returncode:
             raise RuntimeError(
@@ -4618,6 +4872,8 @@ def _schematic_component_signatures(sch, inventory, ctx):
                 (proc.returncode, (proc.stderr or proc.stdout).strip()[:500])
             )
         _components, nets = cec_spice_sanity.parse_netlist(out)
+        with open(out, encoding="utf-8") as exported:
+            jumper_contracts = jumper.from_export(exported.read())
     finally:
         try:
             os.unlink(out)
@@ -4641,12 +4897,20 @@ def _schematic_component_signatures(sch, inventory, ctx):
             str(rec.get("footprint", "")).rsplit(":", 1)[-1],
             tuple(sorted(pins_by_ref.get(ref, set()))),
         )
+    observation = dict(root=os.path.abspath(sch),
+                       files={str(p): h for p,h in files.items()}, deadline=deadline)
+    jumper.check_observation(observation)
     ctx[key] = signatures
+    ctx[key + "::jumper_contracts"] = jumper_contracts
+    ctx[key + "::observation"] = observation
     return signatures
 
 
 @checker("sch-pcb-sync")
 def _chk_sch_pcb_sync(board, path, ctx):
+    import cec_manufacturer_footprint_parity as manufacturer
+    manufacturer_epoch=(manufacturer.native_epoch(board,deadline=time.monotonic()+9.1)
+        if manufacturer.candidate_present(board)else None)
     sch, sch_inventory = _schematic_inventory_for_board(path, ctx)
     if not sch:
         return None, "no sibling .kicad_sch found"
@@ -4699,6 +4963,28 @@ def _chk_sch_pcb_sync(board, path, ctx):
         return False, "; ".join(parts) + fresh
     expected = _schematic_component_signatures(sch, sch_inventory, ctx)
     actual = _pcb_component_signatures(board)
+    import cec_component_jumper_metadata as jumper
+    metadata_key = "_sch_component_signatures::" + os.path.abspath(sch)
+    observation = ctx[metadata_key + "::observation"]
+    jumper.check_observation(observation)
+    remaining = observation['deadline'] - time.monotonic()
+    if remaining <= 0:
+        raise ValueError('jumper_export_deadline')
+    native_jumpers = jumper.read_native(board, refs=sch_refs, timeout_s=min(10., remaining))
+    exported_jumpers = ctx[metadata_key + "::jumper_contracts"]
+    # A registered manufacturer recipe changes real lands, not merely a
+    # library nickname. Prove that exact Source-selected transformation from
+    # fresh canonical/export/native material; never install an old/new alias.
+    manufacturer_refs=[ref for ref in sorted(expected)if ref in actual
+        and expected[ref][1]!=actual[ref][1]]
+    manufacturer_proof=None;received_manufacturer=set()
+    if manufacturer_refs:
+        remaining=observation['deadline']-time.monotonic()
+        if remaining>0:
+            manufacturer_proof=manufacturer.assess(board,sch,manufacturer_refs,timeout_s=min(9.1,remaining))
+            ctx['_manufacturer_footprint_parity']=manufacturer_proof
+            if manufacturer_proof.get('complete')is True and manufacturer_epoch==manufacturer_proof.get('native_binding'):
+                received_manufacturer=set(manufacturer_proof.get('proofs',{}))
     mismatches = []
     for ref in sorted(expected):
         if ref not in actual:
@@ -4706,12 +4992,20 @@ def _chk_sch_pcb_sync(board, path, ctx):
         fields = []
         if expected[ref][0] != actual[ref][0]:
             fields.append("value")
-        if expected[ref][1] != actual[ref][1]:
+        if expected[ref][1] != actual[ref][1] and ref not in received_manufacturer:
             fields.append("footprint")
         if expected[ref][2] != actual[ref][2]:
             fields.append("pad nets")
+        if ref not in exported_jumpers or ref not in native_jumpers:
+            fields.append("unproved jumper metadata")
+        elif (native_jumpers[ref]['implicit'] or
+              native_jumpers[ref]['groups'] != exported_jumpers[ref]['groups']):
+            fields.append("jumper groups")
         if fields:
             mismatches.append("%s(%s)" % (ref, "/".join(fields)))
+    jumper.check_observation(observation)
+    if received_manufacturer and not manufacturer.still_current(manufacturer_proof,board):
+        mismatches.extend(ref+'(stale manufacturer footprint proof)'for ref in sorted(received_manufacturer))
     if mismatches:
         matched = len(expected) - len(mismatches)
         ratio = matched / float(len(expected)) if expected else 0.0
@@ -4719,8 +5013,9 @@ def _chk_sch_pcb_sync(board, path, ctx):
             "component signatures are stale: %d/%d exact (%.3f); mismatches: %s%s" %
             (matched, len(expected), ratio, ", ".join(mismatches[:10]), fresh)
         )
-    return True, "exact value/footprint/pad-net signatures and assembly state in sync (%d refs)%s" % (
-        len(pcb_refs), fresh)
+    return True, "exact value/footprint/pad-net/jumper signatures and assembly state in sync (%d refs)%s%s" % (
+        len(pcb_refs), fresh,('; %d freshly proved manufacturer transformations; canonical Source selection unchanged'
+            %len(received_manufacturer))if received_manufacturer else '')
 
 
 # ---------------------------------------------------------------------------
@@ -4741,7 +5036,7 @@ def _erc_errors(sch_path):
     try:
         proc = subprocess.run([cli, "sch", "erc", "--format", "json",
                                "-o", out, sch_path], capture_output=True, text=True,
-                              timeout=300)
+                              timeout=10)
         if proc.returncode:
             raise RuntimeError("kicad-cli ERC exited %d: %s"
                                % (proc.returncode, (proc.stderr or proc.stdout).strip()[:500]))
@@ -4990,10 +5285,79 @@ def directives(rows):
 # ===========================================================================
 STATUS_ORDER = {"FAIL": 0, "PASS": 1, "DECLARED": 2, "N/A": 3, "ERROR": 4}
 
+# These checkers invoke geometry/current solvers which may hand SWIG-owned
+# shapes to C++ for the duration of the solve.  The solver is read-only, but it
+# can invalidate unrelated wrappers in the same interpreter.  A fresh process
+# is the ownership boundary; merely reloading the board in-process still leaves
+# KiCad's process-global registry corrupted and eventually segfaults.
+CHECKER_PROCESS_ISOLATION = frozenset({
+    "trace-width-high-current",
+})
+
+
+def _json_process_context(ctx):
+    """Keep only context entries which preserve their JSON type exactly."""
+    clean = {}
+    for key, value in (ctx or {}).items():
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            continue
+        clean[str(key)] = value
+    return clean
+
+
+def _run_checker_process(checker_id, board_path, ctx, *, timeout_s=300):
+    """Evaluate one SWIG-risky checker and return its ordinary result tuple."""
+    with tempfile.TemporaryDirectory(prefix="cec_constraint_worker_") as temp:
+        input_path = os.path.join(temp, "input.json")
+        output_path = os.path.join(temp, "output.json")
+        with open(input_path, "w", encoding="utf-8") as handle:
+            json.dump({"checker": checker_id,
+                       "board": os.path.abspath(board_path),
+                       "ctx": _json_process_context(ctx)}, handle)
+        process = subprocess.run(
+            [sys.executable, os.path.abspath(__file__),
+             "--checker-worker-input", input_path,
+             "--checker-worker-output", output_path],
+            cwd=ROOT, capture_output=True, text=True, timeout=timeout_s)
+        if process.returncode or not os.path.isfile(output_path):
+            raise RuntimeError(
+                "isolated checker %s failed (exit %s): %s" % (
+                    checker_id, process.returncode,
+                    (process.stderr or process.stdout)[-1200:]))
+        with open(output_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    return (payload.get("ok"), payload.get("detail", ""),
+            payload.get("payload"))
+
+
+def _checker_worker(input_path, output_path):
+    """Internal short-lived worker.  ``os._exit`` avoids SWIG finalizers."""
+    with open(input_path, encoding="utf-8") as handle:
+        request = json.load(handle)
+    checker_id = str(request["checker"])
+    fn = CHECKERS.get(checker_id)
+    if fn is None:
+        raise KeyError("unknown checker %s" % checker_id)
+    board = pcbnew.LoadBoard(str(request["board"]))
+    if board is None:
+        raise RuntimeError("KiCad could not load board")
+    result = fn(board, str(request["board"]), request.get("ctx") or {})
+    payload = {
+        "ok": result[0],
+        "detail": result[1],
+        "payload": result[2] if len(result) > 2 else None,
+    }
+    with open(output_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, default=str)
+
 
 def run(board_path, ctx=None):
     ctx = ctx or {}
     board = pcbnew.LoadBoard(board_path)
+    if board is None:
+        raise RuntimeError("KiCad could not load board")
     out = []
     for c in REGISTRY:
         if c.superseded_by:
@@ -5006,7 +5370,11 @@ def run(board_path, ctx=None):
             out.append((c, "DECLARED", "recorded; deterministic checker pending", None))
             continue
         try:
-            res = fn(board, board_path, ctx)
+            checker_id = c.checker or c.id
+            if checker_id in CHECKER_PROCESS_ISOLATION:
+                res = _run_checker_process(checker_id, board_path, ctx)
+            else:
+                res = fn(board, board_path, ctx)
             ok, detail = res[0], res[1]
             payload = res[2] if len(res) > 2 else None
             status = "N/A" if ok is None else ("PASS" if ok else "FAIL")
@@ -5098,6 +5466,17 @@ def report(board_path, ctx, as_json=False):
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    if "--checker-worker-input" in argv:
+        try:
+            input_path = argv[argv.index("--checker-worker-input") + 1]
+            output_path = argv[argv.index("--checker-worker-output") + 1]
+        except (ValueError, IndexError):
+            raise SystemExit(
+                "checker worker requires input and output paths")
+        _checker_worker(input_path, output_path)
+        # Avoid process-shutdown finalizers for SWIG shapes retained by the
+        # solver.  The result file is already closed and durable.
+        os._exit(0)
     ctx = {"radio": "--radio" in argv}
     as_json = "--json" in argv
     strict = "--strict" in argv
@@ -5169,6 +5548,38 @@ def main(argv=None):
     return strict_rc
 
 
+def laid_pour_regions(board, *, exclude_plane=True):
+    """Exact authored zone/layer reservations shared by search and grading.
+
+    Filled antipads do not grant placement permission. Dedicated, declared
+    reference/power planes retain their established exception; names do not
+    turn a segmented signal-layer power landing into a board-wide plane.
+    This only reads native source geometry and grants no contour-cut authority.
+    """
+    plane_role_layers = set()
+    if exclude_plane:
+        declared_profile = cec_fab.board_profile_name(board)
+        if declared_profile:
+            roles = dict(zip(cec_fab.COPPER_LAYERS,
+                             cec_fab.get_profile(declared_profile)["roles"]))
+            plane_role_layers = {layer for layer, role in roles.items()
+                                 if role in ("GND", "PWR")}
+    result = []
+    for zone in board.Zones():
+        if zone.GetIsRuleArea() or (exclude_plane and zone.GetNetname() == "GND"):
+            continue
+        for layer in board.GetEnabledLayers().CuStack():
+            if not zone.IsOnLayer(layer):
+                continue
+            canonical_layer = cec_fab.COPPER_LAYER_IDS.get(
+                int(layer), board.GetLayerName(layer))
+            if exclude_plane and canonical_layer in plane_role_layers:
+                continue
+            if zone.Outline().OutlineCount() > 0:
+                result.append((zone, layer))
+    return result
+
+
 def laid_pour_incursion_summary(board_path, *, exclude_plane=True,
                                 item_limit=60):
     """Anything sitting inside a pour's OWN reserved region: parts, tracks, vias.
@@ -5194,33 +5605,9 @@ def laid_pour_incursion_summary(board_path, *, exclude_plane=True,
     Returns {"applicable", "status", "n_parts", "n_tracks", "n_vias", "items"}.
     """
     board = pcbnew.LoadBoard(board_path) if isinstance(board_path, str) else board_path
-    plane_role_layers = set()
-    if exclude_plane:
-        declared_profile = cec_fab.board_profile_name(board)
-        if declared_profile:
-            roles = dict(zip(cec_fab.COPPER_LAYERS,
-                             cec_fab.get_profile(declared_profile)["roles"]))
-            # Exact plane roles only. SIG/PWR outer layers remain eligible because they carry
-            # segmented routing pours, while dedicated GND and PWR layers are board planes.
-            plane_role_layers = {layer for layer, role in roles.items()
-                                 if role in ("GND", "PWR")}
-    zones = []
-    for z in board.Zones():
-        if z.GetIsRuleArea():
-            continue
-        net = z.GetNetname() or ""
-        name = z.GetZoneName() or ""
-        if exclude_plane and (net == "GND" or name.startswith("GND Plane")):
-            continue
-        for lid in board.GetEnabledLayers().CuStack():
-            if not z.IsOnLayer(lid):
-                continue
-            canonical_layer = cec_fab.COPPER_LAYER_IDS.get(int(lid), board.GetLayerName(lid))
-            if exclude_plane and canonical_layer in plane_role_layers:
-                continue
-            outline = z.Outline()
-            if outline.OutlineCount() > 0:
-                zones.append((net, lid, name, outline))
+    zones = [(zone.GetNetname() or "", layer, zone.GetZoneName() or "",
+              zone.Outline()) for zone, layer in
+             laid_pour_regions(board, exclude_plane=exclude_plane)]
     if not zones:
         return {"applicable": False, "status": "na", "n_parts": 0, "n_tracks": 0,
                 "n_vias": 0, "items": []}

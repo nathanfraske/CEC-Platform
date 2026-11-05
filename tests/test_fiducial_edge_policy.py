@@ -13,6 +13,48 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 
 class TestFiducialEdgePolicy(unittest.TestCase):
+    def test_router_guard_includes_optical_field_even_with_smaller_library_box(self):
+        import cec_fr
+        import pcbnew
+        board = self._board()
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'board.kicad_pcb')
+            pcbnew.SaveBoard(path, board)
+            guards = cec_fr.fiducial_keepouts(path, board=board)
+            for guard in guards:
+                ref = guard['name'].removeprefix('assembly_fiducial_')
+                point = board.FindFootprintByReference(ref).GetPosition()
+                x, y = point.x/1e6, point.y/1e6
+                self.assertLessEqual(guard['x0'], x-1.5)
+                self.assertLessEqual(guard['y0'], y-1.5)
+                self.assertGreaterEqual(guard['x1'], x+1.5)
+                self.assertGreaterEqual(guard['y1'], y+1.5)
+                self.assertEqual(guard['layers'], ('F.Cu',))
+                self.assertFalse(guard['allow_vias'])
+                self.assertTrue(guard['block_fills'])
+            with self.assertRaises(ValueError):
+                cec_fr.fiducial_keepouts(path, board=board, optical_radius_mm=float('nan'))
+
+    def test_explicit_resume_moves_mark_away_from_actual_copper_without_rerouting(self):
+        import pcbnew
+        import cec_fr
+        import cec_synth_pipeline as synth
+        board = self._board()
+        net = pcbnew.NETINFO_ITEM(board, "/POWER_TEST"); board.Add(net)
+        track = pcbnew.PCB_TRACK(board); track.SetNet(net); track.SetLocked(True)
+        track.SetStart(pcbnew.VECTOR2I_MM(5, 2)); track.SetEnd(pcbnew.VECTOR2I_MM(5, 22))
+        track.SetWidth(pcbnew.FromMM(2.5)); track.SetLayer(pcbnew.F_Cu); board.Add(track)
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "board.kicad_pcb"); pcbnew.SaveBoard(path, board)
+            self.assertFalse(synth._oracle_fiducials(path, expect=True)["ok"])
+            before = cec_fr.copper_geometry_signature(path, ["/POWER_TEST"])
+            self.assertFalse(synth.repair_fiducials_to_edge_band(path)["changed"])
+            report = synth.repair_fiducials_to_edge_band(path, allow_existing_copper=True)
+            self.assertTrue(report["ok"], report)
+            self.assertTrue(any(r["ref"] == "FID1" for r in report["moved"]))
+            self.assertTrue(synth._oracle_fiducials(path, expect=True)["ok"])
+            self.assertEqual(before, cec_fr.copper_geometry_signature(path, ["/POWER_TEST"]))
+
     def setUp(self):
         try:
             import pcbnew  # noqa: F401

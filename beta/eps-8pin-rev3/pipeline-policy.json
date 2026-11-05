@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "board": "eps-8pin-rev3",
+  "aliases": [
+    "eps-8pin"
+  ],
+  "params": {
+    "respect_antenna_keepout": false,
+    "outline_compaction": {
+      "enabled": true,
+      "step_mm": 4.0,
+      "max_steps": 2,
+      "shrink_axes": ["width", "height"],
+      "include_incremental": true,
+      "include_fresh_placement": false,
+      "repack_collisions": true,
+      "repack_max_variants": 1,
+      "repack_beam_width": 16,
+      "probe_route_preflight": false,
+      "edge_follow": [
+        {"edge": "right", "margin_mm": 14.0, "mode": "contain", "clearance_mm": 0.5},
+        {"edge": "bottom", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5}
+      ],
+      "minimum_edge_margin_mm": 0.5,
+      "fallback_steps_mm": []
+    },
+    "qualified_interface_anchor": {
+      "provider": "cec_xfcn_contract",
+      "project": "eps-main",
+      "edge": "bottom",
+      "terminal_edge_margin_mm": 0.9
+    },
+    "net_current_contracts": {
+      "/SENSEC": 52.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "VCC_RJ45": 1.0,
+      "/VBUS_FUSED": 1.0
+    },
+    "net_current_contract_notes": [
+      "The single EPS design basis is four power pins at approximately 13 A per pin; the alias exists only for older artifact names.",
+      "Owner authorized 1 A continuous conductor design basis per TPS2121 input on 2026-10-23: U4 IN1 pin 7 on VCC_RJ45 and U4 IN2 pin 2 on hierarchical VBUS_FUSED. Each input retains the existing 1.25 geometry margin independently; no sharing is assumed. This is a routing requirement, not a changed load, output rating, part-capacity claim, or qualification."
+    ]
+  }
+}

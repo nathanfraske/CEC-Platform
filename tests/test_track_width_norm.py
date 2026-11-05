@@ -11,6 +11,8 @@ track that is genuinely too thin (that is a real fault and must stay visible).
 import os
 import sys
 import unittest
+from types import SimpleNamespace
+from uuid import uuid4
 
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
@@ -22,6 +24,8 @@ class _Track:
         self._cls = cls
         self._start = _Point(*start)
         self._end = _Point(*end)
+        uid = str(uuid4())
+        self.m_Uuid = SimpleNamespace(AsString=lambda: uid)
 
     def GetClass(self):
         return self._cls
@@ -63,6 +67,12 @@ class _Board:
 
     def Remove(self, item):
         self._t.remove(item)
+
+    def Delete(self, item):
+        self._t.remove(item)
+
+    def Groups(self):
+        return []
 
 
 class TrackWidthNormTest(unittest.TestCase):

@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "status": "REVIEW_BLOCKED",
+  "scope": "First bounded release-readiness pass after owner acceptance of the compaction/refinement milestone. Review candidates, not released production sources.",
+  "current_review": {
+    "report": "build/release-readiness-20261020-d/readiness.json",
+    "sha256": "1b9c2c22e7434bc52dc8e34d702f6e8fd2ac6fe4c9fafb50d94abf7112438423",
+    "plan": "build/release-readiness-plan-20261020-c.json",
+    "all_inputs_and_code_unchanged": true,
+    "current_schematic_value_footprint_pad_net_and_assembly_state_parity": true,
+    "use_instead_of_older_dashboard_or_mtime_selection": true
+  },
+  "review_frontier": {
+    "pcie-8pin-2port": {
+      "board": "build/release-pcie2-mount-stitches-20261020-a/board.kicad_pcb",
+      "sha256": "8ccd59037e83e166c18bd11c214d425ec75af0a69c832e784ab694503878a2bd",
+      "dimensions_mm": [86.5, 47.6],
+      "opens": 0,
+      "scored_native_drc": 0,
+      "raw_native_drc": 604,
+      "full50": {"PASS": 34, "FAIL": 2, "N/A": 11, "DECLARED": 3},
+      "post_route_constraint_blockers": ["kelvin-sense-from-inner-pad"],
+      "retained_nonblocking_pour_advisory": "min-pour-cross-section",
+      "clipped_kelvin_isolation": {"expected": 8, "passed": 8, "failed": 0, "unknown": 0},
+      "inner_departure": "4 of 8 typed legs fail the source-cut barrel-overlap check; not waived by passing clipped isolation",
+      "factory_drill_spacing_findings_before_after": [32, 0],
+      "factory_legend_dimension_findings": 164,
+      "erc": {"errors": 0, "warnings": 88, "report": "build/release-pcie2-erc-20261020-a.json"}
+    },
+    "atx-24pin-rev3": {
+      "board": "build/release-atx-mount-stitches-20261020-a/board.kicad_pcb",
+      "sha256": "edbffc7046e5f14740d877e4ad8fa2331701d4fb66bdff571b799b1286dec8e9",
+      "dimensions_mm": [78.0, 89.5],
+      "opens": 0,
+      "scored_native_drc": 0,
+      "raw_native_drc": 388,
+      "full50": {"PASS": 29, "FAIL": 5, "N/A": 13, "DECLARED": 3},
+      "post_route_constraint_blockers": ["high-speed-pair-physical-integrity", "trace-width-high-current", "via-on-pad", "netclass-geometry-conformance"],
+      "clipped_kelvin_isolation": {"expected": 16, "passed": 16, "failed": 0, "unknown": 0},
+      "factory_drill_spacing_findings_before_after": [8, 0],
+      "factory_legend_dimension_findings": 383,
+      "erc": {"errors": 0, "warnings": 142, "report": "build/release-atx-erc-20261020-a.json"}
+    },
+    "hub-standard-rev2": {
+      "board": "build/hub-paged-ground-batch-20261020-goal1523/trial-2/UNADMITTED-source-local-ground-entry/board.kicad_pcb",
+      "sha256": "06da1c2c62fed04db1c07200136924065a35096160cc2bd3fd3ac0d92c95dc61",
+      "dimensions_mm": [84.49, 72.2],
+      "opens": 0,
+      "scored_native_drc": 0,
+      "raw_native_drc": 271,
+      "full50": {"PASS": 25, "FAIL": 6, "N/A": 16, "DECLARED": 3},
+      "post_route_constraint_blockers": ["ecap-edge-distance", "netclass-geometry-conformance"],
+      "kelvin_obligation": "not applicable: zero declared expected legs, not a fabricated pass",
+      "factory_drill_spacing_findings": 1,
+      "factory_drill_detail": "J_USB shield slot to filled Ground via: 0.343473 mm; selected repository floor requires greater than 0.45 mm",
+      "factory_legend_dimension_findings": 298,
+      "erc": {"errors": 0, "warnings": 92, "report": "build/release-hub-erc-20261020-a.json"}
+    }
+  },
+  "completed_repairs": [
+    {"kind": "generic_exact_assembly_instance_context", "tool": "scripts/cec_assembly_instance.py", "detail": "Both member artifacts and unchanged contract must match explicit SHA-256. Original numbered contacts, faces, bodies, hardware, vertical fit and both vent projections are still checked. Invalid context never falls back to an older peer."},
+    {"kind": "additive_native_vent_guard", "tool": "ops/cec_complete_assembly_vent_guards.py", "receipt": "build/release-atx-vent-guard-20261020-a/vent-guard-receipt.json", "sha256": "5bbe77ce28a3eb786716e395791c58ea77fd6b0665437cf228fd38a0b8559871", "detail": "Completed missing C1 vent protection on the facing ATX board. All pre-existing native copper, fields and primitives exact; no outline or component motion."},
+    {"kind": "schematic_and_bom_footprint_parity", "detail": "U65V1 and U65VSB1 retain INA181A2IDBVR/C2058784. Their hierarchy and both BOMs now name the TI DBV0006A footprints already qualified on the saved PCB. No component, net, current, quantity or budget substitution."},
+    {"kind": "generic_factory_mount_stitch_repair", "tool": "ops/cec_native_mount_stitch_repair.py", "actuator": "scripts/cec_mounting_contract.py", "detail": "Existing actuator moves only mechanical satellite-pad positions inside unchanged contact lands. Screw centres, main bores, pad sizes, nets, layers, locks, all footprint poses and all routed tracks remain exact. Removed 40 factory drill-spacing findings across PCIe2/ATX. Vendored standard mount corrected to prevent recurrence."}
+  ],
+  "matched_stack": {
+    "contract": "beta/assembly/hub-atx-stack.json",
+    "contract_sha256": "7426660a7eeba70630f2bddb069b2d4310bcab9d86270faf46474979aabb65ce",
+    "nominal_gap_mm": 22.0,
+    "exact_final_review_pair_geometry_passes": true,
+    "both_vent_guards_pass": true,
+    "physical_sample_qualified": false,
+    "supplier_tolerances_qualified": false
+  },
+  "remaining_shared_work": [
+    "Resolve USB-C copper-to-locating-hole geometry against the selected factory process; roughly 0.165 mm minimum remains. Previous fabrication is not specific approval for the current geometry. No pad shrink, rule waiver or external-sourced connector substitution performed.",
+    "Finish actual manufacturing legends: retained small text/strokes, overlaps and filled-graphic minimum-feature unknowns. Counts are not thousands of electrical shorts.",
+    "Reconcile current, pair reference/return, POFV and local netclass findings with exact native evidence. They are not all dismissed as stale and none is blanket-waived.",
+    "Qualify coherent operating-case thermal/current performance on final copper, startup/hold-up and aged/cold components. No additional cooling, parallel-current sharing or unratified load assumptions were introduced.",
+    "Complete XFCN contact, hardware, mating, torque, physical stack and assembly process qualification. Existing fail-closed qualification files remain unchanged.",
+    "Generate and inspect the exact final fabrication and assembly package only after applicable release gates are satisfied. No Gerber order or production release was made."
+  ],
+  "parallel_continuation": {
+    "board": "12vhpwr-standard",
+    "input": "build/priority-force-vhp-20261002-private-c/output.kicad_pcb",
+    "input_sha256": "325ee4e80b643d3fc180b6dc42c90cb359ba4abb1ad5a565fac1927d3b75a598",
+    "source_intake": "build/release-vhp-resume-source-intake-20261020-a.json",
+    "source_intake_passed": true,
+    "exact_hierarchy_component_signatures": 103,
+    "run": "build/release-vhp-bounded-continuation-20261020-a",
+    "state": "blocked_before_routing",
+    "placement_elapsed_s": 191.1,
+    "local_ground_access_blockers": ["U14.6", "U13.6", "U15.6", "U12.6", "U11.6"],
+    "protected_power_prefix_preserved": true,
+    "last_independently_verified_opens": 162,
+    "new_completed_route_wave": false,
+    "blind_repeat_started": false
+  },
+  "regression": {
+    "report": "build/release-readiness-final-tests-20261020-b.xml",
+    "sha256": "90f39de541813b3cd633caff0a1d2918f269bc42bfccead0f5a3db71ae03f309",
+    "passed": 162,
+    "failed": 0,
+    "fresh_whole_repository_pass_claimed": false,
+    "literal_native_delta_receipts": ["build/release-atx-literal-delta-20261020-a.json", "build/release-pcie2-literal-delta-20261020-a.json"],
+    "unchanged_fields_graphics_and_other_native_uuid_blocks_verified": 3675,
+    "new_generic_assembly_module_static_findings": 0,
+    "archived_pcie2_control_sha256_unchanged": "2f09d2765bacc5281a52fc7b6afaafa06078fb3aa1c1c2be037b708edd059388"
+  },
+  "browser_tabs_opened": 0,
+  "production_selector_changed": false,
+  "routing_admitted": false,
+  "fab_ready": false,
+  "release_authority": false
+}

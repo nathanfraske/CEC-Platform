@@ -207,7 +207,8 @@ def _inject_foreign_fixture():
     board.Add(v)
     for z in board.Zones():
         z.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     pcbnew.SaveBoard(dst, board)
     return dst, p0["net"], (round(spot[0], 2), round(spot[1], 2))
 

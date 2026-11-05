@@ -22,6 +22,7 @@ class Load:
     quantity: int
     each_mA: float
     basis: str
+    thermal_family: str | None = None
 
     @property
     def total_mA(self) -> float:
@@ -31,7 +32,7 @@ class Load:
 LOADS: dict[str, tuple[Load, ...]] = {
     "atx-24pin-rev3": (
         Load("ESP32-C6-MINI wired controller envelope", 1, 160.000,
-             "wireless-disabled controller/flash envelope aligned with the other BETA controllers"),
+             "wireless-disabled controller/flash envelope aligned with the other BETA controllers", "mcu"),
         Load("INA238 precision current monitor", 4, 1.100,
              "datasheet maximum quiescent current over -40C to +125C"),
         Load("INA181 current-sense amplifier", 4, 0.300,
@@ -48,7 +49,7 @@ LOADS: dict[str, tuple[Load, ...]] = {
     ),
     "12vhpwr-standard": (
         Load("ESP32-S3-MINI wired controller envelope", 1, 160.000,
-             "107.9mA modem-sleep/all clocks + 10mA flash, rounded up"),
+             "107.9mA modem-sleep/all clocks + 10mA flash, rounded up", "mcu"),
         Load("INA240 current-sense amplifier", 6, 2.400,
              "datasheet maximum quiescent current"),
         Load("TJA1051 VIO", 1, 0.500, "datasheet dominant-state maximum"),
@@ -59,7 +60,7 @@ LOADS: dict[str, tuple[Load, ...]] = {
     ),
     "hub-standard-rev2": (
         Load("ESP32-S3-WROOM wired controller envelope", 1, 160.000,
-             "107.9mA modem-sleep/all clocks + 10mA flash, rounded up"),
+             "107.9mA modem-sleep/all clocks + 10mA flash, rounded up", "mcu"),
         Load("TJA1051 VIO", 1, 0.500, "datasheet dominant-state maximum"),
         Load("TPS3839 supervisor", 1, 0.0005, "datasheet maximum quiescent current"),
         Load("TLV7011 comparator", 1, 0.010, "datasheet maximum quiescent current"),
@@ -73,7 +74,7 @@ LOADS: dict[str, tuple[Load, ...]] = {
     ),
     "pcie-8pin-2port": (
         Load("ESP32-C6-MINI wired controller envelope", 1, 160.000,
-             "wireless-disabled controller/flash envelope aligned with the other BETA controllers"),
+             "wireless-disabled controller/flash envelope aligned with the other BETA controllers", "mcu"),
         Load("INA238 precision current monitor", 2, 1.100,
              "datasheet maximum quiescent current over -40C to +125C"),
         Load("INA181 current-sense amplifier", 2, 0.300,
@@ -89,7 +90,7 @@ LOADS: dict[str, tuple[Load, ...]] = {
     ),
     "pcie-8pin-3port": (
         Load("ESP32-C6-MINI wired controller envelope", 1, 160.000,
-             "wireless-disabled controller/flash envelope aligned with the other BETA controllers"),
+             "wireless-disabled controller/flash envelope aligned with the other BETA controllers", "mcu"),
         Load("INA238 precision current monitor", 3, 1.100,
              "datasheet maximum quiescent current over -40C to +125C"),
         Load("INA181 current-sense amplifier", 3, 0.300,
@@ -105,7 +106,7 @@ LOADS: dict[str, tuple[Load, ...]] = {
     ),
     "eps-8pin-rev3": (
         Load("ESP32-C6-MINI wired controller envelope", 1, 160.000,
-             "wireless-disabled controller/flash envelope aligned with the other BETA controllers"),
+             "wireless-disabled controller/flash envelope aligned with the other BETA controllers", "mcu"),
         Load("INA238 precision current monitor", 2, 1.100,
              "datasheet maximum quiescent current over -40C to +125C"),
         Load("INA181 current-sense amplifier", 2, 0.300,

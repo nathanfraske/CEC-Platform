@@ -42,6 +42,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_fr        # noqa: E402
 import cec_score     # noqa: E402
+import cec_route_quality  # noqa: E402
 import cec_toolchain as _tc   # noqa: E402  -- toolchain presence helpers (R-05)
 
 # Cosmetic DRC filter: ONE definition, in cec_score (R-02 -- the lists were defined twice
@@ -115,6 +116,19 @@ class CandidateMetrics:
     drc_loci: list
     unconn_nets: list   # net names carrying unrouted ratlines -- so a judge can tell a
                         # finishing tie (SH1/SH2 shield tabs) from a real functional-net failure
+    route_quality: dict = field(default_factory=dict)
+
+
+def _candidate_accepts(candidate):
+    """Final acceptance is stricter than the intermediate electrical flag."""
+    if isinstance(candidate, CandidateMetrics):
+        electrical, report = candidate.gates_pass, candidate.route_quality
+    elif type(candidate) is dict:
+        electrical, report = candidate.get('gates_pass'), candidate.get('route_quality')
+    else:
+        return False
+    return (electrical is True
+            and all(cec_route_quality.final_craft_terms(report).values()))
 
 
 # ---- the LOCAL runner: a bounded compute pool on THIS system (NOT a GitHub Actions runner) --------
@@ -208,10 +222,11 @@ def _generate_scored(board, params, seeds, max_workers, out_dir):
             drc=m.drc, unconnected=m.unconnected, kelvin_ok=m.kelvin_ok,
             diffpair_ok=m.diffpair_ok, gates_pass=m.gates_pass,
             tracks=m.tracks, vias=m.vias, drc_types=m.drc_types, drc_loci=m.drc_loci,
-            unconn_nets=m.detail.get("unconn_nets", []))
+            unconn_nets=m.detail.get("unconn_nets", []),
+            route_quality=m.detail.get("route_quality", {}))
         seen[h] = cm
         res.append(cm)
-    res.sort(key=lambda c: (0 if c.gates_pass else 1, c.drc, c.unconnected))
+    res.sort(key=lambda c: (0 if _candidate_accepts(c) else 1, c.drc, c.unconnected))
     return res
 
 
@@ -237,7 +252,9 @@ def score_board(board):
     return {"drc": m.drc, "unconnected": m.unconnected, "kelvin_ok": m.kelvin_ok,
             "diffpair_ok": m.diffpair_ok, "gates_pass": m.gates_pass,
             "tracks": m.tracks, "vias": m.vias, "drc_types": m.drc_types, "drc_loci": m.drc_loci,
-            "unconn_nets": m.detail.get("unconn_nets", [])}
+            "unconn_nets": m.detail.get("unconn_nets", []),
+            "route_quality": m.detail.get("route_quality", {}),
+            "route_craft_terms": cec_route_quality.final_craft_terms(m.detail.get("route_quality"))}
 
 
 def render(board, png):
@@ -250,7 +267,8 @@ def render(board, png):
 
 # ============================================================ the protocol
 GATE_NOTE = (
-    "HARD ACCEPTANCE GATE (must hold to accept): gates_pass. This includes kelvin_ok, "
+    "HARD ACCEPTANCE GATES (must all hold to accept): electrical gates_pass AND complete, "
+    "current, whole-board route_quality craft and power-contour checks. Electrical gates include kelvin_ok, "
     "diffpair_ok, and every configured DRC and unconnected-ratline completion gate. "
     "No finishing or known-false residual may be waived by the routing dispatcher. Such findings "
     "must be corrected or explicitly dispositioned outside automatic route acceptance. An owner "
@@ -323,13 +341,15 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
                 # but the fallback is RECORDED -- the tier's stated intent must not be lost.
                 log[-1]["note"] = f"seed fallback: verdict seed {v.seed!r} not in candidates; using best"
                 best = cands[0]
-            if not best.gates_pass:
+            if not _candidate_accepts(best):
                 # A model or deterministic tier is advisory. It cannot waive the complete scorer
                 # contract, which includes the configured DRC and unconnected-ratline gates in
                 # addition to Kelvin and differential-pair topology. Escalate rather than return a
                 # route that the independent scorer rejected.
                 prior_note = log[-1].get("note")
-                rejection = "accept rejected because selected candidate gates_pass=false"
+                rejection = ("accept rejected because selected candidate gates_pass=false"
+                             if best.gates_pass is not True else
+                             "accept rejected because whole-board route craft failed or is unverified")
                 log[-1]["note"] = f"{prior_note}; {rejection}" if prior_note else rejection
                 ti += 1
                 b = budget
@@ -359,8 +379,8 @@ def _is_finishing_only(types, loci):
 def det_haiku(ctx):
     """Accept only a candidate that passes the complete independent scorer contract."""
     best = ctx.candidates[0] if ctx.candidates else None
-    if best and best["gates_pass"]:
-        return Verdict("accept", seed=best["seed"], reason="complete gates_pass contract satisfied")
+    if best and _candidate_accepts(best):
+        return Verdict("accept", seed=best["seed"], reason="electrical and whole-board craft contracts satisfied")
     if ctx.budget_left > 0:
         opt = ctx.history[-1]["params"]["opt_time"] if ctx.history else 12
         return Verdict("request_more", params={"opt_time": int(opt * 1.6)},
@@ -372,8 +392,8 @@ det_haiku.tier_name = "haiku"
 def det_escalate(ctx):
     """Deterministic Sonnet/Opus stand-in: accept only the complete scorer gate."""
     best = ctx.candidates[0] if ctx.candidates else None
-    if best and best["gates_pass"]:
-        return Verdict("accept", seed=best["seed"], reason="complete gates_pass contract satisfied")
+    if best and _candidate_accepts(best):
+        return Verdict("accept", seed=best["seed"], reason="electrical and whole-board craft contracts satisfied")
     return Verdict("escalate", reason="no gate-passing candidate; defer to human")
 det_escalate.tier_name = "sonnet"
 

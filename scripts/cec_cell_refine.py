@@ -1750,8 +1750,8 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         board.Add(z)
         zones_to_fill.append(z)
     if zones_to_fill:                             # real ZONE_FILLER (kicad-cli cannot fill)
-        filler = pcbnew.ZONE_FILLER(board)
-        filler.Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
     pcbnew.SaveBoard(out_pcb, board)
     return out_pcb
 

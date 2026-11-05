@@ -593,10 +593,16 @@ class SixLayerGenerationTest(unittest.TestCase):
             self.assertFalse(guards[0]["block_fills"])
             self.assertLessEqual(guards[0]["x0"], 7.7)
             self.assertGreaterEqual(guards[0]["x1"], 12.3)
+            report = {}
             self.assertFalse(cec_fr._via_spot_clear(
                 board, pcbnew.VECTOR2I_MM(8.0, 9.5),
                 pcbnew.FromMM(0.6), pcbnew.FromMM(0.2), set(),
-                drill_nm=pcbnew.FromMM(0.3), net_code=0))
+                drill_nm=pcbnew.FromMM(0.3), net_code=0,
+                report=report))
+            self.assertEqual(report["reason"],
+                             "copper graphic excludes via land")
+            self.assertEqual(report["blockers"][0]["ref"], "LOGO1")
+            self.assertEqual(report["blockers"][0]["layer"], "B.Cu")
 
     def test_non_through_via_fails_profile_gate(self):
         with tempfile.TemporaryDirectory() as directory:

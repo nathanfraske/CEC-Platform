@@ -122,9 +122,8 @@ class XfcnTerminalContractTest(unittest.TestCase):
     def test_corridor_blade_heuristic_never_repacks_pinned_terminals(self):
         """A qualified terminal cell remains authoritative downstream.
 
-        XFCN screw terminals intentionally match the historical broad blade
-        classifier, but each two-leg body is one pinned mechanical component;
-        the blade-field placer must not compress those bodies to tab pitch.
+        Output topology still recognizes screw terminals, but their mechanical
+        macro is not a blade row and must not be compressed to tab pitch.
         """
         anchors = {
             "TB11": (30.9, 42.55, 0.0),
@@ -136,16 +135,16 @@ class XfcnTerminalContractTest(unittest.TestCase):
             "j_out_blades": ["TB11", "TB13"],
             "shunt": "RS1",
         }, 30.9)]
-        with mock.patch.object(cec_synth_pipeline, "_is_blade",
-                               return_value=True):
-            cec_synth_pipeline._seat_blade_fields(
-                cables, anchors, None,
-                {ref: "Terminal_XFCN" for ref in anchors}, W=86.5,
-                pinned_refs=before)
+        cec_synth_pipeline._seat_blade_fields(
+            cables, anchors, None,
+            {ref: "Terminal_XFCN" for ref in anchors}, W=86.5,
+            pinned_refs=before)
         self.assertEqual(before, anchors)
 
     def test_qualified_atx_interface_macro_translates_without_repacking(self):
-        plan = contract.PROJECTS["atx-main"]
+        # Geometry helper still works on a feasible contract. The actual ATX
+        # row is unqualified and must not be emitted by this helper anymore.
+        plan = contract.PROJECTS["pcie2-main"]
         before = contract.power_path_anchor_placements(plan)
         placed = contract.centered_interface_anchor_placements(
             plan, 86.0, terminal_edge_y_mm=0.9)
@@ -251,6 +250,26 @@ class XfcnTerminalContractTest(unittest.TestCase):
         self.assertNotIn("U10", domains["/SENSEC1_HI"]["authority_refs"])
         self.assertNotIn("U20", domains["/SENSEC1_HI"]["authority_refs"])
 
+    def test_atx_candidate_terminal_bank_resolves_to_real_net_owners(self):
+        """A superset override is filtered by the saved candidate netlist."""
+        import pcbnew
+
+        board = pcbnew.LoadBoard(str(contract.project_path("atx-main", "pcb")))
+        domains = cec_current_topology.board_current_domains(
+            board, board_hint="atx-24pin-rev3")
+        expected = {
+            "/SENSE12V_LO": {"RS1", "TB1"},
+            "+5V_MAIN": {"RS2", "TB2"},
+            "/SENSE3V3_LO": {"RS3", "TB4"},
+            "/SENSE5VSB_LO": {"RS4", "TB5"},
+            "GND": {"J3", "TB6", "TB9"},
+        }
+        for net, refs in expected.items():
+            with self.subTest(net=net):
+                self.assertTrue(domains[net]["complete"], domains[net])
+                self.assertEqual(refs, set(domains[net]["authority_refs"]))
+                self.assertEqual((), domains[net]["missing_refs"])
+
     def test_every_project_registers_the_pinned_library(self):
         for name, plan in contract.PROJECTS.items():
             project_dir = contract.project_path(name, "root_schematic").parent
@@ -276,6 +295,10 @@ class XfcnTerminalContractTest(unittest.TestCase):
                     [sys.executable, str(ROOT / "scripts/cec_xfcn_place.py"),
                      "--project", name, "--json"],
                     cwd=ROOT, capture_output=True, text=True)
+                if not contract.PROJECTS[name]['mating_row_compilation']['ok']:
+                    self.assertNotEqual(0, process.returncode)
+                    self.assertEqual('mating_geometry_conflict', json.loads(process.stdout)[0]['status'])
+                    continue
                 self.assertEqual(0, process.returncode, process.stderr + process.stdout)
                 report = json.loads(process.stdout)[0]
                 self.assertEqual("already-integrated", report["status"])
@@ -301,19 +324,19 @@ class XfcnTerminalContractTest(unittest.TestCase):
         """A mechanically current interface cannot hide stale BOM identity."""
         import pcbnew
 
-        source = contract.project_path("atx-main", "pcb")
+        source = contract.project_path("pcie2-main", "pcb")
         with tempfile.TemporaryDirectory() as directory:
             candidate = Path(directory) / "stale-value.kicad_pcb"
             board = pcbnew.LoadBoard(str(source))
             footprint = next(
                 fp for fp in board.GetFootprints()
-                if fp.GetReference() == "J_SIG1")
+                if fp.GetReference() == "TB11")
             footprint.SetValue("STALE-AUXILIARY-PART")
             pcbnew.SaveBoard(str(candidate), board)
 
             command = [
                 sys.executable, str(ROOT / "scripts/cec_xfcn_place.py"),
-                "--project", "atx-main", "--input-board", str(candidate),
+                "--project", "pcie2-main", "--input-board", str(candidate),
                 "--apply", "--json",
             ]
             process = subprocess.run(
@@ -323,16 +346,16 @@ class XfcnTerminalContractTest(unittest.TestCase):
             report = json.loads(process.stdout)[0]
             self.assertEqual("applied", report["status"])
             self.assertEqual([{
-                "ref": "J_SIG1",
+                "ref": "TB11",
                 "from": "STALE-AUXILIARY-PART",
-                "to": contract.PARTS[contract.ATX_SIGNAL_MAIN]["value"],
+                "to": contract.PARTS[contract.TTR]["value"],
             }], report["refreshed_values"])
             repaired = pcbnew.LoadBoard(str(candidate))
             repaired_fp = next(
                 fp for fp in repaired.GetFootprints()
-                if fp.GetReference() == "J_SIG1")
+                if fp.GetReference() == "TB11")
             self.assertEqual(
-                contract.PARTS[contract.ATX_SIGNAL_MAIN]["value"],
+                contract.PARTS[contract.TTR]["value"],
                 repaired_fp.GetValue())
 
     def test_surgical_helper_finds_column_zero_generated_symbols(self):
@@ -421,10 +444,10 @@ class XfcnTerminalContractTest(unittest.TestCase):
             self.assertIn('(pad "2" thru_hole circle (at 0 2.54)', text)
             self.assertIn('(pad "3" thru_hole circle (at 2.54 0)', text)
 
-    def test_compact_daughterboards_have_zero_hard_drc_and_no_unconnected(self):
+    def test_daughterboard_geometry_and_route_authority_are_consistent(self):
         expected_outlines = {
-            "atx-db": (54.0, 21.3),
-            "eps-db": (28.0, 18.5),
+            "atx-db": (59.8, 21.3),
+            "eps-db": (30.25, 18.5),
             "pcie-db": (24.5, 20.0),
         }
         for name, (width, height) in expected_outlines.items():
@@ -433,6 +456,19 @@ class XfcnTerminalContractTest(unittest.TestCase):
                 x0, y0, x1, y1 = plan["outline_rect_mm"]
                 self.assertAlmostEqual(width, x1 - x0)
                 self.assertAlmostEqual(height, y1 - y0)
+                import cec_interface_eco as eco
+                import cec_placement_geometry as geometry
+                board_path = contract.project_path(name, 'pcb')
+                record = eco.read_status(board_path)
+                if record and record.get('route_authority_invalidated'):
+                    # A coordinated interface ECO retains stale copper as
+                    # evidence, never as a zero-open or fabrication claim.
+                    with self.assertRaises(ValueError):
+                        eco.require_rebuilt(board_path)
+                    result = geometry.evaluate(board_path)
+                    self.assertTrue(result['ok'], result['findings'])
+                    self.assertFalse(record['admission_ok'])
+                    continue
                 with tempfile.TemporaryDirectory() as directory:
                     report = Path(directory) / "drc.json"
                     process = subprocess.run(

@@ -1,0 +1,39 @@
+name: Model-directed layout contracts
+
+on:
+  push:
+    paths: ['src/**', 'scripts/**', 'ops/**', 'tests/**', 'experiments/**', 'checkpoints/**', 'pyproject.toml', '.github/workflows/model-directed-layout.yml']
+  pull_request:
+    paths: ['src/**', 'scripts/**', 'ops/**', 'tests/**', 'experiments/**', 'checkpoints/**', 'pyproject.toml', '.github/workflows/model-directed-layout.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pure Python test dependency
+        run: python -m pip install --target .cec/ci-deps pytest==8.3.5
+      - name: Native construction, receiving, identity and protocol contracts
+        run: |
+          . ./versions.env
+          mkdir -p .cec/ci-results
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            -e PYTHONPATH="$PWD/.cec/ci-deps:$PWD/src:$PWD/scripts:$PWD/ops:$PWD/tests:$PWD/experiments/legacy_2026" \
+            -v "$PWD":"$PWD" -w "$PWD" --entrypoint bash \
+            "${KICAD_IMAGE:-kicad/kicad:10.0}" -lc \
+            'python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py --junitxml=.cec/ci-results/agentic.xml'
+      - name: Test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-directed-layout-contracts
+          path: .cec/ci-results

@@ -71,36 +71,69 @@ def board_current_domains(board, board_hint=None):
 
     board_nets = _board_net_names(board)
     refs_by_net = {}
+    board_refs = set()
     for fp in board.GetFootprints():
         ref = str(fp.GetReference() or "")
+        if ref:
+            board_refs.add(ref)
         for pad in fp.Pads():
             net = str(pad.GetNetname() or "")
             if net:
                 refs_by_net.setdefault(net, set()).add(ref)
 
+    from cec_current_binding import resolve
+    currents, overrides, binding = resolve(board, currents, overrides)
+    binding_by_net = {row['actual_net']: row
+                      for row in binding['bindings'].values()}
     domains = {}
-    for configured, amps in currents.items():
-        actual = _resolve_net(configured, board_nets)
-        if actual not in board_nets:
-            continue
-        override = _matching_override(
-            overrides, configured, actual, board_nets) or {}
-        source_refs = tuple(sorted({str(ref) for ref in
-                                    (override.get("refs_src") or ()) if ref}))
-        sink_refs = tuple(sorted({str(ref) for ref in
-                                  (override.get("refs_sink") or ()) if ref}))
-        authority_refs = tuple(sorted(set(source_refs) | set(sink_refs)))
+    for actual, amps in currents.items():
+        resolved = binding_by_net[actual]
+        configured = resolved['configured_net']
+        override = overrides.get(actual) or {}
+        if not isinstance(override, dict):
+            override = {}  # Native thermal-cell overrides are not ref authority.
+        required_sources = {str(ref) for ref in
+                            (override.get("refs_src") or ()) if ref}
+        required_sinks = {str(ref) for ref in
+                          (override.get("refs_sink") or ()) if ref}
+        candidate_sources = {str(ref) for ref in
+                              (override.get("refs_src_candidates") or ())
+                              if ref}
+        candidate_sinks = {str(ref) for ref in
+                            (override.get("refs_sink_candidates") or ())
+                            if ref}
+        declared_sources = required_sources | candidate_sources
+        declared_sinks = required_sinks | candidate_sinks
+        # Overrides may intentionally name a candidate bank whose actual net
+        # assignment changes with the board/candidate (for example a row of
+        # otherwise identical power terminals). Resolve that bank against the
+        # saved netlist. A named reference absent from the board is still a
+        # hard missing-authority fault; a present reference on another net is
+        # simply an inapplicable candidate, not a missing terminal on this net.
         present = refs_by_net.get(actual, set())
-        missing = tuple(sorted(set(authority_refs) - present))
+        source_refs = tuple(sorted(declared_sources & present))
+        sink_refs = tuple(sorted(declared_sinks & present))
+        authority_refs = tuple(sorted(set(source_refs) | set(sink_refs)))
+        missing = tuple(sorted(
+            (required_sources | required_sinks) - board_refs))
+        absent_candidates = tuple(sorted(
+            (candidate_sources | candidate_sinks) - board_refs))
+        off_net = tuple(sorted(
+            ((declared_sources | declared_sinks) & board_refs) - present))
         complete = bool(source_refs and sink_refs and not missing)
         domains[actual] = {
             "net": actual,
             "configured_net": str(configured),
+            "binding": resolved,
             "amps": float(amps),
             "source_refs": source_refs,
             "sink_refs": sink_refs,
             "authority_refs": authority_refs,
             "missing_refs": missing,
+            "off_net_candidate_refs": off_net,
+            "absent_candidate_refs": absent_candidates,
+            "declared_source_refs": tuple(sorted(declared_sources)),
+            "declared_sink_refs": tuple(sorted(declared_sinks)),
             "complete": complete,
             "source": "thermal_source_sink_override",
         }
@@ -177,6 +210,26 @@ def board_current_domains(board, board_hint=None):
                 "source": "spec_series_topology",
                 "current_contract": dict(contract),
             }
+    # Explicit board-local pin maps cover SMD-only connectors and multi-stage
+    # service chains without inferring sources from drilled pads or refdes.
+    # They can bind only an already-positive design current and cannot
+    # override a conflicting legacy domain or change current/margin semantics.
+    import cec_board_policy as policy
+    import cec_declared_current_endpoints as endpoints
+    declarations = policy.params(hint).get('current_endpoint_contracts', [])
+    if declarations:
+        if synth is None:
+            raise ValueError('existing_current_authority_provider_unavailable')
+        domains.update(endpoints.bind(board, declarations,
+            lambda net: synth.spec_net_current_contract(hint, net), existing=domains))
+    elif declarations != []:
+        raise ValueError('bounded_current_endpoint_declarations_required')
+    # A sealed connector-to-PPTC ingress carries the same whole current as its
+    # already-declared adjacent domain. This does not infer a current from the
+    # part's hold/trip rating and does not allocate current among parallel pins.
+    import cec_series_current_domain as series_domains
+    domains.update(series_domains.derive(board, domains,
+        lambda net: current_contract_for_net(net, hint, domains)))
     return domains
 
 
@@ -193,6 +246,42 @@ def authority_terminal_refs(board, net, board_hint=None):
     return frozenset(domain["authority_refs"])
 
 
+def current_contract_for_net(net, board_hint, domains, *, ground_amps=None,
+                             fallback_margin=1.25):
+    """Share current and margin provenance between routing and signoff."""
+    import cec_synth_pipeline as synth
+    hint = os.environ.get("CEC_THERMAL_BOARD_HINT") or board_hint
+    if net.rsplit("/", 1)[-1] == "GND":
+        static = (None if ground_amps is None else {
+            "amps": ground_amps, "geometry_margin": fallback_margin,
+            "margin_included": False, "source": "board_return_basis"})
+    else:
+        static = synth.spec_net_current_contract(hint, net)
+        domain = domains.get(net) or {}
+        binding = domain.get("binding") or {}
+        configured = binding.get("design_current_net") or domain.get("configured_net")
+        if (domain.get("complete") and configured and configured != net
+                and binding.get("actual_net") == net):
+            declared = synth.spec_net_current_contract(hint, configured)
+            if declared is not None:
+                if static is not None and any(static.get(key) != declared.get(key)
+                        for key in ("amps", "geometry_margin", "margin_included")):
+                    raise ValueError("conflicting design-current contracts for "
+                                     + str(configured) + " -> " + str(net))
+                static = dict(declared, configured_net=configured, actual_net=net,
+                              identity_source=binding.get("resolution"))
+    if static is not None:
+        return static
+    domain = domains.get(net) or {}
+    if not domain.get("complete") or domain.get("amps") is None:
+        return None
+    if domain.get('source') == 'native_single_series_current_transfer':
+        import copy
+        return copy.deepcopy(domain['current_contract'])
+    return {"amps": float(domain["amps"]), "geometry_margin": fallback_margin,
+            "margin_included": False, "source": "current_domain_authority"}
+
+
 def route_width_contracts(board, board_hint=None, *, rise_c=30.0,
                           geometry_margin=1.25):
     """Return conservative trace widths for every complete current domain.
@@ -206,6 +295,7 @@ def route_width_contracts(board, board_hint=None, *, rise_c=30.0,
     changing the current authority or signoff basis.
     """
     import cec_fab_profile as fab
+    import cec_route_dimensions as dimensions
 
     domains = board_current_domains(board, board_hint=board_hint)
     profile = fab.active_profile_name(board, hint=board_hint)
@@ -215,27 +305,44 @@ def route_width_contracts(board, board_hint=None, *, rise_c=30.0,
     # or imported copper on a layer the new router would not intentionally
     # choose.  ``routing_layers`` separately documents the legal choices.
     layers = tuple(fab.enabled_copper_layers(board))
-    routing_layers = tuple(
+    signal_routing_layers = tuple(
         fab.referenced_signal_layers(board, hint=board_hint)
         or fab.routing_layers(board, hint=board_hint, include_power=False))
+    resolver = None
     contracts = {}
     for net, domain in sorted(domains.items()):
         if not domain.get("complete") or domain.get("amps") is None:
             continue
-        by_layer = {
-            layer: fab.ipc2221_required_width_mm(
-                float(domain["amps"]), layer,
-                profile_name=profile, rise_c=float(rise_c),
-                margin=float(geometry_margin))
-            for layer in layers}
+        if resolver is None:
+            resolver = dimensions.project_resolver(
+                str(board.GetFileName() or board_hint or ""), board=board)
+        spec = dict(resolver(net) or {})
+        routing_layers = signal_routing_layers
+        if str(spec.get("name") or "").upper() == "POWER":
+            # Use the SAME already-authorized profile/netclass/plane policy
+            # as the power completion router. Previously this contract put
+            # every aggregate supply in the stricter referenced-SIGNAL pool,
+            # silently losing a legal empty PWR face. The router still owns
+            # coupled-net exclusions and actual board-scale-plane refusal;
+            # current authority and every per-face width remain unchanged.
+            import cec_fr
+            allowed = set(cec_fr._lastmile_route_layers(board, net_name=net,
+                spec=spec, exclude_front=False))
+            routing_layers = tuple(layer for layer in layers
+                if board.GetLayerID(layer) in allowed)
+        authority = current_contract_for_net(
+            net, board_hint, domains, fallback_margin=geometry_margin)
+        by_layer = dimensions.current_trace_widths(
+            authority, layers, profile, rise_c=float(rise_c))
         if not by_layer:
             continue
         contracts[net] = {
             "net": net,
-            "amps": float(domain["amps"]),
+            "amps": float(authority["amps"]),
             "profile": profile,
             "rise_c": float(rise_c),
-            "geometry_margin": float(geometry_margin),
+            "geometry_margin": float(authority["geometry_margin"]),
+            "current_authority": authority,
             "required_by_layer_mm": by_layer,
             "routing_layers": routing_layers,
             "minimum_track_width_mm": max(by_layer.values()),
@@ -243,6 +350,126 @@ def route_width_contracts(board, board_hint=None, *, rise_c=30.0,
             "source": "current_domain_ipc2221_worst_routing_layer",
         }
     return contracts
+
+
+def distributed_supply_contracts(board, board_hint=None, *, include_nets=None,
+                                 exclude_nets=(), netclass_resolver=None):
+    """Conservative all-terminal sizing, without inventing source/sink roles.
+
+    Only an existing explicit executable design-current contract authorizes
+    this separate completion role. Every segment carries the entire declared
+    aggregate; no branch split, terminal rating, barrel or pour credit follows.
+    Aggregate domains (even incomplete ones) and precision topology remain
+    owned by their existing producers. Missing/invalid inputs are refusals,
+    never a signal-width fallback.
+    """
+    import math
+    import cec_fab_profile as fab
+    import cec_fab_check as factory
+    import cec_route_dimensions as dimensions
+    import cec_synth_pipeline as synth
+    import cec_fr
+    import cec_pair_semantics as pairs
+
+    def number(value, label, minimum=0.0):
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value < minimum):
+            raise ValueError("invalid " + label)
+        return float(value)
+
+    hint = os.environ.get("CEC_THERMAL_BOARD_HINT") or board_hint
+    if not hint:
+        hint = str(board.GetFileName() or "")
+    if not hint:
+        raise ValueError("distributed supply requires a bound board identity")
+    names = _board_net_names(board)
+    domains = board_current_domains(board, board_hint=hint)
+    contracts = {net: synth.spec_net_current_contract(hint, net) for net in names}
+    def identities(values):
+        if isinstance(values, (str, bytes)):
+            raise ValueError("supply net identities must be a collection")
+        values = tuple(values)
+        if any(not isinstance(net, str) or not net for net in values):
+            raise ValueError("supply net identities must be nonempty strings")
+        return set(values)
+
+    selected = (sorted(net for net in names if contracts[net] is not None)
+                if include_nets is None else sorted(identities(include_nets)))
+    protected = identities(exclude_nets)
+    protected.update(net for pair in cec_fr._board_kelvin_pairs(board) for net in pair)
+    protected.update(net for _kind, p, n in pairs.coupled_pair_names(board) for net in (p, n))
+    protected.update(row[key] for row in pairs.analog_input_pairs(board) for key in ("p", "n"))
+    profile_name = fab.active_profile_name(board, hint=hint)
+    profile = fab.get_profile(profile_name) if profile_name else None
+    resolver = netclass_resolver or dimensions.project_resolver(
+        str(board.GetFileName() or hint), board=board)
+    enabled = tuple(fab.enabled_copper_layers(board))
+    # These are already positively typed distributed SUPPLIES: an existing
+    # current contract owns them and every pair/measurement/ground/domain net
+    # is excluded below. A missing/stale project netclass must not restrict a
+    # real supply to the referenced SIGNAL pool and silently discard the
+    # factory profile's dedicated power-routing layer. This grants no thinner
+    # copper, plane incursion, barrel capacity or current-sharing assumption.
+    actual_planes={fab.COPPER_LAYER_IDS.get(board.GetLayerID(name))
+        for name in cec_fr.plane_layers(board)}
+    routing = tuple(layer for layer in fab.routing_layers(board,hint=hint,include_power=True)
+                    if layer not in actual_planes)
+    out, refused = {}, {}
+    for net in selected:
+        try:
+            if net not in names:
+                raise ValueError("native_net_absent")
+            if net in domains:
+                raise ValueError("aggregate_current_domain_owned")
+            if net in protected or net.rsplit("/", 1)[-1].upper().startswith("GND"):
+                raise ValueError("specialized_topology_owned")
+            authority = contracts[net]
+            if authority is None:
+                raise ValueError("current_contract_missing")
+            if not isinstance(authority, dict) or authority.get("source") not in (
+                    "board_design_basis", "component_power_budget"):
+                raise ValueError("explicit_current_contract_unavailable")
+            amps = number(authority.get("amps"), "sustained_current")
+            margin = number(authority.get("geometry_margin"), "geometry_margin", 1.0)
+            if amps <= 0 or not isinstance(authority.get("margin_included"), bool):
+                raise ValueError("invalid_current_contract")
+            if authority["margin_included"] and margin != 1.0:
+                raise ValueError("current_margin_applied_twice")
+            if not profile or profile.get("vendor") not in factory.PROFILES or not routing:
+                raise ValueError("declared_fabrication_profile_unavailable")
+            spec = dict(resolver(net) or {})
+            limits = dimensions.board_limits(board)
+            project = number(spec.get("track_width"), "project_track_width")
+            if project <= 0 or limits["track_width"] <= 0:
+                raise ValueError("positive_project_process_floor_unavailable")
+            ipc = dimensions.current_trace_widths(authority, enabled, profile_name, rise_c=30.0)
+            process, widths = {}, {}
+            for layer in enabled:
+                rules = factory.profile_rules(factory.PROFILES[profile["vendor"]],
+                    fab.stackup_oz(profile_name)[layer], profile)
+                process[layer] = dict(track_width_mm=rules["track"], clearance_mm=rules["clearance"])
+                per_layer = spec.get("track_width_by_layer_mm") or {}
+                if not isinstance(per_layer, dict):
+                    raise ValueError("invalid_project_layer_widths")
+                layer_project = number(per_layer.get(layer, 0),
+                                       "project_layer_track_width")
+                widths[layer] = max(ipc[layer], project, layer_project,
+                                    limits["track_width"], rules["track"])
+            clearance = max(number(spec.get("clearance"), "project_clearance"),
+                float(board.GetDesignSettings().m_MinClearance)/1e6,
+                max(process[layer]["clearance_mm"] for layer in routing))
+            out[net] = dict(net=net, current_authority=dict(authority), profile=profile_name,
+                rise_c=30.0, role="all_terminal_conservative_aggregate",
+                ipc_by_layer_mm=ipc, required_by_layer_mm=widths,
+                process_by_layer=process, routing_layers=routing, clearance_mm=clearance,
+                source_sink_inferred=False, branch_sharing_assumed=False,
+                terminal_barrel_zone_rating_qualified=False)
+        except (ValueError, TypeError, KeyError) as exc:
+            refused[net] = dict(reason=str(exc), current_authority=contracts.get(net),
+                               retryable=False, physical_feasibility="not_assessed")
+    return dict(schema=1, scope="explicit_rated_distributed_supply", contracts=out,
+                refusals=refused, selected_nets=selected, board_hint=str(hint),
+                release_authority=False)
 
 
 def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
@@ -388,8 +615,8 @@ def prune_undersized_current_tracks(board, include_nets, *, board_hint=None,
         })
         remove_items.append(via)
 
-    for item in remove_items:
-        board.Remove(item)
+    from cec_native_items import discard_items
+    discard_items(board, remove_items)
     return {
         "schema": 1,
         "selected_nets": sorted(wanted),

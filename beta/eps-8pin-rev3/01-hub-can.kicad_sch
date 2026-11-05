@@ -1774,6 +1774,7 @@
 		(property "Manufacturer" "Samsung" (at 181.61 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL05B104KO5NNNC" (at 181.61 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C1525" (at 181.61 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U2.5" (at 181.61 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "db8041fc-2218-4480-a6a4-f126710b000d"))
 		(pin "2" (uuid "4a23b53b-e050-4583-9c36-fed4d3a159c4"))
 		(instances
@@ -2014,8 +2015,8 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:GND")
-		(at 181.61 137.16 0)
+		(lib_id "cec-power:+5VSB")
+		(at 181.61 137.16 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -2023,7 +2024,7 @@
 		(dnp no)
 		(uuid "cc6791bf-6db6-4841-9def-01af7a21d24f")
 		(property "Reference" "#PWR107" (at 181.61 134.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 181.61 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5VSB" (at 181.61 142.24 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "e9fbecba-8865-478e-b38e-c7dbff1beb26"))
 		(instances
 			(project "eps-8pin-rev3"

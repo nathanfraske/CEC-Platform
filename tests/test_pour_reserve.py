@@ -166,6 +166,25 @@ class TestCorridorReservation(unittest.TestCase):
         self.assertTrue((rebuilt == masks["A"]).all(),
                         "rect union must equal the corridor mask exactly")
 
+    def test_fine_pitch_terminal_anchor_survives_coarse_foreign_carve(self):
+        path = np.zeros((5, 7), dtype=bool)
+        path[2, 1:6] = True
+        anchors = np.zeros_like(path)
+        anchors[2, 1] = True
+        foreign = np.zeros_like(path)
+        # A neighboring foreign pad conservatively stamps the terminal's
+        # whole raster cell.  The exact own-net via/pad is still legal there.
+        foreign[2, 1] = True
+        foreign[1, 1] = True
+        grid = _G(path.shape[1], path.shape[0])
+        masks = corridor_masks(
+            {"A": path}, [], {"A": 1}, {"A": foreign}, grid,
+            margin_cells=0, terminal_anchors={"A": anchors})
+        self.assertTrue(masks["A"][2, 1],
+                        "a searched exact terminal cannot be clipped away")
+        self.assertFalse(masks["A"][1, 1],
+                         "only path-owned exact anchors override coarse foreign")
+
     def test_foreign_is_never_swallowed(self):
         # a foreign blob beside the lane: the margin ring may reach it, but
         # the corridor must never cover a foreign cell (a keepout there

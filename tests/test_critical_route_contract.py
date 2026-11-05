@@ -11,9 +11,43 @@ if SCRIPTS not in sys.path:
 
 import pcbnew
 import cec_fr
+import cec_synth_pipeline as synth
+from dataclasses import replace
 
 
 class CriticalRouteContractTests(unittest.TestCase):
+    def test_power_resume_contract_survives_candidate_copy_and_rejects_detour(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "board.kicad_pcb")
+            self._board(path)
+            board = pcbnew.LoadBoard(path)
+            trunk = next(t for t in board.GetTracks() if t.GetNetname() == "/GPIO")
+            trunk.SetWidth(pcbnew.FromMM(2.0))
+            pcbnew.SaveBoard(path, board)
+            nets = cec_fr.locked_pour_authority_nets_board(
+                board, include_complete_nets=False)
+            self.assertEqual(nets, {"/GPIO"})  # geometry, not a power-name selector
+            candidate = synth.Candidate("test", 0, {}, 30, 30, 0, {})
+            candidate.protected_power_prefix = cec_fr.copper_geometry_prefix_contract(path, nets)
+            copied = replace(candidate, P={"ARBITRARY": (1, 2, 0)})
+            self.assertEqual(copied.protected_power_prefix, candidate.protected_power_prefix)
+            self.assertTrue(synth._admit_materialized_power_prefix(copied, path)["ok"])
+            trunk.SetStart(pcbnew.VECTOR2I_MM(10, 13))
+            trunk.SetEnd(pcbnew.VECTOR2I_MM(20, 13))  # same count, width and length
+            pcbnew.SaveBoard(path, board)
+            # This guard also checks retained qualified pairs now. The copper
+            # loss must still fail even though the shared diagnostic names both.
+            with self.assertRaisesRegex(ValueError, "protected power copper.*changed"):
+                synth._admit_materialized_power_prefix(copied, path)
+
+    def test_ordinary_narrow_local_links_do_not_freeze_a_shared_rail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "board.kicad_pcb")
+            self._board(path)
+            board = pcbnew.LoadBoard(path)
+            self.assertEqual(cec_fr.locked_pour_authority_nets_board(
+                board, include_complete_nets=False), set())
+
     def _board(self, path):
         board = pcbnew.BOARD()
         owned = pcbnew.NETINFO_ITEM(board, "/USB_D_P")

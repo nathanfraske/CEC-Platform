@@ -5,14 +5,14 @@
 # ============================================================================
 #  cec_zoomplot -- annotated FULL + ZOOM plots of a problem area, for a human decision (PIL).
 # ============================================================================
-# Copper (F.Cu red / B.Cu blue), vias (GND escape via = green ring), pads (numbered +
+# Copper (F.Cu red / B.Cu blue), vias (GND net = green ring), pads (numbered +
 # net-labelled in the zoom), the Kelvin keepout (orange dashed), and the DRC-unconnected
-# pins HIGHLIGHTED in red -- so a reviewer sees WHY a pad is boxed (its 0.5mm-pitch
-# neighbours + the keepout) and can decide the fix.
+# pins HIGHLIGHTED in red for local inspection. This simplified drawing is not
+# evidence of plane connectivity, exact pad shape, or route impossibility.
 #
 #   python3 scripts/cec_zoomplot.py <board.kicad_pcb> <out_prefix> [zoom_ref ...]
 # ============================================================================
-import os, sys, json, subprocess, tempfile, re
+import os, sys, json, subprocess, tempfile, re, hashlib
 
 import pcbnew
 from PIL import Image, ImageDraw, ImageFont
@@ -31,7 +31,9 @@ def _mm(v):
 
 
 def _font(sz, bold=True):
-    for n in (("arialbd.ttf", "arial.ttf") if bold else ("arial.ttf",)):
+    fonts = (("arialbd.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "arial.ttf")
+             if bold else ("arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"))
+    for n in fonts:
         try:
             return ImageFont.truetype(n, sz)
         except Exception:
@@ -126,7 +128,7 @@ def _render(pads, tracks, vias, keepouts, unconn, view, label_refs, highlight, t
             g.text((cx, cy + 6), p["net"].lstrip("/"), fill=((150, 0, 0) if boxed else (30, 30, 90)),
                    font=_font(9, False), anchor="mm")
         if boxed:
-            g.text(((X(p["l"]) + X(p["r"])) / 2, Y(p["t"]) - 9), "BOXED", fill=(200, 0, 0), font=_font(10), anchor="mm")
+            g.text(((X(p["l"]) + X(p["r"])) / 2, Y(p["t"]) - 9), "OPEN", fill=(200, 0, 0), font=_font(10), anchor="mm")
     for v in vias:                                          # vias
         if v["cx"] < x0 or v["cx"] > x1 or v["cy"] < y0 or v["cy"] > y1:
             continue
@@ -134,6 +136,12 @@ def _render(pads, tracks, vias, keepouts, unconn, view, label_refs, highlight, t
         isg = v["net"] == "GND"
         g.ellipse([X(v["cx"]) - r, Y(v["cy"]) - r, X(v["cx"]) + r, Y(v["cy"]) + r], fill=(35, 35, 35),
                   outline=((0, 180, 60) if isg else (90, 90, 90)), width=(3 if isg else 1))
+    # Out-of-view copper may cross the canvas header. Paint the source/key
+    # last so a nearby large pad or diagonal never obscures its provenance.
+    g.rectangle([0, 0, W, top-1], fill=(250, 250, 250))
+    g.text((12, 10), title.split("\n")[0], fill=(0, 0, 0), font=_font(17))
+    for i, ln in enumerate(title.split("\n")[1:]):
+        g.text((12, 36 + i * 18), ln, fill=(70, 70, 70), font=_font(13, False))
     im.save(out_png)
     return out_png
 
@@ -141,28 +149,37 @@ def _render(pads, tracks, vias, keepouts, unconn, view, label_refs, highlight, t
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     path, prefix = argv[0], argv[1]
-    zoom_refs = argv[2:] if len(argv) > 2 else ["U11", "RS2"]
+    zoom_refs = argv[2:]
     board = pcbnew.LoadBoard(path)
     pads, tracks, vias = _collect(board)
     unconn = _unconnected(path)
+    if not zoom_refs:
+        zoom_refs = sorted({ref for ref, _pad in unconn})[:4]
+    if not zoom_refs:
+        raise ValueError("No open pads to zoom; specify component references explicitly")
+    with open(path, 'rb') as source:
+        source_label = os.path.basename(path) + ' | SHA256 ' + hashlib.sha256(source.read()).hexdigest()[:16]
     keepouts = [(k[0] - 0.3, k[1] - 0.3, k[2] + 0.3, k[3] + 0.3) for k in cec_hc._kelvin_pairs_local(board)]
     eb = board.GetBoardEdgesBoundingBox()
     full = (_mm(eb.GetLeft()) - 2, _mm(eb.GetTop()) - 2, _mm(eb.GetRight()) + 2, _mm(eb.GetBottom()) + 2)
 
     # FULL
     full_png = _render(pads, tracks, vias, keepouts, unconn, full, set(), set(),
-                       "EPS routed_0 -- FULL board   (F.Cu red / B.Cu blue / GND escape via = green ring / Kelvin keepout = orange)\n"
-                       "the two INA238 boxed-power regions are the left (U10+RS1) and middle (U11+RS2) shunt clusters",
+                       source_label + " -- FULL (F.Cu red / B.Cu blue / inner traces grey)\n"
+                       "Native geometry diagnostic; ground vias green, Kelvin keepouts orange; not route-impossibility evidence",
                        prefix + "-full.png", px_w=1700, top=60)
 
     # ZOOM
     zps = [p for p in pads if p["ref"] in zoom_refs]
+    if not zps:
+        raise ValueError("Requested references do not exist on the supplied board")
     view = (min(p["l"] for p in zps) - 2.5, min(p["t"] for p in zps) - 3.2,
             max(p["r"] for p in zps) + 2.5, max(p["b"] for p in zps) + 3.2)
     zoom_png = _render(pads, tracks, vias, keepouts, unconn, view, set(zoom_refs),
-                       {r for r in zoom_refs if r.startswith("U")},
-                       "EPS routed_0 -- ZOOM %s : why the INA238 +3V3/GND are boxed in\n"
-                       "red-outlined pads = DRC-UNCONNECTED (stranded);  orange dashed = Kelvin keepout (no foreign F.Cu);  green-ring via = GND escape to plane"
+                       set(zoom_refs),
+                       source_label + " -- ZOOM %s\n"
+                       "F.Cu red / B.Cu blue / inner traces grey; green-ring via = GND net (plane connection not inferred)\n"
+                       "Red-outlined pad = native OPEN; orange = Kelvin keepout; simplified diagnostic, not route-impossibility evidence"
                        % "+".join(zoom_refs), prefix + "-zoom.png", px_w=1400, top=80)
     print(full_png)
     print(zoom_png)

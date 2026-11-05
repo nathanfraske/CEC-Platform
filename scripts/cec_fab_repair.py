@@ -57,6 +57,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -74,8 +75,11 @@ except Exception:                                          # noqa: BLE001
 
 def _seg_key(t):
     s, e = t.GetStart(), t.GetEnd()
-    a = (round(s.x / 1e6, 4), round(s.y / 1e6, 4))
-    b = (round(e.x / 1e6, 4), round(e.y / 1e6, 4))
+    a = (int(s.x), int(s.y))
+    b = (int(e.x), int(e.y))
+    # Exact native extents only. Rounded positions are not copper equivalence.
+    # Width is handled by the survivor rule: only an equal-or-wider primitive
+    # may absorb another track with this identical centreline.
     return (min(a, b), max(a, b), t.GetLayer(), t.GetNetname())
 
 
@@ -177,7 +181,10 @@ def repair_non_octilinear_segments(board, board_path, *,
     }
 
 
-def repair_backtracks(board, *, angle_deg=5.0):
+def repair_backtracks(board, *, angle_deg=5.0, allow_locked_track_uuids=(),
+                      allow_grouped_track_uuids=(), track_uuid_scope=None,
+                      overlap_policy='preserve_junctions', timeout_s=2.0,
+                      max_tracks=4096, max_steps=8192, duplicates_only=False):
     """R2: collapse exact overlapping copper without deleting graph nodes.
 
     A common generated artifact is two collinear segments leaving one vertex,
@@ -189,18 +196,58 @@ def repair_backtracks(board, *, angle_deg=5.0):
     copper union is unchanged, the junction remains explicit, and no route is
     specialized by net or board.  Near-collinear forks are not proof of overlap
     and are left for transactional rerouting.
+
+    A finite source UUID scope limits mutation, not witness visibility. Lock
+    and group grants remain separate requirements. Saved exact-overlap
+    receiving can independently verify the resulting full physical union.
+    ``retire_covered`` is a finite alternative for an overlap whose implicit
+    branch nodes remain native-connected after retirement. It requires saved
+    union, conductor-partition and native DRC receiving; it is not a waiver
+    for a missing explicit junction. The default keeps the established trim.
+    ``duplicates_only`` stops before any prefix trim: a duplicate-object
+    cleanup owns equal endpoints, not neighboring collinear branch geometry.
     """
+    if (overlap_policy not in ('preserve_junctions', 'retire_covered')
+            or type(timeout_s) not in (int, float) or not math.isfinite(timeout_s)
+            or not 0 <= timeout_s <= 10 or type(max_tracks) is not int
+            or not 1 <= max_tracks <= 16384 or type(max_steps) is not int
+            or not 1 <= max_steps <= 32768 or type(duplicates_only) is not bool):
+        raise ValueError("invalid_backtrack_work_bounds")
+    deadline = time.monotonic() + timeout_s
     tracks = [t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"]
+    if len(tracks) > max_tracks or time.monotonic() >= deadline:
+        return 0
     by_uuid = {t.m_Uuid.AsString(): t for t in tracks}
     dead = set()
     collapsed = 0
-    tolerance_nm = 1_000                             # one micron geometric proof
+    tolerance_nm = 1_000  # minimum useful leg length, NOT equivalence tolerance
+    allowed = {str(uid) for uid in allow_locked_track_uuids if uid}
+    allowed_grouped = {str(uid) for uid in allow_grouped_track_uuids if uid}
+    if track_uuid_scope is not None:
+        if type(track_uuid_scope) not in (list, tuple, set, frozenset):
+            raise ValueError('finite_native_backtrack_scope_required')
+        supplied = list(track_uuid_scope)
+        if (not supplied or len(supplied) > max_tracks
+                or any(type(uid) is not str or not uid for uid in supplied)
+                or len(set(supplied)) != len(supplied)
+                or not set(supplied) <= by_uuid.keys()):
+            raise ValueError('finite_native_backtrack_scope_required')
+        scope = set(supplied)
+    else:
+        scope = None
+
+    def protected(item):
+        return (scope is not None and item.m_Uuid.AsString() not in scope) or (bool(item.GetParentGroup())
+                and item.m_Uuid.AsString() not in allowed_grouped) or (
+            item.IsLocked() and item.m_Uuid.AsString() not in allowed)
 
     # Rebuild the endpoint index after every trim; one collapse can expose an
     # exact duplicate or a second contained prefix.  Work is bounded by the
     # finite segment count and each pass either trims one segment or retires one
     # duplicate.
-    for _pass in range(max(1, len(tracks) * 2)):
+    for _pass in range(min(max_steps, max(1, len(tracks) * 2))):
+        if time.monotonic() >= deadline:
+            break
         active = [t for uid, t in by_uuid.items() if uid not in dead]
         seen = {}
         duplicate_found = False
@@ -210,28 +257,35 @@ def repair_backtracks(board, *, angle_deg=5.0):
             if prior is None:
                 seen[key] = t
                 continue
-            # Prefer retaining authored/locked copper when only one duplicate
-            # is locked; otherwise deterministic UUID order chooses survivor.
+            # Width coverage owns the survivor first. Authored ownership and
+            # deterministic UUID order break ties; grouped copper is immutable.
             pair = sorted((prior, t), key=lambda item: (
+                -int(item.GetWidth()), not protected(item),
                 not item.IsLocked(), item.m_Uuid.AsString()))
             survivor, victim = pair[0], pair[1]
+            if protected(victim) or survivor.GetWidth() < victim.GetWidth():
+                continue
             dead.add(victim.m_Uuid.AsString())
             seen[key] = survivor
             duplicate_found = True
             break
         if duplicate_found:
             continue
+        if duplicates_only:
+            break
 
         ends = {}
         for t in active:
             s, e = t.GetStart(), t.GetEnd()
             for p, q, at_start in ((s, e, True), (e, s, False)):
-                key = (round(p.x / 1e6, 4), round(p.y / 1e6, 4),
+                key = (int(p.x), int(p.y),
                        t.GetLayer(), t.GetNetname())
                 ends.setdefault(key, []).append((t, p, q, at_start))
 
         changed = False
         for lst in ends.values():
+            if time.monotonic() >= deadline:
+                break
             if len(lst) < 2:
                 continue
             for i in range(len(lst)):
@@ -247,21 +301,27 @@ def repair_backtracks(board, *, angle_deg=5.0):
                     dot = v1[0] * v2[0] + v1[1] * v2[1]
                     if dot <= 0:
                         continue
-                    cosang = dot / (n1 * n2)
-                    angle = math.degrees(math.acos(
-                        max(-1.0, min(1.0, cosang))))
-                    # Angular similarity alone caused the original regression:
-                    # a shallow fork is not overlapping copper.  Require the
-                    # far endpoint's perpendicular distance from the other
-                    # segment's infinite line to be within one micron too.
-                    perpendicular = abs(v1[0] * v2[1] - v1[1] * v2[0]) / max(n1, n2)
-                    if angle > angle_deg or perpendicular > tolerance_nm:
+                    # No angular/distance tolerance grants removal authority.
+                    # Exact common origin and exact integer collinearity prove
+                    # capsule coverage; even a one-nanometre fork is different
+                    # copper and belongs to an independently guarded reroute.
+                    if v1[0] * v2[1] - v1[1] * v2[0] != 0:
                         continue
                     if abs(n1 - n2) <= tolerance_nm:
                         continue
                     short, long = (first, second) if n1 < n2 else (second, first)
                     short_t, _origin, short_far, _short_at_start = short
                     long_t, _long_origin, _long_far, long_at_start = long
+                    if overlap_policy == 'retire_covered':
+                        if protected(short_t) or long_t.GetWidth() < short_t.GetWidth():
+                            continue
+                        dead.add(short_t.m_Uuid.AsString())
+                        changed = True
+                        break
+                    # Copper-union equivalence does not authorize rewriting
+                    # a protected primitive owned by the preceding stage.
+                    if protected(long_t):
+                        continue
                     # Width transitions commonly arrive as a wide trunk and a
                     # narrower continuation emitted from the same vertex.  The
                     # same trim is copper-union preserving precisely when the
@@ -289,14 +349,285 @@ def repair_backtracks(board, *, angle_deg=5.0):
         if not changed:
             break
 
-    for uid in sorted(dead):
-        t = by_uuid[uid]
-        board.Remove(t)
-    return collapsed + len(dead)
+    from cec_native_items import discard_items
+    return collapsed + discard_items(board, [by_uuid[uid] for uid in sorted(dead)])
+
+
+def repair_contained_tracks(board, *, allow_locked_track_uuids=(),
+                             allow_grouped_track_uuids=(), exclude_nets=(),
+                             track_uuid_scope=None,
+                             coverage_margin_nm=10, timeout_s=2.0, max_ops=32):
+    """R2d: retire a whole capsule strictly inside one retained wider track.
+
+    Exact rational endpoint-to-segment distance proves every disc of the
+    narrower capsule is covered. A strict native outward-old minus
+    inward-receiver polygon check independently confirms coverage. No angle,
+    endpoint-rounding, tiny-area or centerline-only waiver is used. The wider
+    conductor is never shortened/resized, nor is a zone used as capacity credit.
+    Actual native contacts and saved whole-board receiving still own admission.
+    """
+    import pcbnew
+    import cec_fr
+    from cec_native_items import discard_items
+    if (type(coverage_margin_nm) is not int or not 1<=coverage_margin_nm<=1000
+            or type(max_ops) is not int or not 1<=max_ops<=256
+            or type(timeout_s) not in (int,float) or not math.isfinite(timeout_s)
+            or not 0<=timeout_s<=10):
+        raise ValueError('invalid_contained_track_bounds')
+    start=time.monotonic();deadline=start+timeout_s;rows=[];dead=set();survivors=set();checks=0
+    allowed=set(allow_locked_track_uuids);grouped=set(allow_grouped_track_uuids)
+    scope=None if track_uuid_scope is None else set(track_uuid_scope)
+    excluded=set(exclude_nets)|set(cec_fr.coupled_pair_nets(board))
+    excluded.update(n for pair in cec_fr._board_kelvin_pairs(board) for n in pair)
+    tracks=sorted(((t.GetWidth(),t.m_Uuid.AsString(),t) for t in board.GetTracks()
+                   if t.GetClass()=='PCB_TRACK'),key=lambda row:(row[0],row[1]))
+    if len(tracks)>4096:return dict(retired=0,detail=[],complete=False,reason='inventory_bound')
+    by_net_layer={}
+    for width,uid,t in tracks:
+        by_net_layer.setdefault((t.GetNetCode(),t.GetLayer()),[]).append((width,uid,t))
+    def inside(point,a,b,gap):
+        dx,dy=b.x-a.x,b.y-a.y;px,py=point.x-a.x,point.y-a.y
+        d=dx*dx+dy*dy;projection=px*dx+py*dy
+        if d==0 or projection<=0:num,den=px*px+py*py,1
+        elif projection>=d:num,den=(point.x-b.x)**2+(point.y-b.y)**2,1
+        else:num,den=(px*dy-py*dx)**2,d
+        return 4*num<=gap*gap*den
+    for width,uid,target in tracks:
+        if time.monotonic()>=deadline or len(rows)>=max_ops or checks>=65536:break
+        net=target.GetNetname();leaf=net.rsplit('/',1)[-1].upper()
+        if (uid in survivors or scope is not None and uid not in scope or not net or net in excluded
+                or leaf in ('GND','GROUND','AGND','DGND') or leaf.startswith('GND_')
+                or target.IsLocked() and uid not in allowed
+                or target.GetParentGroup() and uid not in grouped):continue
+        for other_width,rid,receiver in reversed(by_net_layer[target.GetNetCode(),target.GetLayer()]):
+            checks+=1
+            if time.monotonic()>=deadline or checks>=65536:break
+            gap=other_width-width-2*coverage_margin_nm
+            if (rid in dead or gap<=0 or receiver.GetNetCode()!=target.GetNetCode()
+                    or receiver.GetLayer()!=target.GetLayer()):continue
+            a,b=receiver.GetStart(),receiver.GetEnd()
+            if not all(inside(p,a,b,gap) for p in (target.GetStart(),target.GetEnd())):continue
+            upper=pcbnew.SHAPE_POLY_SET();lower=pcbnew.SHAPE_POLY_SET();layer=target.GetLayer()
+            target.TransformShapeToPolygon(upper,layer,0,1,pcbnew.ERROR_OUTSIDE,False)
+            receiver.TransformShapeToPolygon(lower,layer,0,1,pcbnew.ERROR_INSIDE,False)
+            upper.BooleanSubtract(lower)
+            if upper.OutlineCount()!=0:continue
+            row=dict(uuid=uid,receiver_uuid=rid,net=net,layer=board.GetLayerName(layer),
+                from_nm=list(target.GetStart()),to_nm=list(target.GetEnd()),width_nm=width,
+                receiver_width_nm=other_width,exact_rational_capsule_coverage=True,
+                native_outward_minus_inward_empty=True,curve_error_nm=1,
+                positive_coverage_margin_nm=coverage_margin_nm,area_waiver_used=False,
+                wider_conductor_modified=False,independent_saved_receiving_required=True)
+            dead.add(uid);survivors.add(rid);discard_items(board,[target]);rows.append(row)
+            break
+    return dict(retired=len(rows),detail=rows,complete=time.monotonic()<deadline and len(rows)<max_ops and checks<65536,
+        elapsed_s=time.monotonic()-start,pair_checks=checks,release_authority=False,
+        scope='strictly_contained_track_union_normalization_no_width_loss')
+
+
+def repair_enclosed_prefixes(board, *, allow_locked_track_uuids=(),
+                             allow_grouped_track_uuids=(), exclude_nets=(),
+                             max_snap_nm=1000, coverage_margin_nm=10,
+                             timeout_s=2.0, max_ops=16):
+    """R2c: guarded reconstruction of a near-collinear enclosed prefix.
+
+    This is NOT exact-union cleanup or a numerical-equivalence waiver. A
+    wider, straight Manhattan prefix covers the discarded narrow prefix.
+    The narrow remainder is projected onto that axis and genuinely widened
+    by twice its maximum displacement PLUS a positive coverage margin. Thus
+    every old narrow capsule disc remains inside the resulting copper union.
+    Width never decreases. Native foreign-copper/edge guards precede mutation;
+    saved current, field, group, contact and DRC receiving remain mandatory.
+    Coupled/Kelvin/ground topology and ungranted locked/grouped items refuse.
+    """
+    import pcbnew
+    import cec_fr
+    from collections import Counter
+    if (type(max_snap_nm) is not int or not 1<=max_snap_nm<=1000
+            or type(coverage_margin_nm) is not int or not 1<=coverage_margin_nm<=1000
+            or type(max_ops) is not int or not 1<=max_ops<=64
+            or type(timeout_s) not in (float,int) or not math.isfinite(timeout_s)
+            or not 0<=timeout_s<=10):
+        raise ValueError('invalid_enclosed_prefix_bounds')
+    start=time.monotonic();deadline=start+timeout_s;rows=[];skipped=Counter()
+    allowed=set(allow_locked_track_uuids);grouped=set(allow_grouped_track_uuids)
+    excluded=set(exclude_nets)|set(cec_fr.coupled_pair_nets(board))
+    excluded.update(n for pair in cec_fr._board_kelvin_pairs(board) for n in pair)
+    tracks=list(board.GetTracks());index={};checks=0;used=set()
+    if len(tracks)>4096:return dict(reconstructed=0,complete=False,reason='inventory_bound',detail=[])
+    for t in tracks:
+        if t.GetClass()!='PCB_TRACK':continue
+        for p,q,at_start in ((t.GetStart(),t.GetEnd(),True),(t.GetEnd(),t.GetStart(),False)):
+            index.setdefault((t.GetNetCode(),t.GetLayer(),p.x,p.y),[]).append((t,p,q,at_start))
+    resolver=cec_fr._project_netclass_resolver(str(board.GetFileName())) if board.GetFileName() else None
+    for key,incident in sorted(index.items()):
+        if time.monotonic()>=deadline or len(rows)>=max_ops:break
+        for a in incident:
+            if checks>65536 or time.monotonic()>=deadline or len(rows)>=max_ops:break
+            for z in incident:
+                checks+=1
+                if checks>65536 or time.monotonic()>=deadline or len(rows)>=max_ops:break
+                wide,origin,cut,_=a;target,_,far,at_start=z
+                uid=target.m_Uuid.AsString()
+                if uid==wide.m_Uuid.AsString() or uid in used:continue
+                net=target.GetNetname();leaf=net.rsplit('/',1)[-1].upper()
+                if (not net or net in excluded or leaf in ('GND','GROUND','AGND','DGND')
+                        or leaf.startswith('GND_')
+                        or target.IsLocked() and uid not in allowed
+                        or target.GetParentGroup() and uid not in grouped):continue
+                ov=[origin.x,origin.y];cv=[cut.x,cut.y];fv=[far.x,far.y]
+                axes=[k for k in (0,1) if cv[k]!=ov[k]]
+                if len(axes)!=1:continue
+                axis=axes[0];other=1-axis;direction=1 if cv[axis]>ov[axis] else -1
+                if direction*(fv[axis]-cv[axis])<=2*max_snap_nm:continue
+                displacement=abs(fv[other]-ov[other])
+                if not 0<displacement<=max_snap_nm:continue
+                width=int(target.GetWidth())+2*(displacement+coverage_margin_nm)
+                # Both portions of the old centerline are covered by discs
+                # whose radii exceed old_radius+maximum_displacement.
+                if wide.GetWidth()<width:continue
+                projected=pcbnew.VECTOR2I(fv[axis],ov[other]) if axis==0 else pcbnew.VECTOR2I(ov[other],fv[axis])
+                spec=(resolver(net) or {}) if resolver else {}
+                clearance=max(board.GetDesignSettings().m_MinClearance,
+                              math.ceil(float(spec.get('clearance') or 0)*1e6))
+                zones,copper=cec_fr._foreign_shape_indexes(board,target.GetLayer(),{target.GetNetCode()})
+                if (not cec_fr._edge_leg_clear(board,cut,projected,(width+1)//2)
+                        or not cec_fr._snapshot_foreign_clear(cut,projected,width,clearance,zones,copper)):
+                    skipped['native_foreign_or_edge_guard']+=1;continue
+                old=dict(start_nm=[target.GetStart().x,target.GetStart().y],
+                         end_nm=[target.GetEnd().x,target.GetEnd().y],width_nm=int(target.GetWidth()))
+                if at_start:target.SetStart(cut);target.SetEnd(projected)
+                else:target.SetEnd(cut);target.SetStart(projected)
+                target.SetWidth(width);used.add(uid)
+                rows.append(dict(uuid=uid,receiver_uuid=wide.m_Uuid.AsString(),net=net,
+                    layer=board.GetLayerName(target.GetLayer()),before=old,
+                    after=dict(start_nm=list(target.GetStart()),end_nm=list(target.GetEnd()),width_nm=width),
+                    maximum_displacement_nm=displacement,positive_coverage_margin_nm=coverage_margin_nm,
+                    exact_union_equivalence_claimed=False,old_union_contained=True,
+                    native_foreign_and_edge_clear=True,independent_saved_receiving_required=True))
+    return dict(reconstructed=len(rows),detail=rows,skipped=dict(skipped),
+        complete=time.monotonic()<deadline and len(rows)<max_ops and checks<=65536,
+        elapsed_s=time.monotonic()-start,release_authority=False,
+        scope='actual_guarded_copper_expansion_not_equivalence_waiver')
+
+
+def repair_junction_overruns(board, *, allow_locked_track_uuids=(),
+                             exclude_nets=(), min_tail_mm=0.02,
+                             max_tail_mm=2.0, timeout_s=2.0, max_ops=32):
+    """R9: bury a proven unanchored overshoot inside its receiving trunk.
+
+    Only cardinal/45-degree straight, exact same-net/same-layer crossings are
+    eligible. The receiving trunk is at least as wide as the branch and has a
+    full straight-body landing. A conservative round-capped removed-tail
+    envelope must touch no other same-net pad, via, track, arc or zone. Thus no
+    terminal/contact is trimmed, no branch is lost and neither width is reduced.
+    Rule-group, ground, coupled and Kelvin ownership stays protected. Exact
+    locked authority is required for the shortened primitive. No refill/save
+    or ampacity/thermal/release qualification is performed here; the existing
+    admitted fabrication transaction independently receives the saved result.
+    """
+    import pcbnew
+    import cec_fr
+    import cec_route_quality
+    from collections import Counter
+    for value in (min_tail_mm, max_tail_mm, timeout_s):
+        if type(value) not in (int, float) or not math.isfinite(value):
+            raise ValueError("invalid_junction_polish_bounds")
+    if (not 0 < min_tail_mm <= max_tail_mm <= 10 or not 0 <= timeout_s <= 10
+            or type(max_ops) is not int or not 1 <= max_ops <= 256):
+        raise ValueError("invalid_junction_polish_bounds")
+    started = time.monotonic(); deadline = started + timeout_s
+    allowed = set(allow_locked_track_uuids)
+    excluded = set(exclude_nets) | set(cec_fr.coupled_pair_nets(board))
+    excluded |= {net for pair in cec_fr._board_kelvin_pairs(board) for net in pair}
+    tracks = sorted((t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"),
+                    key=lambda t: t.m_Uuid.AsString())
+    anchors = [p for fp in board.GetFootprints() for p in fp.Pads()]
+    copper = [*board.GetTracks(), *board.Zones()]
+    skipped = Counter(); rows = []; checks = 0
+    if len(tracks) > 4096 or len(anchors) + len(copper) > 16384:
+        return dict(trimmed=0, detail=[], complete=False, reason="inventory_bound")
+    by_net_layer = {}
+    for track in tracks:
+        by_net_layer.setdefault((track.GetNetCode(), track.GetLayer()), []).append(track)
+    for target in tracks:
+        if time.monotonic() >= deadline or len(rows) >= max_ops or checks >= 65536:
+            break
+        uid = target.m_Uuid.AsString(); net = target.GetNetname()
+        nc, layer = target.GetNetCode(), target.GetLayer()
+        leaf = net.rsplit("/", 1)[-1].upper()
+        if (not net or net in excluded or leaf in ("GND", "GROUND", "AGND", "DGND")
+                or leaf.startswith("GND_")
+                or target.GetParentGroup() or (target.IsLocked() and uid not in allowed)):
+            skipped["protected_owner"] += 1; continue
+        if not cec_route_quality.canonical_heading(target.GetStart(), target.GetEnd(), tolerance_nm=0)["ok"]:
+            skipped["noncanonical_source"] += 1; continue
+        changed = False
+        for at_start in (False, True):
+            endpoint = target.GetStart() if at_start else target.GetEnd()
+            far = target.GetEnd() if at_start else target.GetStart()
+            a = (far.x, far.y); v = (endpoint.x-far.x, endpoint.y-far.y)
+            for receiver in by_net_layer[nc, layer]:
+                checks += 1
+                if checks >= 65536 or time.monotonic() >= deadline:
+                    break
+                if (receiver is target or receiver.GetWidth() < target.GetWidth()
+                        or receiver.GetParentGroup()):
+                    continue
+                c, d = receiver.GetStart(), receiver.GetEnd()
+                w = (d.x-c.x, d.y-c.y)
+                if not cec_route_quality.canonical_heading(c, d, tolerance_nm=0)["ok"]:
+                    continue
+                determinant = v[0]*w[1]-v[1]*w[0]
+                if determinant == 0:continue
+                z = (c.x-a[0], c.y-a[1])
+                numerator = z[0]*w[1]-z[1]*w[0]
+                if determinant < 0:determinant, numerator = -determinant, -numerator
+                if not 0 < numerator < determinant:continue
+                xn, yn = a[0]*determinant+v[0]*numerator, a[1]*determinant+v[1]*numerator
+                if xn % determinant or yn % determinant:continue
+                point = pcbnew.VECTOR2I(xn//determinant, yn//determinant)
+                projection = (point.x-c.x)*w[0]+(point.y-c.y)*w[1]
+                if not 0 < projection < w[0]*w[0]+w[1]*w[1]:continue
+                tail_nm = math.hypot(point.x-endpoint.x, point.y-endpoint.y)
+                if not min_tail_mm*1e6 <= tail_nm <= max_tail_mm*1e6:continue
+                if min(math.hypot(point.x-c.x, point.y-c.y),
+                       math.hypot(point.x-d.x, point.y-d.y)) < receiver.GetWidth()/2:
+                    skipped["receiving_cap_not_body"] += 1; continue
+                tail = pcbnew.PCB_TRACK(board)
+                tail.SetStart(point); tail.SetEnd(endpoint); tail.SetWidth(target.GetWidth())
+                tail.SetLayer(layer); tail.SetNetCode(nc)
+                envelope = tail.GetEffectiveShape(layer)
+                occupied = False
+                for index, item in enumerate([*anchors, *copper]):
+                    if index % 64 == 0 and time.monotonic() >= deadline:
+                        occupied = True; skipped["contact_inventory_deadline"] += 1; break
+                    if (item.m_Uuid.AsString() in (uid, receiver.m_Uuid.AsString())
+                            or item.GetNetCode() != nc or not item.IsOnLayer(layer)):
+                        continue
+                    if item.GetClass() == "ZONE":
+                        occupied = True; break  # zone ownership is not a cosmetic waiver
+                    if envelope.Collide(item.GetEffectiveShape(layer), 0):
+                        occupied = True; break
+                if occupied:
+                    skipped["tail_contact_or_zone_owner"] += 1; continue
+                if at_start:target.SetStart(point)
+                else:target.SetEnd(point)
+                rows.append(dict(uuid=uid, receiver_uuid=receiver.m_Uuid.AsString(),
+                    net=net, layer=board.GetLayerName(layer), old_endpoint_nm=[endpoint.x,endpoint.y],
+                    new_endpoint_nm=[point.x,point.y], width_nm=int(target.GetWidth()),
+                    receiver_width_nm=int(receiver.GetWidth()), tail_mm=tail_nm/1e6,
+                    full_width_body_landing=True, no_other_tail_contacts=True))
+                changed = True; break
+            if changed:break
+    complete = time.monotonic() < deadline and len(rows) < max_ops and checks < 65536
+    return dict(trimmed=len(rows), detail=rows, skipped=dict(skipped), complete=complete,
+        pair_checks=checks, elapsed_s=time.monotonic()-started,
+        scope="unanchored_geometric_tail_retirement_not_capacity_or_release")
 
 
 def repair_acute_vertices(board, *, angle_min_deg=5.0,
-                          angle_max_deg=60.0):
+                          angle_max_deg=60.0, allow_locked_track_uuids=()):
     """R2b: relocate an unanchored acute vertex onto a canonical path.
 
     A degree-two vertex that is not inside a same-net pad/via is pure route
@@ -310,8 +641,12 @@ def repair_acute_vertices(board, *, angle_min_deg=5.0,
     import pcbnew
     import cec_fr
 
+    allowed = set(allow_locked_track_uuids)
+    grouped = {item.m_Uuid.AsString() for group in board.Groups()
+               for item in group.GetItems()}
     tracks = [t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"]
     excluded_nets = set(cec_fr.coupled_pair_nets(board))
+    excluded_nets.update(net for pair in cec_fr._board_kelvin_pairs(board) for net in pair)
     ends = {}
     for track in tracks:
         start, end = track.GetStart(), track.GetEnd()
@@ -331,7 +666,8 @@ def repair_acute_vertices(board, *, angle_min_deg=5.0,
         t1, common, outer1, first_at_start = first
         t2, _common2, outer2, second_at_start = second
         ids = {t1.m_Uuid.AsString(), t2.m_Uuid.AsString()}
-        if ids & used or t1.GetWidth() != t2.GetWidth():
+        if (ids & (used | grouped) or t1.GetWidth() != t2.GetWidth()
+                or any(t.IsLocked() and t.m_Uuid.AsString() not in allowed for t in (t1,t2))):
             continue
         v1 = (outer1.x - common.x, outer1.y - common.y)
         v2 = (outer2.x - common.x, outer2.y - common.y)
@@ -668,31 +1004,52 @@ def repair_sliver_only_orthofill(board_path, *, sliver_mm=0.10,
 def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
            do_island=True, do_starved=True, do_acute=True,
            do_backtrack=True, do_chamfer=False, do_octilinear=True,
-           allow_locked_track_uuids=()):
-    """ONE board load, with removals strictly LAST.
+           allow_locked_track_uuids=(), do_legend=True,
+           legend_rules=None, allow_locked_graphic_uuids=(), do_mounting=True,
+           mounting_rules=None, allow_locked_mount_uuids=()):
+    """Load once, fill, and retire only redundant covered copper last.
 
-    Two SWIG constraints on this KiCad-10 build drive the ordering, both
-    measured here rather than guessed:
-      * board.Remove() poisons the board's other proxies -- calling Zones()
-        after removing a track returns a bare SwigPyObject;
-      * a REPEATED LoadBoard in one process eventually returns a bare
-        SwigPyObject too (the hub all-9999 root cause), so splitting the work
-        across several loads trades one failure for another.
-
-    So: load once, do every zone/width edit, FILL, then remove redundant
-    segments, then save. The fill precedes removal, which is sound because R2
-    only removes segments the survivor already covers -- copper coverage is
-    unchanged, so the fill stays valid.
+    Permanent duplicate destruction uses the shared native lifetime helper;
+    the old Remove/detached-proxy path corrupted SWIG registry ownership.
+    Filling still precedes duplicate retirement because its copper coverage
+    is unchanged. The enclosing transaction independently qualifies the result.
     """
     import pcbnew
     import cec_fr
     rep = {"board": os.path.relpath(board_path)}
     b = pcbnew.LoadBoard(board_path)
-    rep["track_width"] = cec_fr.normalize_track_width(b)
+    import cec_fab_check
+    import cec_fab_profile
+    selected = cec_fab_profile.active_profile_name(b, hint=board_path)
+    factory_rules = (cec_fab_check.profile_rules(cec_fab_check.PROFILES['jlcpcb'],
+        cec_fab_profile.stackup_oz(selected)['F.Cu'], selected) if selected else None)
+    if do_legend:
+        import cec_legend_repair
+        if legend_rules is None:
+            legend_rules = factory_rules
+        rep['legend']=(cec_legend_repair.repair_dimension_minima(b,legend_rules,
+            allow_locked_graphic_uuids=allow_locked_graphic_uuids) if legend_rules else
+            dict(applied_count=0,complete=False,skipped='factory_legend_authority_not_selected'))
+    else:
+        rep['legend']=dict(applied_count=0,skipped='disabled')
+    if do_mounting:
+        import cec_mounting_contract
+        if mounting_rules is None:
+            mounting_rules = factory_rules
+        rep['mounting_stitch'] = (cec_mounting_contract.repair_native_mount_fields(
+            b, mounting_rules, board_path=board_path,
+            allow_locked_footprint_uuids=allow_locked_mount_uuids) if mounting_rules else
+            dict(applied_count=0, complete=False, skipped='factory_mount_authority_not_selected'))
+    else:
+        rep['mounting_stitch'] = dict(applied_count=0, skipped='disabled')
+    rep["track_width"] = cec_fr.normalize_track_width(
+        b, preserve_locked=True,
+        allow_locked_track_uuids=allow_locked_track_uuids)
     rep.update(repair_zones(b, sliver_mm=sliver_mm, do_priority=do_priority,
                             do_island=do_island))
     rep["starved"] = repair_starved_thermal(b) if do_starved else 0
-    rep["acute_vertices"] = repair_acute_vertices(b) if do_acute else 0
+    rep["acute_vertices"] = (repair_acute_vertices(
+        b, allow_locked_track_uuids=allow_locked_track_uuids) if do_acute else 0)
     rep["via_acute_fanouts"] = (
         repair_via_acute_fanouts(b) if do_acute else 0)
     if do_chamfer:
@@ -711,9 +1068,12 @@ def repair(board_path, *, sliver_mm=0.10, apply=False, do_priority=True,
     if apply:
         for z in b.Zones():
             z.UnFill()
-        pcbnew.ZONE_FILLER(b).Fill(b.Zones())
-    rep["backtracks"] = (repair_backtracks(b) if do_backtrack else 0)
-    # Backtrack cleanup is LAST: retiring an exact duplicate poisons proxies.
+        import cec_zone_fill
+        cec_zone_fill.fill(b)
+    rep["backtracks"] = (repair_backtracks(
+        b, allow_locked_track_uuids=allow_locked_track_uuids)
+        if do_backtrack else 0)
+    # Backtrack cleanup is last so fill sees the same covered copper union.
     if apply:
         b.Save(board_path)
     rep["applied"] = bool(apply)
@@ -732,6 +1092,16 @@ def _admission_snapshot(metrics):
     }
 
 
+class NativeWorkerFailure(RuntimeError):
+    """Keep the actual child failure, not just a truncated human summary."""
+    def __init__(self, operation, proc):
+        self.failure_evidence = dict(operation=operation,
+            returncode=proc.returncode, command=list(proc.args),
+            stdout=proc.stdout or '', stderr=proc.stderr or '')
+        super().__init__('isolated %s failed rc=%d: %s' % (
+            operation, proc.returncode, (proc.stderr or proc.stdout or '')[-1200:]))
+
+
 def _score_isolated(board_path):
     """Score in a fresh process so KiCad SWIG registry state cannot leak."""
     code = (
@@ -745,14 +1115,13 @@ def _score_isolated(board_path):
         "'objective':float(cec_score.objective(m))});"
         "print('CEC_FAB_SCORE='+json.dumps(s,sort_keys=True))")
     proc = subprocess.run(
-        [sys.executable, "-c", code, os.path.abspath(board_path), HERE],
+        [sys.executable, "-X", "faulthandler", "-c", code, os.path.abspath(board_path), HERE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     marker = next((line[len("CEC_FAB_SCORE="):]
                    for line in reversed(proc.stdout.splitlines())
                    if line.startswith("CEC_FAB_SCORE=")), None)
     if proc.returncode or marker is None:
-        raise RuntimeError("isolated score failed rc=%d: %s" %
-                           (proc.returncode, (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('score', proc)
     return json.loads(marker)
 
 
@@ -773,15 +1142,13 @@ def _fab_isolated(board_path):
         "'fab_drill_aspect':len(r.get('drill_aspect') or ())},"
         "sort_keys=True))")
     proc = subprocess.run(
-        [sys.executable, "-c", code, os.path.abspath(board_path), HERE],
+        [sys.executable, "-X", "faulthandler", "-c", code, os.path.abspath(board_path), HERE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     marker = next((line[len("CEC_FAB="):]
                    for line in reversed(proc.stdout.splitlines())
                    if line.startswith("CEC_FAB=")), None)
     if proc.returncode or marker is None:
-        raise RuntimeError("isolated fab audit failed rc=%d: %s" %
-                           (proc.returncode,
-                            (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('fab audit', proc)
     return json.loads(marker)
 
 
@@ -815,7 +1182,7 @@ def _foreign_isolated(board_path):
 
 
 def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
-    argv = [sys.executable, os.path.abspath(__file__), candidate,
+    argv = [sys.executable, "-X", "faulthandler", os.path.abspath(__file__), candidate,
             "--apply", "--sliver", str(sliver_mm), "--json", report_path]
     if not kwargs.get("do_priority", True):
         argv.append("--no-priority")
@@ -835,8 +1202,7 @@ def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
     proc = subprocess.run(argv, capture_output=True, text=True,
                           encoding="utf-8", errors="replace")
     if proc.returncode or not os.path.isfile(report_path):
-        raise RuntimeError("isolated repair failed rc=%d: %s" %
-                           (proc.returncode, (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('repair', proc)
     with open(report_path, encoding="utf-8") as handle:
         rows = json.load(handle)
     if not rows:
@@ -845,15 +1211,13 @@ def _repair_isolated(candidate, *, sliver_mm, kwargs, report_path):
 
 
 def _sliver_repair_isolated(candidate, *, sliver_mm, report_path):
-    argv = [sys.executable, os.path.abspath(__file__), candidate,
+    argv = [sys.executable, "-X", "faulthandler", os.path.abspath(__file__), candidate,
             "--apply", "--sliver", str(sliver_mm),
             "--sliver-only-orthofill", "--json", report_path]
     proc = subprocess.run(argv, capture_output=True, text=True,
                           encoding="utf-8", errors="replace")
     if proc.returncode or not os.path.isfile(report_path):
-        raise RuntimeError("isolated sliver repair failed rc=%d: %s" %
-                           (proc.returncode,
-                            (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('sliver repair', proc)
     with open(report_path, encoding="utf-8") as handle:
         rows = json.load(handle)
     if not rows:
@@ -876,15 +1240,13 @@ def _dangling_cleanup_isolated(candidate):
         "print('CEC_DANGLING='+json.dumps({"
         "'changed':changed,'report':report},sort_keys=True))")
     proc = subprocess.run(
-        [sys.executable, "-c", code, os.path.abspath(candidate), HERE],
+        [sys.executable, "-X", "faulthandler", "-c", code, os.path.abspath(candidate), HERE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     marker = next((line[len("CEC_DANGLING="):]
                    for line in reversed(proc.stdout.splitlines())
                    if line.startswith("CEC_DANGLING=")), None)
     if proc.returncode or marker is None:
-        raise RuntimeError("isolated dangling cleanup failed rc=%d: %s" %
-                           (proc.returncode,
-                            (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('dangling cleanup', proc)
     return json.loads(marker)
 
 
@@ -898,17 +1260,41 @@ def _post_backtrack_acute_isolated(candidate):
         "do_backtrack=False,do_chamfer=False,do_octilinear=False);"
         "print('CEC_ACUTE='+json.dumps(r,sort_keys=True))")
     proc = subprocess.run(
-        [sys.executable, "-c", code, os.path.abspath(candidate), HERE],
+        [sys.executable, "-X", "faulthandler", "-c", code, os.path.abspath(candidate), HERE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     marker = next((line[len("CEC_ACUTE="):]
                    for line in reversed(proc.stdout.splitlines())
                    if line.startswith("CEC_ACUTE=")), None)
     if proc.returncode or marker is None:
-        raise RuntimeError("isolated post-backtrack acute cleanup failed "
-                           "rc=%d: %s" %
-                           (proc.returncode,
-                            (proc.stderr or proc.stdout)[-1200:]))
+        raise NativeWorkerFailure('post-backtrack acute cleanup', proc)
     return json.loads(marker)
+
+
+def _copper_inventory_isolated(board_path):
+    """Capture scalar native copper without retaining KiCad proxy lifetimes."""
+    code = (
+        "import json,sys;sys.path.insert(0,sys.argv[2]);import pcbnew;"
+        "from cec_local_copper_cell import copper_inventory;"
+        "b=pcbnew.LoadBoard(sys.argv[1]);"
+        "print('CEC_COPPER='+json.dumps(copper_inventory(b),sort_keys=True))")
+    proc = subprocess.run(
+        [sys.executable, "-X", "faulthandler", "-c", code,
+         os.path.abspath(board_path), HERE], capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=10)
+    marker = next((line[len("CEC_COPPER="):]
+                   for line in reversed(proc.stdout.splitlines())
+                   if line.startswith("CEC_COPPER=")), None)
+    if proc.returncode or marker is None:
+        raise NativeWorkerFailure('immutable copper audit', proc)
+    return json.loads(marker)
+
+
+def _protected_copper_check(expected, actual):
+    """No score improvement can waive a locked native item identity/geometry."""
+    changed = sorted(uid for uid, row in expected.items()
+                     if actual.get(uid) != row)
+    return dict(ok=not changed, expected_items=len(expected),
+                changed_uuids=changed, release_authority=False)
 
 
 def repair_admitted(board_path, *, sliver_mm=0.10,
@@ -926,6 +1312,10 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
     lexicographically cleanest accepted result.  The original board remains
     byte-for-byte available until a winner is selected.
     """
+    allowed = {str(uid) for uid in allow_locked_track_uuids if uid}
+    protected = {uid: row for uid, row in
+                 _copper_inventory_isolated(board_path).items()
+                 if row[2] and uid not in allowed}
     baseline_row = _score_isolated(board_path)
     baseline_row.update(_fab_isolated(board_path))
     baseline_row.update(_foreign_isolated(board_path))
@@ -938,6 +1328,10 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
     work = tempfile.mkdtemp(prefix=".cec-fab-admit-", dir=parent)
     stem = os.path.splitext(os.path.basename(board_path))[0]
     variants = []
+    import cec_failure_replay
+    engine = cec_failure_replay.engine_signature(HERE)
+    with open(board_path, 'rb') as baseline_file:
+        baseline_sha = cec_failure_replay.digest(baseline_file.read())
     try:
         generated_uuid_file = os.path.join(
             work, "generated-track-uuids.json")
@@ -970,28 +1364,41 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
                 source = board_path[:-len(".kicad_pcb")] + ext
                 if os.path.isfile(source):
                     shutil.copy2(source, candidate[:-len(".kicad_pcb")] + ext)
+            snapshot = {'status': 'not_captured'}
+            step = 'variant_setup'
+
+            def run_step(operation, function, *args, **parameters):
+                nonlocal snapshot, step
+                step = operation
+                snapshot = cec_failure_replay.capture(
+                    candidate, extra_files=(generated_uuid_file,))
+                return function(*args, **parameters)
+
             try:
                 report_path = os.path.join(work, "%s-%s-repair.json" %
                                            (stem, name))
-                changes = _repair_isolated(
+                changes = run_step('repair', _repair_isolated,
                     candidate, sliver_mm=sliver_mm, kwargs=kwargs,
                     report_path=report_path)
                 if int((changes or {}).get("backtracks", 0)) > 0:
                     changes = dict(changes)
                     changes["dangling_cleanup"] = \
-                        _dangling_cleanup_isolated(candidate)
+                        run_step('dangling_cleanup', _dangling_cleanup_isolated, candidate)
                     changes["post_backtrack_acute"] = \
-                        _post_backtrack_acute_isolated(candidate)
+                        run_step('post_backtrack_acute', _post_backtrack_acute_isolated, candidate)
                 if kwargs.get("sliver_cleanup"):
                     sliver_report = os.path.join(
                         work, "%s-%s-slivers.json" % (stem, name))
                     changes = dict(changes)
-                    changes["sliver_cleanup"] = _sliver_repair_isolated(
+                    changes["sliver_cleanup"] = run_step('sliver_cleanup', _sliver_repair_isolated,
                         candidate, sliver_mm=sliver_mm,
                         report_path=sliver_report)
-                score_row = _score_isolated(candidate)
-                score_row.update(_fab_isolated(candidate))
-                score_row.update(_foreign_isolated(candidate))
+                copper_proof = _protected_copper_check(protected, run_step(
+                    'immutable_copper', _copper_inventory_isolated, candidate))
+                score_row = run_step('score', _score_isolated, candidate)
+                score_row.update(run_step('fab_check', _fab_isolated, candidate))
+                score_row.update(run_step('foreign_check', _foreign_isolated, candidate))
+                step = 'admission'
                 score_row.setdefault("route_non_octilinear", 0)
                 snapshot = dict(score_row)
                 # Import here rather than at module load so dry-run repair
@@ -999,7 +1406,7 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
                 import cec_stage_admission
                 admission = cec_stage_admission.evaluate(
                     baseline, snapshot)
-                safe = (admission["accepted"]
+                safe = (copper_proof["ok"] and admission["accepted"]
                         and snapshot["route_non_octilinear"]
                         <= baseline["route_non_octilinear"]
                         and snapshot["route_blocking"]
@@ -1016,11 +1423,19 @@ def repair_admitted(board_path, *, sliver_mm=0.10,
                     "name": name, "path": candidate, "changes": changes,
                     "metrics": snapshot, "safe": bool(safe),
                     "admission": admission,
+                    "protected_copper": copper_proof,
                     "objective": float(score_row["objective"]),
                 })
             except Exception as exc:                         # noqa: BLE001
+                evidence = cec_failure_replay.retain(snapshot,
+                    os.path.join(parent, '.cec-fab-failures'),
+                    context=dict(variant=name, step=step, sliver_mm=sliver_mm,
+                        options={k: v for k, v in kwargs.items()
+                                 if k != 'generated_track_uuid_file'},
+                        baseline_sha256=baseline_sha), error=exc, engine=engine)
                 variants.append({"name": name, "path": candidate,
                                  "safe": False,
+                                 "failure_evidence": evidence,
                                  "error": "%s: %s" %
                                           (type(exc).__name__, exc)})
 

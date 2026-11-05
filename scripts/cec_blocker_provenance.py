@@ -184,7 +184,7 @@ def observed_blocker(kind, rule, message, *, authority, nets=(), refs=(),
 
 def normalize_event(stage, status, message, *, authority="pipeline",
                     nets=(), refs=(), uuids=(), artifact=None,
-                    certainty="observed", detail=None):
+                    certainty="observed", detail=None, mutation=None):
     """Create a compact, JSON-safe pipeline event."""
     row = {
         "stage": str(stage), "status": str(status),
@@ -198,6 +198,10 @@ def normalize_event(stage, status, message, *, authority="pipeline",
         row["artifact"] = str(artifact)
     if detail is not None:
         row["detail"] = detail
+    if mutation is not None:
+        if mutation not in ('created', 'modified', 'removed'):
+            raise ValueError('mutation must identify an actual item-changing operation')
+        row['mutation'] = mutation
     return row
 
 
@@ -235,10 +239,11 @@ def join_events(blockers, events):
             if not uuid_match and not weak_match:
                 continue
             joined = dict(event)
+            attributable = uuid_match and event.get('mutation') in ('created', 'modified', 'removed')
             joined["certainty"] = (
-                "attributed" if uuid_match else "associated")
+                "attributed" if attributable else "associated")
             blocker["causal_chain"].insert(0, joined)
-            if uuid_match:
+            if attributable:
                 blocker["origin_known"] = True
                 blocker["next_action"] = (
                     "repair or rerun the attributed stage, then repeat signoff")

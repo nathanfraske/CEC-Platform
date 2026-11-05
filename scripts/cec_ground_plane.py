@@ -345,7 +345,8 @@ def fill_board(board, *, board_path="", required_via_uuids=(),
     for zone in board.Zones():
         zone.UnFill()
     try:
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
     except Exception as error:                            # noqa: BLE001
         return {
             "schema": 1, "ok": False,

@@ -1,7 +1,22 @@
 # Canonical start-to-finish PCB pipeline
 
-`scripts/cec_full_pipeline.py` is the production entry point for current BETA
-boards. It is deliberately a coordinator: specialist placement, routing,
+## Canonical model-directed workflow
+
+New suite refinement uses the
+[agent-directed control plane](agent-directed-pcb-pipeline.md): a frontier model
+authors explicit native transactions through direct tools or MCP, with
+independent checks and visual review. `cec_full_pipeline.py` remains the legacy
+coordinator/validation compatibility path below; its search-heavy control loop
+is not the default author for the new workflow. Connected-cell moves,
+source-retaining power contours, full-current planar reflows and pad-bank
+collectors now have capability-specific receiving. Arbitrary polygon mutation
+and unqualified new high-current transfers are deliberately not exposed.
+Existing signoff and release gates have not been removed or weakened.
+
+## Legacy coordinator and shared checks
+
+`scripts/cec_full_pipeline.py` is the retained search/coordinator compatibility
+entry point, not the default layout author. Specialist placement, routing,
 electrical, thermal, fabrication, and dashboard engines remain independently
 testable and the coordinator records their evidence in one stage ledger.
 

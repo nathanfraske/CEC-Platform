@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "board": "pcie-8pin-3port",
+  "params": {
+    "respect_antenna_keepout": false,
+    "outline_compaction": {
+      "enabled": true,
+      "step_mm": 4.0,
+      "max_steps": 2,
+      "shrink_axes": ["width", "height"],
+      "include_incremental": true,
+      "include_fresh_placement": false,
+      "repack_collisions": true,
+      "repack_max_variants": 1,
+      "repack_beam_width": 16,
+      "probe_route_preflight": false,
+      "minimum_edge_margin_mm": 0.5,
+      "fallback_steps_mm": [],
+      "edge_follow": [
+        {"edge": "right", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5},
+        {"edge": "bottom", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5}
+      ]
+    },
+    "qualified_interface_anchor": {
+      "provider": "cec_xfcn_contract",
+      "project": "pcie3-main",
+      "anchor_scope": "mating_interface",
+      "edge": "bottom",
+      "terminal_edge_margin_mm": 0.9
+    },
+    "net_current_contracts": {
+      "/SENSEC": 39.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "/VCC_J1": 1.0,
+      "VCC_RJ45": 1.0,
+      "/VBUS_J5": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "net_current_contract_notes": [
+      "The cable basis is three 12V pins at approximately 13 A per pin.",
+      "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite.",
+      "User-approved routing requirement on 2026-10-24: /VCC_J1 and VCC_RJ45 each carry 1 A continuously with the existing 1.25 geometry margin and no input-sharing credit. This is explicit conductor authority, not an inferred upstream rating from the +5VSB mux output and not borrowed from another board.",
+      "Canonical chain: J1 pin 1 -> /VCC_J1 -> FB2 pin 1; FB2 pin 2 -> VCC_RJ45 -> TPS2121 U4 IN1 pin 7, C45 pin 1 and the R15/R17 divider upper legs. The requirement changes no part, pinout or claimed load and does not qualify the generic 0R link, connector contacts, via plating/barrels, inrush, capacitor leakage, fault current, thermal behavior or fabrication release."
+    ]
+  }
+}

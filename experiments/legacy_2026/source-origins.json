@@ -1,0 +1,293 @@
+{
+  "files": {
+    "parallel-review-suite-receive-nine-20261021-a": {
+      "changes": [],
+      "original_path": "build/parallel-review-suite-receive-nine-20261021-a.py",
+      "original_sha256": "a854c8ba1c66ce627c2b24897e3a3e04acdaf268767319cda1b2fdf9fa7bea37"
+    },
+    "cec_reference_association_query": {
+      "changes": [],
+      "original_path": "build/cec_reference_association_query.py",
+      "original_sha256": "186ffc88991a975c1c6676edc7bd0708a5a8426a177330365ecdba5bf22c6194"
+    },
+    "root_agent_draft_frontier_20261010": {
+      "changes": [],
+      "original_path": "build/root_agent_draft_frontier_20261010.py",
+      "original_sha256": "8181a5fa0cda110929b8cdda63eb0b15825d57ccd73c8d980dcbb53bd6c03861"
+    },
+    "root_axis_boundary_transport_20261013": {
+      "changes": [],
+      "original_path": "build/root_axis_boundary_transport_20261013.py",
+      "original_sha256": "81d47961b53a0a2ac281c92f6ecfe8da1ab8332af5a6a3956d1cec78c852cec0"
+    },
+    "root_bounded_regression_replay_20261028": {
+      "changes": [
+        "Adjusted repository root for the additional directory level"
+      ],
+      "original_path": "build/root_bounded_regression_replay_20261028.py",
+      "original_sha256": "9910bdf0ba8a7639c5d48168c356803323d7cff0b06870de41d60347f09e0b69"
+    },
+    "root_complete_protector_phase_20261026": {
+      "changes": [],
+      "original_path": "build/root_complete_protector_phase_20261026.py",
+      "original_sha256": "66f371ad39656e4b2d4691af38bd3447cc28a0a364a3f8c7a9fc026ab6285d7e"
+    },
+    "root_connected_ordinary_phase_20261027": {
+      "changes": [],
+      "original_path": "build/root_connected_ordinary_phase_20261027.py",
+      "original_sha256": "a17d034e8ee1b033b50afd59e8408787dbe2440f3c8767490f29dc3c21439dff"
+    },
+    "root_constituent_progress181_20261101": {
+      "changes": [],
+      "original_path": "build/root_constituent_progress181_20261101.py",
+      "original_sha256": "43ec8c3f9964316044782b13c43e5330e45c82ec58996e969bf2fb69d2ba0d0a"
+    },
+    "root_directed_chain_shortcut132_20261031": {
+      "changes": [],
+      "original_path": "build/root_directed_chain_shortcut132_20261031.py",
+      "original_sha256": "1412823b3073ad8cff1f06bbf9186cf8604311fb0aeda9d8e01d8a2c72ef1ad6"
+    },
+    "root_finish_macro_print_20261023": {
+      "changes": [],
+      "original_path": "build/root_finish_macro_print_20261023.py",
+      "original_sha256": "dfbcf8855127b1c0719caeb4abfa72ca0ac2f8023bf30544f9d6f7ebcc3174c2"
+    },
+    "root_free_junction_boundary_envelope_20261013": {
+      "changes": [],
+      "original_path": "build/root_free_junction_boundary_envelope_20261013.py",
+      "original_sha256": "7b29453a41686157ef00f9bd680dea69789e21ba9228dcd03d20caf13d55a402"
+    },
+    "root_fresh_annotation_workers_nine_20261028": {
+      "changes": [],
+      "original_path": "build/root_fresh_annotation_workers_nine_20261028.py",
+      "original_sha256": "83f294bb49311b9f37f7121b5f65feafd1108ff2e54a55a25e4b61186b42ea59"
+    },
+    "root_measurement_channel_trial_20261022": {
+      "changes": [],
+      "original_path": "build/root_measurement_channel_trial_20261022.py",
+      "original_sha256": "e16ade697dc38001d08ce6f6af267f59544455c7585f24cd9353bf2c7351d52a"
+    },
+    "root_native_exact_conductor_motion_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_exact_conductor_motion_20261013.py",
+      "original_sha256": "1c0cee415b40237da52a437c1a2b1e1cba226e244aea6e05e4d5e20ecc3c1fc4"
+    },
+    "root_native_frontier_layer_join_phase_20261026": {
+      "changes": [],
+      "original_path": "build/root_native_frontier_layer_join_phase_20261026.py",
+      "original_sha256": "9db10926140cc28257e48e313ff6443466295932124ce19f8b1867bd931728d0"
+    },
+    "root_native_keeper_recompile_receiving_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_keeper_recompile_receiving_20261012.py",
+      "original_sha256": "6610298b37e5af11d12d952972f4c734050e99be976bebd9cfa6455408443967"
+    },
+    "root_native_kelvin_contour_scope_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_kelvin_contour_scope_20261012.py",
+      "original_sha256": "6e315c1a146bc8d2c70ae3ac9f784cf323f4fbc1f2e5b90b1e8a8f76af80598b"
+    },
+    "root_native_motion_contact_rebuild_scope_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_motion_contact_rebuild_scope_20261013.py",
+      "original_sha256": "3dcd63791a6bf2334f18766c93e0bec98f39ca42981455ac486298c5e0ffe69d"
+    },
+    "root_native_motion_coordinate_resolution_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_motion_coordinate_resolution_20261013.py",
+      "original_sha256": "92995cc013c356387e02a792f2b5bb2e0a38a817529ba5b9fe8f32b6d6e7781f"
+    },
+    "root_native_motion_impact_scope_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_motion_impact_scope_20261013.py",
+      "original_sha256": "3474d4f4d6c884021c624d4a20118f9d6ceb31d4ff0f01fff016cc5398ced2dd"
+    },
+    "root_native_ordinary_path_scope_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_ordinary_path_scope_20261012.py",
+      "original_sha256": "07c9790c4ba574b985f56a060ebb1529fce9038e248153c0b32c6c52e5820bf3"
+    },
+    "root_native_ordinary_terminal_migration_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_ordinary_terminal_migration_20261012.py",
+      "original_sha256": "59193f54548f499389e214e2b35222f66e1c6e0ca873a820c012fda51438f33a"
+    },
+    "root_native_pending_branch_forest_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_pending_branch_forest_20261013.py",
+      "original_sha256": "0f842c070b3bf9fd498a69c65aed32f89a55a751af46eab22c726686321bf894"
+    },
+    "root_native_pending_joint_cohort_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_pending_joint_cohort_20261013.py",
+      "original_sha256": "875eed6b25c76dd4700d166ae1791391bb4705914267804ffe1c6286daa2c1d3"
+    },
+    "root_native_positive_contour_receiving_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_positive_contour_receiving_20261012.py",
+      "original_sha256": "c0f4597d89a17f21a449b1abbc4d7e25410efdf1dad7a8a2db6edfe2971c0e1f"
+    },
+    "root_native_power_authority_selector_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_power_authority_selector_20261012.py",
+      "original_sha256": "ea410f1a8a495321563d6414ee55ccdc348c92472c5121f83348a238c808afc8"
+    },
+    "root_native_pth_bank_preclear_receiving_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_pth_bank_preclear_receiving_20261013.py",
+      "original_sha256": "f8b06de90ff0b3f8a068ec237a24134a4adff658450e7f96c44040da1a0b05c6"
+    },
+    "root_native_pth_bank_with_rated_preclear_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_pth_bank_with_rated_preclear_20261013.py",
+      "original_sha256": "e4fbdc42603db700327fea91faaca3977a41dfb96b6742f200fba25693764229"
+    },
+    "root_native_publication_http_check_20261010": {
+      "changes": [],
+      "original_path": "build/root_native_publication_http_check_20261010.py",
+      "original_sha256": "c9142c7b8490ad5c1146d0ff2693e48df3263ce1518c265c7bcdb9e4b695d7b1"
+    },
+    "root_native_publication_safety_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_publication_safety_20261012.py",
+      "original_sha256": "8549291de157d95e0ab2deaabd4d84b04d0e5c213df8ccac8f58cb480dc95414"
+    },
+    "root_native_redundant_force_face_receiving_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_redundant_force_face_receiving_20261012.py",
+      "original_sha256": "e3885d98f67a5146011662880a7c0e9aae68e9ec6d650d95636c71caf7959725"
+    },
+    "root_native_scalar_chain_scope_20261015": {
+      "changes": [],
+      "original_path": "build/root_native_scalar_chain_scope_20261015.py",
+      "original_sha256": "c2baec617297e6744d74e4c0c1c7385cff016ef22f9b08bb59968c6405752296"
+    },
+    "root_native_scalar_corner_scope_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_scalar_corner_scope_20261012.py",
+      "original_sha256": "4562fc475d5e0ba5e139375b9c6ce00ac06dc20f819f102d58df33679d4eca5e"
+    },
+    "root_native_scalar_shortcut_geometry_20261015": {
+      "changes": [],
+      "original_path": "build/root_native_scalar_shortcut_geometry_20261015.py",
+      "original_sha256": "a906bb8713fab231f79b2f148405cdbcf100e1b2371829f4054f9be41001d0c6"
+    },
+    "root_native_search_frontier_receiving_20261012": {
+      "changes": [],
+      "original_path": "build/root_native_search_frontier_receiving_20261012.py",
+      "original_sha256": "26c35a71cfb224b4412a07ca7ff236f0c5aeec0ec962a3cdee5499f0457b1f43"
+    },
+    "root_native_stroke_contact_anchors_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_stroke_contact_anchors_20261013.py",
+      "original_sha256": "9e0794599fc81eaf6db36da85812b79abbc1adca41c511527d6da8c07c99603a"
+    },
+    "root_native_whole_pending_linear_cohort_20261013": {
+      "changes": [],
+      "original_path": "build/root_native_whole_pending_linear_cohort_20261013.py",
+      "original_sha256": "d48d769621f4f05497737924d8f89e90fa6de79a8a4b654c36e796b6bfce2f0b"
+    },
+    "root_ordinary_barrel_chain_phase_20261027": {
+      "changes": [],
+      "original_path": "build/root_ordinary_barrel_chain_phase_20261027.py",
+      "original_sha256": "bf10d30891cddbbad98a561e872b2fb22a2a4a6b16678208c3a095b2427a44f7"
+    },
+    "root_ordinary_preclear_measurement_phase_20261028": {
+      "changes": [],
+      "original_path": "build/root_ordinary_preclear_measurement_phase_20261028.py",
+      "original_sha256": "e9897f1c6b73ce618a39880ff132c6cc856de1174723588ad719766bd99fd179"
+    },
+    "root_receive_connected_protector_transaction_20261027": {
+      "changes": [],
+      "original_path": "build/root_receive_connected_protector_transaction_20261027.py",
+      "original_sha256": "5c343d27a3b40b23e44bd8d1ab60dccfe52bbcb2c4a94c17b2b3b413e601ab52"
+    },
+    "root_receive_local_transaction_20261022": {
+      "changes": [],
+      "original_path": "build/root_receive_local_transaction_20261022.py",
+      "original_sha256": "f9e0bfad72a32cd2639c8f709b47ae6fc0130917eeb988b035f5e3c06103b94e"
+    },
+    "root_receive_surface_ground_transaction_20261026": {
+      "changes": [],
+      "original_path": "build/root_receive_surface_ground_transaction_20261026.py",
+      "original_sha256": "7e9f19aab92bb94ea1293e51a95d5381fdbf7b50d46e5eabc66b35fd64de2b2e"
+    },
+    "root_received_goal_scope_20261024": {
+      "changes": [],
+      "original_path": "build/root_received_goal_scope_20261024.py",
+      "original_sha256": "574bb21201f7be37b2707eeaaaa429b983cada8f66908fd966efd7ee418eb672"
+    },
+    "root_received_macro_measurement_scope_20261028": {
+      "changes": [],
+      "original_path": "build/root_received_macro_measurement_scope_20261028.py",
+      "original_sha256": "6a642aa73d22a783e091c4565c77d6124934f1abd612c1da1271012ec99b1ebe"
+    },
+    "root_refresh_annotation_recipe_20261023": {
+      "changes": [],
+      "original_path": "build/root_refresh_annotation_recipe_20261023.py",
+      "original_sha256": "0aa2aa7ccc4d9f67503fd1b501ea28dec99b3c0cb26650a3efb4664f5a8cf863"
+    },
+    "root_run_bounded_dense_reference_pass_20261020": {
+      "changes": [],
+      "original_path": "build/root_run_bounded_dense_reference_pass_20261020.py",
+      "original_sha256": "9033379cb6523c9d7f23d234b97a0b48ac8831beced23a3ddd4f3d1c02dc3f8b"
+    },
+    "root_run_mask_guarded_bounded_reference_pass_20261020": {
+      "changes": [],
+      "original_path": "build/root_run_mask_guarded_bounded_reference_pass_20261020.py",
+      "original_sha256": "6b862f74dd306cecbbf7f1b844959e414b62e0e5bae508afafe76e3da4fbce0d"
+    },
+    "root_run_mask_guarded_reference_mapping_20261020": {
+      "changes": [],
+      "original_path": "build/root_run_mask_guarded_reference_mapping_20261020.py",
+      "original_sha256": "24384202c6012aa10b252ddab0b518de106adb889e17665afe1be85f2f0d8bef"
+    },
+    "root_run_mask_search_reference_mapping_20261020": {
+      "changes": [],
+      "original_path": "build/root_run_mask_search_reference_mapping_20261020.py",
+      "original_sha256": "8fa1ff1fd6d0f8ea3723b5f8e536ebb92afac360bb7ba774837e3f15bfcb3a8b"
+    },
+    "root_run_terminal_shadow_pass_20261020": {
+      "changes": [],
+      "original_path": "build/root_run_terminal_shadow_pass_20261020.py",
+      "original_sha256": "42b91df242cdb88def3bbc1cdbbfb3f9c10119b3fd7f1f6ae6aa1e0121a916f9"
+    },
+    "root_source_capture_search_policy_20261012": {
+      "changes": [],
+      "original_path": "build/root_source_capture_search_policy_20261012.py",
+      "original_sha256": "b05f161d79550755acec9203a9494b1556bfc4ccb3cbfa243edfbc77d7414825"
+    },
+    "root_source_rc_cohort_frame_20261025": {
+      "changes": [],
+      "original_path": "build/root_source_rc_cohort_frame_20261025.py",
+      "original_sha256": "ec26846cc47231caae29f5b3501fcd54fef132ea0ee0ab869da9ca23d6148ac7"
+    },
+    "root_source_rc_span_reflow_20261025": {
+      "changes": [],
+      "original_path": "build/root_source_rc_span_reflow_20261025.py",
+      "original_sha256": "7ee195510b0e279176b7ceb8d6c549e39c071ef5ca23dec877e6da43cf55763c"
+    },
+    "root_stationary_address_supply_phase_20261027": {
+      "changes": [],
+      "original_path": "build/root_stationary_address_supply_phase_20261027.py",
+      "original_sha256": "032d8def41ffefb962cd30eabf28f1584c7cd359b2a93922f1c27e3668cd60bc"
+    },
+    "root_try_terminal_shadow_keeper_20261020": {
+      "changes": [],
+      "original_path": "build/root_try_terminal_shadow_keeper_20261020.py",
+      "original_sha256": "c01afa6bbdd81b2441912f25789a91249ff21e38e2a6ecfaa2d6cfb7f4b619aa"
+    },
+    "root_unchanged_annotation_epoch_20261024": {
+      "changes": [],
+      "original_path": "build/root_unchanged_annotation_epoch_20261024.py",
+      "original_sha256": "d0c069263ee34471dbb1809ce2f3033318d80095e6ccd985ca00e2dbdeae3772"
+    },
+    "typed_print_runtime": {
+      "changes": [],
+      "original_path": "build/typed_print_runtime.py",
+      "original_sha256": "cd7a39f454d6754c1e101747e7d47f786855d021dc3fd5a82cd40d26bddef2bd"
+    }
+  },
+  "origin": "Git-ignored build directory, recovered before cleanup",
+  "schema": 1
+}

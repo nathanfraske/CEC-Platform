@@ -1,0 +1,200 @@
+"""Compose two independently owned ordinary cuts at their literal old join.
+
+A base Source cell stub may end at a neighbour which a Source-owned ordinary
+barrel move also retires. That old bend is not a retained target. Include the
+already-retired stub in the same native cut component so its real pad and
+every surviving barrel/track/land remain mandatory reconstruction ports.
+No extra Source edge, Ground/power/pair role or current rating is acquired.
+"""
+import copy,json,time
+import pcbnew
+import cec_cell_row_rebuild as row
+import cec_device_power_roles as roles
+import cec_force_current as force
+import cec_ordinary_route_receiving as ordinary
+
+
+def compose_rated_forks(parent,source,proposal,extras,retired,*,deadline):
+    """Compose an already-owned full-current fork and its already-cut port.
+
+    No edge is discovered or acquired here. Each original fork, independent
+    extra and their bounded union must freshly retain the SAME full-current
+    contract. Native cut-component receiving then restores every surviving
+    contact instead of inventing an anchor on a now-retired internal bend.
+    Source lock permissions belong to their original independent owners;
+    this neither globally unlocks copper nor expands fork lock permissions.
+    """
+    import cec_cell_shared_fork as forks
+    import cec_full_current_planar_reflow as full
+    if (proposal.get('scope')!='source_typed_complete_cell_escape_proposal'
+            or proposal.get('source_native_binding')!=row._source_binding(parent)
+            or type(extras)is not list or len(extras)>64
+            or type(retired)not in(set,frozenset)or len(retired)>128
+            or not time.monotonic()<deadline<=time.monotonic()+10.):
+        raise ValueError('bounded_exact_rated_fork_composition_required')
+    def tick():
+        if time.monotonic()>=deadline:raise ValueError('rated_fork_composition_deadline')
+    def stable(value):return json.dumps(value,sort_keys=True,allow_nan=False)
+    def current(plan):
+        return stable([plan[k]for k in ('current_domain_kind','domain','contract',
+            'net','layer_id','width_nm','full_current_floor_nm')])
+    def typed(ids,*,max_source_cut_mm=32.):
+        tick()
+        return full.plan(parent,source,board_hint=proposal['board_hint'],
+            retired_track_uuids=sorted(ids),timeout_s=min(10.,deadline-time.monotonic()),
+            max_source_cut_mm=max_source_cut_mm)
+    tracks={force._uid(t):t for t in parent.GetTracks()}
+    by_id={q['change']['uuid']:q for q in extras}
+    if len(by_id)!=len(extras)or not by_id.keys()<=retired:
+        raise ValueError('unique_already_retired_rated_fork_extras_required')
+    result=copy.deepcopy(extras);records=[];used=set()
+    for index,fork in enumerate(proposal.get('source_owned_shared_supply_forks',[])):
+        tick();base=set(fork['track_uuids'])
+        incident={p['native_uuid']for p in fork['retained_native_ports']if p['native_uuid']in by_id}
+        if not incident:continue
+        if (fork.get('kind')!='rated_supply'or not base or not base<=retired
+                or base&by_id.keys()or not base|incident<=tracks.keys()):
+            raise ValueError('disjoint_existing_full_current_fork_owners_required')
+        work=fork['source_work_bounds']
+        fresh=forks.plan(parent,fork['requested_root_pad_uuids'],moving_refs=fork['moving_refs'],
+            kind='rated_supply',board_hint=proposal['board_hint'],
+            allow_owned_locked=fork['allow_owned_locked'],
+            max_tracks=work['max_tracks'],max_length_mm=work['max_length_mm'],
+            allow_full_current_supply_width=fork.get('allow_full_current_supply_width',False),
+            timeout_s=min(10.,deadline-time.monotonic()))
+        if stable(fresh)!=stable(fork):raise ValueError('rated_fork_original_source_owner_changed')
+        baseline=typed(base,max_source_cut_mm=work['max_length_mm'])
+        if stable(baseline)!=stable(fork['full_current_source_plan']):
+            raise ValueError('rated_fork_original_full_current_plan_changed')
+        graph=pcbnew.CONNECTIVITY_DATA()
+        for uid,extra in by_id.items():
+            tick();edge=tracks.get(uid)
+            if (edge is not None and edge.GetClass()=='PCB_TRACK'
+                    and edge.GetNetname()==fork['net']and int(edge.GetLayer())==fork['layer']
+                    and not graph.Add(edge)):
+                raise ValueError('native_rated_extra_component_inventory_refused')
+        selected=set(incident)
+        for uid in sorted(incident):
+            if (tracks[uid].GetClass()!='PCB_TRACK'or tracks[uid].GetNetname()!=fork['net']
+                    or int(tracks[uid].GetLayer())!=fork['layer']):
+                raise ValueError('one_literal_rated_fork_extra_face_required')
+            selected|={force._uid(t)for t in graph.GetConnectedItems(tracks[uid])}&by_id.keys()
+        union=base|selected
+        if union&used or not 1<=len(union)<=8:
+            raise ValueError('disjoint_bounded_eight_edge_rated_fork_union_required')
+        for uid in sorted(selected):
+            tick();extra=by_id[uid];authority=extra.get('authority',{});edge=tracks[uid]
+            points=extra['change'].get('source_nm')
+            fresh=typed({uid})
+            if (authority.get('kind')!='unchanged_full_current_source_edge'
+                    or authority.get('native_source_uuid')!=uid
+                    or stable(authority.get('source_plan'))!=stable(fresh)
+                    or current(fresh)!=current(baseline)
+                    or extra['change'].get('net')!=edge.GetNetname()
+                    or type(points)not in(list,tuple)or len(points)!=2
+                    or any(type(p)not in(list,tuple)or len(p)!=2
+                        or any(type(n)is not int for n in p)for p in points)
+                    or list(map(list,points))!=[list(edge.GetStart()),list(edge.GetEnd())]):
+                raise ValueError('same_fresh_full_current_extra_owner_required')
+        combined=typed(union)
+        if current(combined)!=current(baseline):
+            raise ValueError('rated_fork_union_current_or_source_width_changed')
+        for port in fork['retained_native_ports']:
+            uid=port['native_uuid']
+            if uid in retired-union:raise ValueError('rated_fork_retained_port_cut_outside_union')
+            if uid not in selected:continue
+            at=pcbnew.VECTOR2I(*port['at_nm']);face=port['layer_id']
+            if (face!=fork['layer']or not tracks[uid].IsOnLayer(face)
+                    or not tracks[uid].GetEffectiveShape(face).Collide(at,0)
+                    or not any(tracks[u].GetEffectiveShape(face).Collide(at,0)for u in base)):
+                raise ValueError('literal_both_sides_rated_fork_extra_contact_required')
+        for uid in sorted(base):
+            edge=tracks[uid]
+            result.append(dict(change=dict(uuid=uid,net=str(edge.GetNetname()),
+                source_nm=[list(edge.GetStart()),list(edge.GetEnd())]),
+                authority=dict(kind='unchanged_full_current_source_edge',native_source_uuid=uid,
+                    source_plan=typed({uid}))))
+        records.append(dict(original_fork_index=index,original_fork=copy.deepcopy(fork),
+            original_extra_uuids=sorted(selected),composed_union_uuids=sorted(union),
+            fresh_union_source_plan=combined,consumed_internal_port_uuids=sorted(incident),
+            source_lock_manifest=[dict(uuid=u,locked=bool(tracks[u].IsLocked()),
+                owner='original_rated_fork'if u in base else'independent_full_current_extra')for u in sorted(union)],
+            retirement_set_unchanged=True,no_new_cut_or_current_authority=True,
+            every_surviving_native_contact_still_requires_reconstruction=True))
+        used|=union
+    if len(result)>64:raise ValueError('bounded_composed_rated_cut_component_scope_required')
+    if set(q['change']['uuid']for q in result)|set(proposal['retired_track_uuids'])!=by_id.keys()|set(proposal['retired_track_uuids']):
+        raise ValueError('rated_fork_composition_cannot_acquire_additional_copper')
+    tick()
+    return result,records
+
+
+def compose(parent,source,proposal,requests,extras,*,deadline):
+    if (proposal.get('scope')!='source_typed_complete_cell_escape_proposal'
+            or proposal.get('source_native_binding')!=row._source_binding(parent)
+            or type(requests) is not dict or len(requests)>64
+            or type(extras) is not list or len(extras)>64
+            or not time.monotonic()<deadline<=time.monotonic()+10.):
+        raise ValueError('bounded_exact_source_boundary_composition_required')
+    tracks={force._uid(t):t for t in parent.GetTracks()}
+    pads={force._uid(p):p for f in parent.GetFootprints() for p in f.Pads()}
+    base=set(proposal['retired_track_uuids'])
+    by_id={r['change']['uuid']:r for r in extras}
+    if len(by_id)!=len(extras):raise ValueError('unique_original_extra_boundary_scope_required')
+    eligible=None;remaining={};composed=[];result=copy.deepcopy(extras)
+    for key,request in requests.items():
+        if time.monotonic()>=deadline:raise ValueError('source_boundary_composition_deadline')
+        targets=request.get('b',{}).get('native_uuids',[])
+        uid=key[len('boundary:'):] if key.startswith('boundary:') else ''
+        if (uid not in base or uid in by_id or len(targets)!=1 or targets[0] not in by_id
+                or request.get('kind')!='source_boundary' or request.get('net')=='GND'):
+            remaining[key]=request;continue
+        stub=tracks.get(uid);peer=tracks.get(targets[0]);pad=pads.get(request.get('a',{}).get('pad_uuid'))
+        authority=by_id[targets[0]].get('authority',{})
+        if authority!={'kind':'positive_source_ordinary','native_source_uuid':targets[0]}:
+            # Other existing reconstruction contracts stay independent.
+            remaining[key]=request;continue
+        if eligible is None:eligible=ordinary.eligible_nets(parent,source,proposal['board_hint'])
+        if (stub is None or peer is None or pad is None or stub.GetClass()!='PCB_TRACK'
+                or peer.GetClass()!='PCB_TRACK' or stub.GetNetname() not in eligible
+                or stub.GetNetname()!=peer.GetNetname() or stub.GetNetname()!=pad.GetNetname()
+                or stub.GetNetname()!=request['net'] or stub.GetLayer()!=peer.GetLayer()
+                or stub.GetParentGroup() is not None or stub.HasSolderMask()
+                or not 0<stub.GetWidth()<=350000 or not 0<stub.GetLength()<=8000000
+                or request['width_nm']<stub.GetWidth() or pad.HasHole()
+                or pad.GetAttribute()!=pcbnew.PAD_ATTRIB_SMD
+                or pad.GetParentFootprint().GetReference() not in proposal['poses']):
+            raise ValueError('positive_existing_ordinary_base_boundary_required')
+        fp=pad.GetParentFootprint();contract=roles.footprint_contract(fp)
+        if (not contract or contract!=proposal['device_contracts'].get(fp.GetReference())
+                or set(p.GetNumber() for p in fp.Pads())!=set(contract['pins'])
+                or contract['pins'].get(pad.GetNumber()) not in
+                    ('signal_input','signal_output','signal_io','address','enable','reset','mode')):
+            raise ValueError('source_boundary_positive_manufacturer_signal_terminal_required')
+        face=int(stub.GetLayer());at=request['b'].get('at_nm')
+        if (type(at) not in (list,tuple) or len(at)!=2 or any(type(n) is not int for n in at)
+                or request['b'].get('layers')!=[face] or request['a'].get('layers')!=[face]
+                or not pad.IsOnLayer(face)):
+            raise ValueError('one_literal_original_boundary_face_required')
+        endpoint=tuple(at);ends=(tuple(stub.GetStart()),tuple(stub.GetEnd()))
+        if (endpoint not in ends or endpoint not in (tuple(peer.GetStart()),tuple(peer.GetEnd()))
+                or ends[0]==ends[1]):raise ValueError('exact_original_cut_edge_endpoint_join_required')
+        other=ends[1] if ends[0]==endpoint else ends[0]
+        if (not pad.GetEffectiveShape(face).Collide(pcbnew.VECTOR2I(*other),0)
+                or not stub.GetEffectiveShape(face).Collide(peer.GetEffectiveShape(face),0)):
+            raise ValueError('actual_original_pad_to_cut_component_contact_required')
+        proof=dict(source_base_boundary_uuid=uid,original_neighbour_uuid=targets[0],
+            original_internal_join_nm=list(endpoint),original_pad_uuid=force._uid(pad),
+            base_edge_was_already_positively_retired=True,no_additional_source_edge_retired=True,
+            actual_native_component_ports_still_independently_required=True)
+        result.append(dict(change=dict(uuid=uid,net=str(stub.GetNetname()),
+            source_nm=[list(stub.GetStart()),list(stub.GetEnd())]),
+            authority=dict(kind='positive_source_ordinary',native_source_uuid=uid),
+            source_base_boundary_composition=proof))
+        composed.append(dict(original_request_id=key,original_request=copy.deepcopy(request),
+            required_replacement_request_id='macro_boundary:'+uid,source_pad_uuid=force._uid(pad),
+            source_base_boundary_composition=True,source_base_boundary_uuid=uid,
+            source_composition_proof=proof,
+            exact_source_edge_endpoint_obligation_composed_not_omitted=True))
+    if len(result)>64:raise ValueError('bounded_composed_native_cut_component_scope_required')
+    return remaining,result,composed

@@ -68,7 +68,7 @@
 		)
 	)
 	(pad "1" thru_hole circle
-		(at -1.65 0)
+		(at -1.8 0)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -76,7 +76,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at -1.166726 -1.166726)
+		(at -1.272792 -1.272792)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -84,7 +84,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at -1.166726 1.166726)
+		(at -1.272792 1.272792)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -92,7 +92,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at 0 -1.65)
+		(at 0 -1.8)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -108,7 +108,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at 0 1.65)
+		(at 0 1.8)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -116,7 +116,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at 1.166726 -1.166726)
+		(at 1.272792 -1.272792)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -124,7 +124,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at 1.166726 1.166726)
+		(at 1.272792 1.272792)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")
@@ -132,7 +132,7 @@
 		(zone_connect 2)
 	)
 	(pad "1" thru_hole circle
-		(at 1.65 0)
+		(at 1.8 0)
 		(size 0.7 0.7)
 		(drill 0.4)
 		(layers "*.Cu" "*.Mask")

@@ -209,6 +209,7 @@ def _run_drc(board_path: str, tmp: str) -> dict:
         [cli, "pcb", "drc", "--exit-code-violations",
          "--format", "json", "-o", tmp, board_path],
         capture_output=True,
+        timeout=10.0,
     )
     # KiCad's JSON is UTF-8 and may contain non-ASCII net/reference text.  Do not
     # inherit Python's process locale here: headless workers and fresh WSL images
@@ -1129,6 +1130,11 @@ def score(
                 pass
 
     all_violations = drc_data.get("violations", [])
+    # This is report metadata, not a weaker scorer or a mutation waiver. In
+    # particular, capped native warning lists must not be presented as the
+    # complete failure inventory or used as an exhaustive UUID delta.
+    import cec_native_drc_inventory as native_inventory
+    native_drc_inventory = native_inventory.assess(drc_data)
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
     struct = qualify_structural_violations(struct, b)
     unconn = drc_data.get("unconnected_items", [])
@@ -1270,6 +1276,7 @@ def score(
         # different board state.  These JSON rows let every final blocker keep
         # its KiCad UUIDs and loci from the same signoff observation.
         "structural_violations": struct,
+        "native_drc_inventory": native_drc_inventory,
         "unconnected_items": unconn,
         "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
         "route_quality": route_quality,
@@ -1528,18 +1535,14 @@ def pour_integrity_ok(pour_facts, *, min_copper_mm2=None):
 #  Self-test
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    BOARDS = [
-        ("/tmp/fr-test/b_routed.kicad_pcb", "routed"),
-        ("/tmp/fr-test/b.kicad_pcb",         "unrouted"),
-        (os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb"),
-         "floorplan"),
-    ]
+    if len(sys.argv) < 2:
+        print("usage: python3 scripts/cec_score.py BOARD.kicad_pcb [...]",
+              file=sys.stderr)
+        sys.exit(2)
+    BOARDS = [(os.path.abspath(path), os.path.basename(path))
+              for path in sys.argv[1:]]
 
-    # Use pre-existing DRC for the routed board to save time; run fresh for others
-    drc_cache = {
-        "/tmp/fr-test/b_routed.kicad_pcb": "/tmp/b_routed_drc.json"
-        if os.path.exists("/tmp/b_routed_drc.json") else None,
-    }
+    drc_cache = {}
 
     header = (
         f"{'board':<12} {'drc':>4} {'unc':>4} {'trk':>5} {'via':>4} "

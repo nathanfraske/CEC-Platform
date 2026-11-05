@@ -1990,7 +1990,7 @@
 		(property "Manufacturer" "Samsung" (at 76.2 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL10A225KO8NNNC" (at 76.2 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C23630" (at 76.2 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Note" "U11 soft-start cap, mirrors C_SS1/C_SS2 (hub-proven ~10ms ramp)." (at 76.2 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "U11 soft-start cap; 2.2uF gives about 40V/s typical per TI Table 9-1 interpolation (125ms to 5V), not 10ms. Startup corner qualification pending." (at 76.2 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "acad9046-171d-4461-959c-fd325962eee2"))
 		(pin "2" (uuid "9e9ab347-6bac-4aeb-a90b-6fade8e67bd2"))
 		(instances

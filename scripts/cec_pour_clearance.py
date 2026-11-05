@@ -273,6 +273,21 @@ def inspect_laid_file(board_path, *, timeout=180):
     return inspect_file(board_path, timeout=timeout, authority="laid")
 
 
+def evacuate_route_seed(source, destination, *, protected_nets=()):
+    """Repair physical incursions without deleting copper for future pours.
+
+    A routed checkpoint may predate materialization of its sibling power
+    plan. Those prospective corridors need reconciliation against the
+    retained prefix; they are not manufactured zones that authorize ripping
+    up that prefix at intake. Real laid-zone conflicts remain fail-closed.
+    Later power admission still checks the complete reconciled authority.
+    """
+    report = evacuate_file(source, destination, protected_nets=protected_nets,
+                           authority="laid")
+    report['prospective_authority'] = 'deferred_to_exact_power_reconciliation'
+    return report
+
+
 def evacuate_file(source, destination, *, protected_nets=(), refill=True,
                   authority="combined"):
     """Copy ``source`` and transactionally clear every convicted primitive.

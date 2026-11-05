@@ -85,6 +85,8 @@ class StagedRouterCleanupTests(unittest.TestCase):
                 handle.write("proven-prefix")
             fake_board = mock.Mock()
             fake_board.GetTracks.return_value = []
+            fake_board.GetNetInfo.return_value.NetsByNetcode.return_value = {}
+            fake_board.GetFootprints.return_value = []
 
             def export(_board, dsn):
                 with open(dsn, "w", encoding="utf-8") as handle:
@@ -271,6 +273,8 @@ class StagedRouterCleanupTests(unittest.TestCase):
                         "removed_generated_items": 0}
             if worker is staged._refill_stage_worker:
                 return True
+            if worker is staged._pair_physics_stage_worker:
+                return {"ok": True, "applicable": False, "pairs": []}
             self.fail("unexpected staged worker")
 
         def export(_board, dsn):
@@ -298,6 +302,8 @@ class StagedRouterCleanupTests(unittest.TestCase):
             os.makedirs(work)
             fake_board = mock.Mock()
             fake_board.GetTracks.return_value = []
+            fake_board.GetNetInfo.return_value.NetsByNetcode.return_value = {}
+            fake_board.GetFootprints.return_value = []
             with mock.patch.object(cec_fr, "ensure_jar",
                                    return_value="router.jar"), \
                     mock.patch.object(cec_fr, "copy_project_sidecars",
@@ -333,6 +339,7 @@ class StagedRouterCleanupTests(unittest.TestCase):
                     mock.patch.object(cec_fr,
                                       "locked_copper_keepouts",
                                       return_value=[]), \
+                    mock.patch.object(cec_fr, "frozen_zone_keepouts", return_value=[]), \
                     mock.patch.object(cec_fr, "edge_keepout",
                                       return_value=[]), \
                     mock.patch.object(cec_fr, "smd_via_keepouts",
@@ -368,6 +375,7 @@ class StagedRouterCleanupTests(unittest.TestCase):
                     "layers": ("F.Cu",)}
         with mock.patch.object(cec_fr, "locked_copper_keepouts",
                                return_value=[locked]), \
+                mock.patch.object(cec_fr, "frozen_zone_keepouts", return_value=[]), \
                 mock.patch.object(cec_fr, "edge_keepout",
                                   return_value=[edge]), \
                 mock.patch.object(cec_fr, "smd_via_keepouts",
@@ -390,6 +398,7 @@ class StagedRouterCleanupTests(unittest.TestCase):
         with mock.patch.dict(
                 os.environ, {"CEC_LOCKED_COPPER_KEEPOUTS": "0"}), \
                 mock.patch.object(cec_fr, "locked_copper_keepouts") as locked, \
+                mock.patch.object(cec_fr, "frozen_zone_keepouts", return_value=[]), \
                 mock.patch.object(
                     cec_route_preflight, "compile_route_reservations",
                     return_value={"enabled": True,
@@ -422,6 +431,7 @@ class StagedRouterCleanupTests(unittest.TestCase):
         }
         with mock.patch.object(cec_fr, "locked_copper_keepouts",
                                return_value=[]), \
+                mock.patch.object(cec_fr, "frozen_zone_keepouts", return_value=[]), \
                 mock.patch.object(cec_route_preflight,
                                   "compile_route_reservations",
                                   return_value={"enabled": True,

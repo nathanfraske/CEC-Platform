@@ -58,13 +58,13 @@ BACKFILL = {
     **{ref: BOURNS_L500 for ref in ("RS1", "RS2")},
 }
 
-# The beta lock register and the hierarchical EPS implementation both select
-# this exact receptacle.  The flat rev3 file still carried the rejected
-# C2765186 line, while its footprint already used KiCad's verified 16XN name
-# for the U262-161N body.  This is an explicit stale-selection correction,
-# not a package inference.
+# Archived flat-source metadata correction only. Never select a part from a
+# reference, display value or footprint alone: the exact already-selected old
+# MPN AND footprint must both match. Current/new or unknown selections do not
+# acquire this historical identity; no current or geometry budget is inferred.
 FORCE = {
-    "J5": {
+    ("U262-161N-4BVC11",
+     "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"): {
         "Manufacturer": "XKB Connection",
         "MPN": "U262-161N-4BVC11",
         "LCSC": "C319148",
@@ -143,7 +143,11 @@ def repair_text(text: str) -> tuple[str, list[str]]:
                 block = _set_property(block, name, value)
                 touched = True
 
-        for name, value in FORCE.get(ref, {}).items():
+        # Explicit legacy evidence, never the reference spelling, selects
+        # a metadata correction. New GCT and unknown parts stay untouched.
+        identity = (_properties(block).get("MPN", ""),
+                    _properties(block).get("Footprint", ""))
+        for name, value in FORCE.get(identity, {}).items():
             if _properties(block).get(name, "") != value:
                 block = _set_property(block, name, value)
                 touched = True

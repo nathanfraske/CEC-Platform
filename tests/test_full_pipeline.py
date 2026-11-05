@@ -17,9 +17,38 @@ if str(SCRIPTS) not in sys.path:
 
 import cec_full_pipeline as pipeline
 import cec_continue_placement as continuation
+from route_candidate_test_support import run_candidate_in_process
 
 
 class FullPipelineJournalTests(unittest.TestCase):
+    def test_replacement_retires_coordinator_derived_state_without_changing_recipe(self):
+        original={'pourfirst_state':'/old/attempt/state.json',
+                  'pourfirst_outline_mm':[91,72],
+                  'pourfirst_seen_placements':{'ARBITRARY':[1,2,90]},
+                  'pourfirst_avoid_boxes':[[1,2,3,4]],
+                  'net_currents':{'rail':3.7},'overunder':True,'pour_reserve':True}
+        cfg=SimpleNamespace(params=original)
+        retired=pipeline._retire_replaced_power_authority(cfg)
+        self.assertEqual(set(retired),{'pourfirst_state','pourfirst_outline_mm',
+                                      'pourfirst_seen_placements','pourfirst_avoid_boxes'})
+        self.assertNotIn('pourfirst_state',cfg.params)
+        self.assertEqual(cfg.params,{'net_currents':{'rail':3.7},'overunder':True,'pour_reserve':True})
+        self.assertIn('pourfirst_state',original)
+        self.assertEqual(pipeline._retire_replaced_power_authority(cfg),{})
+
+    def test_frozen_route_authority_requirement_accepts_recipe_spelling(self):
+        self.assertTrue(pipeline._requires_frozen_route_authority(
+            SimpleNamespace(params={"pour_first": True})))
+        self.assertTrue(pipeline._requires_frozen_route_authority(
+            SimpleNamespace(params={
+                "pour_reserve": True, "overunder": True,
+                "pour_asks": [{"net": "/POWER"}],
+            })))
+        self.assertFalse(pipeline._requires_frozen_route_authority(
+            SimpleNamespace(params={"pour_reserve": True})))
+        self.assertFalse(pipeline._requires_frozen_route_authority(
+            SimpleNamespace(params={})))
+
     def test_placement_continuation_refuses_unlocked_routing(self):
         with tempfile.TemporaryDirectory() as temp:
             source = Path(temp) / "routed.kicad_pcb"
@@ -117,8 +146,8 @@ class FullPipelineJournalTests(unittest.TestCase):
             }
             with mock.patch.object(
                     pipeline, "_copy_sidecars", side_effect=copy_source), \
-                    mock.patch(
-                        "cec_sync_pcb_from_schematic.synchronize",
+                    mock.patch.object(
+                        pipeline, "_run_source_sync_process",
                         side_effect=[first, final]) as synchronize:
                 result = pipeline._normalize_schematic_first_source(
                     cfg, canonical, temp / "run")
@@ -130,10 +159,82 @@ class FullPipelineJournalTests(unittest.TestCase):
             self.assertEqual(
                 synchronize.call_args_list[1].kwargs["remove_refs"],
                 ("J_OLD",))
-            self.assertTrue(
-                synchronize.call_args_list[0].kwargs["rip_all_copper"])
+            self.assertEqual(synchronize.call_args_list[0].kwargs, {})
             self.assertEqual(canonical.read_text(encoding="utf-8"),
                              "canonical")
+
+    def test_routed_replacement_sync_preserves_declared_board_only_nets(self):
+        import cec_synth_pipeline as synth
+
+        cfg = SimpleNamespace(
+            sch="current.kicad_sch",
+            params={"source_sync_extra_pad_nets": {
+                "TP9.2": "+3V3", "H1.1": "GND"}})
+
+        command = synth._routed_replacement_sync_command(cfg, "work.kicad_pcb")
+
+        self.assertIn("--rip-all-copper", command)
+        self.assertIn("--add-missing", command)
+        self.assertIn("--replace-mismatched-footprints", command)
+        self.assertEqual(command[-4:], [
+            "--extra-pad-net", "H1.1=GND",
+            "--extra-pad-net", "TP9.2=+3V3",
+        ])
+
+    def test_routed_replacement_sync_rejects_ambiguous_pad_net_policy(self):
+        import cec_synth_pipeline as synth
+
+        cfg = SimpleNamespace(
+            sch="current.kicad_sch",
+            params={"source_sync_extra_pad_nets": ["H1.1=GND"]})
+
+        with self.assertRaisesRegex(ValueError, "REF.PAD-to-net mapping"):
+            synth._routed_replacement_sync_command(cfg, "work.kicad_pcb")
+
+    def test_fresh_materialization_replays_declared_board_only_pad_net(self):
+        import cec_synth_pipeline as synth
+
+        ground = SimpleNamespace(name="GND")
+
+        class Pad:
+            def __init__(self):
+                self.net = ""
+
+            def GetNumber(self):
+                return "1"
+
+            def GetNetname(self):
+                return self.net
+
+            def SetNet(self, net):
+                self.net = net.name
+
+        pads = [Pad() for _index in range(9)]
+        footprint = SimpleNamespace(
+            GetReference=lambda: "H1", Pads=lambda: pads)
+        nets = SimpleNamespace(NetsByName=lambda: {"GND": ground})
+        board = SimpleNamespace(
+            GetFootprints=lambda: [footprint], GetNetInfo=lambda: nets)
+        cfg = SimpleNamespace(params={
+            "source_sync_extra_pad_nets": {"H1.1": "GND"}})
+
+        changed = synth._apply_declared_board_pad_nets(board, cfg)
+
+        self.assertEqual(changed, 9)
+        self.assertEqual({pad.GetNetname() for pad in pads}, {"GND"})
+
+    def test_declared_board_only_pad_net_fails_if_target_is_absent(self):
+        import cec_synth_pipeline as synth
+
+        board = SimpleNamespace(
+            GetFootprints=lambda: [],
+            GetNetInfo=lambda: SimpleNamespace(NetsByName=lambda: {}))
+        cfg = SimpleNamespace(params={
+            "source_sync_extra_pad_nets": {"H1.1": "GND"}})
+
+        with self.assertRaisesRegex(
+                RuntimeError, "board-only pad net target.*H1.1"):
+            synth._apply_declared_board_pad_nets(board, cfg)
 
     def test_dashboard_stage_declares_pipeline_lineage_authority(self):
         cfg = SimpleNamespace(board="pcie-8pin-2port")
@@ -247,6 +348,9 @@ class FullPipelineJournalTests(unittest.TestCase):
                     mock.patch(
                         "cec_synth_pipeline.materialize") as materialize, \
                     mock.patch.object(
+                        pipeline, "_commit_craft_reconstruction",
+                        return_value=repair) as commit, \
+                    mock.patch.object(
                         pipeline, "_placement_position_signature",
                         side_effect=["before", "after"]):
                 report = pipeline._bounded_post_fiducial_craft_repair(
@@ -255,8 +359,10 @@ class FullPipelineJournalTests(unittest.TestCase):
                     max_trials=7, rounds=2, epochs=1)
 
             bounded.assert_called_once_with(
-                cfg, candidate, max_trials=7, rounds=2, epochs=1)
-            materialize.assert_called_once_with(candidate, cfg, str(board))
+                cfg, candidate, max_trials=7, rounds=2, epochs=1,
+                initial_evidence={"ok": False, "rank": 1}, probe_visits={})
+            commit.assert_called_once_with(cfg, candidate, board, repair)
+            materialize.assert_not_called()
             self.assertTrue(report["one_shot"])
             self.assertTrue(report["after_ok"])
             self.assertFalse(report["repeated_placement"])
@@ -371,6 +477,44 @@ class FullPipelineJournalTests(unittest.TestCase):
             key=lambda row: pipeline._outline_selection_sort_key(
                 row, route_probe=True))
         self.assertIs(rows[0], smaller)
+
+    def test_outline_variant_retains_derived_interface_anchor_authority(self):
+        import copy
+        import cec_synth_pipeline as synth
+        import cec_xfcn_contract as contract
+
+        # Exercise the auxiliary-anchor handoff without a product-specific
+        # auxiliary selector in the generic placement engine.
+        plan = copy.deepcopy(contract.PROJECTS['pcie2-main'])
+        plan['placements_mm']['AUX_FIXTURE'] = (40., 42., 90.)
+        cfg = SimpleNamespace(pins={}, params={'qualified_interface_anchor': {
+            'provider': 'cec_xfcn_contract', 'project': 'arbitrary-interface',
+            'edge': 'top', 'terminal_edge_y_mm': .9}})
+        with mock.patch.dict(contract.PROJECTS, {'arbitrary-interface': plan}):
+            bound = pipeline._bind_outline_variant_interface_anchors(
+                synth, cfg, 86.0, 95.0)
+
+        self.assertIn("AUX_FIXTURE", bound)
+        self.assertEqual(cfg.pins["AUX_FIXTURE"], bound["AUX_FIXTURE"])
+        x, y, _rotation = cfg.pins["AUX_FIXTURE"]
+        self.assertGreater(x, 0.0)
+        self.assertLess(x, 86.0)
+        self.assertGreater(y, 0.0)
+        self.assertLess(y, 95.0)
+
+    def test_outline_variant_refuses_uncompiled_interface(self):
+        import copy
+        import cec_synth_pipeline as synth
+        import cec_xfcn_contract as contract
+        from cec_mating_rows import MatingRowConflict
+        cfg = synth.Config.load('atx-24pin-rev3')
+        cfg.pins = {}
+        plan = copy.deepcopy(contract.PROJECTS['atx-main'])
+        plan['mating_row_compilation'] = {'ok': False, 'reason': 'injected_invalid_row'}
+        with mock.patch.dict(contract.PROJECTS, {'atx-main': plan}):
+            with self.assertRaises(MatingRowConflict):
+                pipeline._bind_outline_variant_interface_anchors(synth, cfg, 86., 95.)
+        self.assertEqual(cfg.pins, {})
 
     def test_resumed_compaction_preserves_discovered_edge_membership(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -499,9 +643,10 @@ class FullPipelineManifestTests(unittest.TestCase):
             Path(cfg.pcb).resolve(),
             (ROOT / "beta" / "hub-standard-rev2" / "candidate" /
              "hub-standard-rev2-candidate.kicad_pcb").resolve())
-        self.assertEqual(tuple(cfg.pins["J6P"]), (73.0, 59.7, 90.0))
-        self.assertEqual(tuple(cfg.pins["J6C"]), (18.0, 12.7, 90.0))
-        self.assertEqual(tuple(cfg.pins["J6D"]), (18.0, 59.7, 90.0))
+        from cec_fresh_wave import mating_frame_pins,MEZZ_HUB_24PIN
+        expected=mating_frame_pins(86,74,MEZZ_HUB_24PIN,'hub-standard-rev2')
+        for ref,pose in expected['anchor_pins'].items():
+            self.assertEqual(tuple(cfg.pins[ref]),pose)
 
     def test_namespaced_beta_board_keeps_manifest_identity(self):
         import cec_synth_pipeline as synth
@@ -582,12 +727,9 @@ class FullPipelineManifestTests(unittest.TestCase):
             {"craft_gate": {"ok": True, "deferred_to_route": []}}))
 
     def test_open_placement_fiducials_remain_reconsiderable(self):
-        open_board = mock.Mock()
-        open_board.GetTracks.return_value = []
-        routed_board = mock.Mock()
-        routed_board.GetTracks.return_value = [object()]
-        with mock.patch("pcbnew.LoadBoard", side_effect=[
-                open_board, routed_board]) as load:
+        with mock.patch.object(
+                pipeline, "_placement_board_snapshot", side_effect=[
+                    {"track_count": 0}, {"track_count": 1}]) as snapshot:
             self.assertTrue(
                 pipeline._placement_fiducials_reconsiderable("open.kicad_pcb"))
             self.assertFalse(
@@ -596,7 +738,26 @@ class FullPipelineManifestTests(unittest.TestCase):
             self.assertTrue(
                 pipeline._placement_fiducials_reconsiderable(
                     "replacement.kicad_pcb", replace=True))
-        self.assertEqual(load.call_count, 2)
+        self.assertEqual(snapshot.call_count, 2)
+
+    def test_native_pairs_require_probe_without_optional_reranking(self):
+        import cec_precision_route
+        cfg = SimpleNamespace(params={"placement_route_preflight_topk": 0})
+        with mock.patch.object(cec_precision_route, "derive_coupled_pairs",
+                               return_value=[{"name": "arbitrary"}]) as derive:
+            self.assertTrue(pipeline._placement_priority_probe_required(
+                cfg, "candidate.kicad_pcb"))
+            self.assertFalse(pipeline._placement_priority_probe_required(
+                cfg, "routed.kicad_pcb", preserved_routed=True))
+        derive.assert_called_once_with("candidate.kicad_pcb")
+        with mock.patch.object(cec_precision_route, "derive_coupled_pairs",
+                               return_value=[]):
+            self.assertFalse(pipeline._placement_priority_probe_required(
+                cfg, "simple.kicad_pcb"))
+        with mock.patch.object(cec_precision_route, "derive_coupled_pairs",
+                               side_effect=ValueError("invalid native board")):
+            with self.assertRaisesRegex(ValueError, "invalid native board"):
+                pipeline._placement_priority_probe_required(cfg, "bad.kicad_pcb")
 
     def test_priority_route_gate_owns_critical_escape_and_fanout(self):
         refused = pipeline._placement_priority_route_gate({
@@ -621,6 +782,111 @@ class FullPipelineManifestTests(unittest.TestCase):
              "package_fanout"])
         self.assertTrue(clean["ok"])
 
+    def test_priority_route_gate_refuses_missing_evidence(self):
+        gate = pipeline._placement_priority_route_gate({}, applicable=True)
+
+        self.assertFalse(gate["ok"])
+        self.assertEqual(gate["reason"],
+                         "placement_route_evidence_missing")
+
+    def test_priority_repair_can_bootstrap_from_prospective_power(self):
+        import contextlib
+        import cec_synth_pipeline as synth
+
+        cfg = SimpleNamespace(params={
+            "pour_first": True,
+            "pourfirst_state": "/tmp/rejected.json",
+            "pourfirst_avoid_boxes": [{"net": "/STALE"}],
+            "placement_route_repair_trials": 1,
+            "placement_route_repair_rounds": 1,
+            "placement_route_repair_full_evals": 1,
+            "placement_route_preflight_grid_mm": 1.0,
+            "placement_route_preflight_iters": 1,
+            "placement_route_preflight_backend": "cpu",
+            "placement_route_preflight_multiresolution": False,
+        })
+        rejected_bound = SimpleNamespace(params={
+            **cfg.params, "pourfirst_seen_placements": {"U1": [1, 1, 0]}})
+        loaded = mock.Mock()
+        loaded.GetTracks.return_value = []
+        candidate = SimpleNamespace(route_preflight={})
+        repaired = SimpleNamespace(route_preflight={
+            "critical_route_refused_count": 0})
+        with mock.patch("pcbnew.LoadBoard", return_value=loaded), \
+                mock.patch.object(
+                    synth, "config_with_board_route_authority",
+                    return_value=(rejected_bound, {
+                        "ok": False, "bound": False,
+                        "reason": "exact_filled_power_admission_failed"})), \
+                mock.patch.object(
+                    synth, "placement_candidate_from_board",
+                    return_value=candidate) as rehydrate, \
+                mock.patch.object(
+                    synth, "_oracle_env",
+                    side_effect=lambda _params: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "_placement_route_preflight_env",
+                    side_effect=lambda: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "repair_route_preflight_iterative",
+                    return_value=(repaired, {"changed": False})):
+            result = pipeline._repair_placement_priority_routes(
+                cfg, "/tmp/open.kicad_pcb",
+                allow_unbound_power_authority=True)
+
+        analysis_cfg = rehydrate.call_args.args[0]
+        self.assertEqual(result["authority_mode"],
+                         "prospective_power_reservations")
+        self.assertNotIn("pourfirst_state", analysis_cfg.params)
+        self.assertNotIn("pourfirst_avoid_boxes", analysis_cfg.params)
+        self.assertNotIn("pourfirst_seen_placements", analysis_cfg.params)
+        self.assertIn("pourfirst_state", cfg.params)
+
+    def test_priority_measure_accepts_attested_pipeline_copper(self):
+        import contextlib
+        import cec_synth_pipeline as synth
+        import cec_route_preflight as preflight
+
+        cfg = SimpleNamespace(params={
+            "pour_first": True,
+            "placement_route_preflight_grid_mm": 1.0,
+            "placement_route_preflight_iters": 1,
+            "placement_route_preflight_backend": "cpu",
+            "placement_route_preflight_multiresolution": False,
+        })
+        bound = SimpleNamespace(params=dict(cfg.params))
+        candidate = SimpleNamespace(route_preflight={})
+        measured = SimpleNamespace(route_preflight={
+            "critical_route_refused_count": 0,
+        })
+        with mock.patch.object(
+                synth, "config_with_board_route_authority",
+                return_value=(bound, {"ok": True, "bound": True})), \
+                mock.patch.object(
+                    synth, "placement_candidate_from_board",
+                    return_value=candidate) as rehydrate, \
+                mock.patch.object(
+                    synth, "_oracle_env",
+                    side_effect=lambda _params: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "_placement_route_preflight_env",
+                    side_effect=lambda: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "rerank_route_preflight",
+                    return_value=[measured]) as rerank, \
+                mock.patch.object(preflight, 'analyze', return_value={}) as analyze, \
+                mock.patch.object(preflight, 'compact_placement_evidence',
+                                  return_value=measured.route_preflight):
+            result = pipeline._measure_placement_priority_routes(
+                cfg, "/tmp/pipeline-placement.kicad_pcb",
+                allow_authored_prefix=True)
+
+        self.assertEqual(result["authority_mode"], "exact")
+        rehydrate.assert_not_called()
+        rerank.assert_not_called()
+        self.assertEqual(analyze.call_args.args, ('/tmp/pipeline-placement.kicad_pcb',))
+        self.assertEqual(result['measurement_domain'], 'exact_saved_artifact')
+
     def test_placement_preflight_uses_and_restores_production_owner_order(self):
         import cec_synth_pipeline as synth
 
@@ -632,11 +898,48 @@ class FullPipelineManifestTests(unittest.TestCase):
                     os.environ["CEC_PROSPECTIVE_POUR_RESERVATIONS"], "1")
                 self.assertEqual(
                     os.environ["CEC_ROUTE_PRIORITY_POLICY"],
-                    "critical-first")
+                    "power-first")
             self.assertEqual(
                 os.environ["CEC_PROSPECTIVE_POUR_RESERVATIONS"], "before")
             self.assertEqual(
                 os.environ["CEC_ROUTE_PRIORITY_POLICY"], "power-first")
+
+    def test_prospective_power_still_measures_the_attested_saved_prefix(self):
+        import contextlib
+        import cec_synth_pipeline as synth
+        import cec_route_preflight as preflight
+        cfg = SimpleNamespace(params={"pour_first": True,
+            "placement_route_preflight_multiresolution": False})
+        with mock.patch.object(synth, "config_with_board_route_authority",
+                return_value=(cfg, {"ok": False, "bound": False})), \
+                mock.patch.object(synth, "placement_candidate_from_board") as rebuild, \
+                mock.patch.object(synth, "_oracle_env", return_value=contextlib.nullcontext()), \
+                mock.patch.object(synth, "_placement_route_preflight_env", return_value=contextlib.nullcontext()), \
+                mock.patch.object(preflight, "analyze", return_value={}) as analyze, \
+                mock.patch.object(preflight, "compact_placement_evidence", return_value={}):
+            result = pipeline._measure_placement_priority_routes(cfg,
+                "/tmp/authored-prefix.kicad_pcb", allow_authored_prefix=True,
+                allow_unbound_power_authority=True)
+        rebuild.assert_not_called()
+        self.assertEqual(analyze.call_args.args, ("/tmp/authored-prefix.kicad_pcb",))
+        self.assertEqual(result["measurement_domain"], "exact_saved_artifact")
+        self.assertEqual(result["authority_mode"], "prospective_power_reservations")
+
+    def test_placement_owner_order_default_and_invalid_policy(self):
+        import cec_synth_pipeline as synth
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with synth._placement_route_preflight_env():
+                self.assertEqual(os.environ["CEC_ROUTE_PRIORITY_POLICY"],
+                                 "critical-first")
+            self.assertNotIn("CEC_ROUTE_PRIORITY_POLICY", os.environ)
+        with mock.patch.dict(os.environ, {
+                "CEC_ROUTE_PRIORITY_POLICY": "not-a-policy",
+                "CEC_PROSPECTIVE_POUR_RESERVATIONS": "untouched"}):
+            with self.assertRaises(ValueError):
+                with synth._placement_route_preflight_env():
+                    self.fail("invalid policy entered the placement context")
+            self.assertEqual(os.environ["CEC_PROSPECTIVE_POUR_RESERVATIONS"],
+                             "untouched")
 
     def test_existing_open_placement_enters_exact_priority_repair(self):
         import contextlib
@@ -690,7 +993,58 @@ class FullPipelineManifestTests(unittest.TestCase):
             repair.call_args.kwargs["completion_report"],
             completion_report)
         materialize.assert_called_once_with(
-            repaired, cfg, str(Path("/tmp/open.kicad_pcb").resolve()))
+            repaired, repair.call_args.args[0], str(Path("/tmp/open.kicad_pcb").resolve()))
+        self.assertIsNot(repair.call_args.args[0],cfg)
+        self.assertNotIn('placement_route_pair_timeout_s',cfg.params)
+
+    def test_priority_repair_accepts_explicit_authored_placement_prefix(self):
+        import contextlib
+        import cec_synth_pipeline as synth
+
+        cfg = SimpleNamespace(params={
+            "placement_route_repair_trials": 1,
+            "placement_route_repair_rounds": 1,
+            "placement_route_repair_full_evals": 1,
+            "placement_route_preflight_grid_mm": 1.0,
+            "placement_route_preflight_iters": 1,
+            "placement_route_preflight_backend": "cpu",
+            "placement_route_preflight_multiresolution": False,
+        })
+        loaded = mock.Mock()
+        loaded.GetTracks.return_value = [
+            SimpleNamespace(IsLocked=lambda: True)]
+        candidate = SimpleNamespace(route_preflight={})
+        repaired = SimpleNamespace(route_preflight={})
+        with mock.patch("pcbnew.LoadBoard", return_value=loaded), \
+                mock.patch.object(
+                    synth, "config_with_board_route_authority",
+                    return_value=(cfg, {"ok": True, "bound": False,
+                                        "applicable": False})), \
+                mock.patch.object(
+                    synth, "placement_candidate_from_board",
+                    return_value=candidate) as rehydrate, \
+                mock.patch.object(
+                    synth, "_oracle_env",
+                    side_effect=lambda _params: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "_placement_route_preflight_env",
+                    side_effect=lambda: contextlib.nullcontext()), \
+                mock.patch.object(
+                    synth, "repair_route_preflight_iterative",
+                    return_value=(repaired, {"changed": False})):
+            result = pipeline._repair_placement_priority_routes(
+                cfg, "/tmp/authored-prefix.kicad_pcb",
+                allow_authored_prefix=True)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["applicable"])
+        bound_cfg=rehydrate.call_args.args[0]
+        self.assertIsNot(bound_cfg,cfg)
+        self.assertNotIn('placement_route_pair_timeout_s',cfg.params)
+        self.assertEqual(bound_cfg.params,{**cfg.params,'placement_route_pair_timeout_s':120.0})
+        rehydrate.assert_called_once_with(
+            bound_cfg, str(Path("/tmp/authored-prefix.kicad_pcb").resolve()),
+            allow_routed=True)
 
     def test_placement_power_authority_snapshot_rolls_back_as_one_unit(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -773,9 +1127,75 @@ class FullPipelineManifestTests(unittest.TestCase):
             self.assertTrue(published["ok"])
             self.assertIn(".pourfirst-state.json", published["roles"])
 
+    def test_stage_artifact_rows_reject_losing_transaction_path(self):
+        """Artifact journals must describe the selected transaction only."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            selected = root / "selected.pourfirst-state.json"
+            selected.write_text("{}", encoding="utf-8")
+            missing_loser = root / "loser.pourfirst-skeleton.kicad_pcb"
+            with self.assertRaisesRegex(FileNotFoundError,
+                                        "loser.pourfirst-skeleton"):
+                pipeline._artifact_rows([selected, missing_loser])
+            rows = pipeline._artifact_rows([selected])
+            self.assertEqual([row["path"] for row in rows],
+                             [str(selected.resolve())])
+
+    def test_post_authority_craft_repair_is_one_shot_and_generic(self):
+        import cec_synth_pipeline as synth
+
+        cfg = SimpleNamespace()
+        candidate = object()
+        craft = {
+            "ok": False,
+            "power_body_clearance": {
+                "ok": False,
+                "violations": [{"ref": "D2", "net": "+VIN"}],
+                "planner_failures": {},
+            },
+        }
+        with mock.patch.object(
+                pipeline, "_placement_position_signature",
+                side_effect=("before", "after")), mock.patch.object(
+                synth, "placement_candidate_from_board",
+                return_value=candidate) as rehydrate, mock.patch.object(
+                synth, "repair_placement_craft_epochs",
+                return_value=(candidate, {"ok": True, "changed": True})) \
+                as repair, mock.patch.object(synth, "materialize") as emit:
+            result = pipeline._bounded_post_authority_craft_repair(
+                cfg, "/tmp/board.kicad_pcb", craft,
+                max_trials=12, rounds=2, epochs=3,
+                allow_authored_prefix=True)
+
+        self.assertTrue(result["changed"])
+        self.assertTrue(result["one_shot"])
+        self.assertEqual(result["authority_dependency"],
+                         "frozen_power_territory")
+        rehydrate.assert_called_once_with(
+            cfg, "/tmp/board.kicad_pcb", allow_routed=True)
+        repair.assert_called_once_with(
+            cfg, candidate, max_trials=12, rounds=2, epochs=3,
+            initial_evidence=craft, probe_visits={})
+        emit.assert_called_once_with(
+            candidate, cfg, "/tmp/board.kicad_pcb")
+
+    def test_exhausted_return_is_a_post_power_dependency_even_when_bodies_are_clean(self):
+        proof={'supply_access_ok':False,'supply_access_certificate':{
+            'ground_return':{'attempts':[{'error':'blocked','evidence':{
+                'search_exhausted':True,'conclusion':'no_legal_immediate_ground_return'}}]}}}
+        craft={'ok':False,'power_body_clearance':{'ok':True},
+               'decoupler':{'details':[proof]}}
+        self.assertEqual(pipeline._post_authority_craft_dependencies(craft),['ground_return_access'])
+        proof['supply_access_ok']=True
+        self.assertEqual(pipeline._post_authority_craft_dependencies(craft),[])
+        proof['supply_access_ok']=False
+        proof['supply_access_certificate']['ground_return']['attempts'][0]['evidence']['search_exhausted']=False
+        self.assertEqual(pipeline._post_authority_craft_dependencies(craft),[])
+
     def test_stale_power_only_move_is_replanned_before_route_acceptance(self):
         import cec_route_preflight
         import cec_synth_pipeline as synth
+        import cec_finalist_evidence
 
         with tempfile.TemporaryDirectory() as temp:
             board = Path(temp) / "board.kicad_pcb"
@@ -789,8 +1209,8 @@ class FullPipelineManifestTests(unittest.TestCase):
             })
             ordinary = {
                 "schema": 1, "ok": True, "changed": False,
-                "accepted_count": 0, "baseline_key": [0, 2],
-                "result_key": [0, 2], "rounds": [{
+                "accepted_count": 0, "baseline_key": [0, 2] + [0]*17,
+                "result_key": [0, 2] + [0]*17, "rounds": [{
                     "power_replan_candidates": [
                         {"kind": "station", "placements": {
                             "U1": [2.0, 1.0, 0.0]}},
@@ -800,7 +1220,7 @@ class FullPipelineManifestTests(unittest.TestCase):
                 }],
             }
 
-            def candidate(*_args):
+            def candidate(*_args, **_kwargs):
                 return SimpleNamespace(P={"U1": (1.0, 1.0, 0.0)})
 
             def materialize(_candidate, _cfg, path):
@@ -830,11 +1250,18 @@ class FullPipelineManifestTests(unittest.TestCase):
                         pipeline, "_ensure_placement_route_authority",
                         return_value={"ok": True}), \
                     mock.patch.object(
+                        pipeline, "_measure_placement_physical",
+                        return_value={key: {"ok": True} for key in
+                            ("pads_in_bounds", "courtyards", "craft_gate", "constraint_gate")}), \
+                    mock.patch.object(
                         pipeline, "_measure_placement_priority_routes",
-                        side_effect=[{"key": [0, 3]}, {"key": [0, 0]}]), \
+                        side_effect=[{"key": [0, 3] + [0]*17}, {"key": [0]*19}]), \
                     mock.patch.object(
                         cec_route_preflight, "placement_evidence_key",
-                        side_effect=lambda evidence: tuple(evidence["key"])):
+                        side_effect=lambda evidence: tuple(evidence["key"])), \
+                    mock.patch.object(
+                        cec_finalist_evidence.shutil, "disk_usage",
+                        return_value=SimpleNamespace(free=64*1024**3)):
                 result = pipeline.\
                     _repair_placement_priority_routes_with_power_replan(
                         cfg, board, ordinary)
@@ -842,7 +1269,10 @@ class FullPipelineManifestTests(unittest.TestCase):
         self.assertTrue(result["changed"])
         self.assertTrue(result["power_replan"]["accepted"])
         self.assertEqual(result["power_replan"]["selected_index"], 1)
-        self.assertEqual(result["result_key"], [0, 0])
+        self.assertEqual(result["result_key"], [0]*19)
+        self.assertEqual(result['power_replan']['trials'][0]['comparison']['decisive_change']['field'],
+                         'critical_route_refused_count')
+        self.assertTrue(result['power_replan']['trials'][0]['artifact']['retained'])
         self.assertNotIn("pourfirst_state", cfg.params)
         self.assertNotIn("pourfirst_avoid_boxes", cfg.params)
         self.assertFalse(stale_state.exists())
@@ -1071,6 +1501,132 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             admit.assert_called_once_with(cfg, board.resolve(),
                                           state.resolve())
 
+    def test_route_authority_binding_recovers_dead_kicad_proxy(self):
+        import pcbnew
+        import cec_synth_pipeline as synth
+
+        cfg = synth.Config.load("pcie-8pin-2port")
+        source = Path(cfg.pcb)
+        with tempfile.TemporaryDirectory() as temp:
+            board = Path(temp) / "board.kicad_pcb"
+            shutil.copy2(source, board)
+            loaded = pcbnew.LoadBoard(str(board))
+            placements = {
+                fp.GetReference(): [
+                    fp.GetPosition().x / 1e6,
+                    fp.GetPosition().y / 1e6,
+                    float(fp.GetOrientationDegrees()),
+                ]
+                for fp in loaded.GetFootprints()}
+            board.with_name("board.pourfirst-state.json").write_text(
+                json.dumps({
+                    "schema": 3,
+                    "placement_scope": "complete",
+                    "placements": placements,
+                    "pours": [{
+                        "net": "/RAIL", "provenance": "pourfirst",
+                        "layer": "F.Cu",
+                        "poly": [[1, 1], [2, 1], [2, 2], [1, 2]],
+                    }],
+                    "vias": [], "frozen_nets": ["/RAIL"],
+                    "corridors": [{
+                        "net": "/RAIL", "layer": "F.Cu",
+                        "x0": 1, "y0": 1, "x1": 2, "y1": 2,
+                    }],
+                }), encoding="utf-8")
+
+            with mock.patch("pcbnew.LoadBoard", return_value=object()):
+                bound, report = synth.config_with_board_route_authority(
+                    cfg, str(board))
+
+            self.assertTrue(report["ok"], report)
+            self.assertTrue(report["bound"], report)
+            self.assertEqual(report["placement_snapshot_mode"],
+                             "isolated_fallback")
+            self.assertEqual(bound.params["pourfirst_state"],
+                             str(board.with_name(
+                                 "board.pourfirst-state.json")))
+
+    def test_fabrication_profile_declaration_uses_fresh_process(self):
+        with tempfile.TemporaryDirectory() as temp:
+            board = Path(temp) / "board.kicad_pcb"
+            board.write_text("fixture", encoding="utf-8")
+
+            def completed(command, **_kwargs):
+                report = Path(command[command.index("--report") + 1])
+                report.write_text(json.dumps({
+                    "profile": "six-layer-profile",
+                    "changed": False,
+                    "geometry_changed": False,
+                }), encoding="utf-8")
+                return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+            with mock.patch("subprocess.run", side_effect=completed) as run:
+                result = pipeline._declare_fabrication_profile_isolated(
+                    board, "six-layer-profile")
+
+            command = run.call_args.args[0]
+            self.assertIn("declare-profile", command)
+            self.assertEqual(command[command.index("--profile") + 1],
+                             "six-layer-profile")
+            self.assertTrue(result["process_isolated"])
+            self.assertFalse(result["geometry_changed"])
+
+    def test_route_authority_compiler_uses_fresh_process(self):
+        cfg = SimpleNamespace(
+            params={"route_authority_process_isolation": True})
+        expected = {
+            "ok": True, "bound": True,
+            "state": "/tmp/board.pourfirst-state.json",
+        }
+        with mock.patch.object(
+                pipeline, "_run_priority_placement_operation_isolated",
+                return_value=dict(expected)) as isolated:
+            result = pipeline._ensure_placement_route_authority(
+                cfg, "board.kicad_pcb", allow_authored_prefix=True)
+
+        isolated.assert_called_once_with(
+            "ensure-authority", cfg, "board.kicad_pcb",
+            allow_authored_prefix=True)
+        self.assertTrue(result["process_isolated"])
+        self.assertEqual(cfg.params["pourfirst_state"], expected["state"])
+
+    def test_fiducial_transaction_uses_fresh_process(self):
+        cfg = SimpleNamespace(params={"fiducial_process_isolation": True})
+        with mock.patch.object(
+                pipeline, "_run_priority_placement_operation_isolated",
+                return_value={"ok": True, "changed": False}) as isolated:
+            result = pipeline._transactional_fiducial_edge_repair(
+                cfg, "board.kicad_pcb", reconsider_all=True)
+
+        isolated.assert_called_once_with(
+            "fiducial-repair", cfg, "board.kicad_pcb",
+            reconsider_all=True)
+        self.assertTrue(result["process_isolated"])
+
+    def test_placement_measurement_uses_fresh_process(self):
+        cfg = SimpleNamespace(
+            board="hub-standard-rev2",
+            params={"placement_measure_process_isolation": True})
+        expected = {
+            "ok": True,
+            "pads_in_bounds": {"ok": True},
+            "courtyards": {"ok": True},
+            "craft": {},
+            "craft_gate": {"ok": True},
+            "constraint_gate": {"ok": True},
+        }
+        with mock.patch.object(
+                pipeline, "_run_priority_placement_operation_isolated",
+                return_value=dict(expected)) as isolated:
+            result = pipeline._measure_placement_physical(
+                cfg, "board.kicad_pcb")
+
+        isolated.assert_called_once_with(
+            "placement-measure", cfg, "board.kicad_pcb")
+        self.assertTrue(result["process_isolated"])
+        self.assertTrue(result["ok"])
+
     def test_stage_copy_preserves_executable_route_sidecars(self):
         with tempfile.TemporaryDirectory() as temp:
             temp = Path(temp)
@@ -1224,6 +1780,8 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             else:
                 os.environ["CEC_FR_SEED_AXIS"] = previous
 
+    @mock.patch.object(pipeline, "_grade_route_incumbent", new=lambda *a, **k: None)
+    @mock.patch('cec_operation_budget.run', new=run_candidate_in_process)
     def test_route_stage_persists_structured_no_artifact_failures(self):
         import cec_synth_pipeline as synth
 
@@ -1310,6 +1868,38 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             self.assertTrue(
                 route.call_args.kwargs["allow_route_access_repair"])
 
+    def test_route_probe_refuses_missing_recipe_power_authority(self):
+        import cec_synth_pipeline as synth
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            board = temp / "board.kicad_pcb"
+            board.write_text("placement", encoding="utf-8")
+            (temp / "board.placement.json").write_text(
+                json.dumps({"ok": True}), encoding="utf-8")
+            cfg = SimpleNamespace(board="power-board", params={
+                "pour_reserve": True,
+                "overunder": True,
+                "pour_asks": [{"net": "/POWER"}],
+            })
+            with mock.patch.object(
+                    synth.Config, "load", return_value=cfg), \
+                    mock.patch.object(
+                        synth, "config_with_board_route_authority",
+                        return_value=(cfg, {
+                            "ok": True, "applicable": False,
+                            "bound": False,
+                            "reason": "no_sibling_pourfirst_state",
+                        })), \
+                    mock.patch.object(pipeline, "_route_stage") as route:
+                with self.assertRaisesRegex(
+                        pipeline.PipelineBlocked,
+                        "matching frozen route authority"):
+                    pipeline.run_route_probe(
+                        board_name="power-board", placement_board=board,
+                        out_dir=temp / "probe")
+            route.assert_not_called()
+
     def test_route_probe_revalidates_clean_placement_without_route_deferral(self):
         import cec_synth_pipeline as synth
 
@@ -1372,6 +1962,22 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                 pipeline.sha256_file(source), pipeline.sha256_file(output),
                 "a no-op placement verification must preserve all copper and zones")
 
+    def test_top_level_worker_ceiling_bounds_every_nested_placement_pool(self):
+        cfg = SimpleNamespace(params={
+            "placement_craft_eval_workers": 16,
+            "placement_route_preflight_workers": 9,
+            "placement_route_repair_probe_workers": 2,
+        })
+        bound = pipeline._bind_placement_worker_budget(cfg, 4)
+        self.assertEqual(bound, {
+            "placement_craft_eval_workers": 4,
+            "placement_route_preflight_workers": 4,
+            "placement_route_repair_probe_workers": 2,
+            "route_authority_workers": 4,
+        })
+        self.assertEqual(bound, {
+            key: cfg.params[key] for key in bound})
+
     def test_routed_canonical_input_never_enters_placement_rehydration(self):
         import cec_synth_pipeline as synth
 
@@ -1393,6 +1999,54 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             self.assertEqual(
                 pipeline.sha256_file(source), pipeline.sha256_file(output))
 
+    def test_digest_verified_placement_checkpoint_is_resumable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            stage_dir = run / "02-placement"
+            stage_dir.mkdir()
+            board = stage_dir / "board.kicad_pcb"
+            board.write_text("placement checkpoint", encoding="utf-8")
+            digest = pipeline.sha256_file(board)
+            (run / "pipeline-state.json").write_text(json.dumps({
+                "schema": 1,
+                "stages": {"placement": {
+                    "status": "complete",
+                    "artifacts": [{
+                        "path": str(board.resolve()),
+                        "sha256": digest,
+                    }],
+                }},
+            }), encoding="utf-8")
+
+            provenance = pipeline._placement_stage_artifact_provenance(board)
+            self.assertEqual(provenance["kind"],
+                             "pipeline_placement_stage")
+            self.assertEqual(provenance["sha256"], digest)
+
+            board.write_text("mutated", encoding="utf-8")
+            self.assertIsNone(
+                pipeline._placement_stage_artifact_provenance(board))
+
+    def test_failed_stage_authored_prefix_checkpoint_is_resumable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            board = Path(temp) / "board.kicad_pcb"
+            board.write_text("pipeline-owned force rails", encoding="utf-8")
+
+            checkpoint = Path(
+                pipeline._write_placement_authored_prefix_checkpoint(board))
+            provenance = pipeline._placement_stage_artifact_provenance(board)
+
+            self.assertTrue(checkpoint.is_file())
+            self.assertEqual(
+                provenance["kind"], "pipeline_placement_authored_prefix")
+            self.assertEqual(provenance["sha256"], pipeline.sha256_file(board))
+            board.write_text("foreign mutation", encoding="utf-8")
+            self.assertIsNone(
+                pipeline._placement_stage_artifact_provenance(board))
+
+    @mock.patch.object(pipeline, "_grade_route_incumbent", new=lambda *a, **k: None)
+    @mock.patch('cec_route_checkpoint.preservation', new=lambda *a, **k: {'ok': True})
+    @mock.patch('cec_operation_budget.run', new=run_candidate_in_process)
     def test_canonical_route_enables_declared_winner_completion_and_fails_closed(self):
         import cec_synth_pipeline as synth
 
@@ -1432,20 +2086,22 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                     seed=0, timeout=1, thermal="lazy"
                 )
 
-            load.assert_called_once_with(
-                "neutral-board",
-                params={"lastmile_final_winner": True,
-                        "lastmile_final": True,
-                        "automatic_pin_escape_tier": True},
-            )
+            self.assertEqual(load.call_count, 2)  # Coordinator and serialized child.
+            load.assert_has_calls([mock.call("neutral-board",
+                params={"lastmile_final_winner": True, "lastmile_final": True,
+                        "automatic_pin_escape_tier": True})] * 2)
             self.assertIs(route.call_args.kwargs["cfg"], promoted)
             self.assertEqual(seen, {"axis": "1", "seed": 0})
             self.assertTrue(result["winner_completion_enabled"])
             self.assertTrue(result["artifact_produced"])
             self.assertFalse(result["ok"])
 
+    @mock.patch.object(pipeline, "_grade_route_incumbent", new=lambda *a, **k: None)
+    @mock.patch('cec_route_checkpoint.preservation', new=lambda *a, **k: {'ok': True})
+    @mock.patch('cec_operation_budget.run', new=run_candidate_in_process)
     def test_gate_clean_route_runs_transactional_fab_polish(self):
         import cec_fab_repair
+        import cec_dimension_repair
         import cec_synth_pipeline as synth
 
         with tempfile.TemporaryDirectory() as temp:
@@ -1470,6 +2126,9 @@ class FullPipelineRouteStageTests(unittest.TestCase):
             with mock.patch.object(
                     synth, "route_oracle_grade", return_value=oracle), \
                     mock.patch.object(
+                        cec_dimension_repair, "repair_admitted",
+                        return_value={"changed": False, "plan": {"eligible": 0}}) as dimension_call, \
+                    mock.patch.object(
                         cec_fab_repair, "repair_admitted",
                         return_value=polish) as repair_call:
                 result = pipeline._route_stage(
@@ -1477,13 +2136,23 @@ class FullPipelineRouteStageTests(unittest.TestCase):
                     seed=0, timeout=1, thermal="lazy")
 
             repair_call.assert_called_once_with(str(routed))
+            dimension_call.assert_called_once()
+            self.assertEqual(dimension_call.call_args.args, (str(routed),))
+            self.assertEqual(dimension_call.call_args.kwargs["board_hint"], cfg.board)
+            self.assertEqual(dimension_call.call_args.kwargs["max_targets"], 8)
+            self.assertEqual(dimension_call.call_args.kwargs["max_seats"], 32)
+            self.assertEqual(result["dimension_repair"]["plan"]["eligible"], 0)
             self.assertEqual(result["fab_repair"]["chosen"],
                              "track_polish")
             oracle_report = json.loads(
                 (temp / "work" / "oracle.json").read_text())
             self.assertEqual(oracle_report["fab_repair"]["chosen"],
                              "track_polish")
+            self.assertEqual(oracle_report["dimension_repair"], result["dimension_repair"])
 
+    @mock.patch.object(pipeline, "_grade_route_incumbent", new=lambda *a, **k: None)
+    @mock.patch('cec_route_checkpoint.preservation', new=lambda *a, **k: {'ok': True})
+    @mock.patch('cec_operation_budget.run', new=run_candidate_in_process)
     def test_incomplete_route_still_runs_monotonic_fab_polish(self):
         import cec_fab_repair
         import cec_synth_pipeline as synth

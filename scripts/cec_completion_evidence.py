@@ -38,11 +38,21 @@ def refusal_certificates(data):
     """Return unique certificate-bearing refusal details from any report form."""
     payload = _payload(data)
     reports = []
-    for name in ("final_completion", "lastmile"):
-        if isinstance(payload.get(name), dict):
-            reports.append(payload[name])
-    if isinstance(payload.get("refused_details"), list):
-        reports.append(payload)
+    if 'final_residual' in payload:
+        # Historical attempts can name closed nets or obsolete endpoint pairs.
+        # A failed/partial final survey never falls back to those stale hints.
+        # The snapshot is source-bound diagnostic guidance, not move admission.
+        import cec_final_residual
+        final = payload['final_residual']
+        if not cec_final_residual.valid_snapshot(final):
+            return []
+        reports.append({'refused_details': final['residual_details']})
+    else:
+        for name in ("final_completion", "lastmile"):
+            if isinstance(payload.get(name), dict):
+                reports.append(payload[name])
+        if isinstance(payload.get("refused_details"), list):
+            reports.append(payload)
     rows, seen = [], set()
     for report in reports:
         for detail in report.get("refused_details") or ():
@@ -63,9 +73,14 @@ def refusal_certificates(data):
 
 def _endpoint_clear_rays(certificate):
     rays = defaultdict(set)
+    access = {str(row.get('endpoint') or ''): set(row['copper_layers'])
+              for row in certificate.get('endpoints') or ()
+              if isinstance(row.get('copper_layers'), list)}
     for layer in certificate.get("layers") or ():
         for escape in layer.get("endpoint_escape") or ():
             endpoint = str(escape.get("endpoint") or "")
+            if endpoint in access and layer.get('layer') not in access[endpoint]:
+                continue  # Clear copper on an inaccessible layer is not a pad escape.
             rays[endpoint].update(
                 str(value) for value in (escape.get("clear_rays") or ())
                 if str(value) in _DIRECTIONS)
@@ -130,8 +145,18 @@ def placement_hints(data, *, critical_nets=()):
                         for x, y in row["anchors"][:8]],
         })
     hints.sort(key=lambda row: (-row["score"], row["ref"], row["role"]))
-    return {"schema": SCHEMA, "certificate_count": len(certificates),
-            "hint_count": len(hints), "hints": hints}
+    result = {"schema": SCHEMA, "certificate_count": len(certificates),
+              "hint_count": len(hints), "hints": hints}
+    payload = _payload(data)
+    if 'final_residual' in payload:
+        import cec_final_residual
+        final = payload.get('final_residual') or {}
+        result['final_residual_scope'] = dict(
+            valid=cec_final_residual.valid_snapshot(final),
+            source_board_sha256=final.get('source_board_sha256') if isinstance(final, dict) else None,
+            details_complete=final.get('details_complete') if isinstance(final, dict) else False,
+            historical_fallback=False, release_authority=False)
+    return result
 
 
 def power_planner_failures(data):

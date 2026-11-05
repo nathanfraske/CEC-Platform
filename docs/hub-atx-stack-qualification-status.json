@@ -1,0 +1,21 @@
+{
+  "release_status": "PROTOTYPE_BLOCKED",
+  "design_target_gap_mm": 22.0,
+  "qualified_pair": null,
+  "placement_status": "ENVELOPE_CHECKED_UNDER_DECLARED_BOUNDS",
+  "placement_pair": "docs/hub-atx-active-placement-pair.json",
+  "placement_evidence": "build/hub-atx-3d-placement-20260922/paired-validation.json",
+  "placement_pass_evidence": "build/hub-atx-3d-placement-20260922/placement-pass-review.json",
+  "placement_candidates_generated": {"hub-standard-rev2": 1, "atx-24pin-rev3": 3},
+  "routing_admitted": false,
+  "gates": {
+    "contact_geometry": {"passed": false, "note": "18/18 same-number same-role contacts and native datum gates pass on the hash-pinned placement pair. Final routed release pair is not selected."},
+    "connector_tolerances": {"passed": false, "note": "REF housing dimensions and lateral contact capture need supplier bounds"},
+    "vent_path": {"passed": false, "note": "Minimum 4.3mm under declared local gap and seating bounds; two native opposing-surface no-copper/no-component guards implemented and checked from both sides. Current VZH approval and final copper/mask inspection remain."},
+    "hardware": {"passed": false, "note": "Selected ASB-2022E 22+/-0.1mm M2 female/female support and SSCF-M2-5-A2 screws. CAD envelope passes; no supplier/incoming/thread/torque/bow sample qualification claimed."},
+    "port_access": {"passed": false, "note": "All eight 1.2mm planar access checks pass on 84.49x72.2mm recessed Hub paired seed. Full plug/latch swept volumes and final-pair physical qualification pending."},
+    "opposing_bodies": {"passed": false, "note": "Complete native footprint population screened; 0 envelope conflicts under explicit height/tolerance allocations. Closest opposing body gap 0.8mm. Allocations and external cable/latch sweeps still need physical qualification."},
+    "capacitor_eco": {"passed": false, "note": "C1+C37 actual two-cap hierarchy/BOM/native-footprint/net parity passes; startup typical slew note corrected. Cold/aged ESR, full-load startup and OQ-56 bench qualification remain open"},
+    "physical_fit": {"passed": false, "note": "No assembled sample measured"}
+  }
+}

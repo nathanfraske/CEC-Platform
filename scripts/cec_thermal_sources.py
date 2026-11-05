@@ -12,10 +12,9 @@
 # inventory beyond shunts) and J2 (absolute-T vs material limits) from
 # docs/standard-tier-review/thermal-solve-completeness-2026-07-06.md.
 #
-# OWN-MODULE ISOLATION (plan discipline, thermal-capabilities-implementation
-# doc "Discipline" section): this file is a standalone consumer. It does NOT
-# import scripts/cec_synth_pipeline.py or scripts/cec_thermal2d.py, and
-# neither of those files (nor any existing test) is edited by this work.
+# SOURCE-PRODUCER ISOLATION: this file does not import cec_synth_pipeline or
+# cec_thermal2d. The current-manifest adapter in cec_thermal_contract binds its
+# inventory to exact populated references before the overlay consumes it.
 # Netlists are obtained by shelling out to `kicad-cli sch export netlist`
 # (subprocess) and parsed with a small self-contained s-expression reader
 # below -- independently written, following the same conventions visible in
@@ -35,9 +34,9 @@
 #
 # ADDITIVE / READ-ONLY: this module reads board/schematic files and cfg-style
 # param dicts; it never mutates a board, schematic, or any existing script.
-# It is a pure "extra discrete sources" producer for a FUTURE integration
-# pass into cec_synth_pipeline.electrothermal_solve (coordinator-gated, per
-# the plan doc); nothing here is wired into that solver yet.
+# It produces extra discrete sources for cec_thermal_contract and the overlay.
+# Legacy typical/assumed values remain explicitly unverified; consuming them
+# does not certify a component-temperature or manufacturing release pass.
 # ============================================================================
 """
 cec_thermal_sources
@@ -52,10 +51,10 @@ Two independent capabilities, both read-only / additive:
    amplifiers, protection diodes, and a few board-specific extras such as the
    Hub's power-path mux and hold-up boost/buck) and reports a per-component
    wattage with its basis citation and (when pcbnew is available) its board
-   position. This is a PRODUCER: it does not feed the number into any solver
-   here -- a future integration pass (coordinator-gated, per the plan doc)
-   is expected to consume ``InventoryResult.sources`` as extra discrete
-   sources alongside the shunts electrothermal_solve() already places.
+   position. This is a PRODUCER: ``cec_thermal_contract`` verifies source to
+   artifact identity and ``cec_thermal_overlay`` consumes the discrete heat.
+   Standalone inventories without an electrical budget retain their explicitly
+   marked typical/assumed scenarios, not a certified worst-case envelope.
 
 2. **Absolute-temperature material-limit gate** (`material_limit_gate()`):
    given a solve's peak local temperature (a plain float parameter -- this
@@ -102,6 +101,7 @@ without reading this file's internals):
   file-based handoff instead of an in-process call.
 """
 import json
+import math
 import os
 import re
 import subprocess
@@ -534,6 +534,11 @@ POWER_MUX_SPECS = {
                     "Table (line ~131): TPS2121 RON = 56 mOhm typ / 70 mOhm max @25C, "
                     "IOUT=-200mA.",
         "r_on_typ_ohm": 0.056, "r_on_max_ohm": 0.070,
+        # SLVSEA3F p7, verified 2026-09-28 against the table image:
+        # max 100 mOhm, -40..125C, VINx >=5V, IOUT=-200mA.
+        # Not a package-temperature qualification nor a bound below 5V.
+        "r_on_max_125C_ohm": 0.100,
+        "iq_max_A": 400e-6, "standby_max_A": 25e-6,
     },
 }
 
@@ -658,6 +663,15 @@ def _led_power(refs, cfg):
 
 def _mcu_power(comp, part, cfg):
     spec = MCU_SPECS[part]
+    envelope = cfg.get("mcu_budget_current_A")
+    if envelope is not None:
+        if not math.isfinite(envelope) or envelope < 0:
+            raise ValueError("invalid MCU heat budget")
+        return HeatSource(comp.ref, "mcu", part,
+            round(spec["vcc_V"] * envelope, 6),
+            "Vcc * electrical controller envelope; system margin applied once",
+            cfg.get("power_budget_citation", "explicit electrical budget"),
+            unverified=True, note="Design envelope, not a measured thermal/package model")
     duty = cfg.get("mcu_duty")
     i = spec["i_active_max_A"] * duty + spec["i_active_typ_A"] * (1 - duty) \
         if duty < 1.0 else spec["i_active_max_A"]
@@ -709,10 +723,22 @@ def _protection_diode_power(comp, part, cfg):
 def _power_mux_power(comp, part, cfg):
     spec = POWER_MUX_SPECS[part]
     i_through = cfg.get("i_through_%s_A" % comp.ref, cfg.get("i_5vsb_trunk_A", 1.0))
+    if not math.isfinite(float(i_through)) or float(i_through)<0:
+        raise ValueError('invalid power mux current: '+comp.ref)
+    if cfg.get('mux_resistance_corner')=='datasheet_max_125C':
+        resistance=spec['r_on_max_125C_ohm']
+        v=float(cfg.get('vcc_5vsb_V'))
+        p=i_through*i_through*resistance+v*(spec['iq_max_A']+spec['standby_max_A'])
+        return HeatSource(comp.ref,'power_mux',part,round(p,6),
+            'I^2*Ron + both-input quiescent bound: %.3f A, %.3f ohm, %.3f V; %s'%(
+                i_through,resistance,v,cfg.get('mux_transport_basis_'+comp.ref,'explicit current envelope')),
+            'TI TPS2121 SLVSEA3F p7: 100mOhm maximum at -40..125C, VINx>=5V, IOUT=-200mA; IQ<=400uA, standby<=25uA',
+            unverified=True,note='Transport envelope bound, not measured package loss. Ron table does not guarantee the below-5V corner or junction temperature.')
     p = i_through * i_through * spec["r_on_typ_ohm"]
     basis = "I^2*Ron = %.2fA^2 * %.4f ohm (I_through is a design-basis trunk-current estimate)" % (
         i_through, spec["r_on_typ_ohm"])
-    return HeatSource(comp.ref, "power_mux", part, round(p, 6), basis, spec["citation"])
+    return HeatSource(comp.ref, "power_mux", part, round(p, 6), basis, spec["citation"],
+        unverified=True,note='Typical Ron and a default/design current are not a worst-case thermal qualification')
 
 
 def _supervisor_power(comp, part, cfg):
@@ -750,7 +776,36 @@ class InventoryResult:
     dnp_skipped: list
 
 
-def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None):
+def reconcile_power_budget(comps, cfg, power_budget):
+    """Bind a typed controller envelope and a single logic regulator by role.
+
+    Multiple regulators require explicit per-device load contracts; an unrelated
+    or renamed board must never inherit a product/refdes/voltage special case.
+    """
+    if power_budget is None:
+        return
+    rows = [r for r in power_budget["loads"] if r.get("thermal_family") == "mcu"]
+    controllers = [c for c in comps.values()
+                   if is_populated(c) and classify(c)[0] == "mcu"]
+    if len(rows) != 1 or rows[0]["quantity"] != len(controllers):
+        raise ValueError("controller budget/schematic count mismatch or ambiguous envelope")
+    margin = float(power_budget["design_margin_fraction"])
+    total = float(power_budget["required_mA"]) / 1000
+    current = float(rows[0]["each_mA"]) / 1000 * (1 + margin)
+    if not all(math.isfinite(v) and v >= 0 for v in (margin, total, current)):
+        raise ValueError("invalid electrical heat budget")
+    cfg.params["mcu_budget_current_A"] = current
+    cfg.params["power_budget_citation"] = rows[0]["basis"]
+    regulators = [c for c in comps.values() if is_populated(c)
+                  and classify(c)[0] in ("ldo", "buck")]
+    if len(regulators) == 1:
+        cfg.params.setdefault("i_load_%s_A" % regulators[0].ref, total)
+    elif any(cfg.get("i_load_%s_A" % c.ref) is None for c in regulators):
+        raise ValueError("multiple regulators need explicit load allocation")
+
+
+def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None,
+              power_budget=None, components=None):
     """Full heat-source inventory for one board directory. Returns an
     InventoryResult. `board_dir` may be a modules/hubs subdirectory path or a
     direct .kicad_sch path (sch_path override honored either way)."""
@@ -769,21 +824,14 @@ def inventory(board_dir, cfg=None, *, sch_path=None, pcb_path=None):
         raise FileNotFoundError("cec_thermal_sources.inventory: no .kicad_sch found for %r" % board_dir)
 
     board_name = os.path.basename(os.path.normpath(board_dir))
-    if board_name == "12vhpwr-standard":
-        cfg.params.setdefault("i_load_U3_A", 0.233591)
-        cfg.params.setdefault("vout_U3_V", 3.96)
-        cfg.params.setdefault("i_load_U16_A", 0.233591)
-        cfg.params.setdefault("vin_U16_V", 3.96)
-    elif board_name == "hub-standard-rev2":
-        cfg.params.setdefault("i_load_U3_A", 0.215386)
-        cfg.params.setdefault("vout_U3_V", 3.318)
-
-    comps = load_components(sch_path)
+    comps = load_components(sch_path) if components is None else components
+    reconcile_power_budget(comps, cfg, power_budget)
     sources, unverified, dnp = [], [], []
     # First pass: gather LED refs (aggregate as one source) and figure the MCU's
     # active current so the LDO calc can size its logic-rail load from it (see
     # _ldo_power's i_3v3_logic_total_A fallback).
-    led_refs = [r for r, c in comps.items() if classify(c)[0] == "led"]
+    led_refs = [r for r, c in comps.items()
+                if classify(c)[0] == "led" and is_populated(c)]
     mcu_i_active_A = 0.0
     for ref, comp in sorted(comps.items()):
         family, part = classify(comp)

@@ -610,6 +610,11 @@ class TestVerifierRejectsThin(unittest.TestCase):
                _FP("TB1", _tht_col("+5V", nc, 34.0, [8.0, 11.0]))]
         board = _Board(40, 20, fps, {nc: "+5V"})
         calls, fb = _recorder()
+        forwarded = []
+        original_fb = fb
+        def fb(board, ask, report):
+            forwarded.append(dict(ask))
+            return original_fb(board, ask, report)
         real = cec_pour_plan._capsule
         try:
             cec_pour_plan._capsule = lambda pts, hw: real(pts, hw / 4.0)
@@ -619,6 +624,8 @@ class TestVerifierRejectsThin(unittest.TestCase):
             cec_pour_plan._capsule = real
         e = rep["+5V"]
         self.assertEqual(calls, ["+5V"], "fallback must fire for the net")
+        self.assertTrue(forwarded[0]['margin_included'])
+        self.assertEqual(forwarded[0]['geometry_margin'], 1.)
         self.assertEqual(e.get("fallback"), "route_overunder")
         self.assertIn("min-width", str(e.get("planner_reason")),
                       "the rejection names the violated invariant: %r" % e)
@@ -850,16 +857,14 @@ class TestCollectContract(unittest.TestCase):
         self.assertTrue(all(c["net"] == "+5V" for c in cors))
 
 
-_IN_CONTAINER = (os.path.exists("/.dockerenv")
-                 or os.path.exists("/run/.containerenv"))
 try:
     import pcbnew as _pcbnew_mod
 except ImportError:
     _pcbnew_mod = None
 
 
-@unittest.skipUnless(_pcbnew_mod is not None and _IN_CONTAINER,
-                     "pcbnew + the routing container required")
+@unittest.skipUnless(_pcbnew_mod is not None,
+                     "native pcbnew required (WSL or container)")
 class TestViaInPadExclusionRealBoard(unittest.TestCase):
     """cec_fr side of the via-in-pad ruling: _via_pad_excluded /
     _via_spot_clear / add_overunder_vias on a real mini board."""
