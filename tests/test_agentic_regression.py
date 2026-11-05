@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 from cec_pipeline import regression as runner
 
@@ -44,6 +45,8 @@ def test_short_lived_fresh_run_writes_bound_evidence_without_build_imports(tmp_p
     assert result.returncode == 0, result.stdout + result.stderr
     receipt = json.loads(out.with_name("fresh-receipt.json").read_text())
     assert receipt["ok"] and receipt["complete"] and receipt["prior_passes_not_reused"]
-    assert receipt["counts"]["tests"] == 4 and receipt["counts"]["failures"] == 0
+    cases = list(ET.parse(out).iter("testcase"))
+    assert cases and runner.module_names(out) == {"test_agentic_campaign"}
+    assert receipt["counts"]["tests"] == len(cases) and receipt["counts"]["failures"] == 0
     assert receipt["code_unchanged"] and receipt["dependencies_unchanged"]
     assert all("/build/" not in path for path in receipt["dependencies"])

@@ -1,6 +1,7 @@
 """Actual saved native macro construction, never a model-authored pass flag."""
 
 import copy
+import json
 from pathlib import Path
 
 import pcbnew
@@ -10,6 +11,7 @@ import cec_additive_route_receiving as additive
 import cec_complete_cell_receiving as receiving
 import cec_field_coupling as field
 import cec_force_current as force
+import cec_full_current_planar_reflow as planar
 import cec_native_contour_receiving as contour_receiving
 import cec_redundant_force_branch as authority
 from cec_pipeline import construction, geometry, power
@@ -127,6 +129,7 @@ def test_source_current_floor_and_real_saved_fill_receive_power_contours(
     zone.SetNet(ground)
     zone.SetLayer(pcbnew.In1_Cu)
     zone.SetMinThickness(100000)
+    zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_NEVER)
     outline = pcbnew.SHAPE_POLY_SET()
     outline.NewOutline()
     for point in (
@@ -138,15 +141,25 @@ def test_source_current_floor_and_real_saved_fill_receive_power_contours(
         outline.Append(*point)
     zone.Outline().Append(outline)
     board.Add(zone)
+    assert pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     source = tmp_path / "board.kicad_pcb"
     field._save_field_snapshot(board, source)
+    # A valid source can have a different literal property order than KiCad's
+    # serializer. Unrelated fields must remain source-exact across the edit.
+    root, nodes = additive._nodes(source)
+    footprint = next(node for node in nodes.values() if node[0] == "footprint")
+    reference = next(node for node in footprint if isinstance(node, list)
+                     and node[:2] == ["property", '"Reference"'])
+    reference[:] = [node for node in reference if not isinstance(node, list) or node[0] != "hide"]
+    reference.append(["hide", "yes"])
+    source.write_text(additive._render(root) + "\n")
     # The numerical values are synthetic source contracts for this test, not
     # a change to any production board's current budget or qualification.
     model = (
-        dict(net="/ARBITRARY_POWER", amps=1.0, complete=True),
-        dict(net="/ARBITRARY_POWER", amps=1.0, required_by_layer_mm={"F.Cu": 1.5}),
+        dict(net="/ARBITRARY_POWER", amps=1.0, complete=True, source_refs=("source",), sink_refs=("sink",)),
+        dict(net="/ARBITRARY_POWER", amps=1.0, required_by_layer_mm={"F.Cu": 1.5}, routing_layers=("F.Cu", "B.Cu")),
     )
-    monkeypatch.setattr(authority, "_model", lambda *args: copy.deepcopy(model))
+    monkeypatch.setattr(planar, "_model", lambda *args: ("aggregate_source_sink", *copy.deepcopy(model)))
     operation = dict(
         kind="power_contour",
         track_uuids=[str(track.m_Uuid.AsString()) for track in tracks],
@@ -166,6 +179,11 @@ def test_source_current_floor_and_real_saved_fill_receive_power_contours(
     assert proof["ok"] and proof["complete"], proof
     assert proof["exact_source_phase_and_ground_refill_received"]
     assert change["source_current_model"]["required_width_nm"] == 1500000
+    # Real workers cross JSON boundaries: tuples must compare by canonical
+    # JSON identity, without ignoring any contract value or numeric type.
+    saved_change = json.loads(json.dumps(change))
+    received = power.receive(source, candidate, operation, saved_change, board_hint="synthetic")
+    assert received["ok"] and received["complete"], received
     assert (
         source.read_bytes() == before
         and not change["new_current_or_thermal_qualification"]

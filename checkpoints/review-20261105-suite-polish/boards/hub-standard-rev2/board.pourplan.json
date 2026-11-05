@@ -1,0 +1,327 @@
+{
+ "board_sig": "a94891ba71b8f196",
+ "recipe": {
+  "corridor_fcu_only": false,
+  "inner_pours": false,
+  "lane_w_json": "",
+  "pour_lanes": false,
+  "shunt_gap": false,
+  "shunt_gap_mm": 6.5,
+  "uniform": false
+ },
+ "specs": [
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+5VSB",
+   "notch": null,
+   "polygon": [
+    [
+     17.2225,
+     15.619900000000001
+    ],
+    [
+     68.0279,
+     15.619900000000001
+    ],
+    [
+     68.0279,
+     63.810001
+    ],
+    [
+     17.2225,
+     63.810001
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    17.2225,
+    15.619900000000001,
+    68.0279,
+    63.810001
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+5V_SYS",
+   "notch": null,
+   "polygon": [
+    [
+     35.265,
+     25.77
+    ],
+    [
+     76.066501,
+     25.77
+    ],
+    [
+     76.066501,
+     63.868201
+    ],
+    [
+     35.265,
+     63.868201
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    35.265,
+    25.77,
+    76.066501,
+    63.868201
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/POWER INPUT + SOURCE SELECTION/PSU_5V_KVM",
+   "notch": null,
+   "polygon": [
+    [
+     58.9691,
+     52.3155
+    ],
+    [
+     66.831499,
+     52.3155
+    ],
+    [
+     66.831499,
+     60.4563
+    ],
+    [
+     58.9691,
+     60.4563
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    58.9691,
+    52.3155,
+    66.831499,
+    60.4563
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+   "notch": null,
+   "polygon": [
+    [
+     26.399999,
+     46.6
+    ],
+    [
+     81.380001,
+     46.6
+    ],
+    [
+     81.380001,
+     62.381299
+    ],
+    [
+     26.399999,
+     62.381299
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    26.399999,
+    46.6,
+    81.380001,
+    62.381299
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P1",
+   "notch": null,
+   "polygon": [
+    [
+     9.71,
+     6.79
+    ],
+    [
+     20.9318,
+     6.79
+    ],
+    [
+     20.9318,
+     17.6199
+    ],
+    [
+     9.71,
+     17.6199
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    9.71,
+    6.79,
+    20.9318,
+    17.6199
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P2",
+   "notch": null,
+   "polygon": [
+    [
+     9.71,
+     18.3993
+    ],
+    [
+     17.8967,
+     18.3993
+    ],
+    [
+     17.8967,
+     25.09
+    ],
+    [
+     9.71,
+     25.09
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    9.71,
+    18.3993,
+    17.8967,
+    25.09
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P3",
+   "notch": null,
+   "polygon": [
+    [
+     9.71,
+     34.6
+    ],
+    [
+     17.3975,
+     34.6
+    ],
+    [
+     17.3975,
+     42.09
+    ],
+    [
+     9.71,
+     42.09
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    9.71,
+    34.6,
+    17.3975,
+    42.09
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4",
+   "notch": null,
+   "polygon": [
+    [
+     9.71,
+     57.09
+    ],
+    [
+     18.5575,
+     57.09
+    ],
+    [
+     18.5575,
+     63.810001
+    ],
+    [
+     9.71,
+     63.810001
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    9.71,
+    57.09,
+    18.5575,
+    63.810001
+   ],
+   "shape": "rect"
+  }
+ ],
+ "version": 1
+}

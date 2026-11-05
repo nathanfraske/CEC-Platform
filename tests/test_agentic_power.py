@@ -79,6 +79,28 @@ def test_power_tree_scope_rejects_disconnected_cyclic_and_duplicate_edges(edges)
         power._source_tree(tracks)
 
 
+def test_contour_preserves_distinct_source_load_and_larger_routing_budget(tmp_path, monkeypatch):
+    source, _, _, net, contract, domains = route_fixture(tmp_path)
+    board = pcbnew.LoadBoard(str(source))
+    zone = pcbnew.ZONE(board)
+    zone.SetLayer(pcbnew.In1_Cu)
+    zone.SetMinThickness(100000)
+    board.Add(zone)
+    domains[net]["amps"] = .4
+    contract["amps"] = .5
+    monkeypatch.setattr(planar.topology, "board_current_domains", lambda *a, **kw: copy.deepcopy(domains))
+    monkeypatch.setattr(planar.topology, "route_width_contracts", lambda *a, **kw: {net: copy.deepcopy(contract)})
+    operation = dict(track_uuids=[force._uid(t) for t in board.GetTracks()])
+    model = power.parameters(board, source, operation, "synthetic")
+    assert model["current_domain"]["amps"] == .4
+    assert model["unchanged_current_contract"]["amps"] == .5
+    assert model["unchanged_current_contract"]["current_authority"]["geometry_margin"] == 1.25
+    assert model["required_width_nm"] == 200000
+    domains[net]["complete"] = False
+    with pytest.raises(ValueError, match="complete_existing"):
+        power.parameters(board, source, operation, "synthetic")
+
+
 @pytest.mark.parametrize("quarter", range(4))
 def test_full_current_model_authored_shortcut_receives_actual_saved_path(
     tmp_path, monkeypatch, quarter

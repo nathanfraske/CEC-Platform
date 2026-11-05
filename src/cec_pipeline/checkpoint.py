@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -190,11 +191,13 @@ def export_reviews(original, output):
             copied["receiving_code_identity"] = job["code_identity"]
         plots = {}
         for side, plot in copied.get("reviewed_native_plots", {}).items():
+            legacy = side in ("before", "after")
             require(
-                side in ("before", "after") and sha(plot["path"]) == plot["sha256"],
+                (legacy or re.fullmatch(r"(?:before|after)-(?:F|B|In[1-4])-Cu-[a-f0-9]{16}\.svg", side))
+                and sha(plot["path"]) == plot["sha256"],
                 "exact_native_review_plot_required",
             )
-            name = entry["board"].replace("/", "--") + "-" + side + ".svg"
+            name = entry["board"].replace("/", "--") + "-" + side + (".svg" if legacy else "")
             target = output / "reviews" / name
             target.parent.mkdir(exist_ok=True)
             shutil.copy2(plot["path"], target)

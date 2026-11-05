@@ -247,6 +247,7 @@ class ProtocolTests(unittest.TestCase):
             jobdir = p / token
             jobdir.mkdir()
             record = dict(
+                source_receipt_sha256="a" * 64,
                 source=str(source),
                 source_sha256=workbench.inspection.sha(source),
                 source_family=workbench.family(source),
@@ -257,6 +258,7 @@ class ProtocolTests(unittest.TestCase):
             workbench.inspection.write_json(jobdir / "job.json", record)
             w = object.__new__(workbench.Workbench)
             w.workspace = p
+            w.manifest = dict(source_receipt_sha256="a" * 64)
             self.assertEqual(w._job(token)[1], record)
             table.write_text("changed table")
             with self.assertRaisesRegex(ValueError, "library_table"):
@@ -359,7 +361,7 @@ class ReviewPublicationTests(unittest.TestCase):
             rows = []
             jobs = {}
             counts = dict(opens=0, errors=0, warnings=0, exclusions=0)
-            for name in ("alpha", "beta"):
+            for name in ("alpha", "beta", "untouched"):
                 folder = root / name
                 folder.mkdir()
                 source = folder / "parent.kicad_pcb"
@@ -390,6 +392,7 @@ class ReviewPublicationTests(unittest.TestCase):
                 data = dict(
                     board=name,
                     token=name,
+                    source=str(source),
                     source_sha256=row["sha256"],
                     request={"intent": name + " explicit design"},
                 )
@@ -406,6 +409,8 @@ class ReviewPublicationTests(unittest.TestCase):
                         selected=True,
                         candidate_sha256=candidate_sha,
                         model_visual_review=name + " synthetic native review",
+                        changed_copper_sha256="synthetic_delta",
+                        visual_coverage={"ok": True},
                     ),
                 )
                 hashes = {}
@@ -420,6 +425,7 @@ class ReviewPublicationTests(unittest.TestCase):
                         candidate_sha256=candidate_sha,
                         code_identity=workbench.code_identity(),
                         plot_hashes=hashes,
+                        changed_copper_sha256="synthetic_delta",
                     ),
                 )
                 workbench.inspection.write_json(
@@ -439,10 +445,19 @@ class ReviewPublicationTests(unittest.TestCase):
                 source_receipt=str(receipt),
                 source_receipt_sha256=workbench.inspection.sha(receipt),
             )
+            for _, data, _ in jobs.values():
+                data["source_receipt_sha256"] = fake.manifest["source_receipt_sha256"]
             fake._job = lambda token: jobs[token][:2]
             fake.verdict = lambda token: jobs[token][2]
-            with patch.object(publisher.workbench, "Workbench", return_value=fake):
-                result = publisher.publish(root, ["alpha", "beta"], root / "published")
+            with patch.object(publisher.workbench, "Workbench", return_value=fake) as constructor, \
+                    patch("cec_pipeline.visual.changed_copper", return_value={"sha256": "synthetic_delta"}), \
+                    patch("cec_pipeline.visual.verify_views", return_value={"ok": True}):
+                result = publisher.publish(root, ["alpha", "beta"], root / "published",
+                                           checkpoint=receipt,
+                                           checkpoint_sha256=fake.manifest["source_receipt_sha256"])
+                constructor.assert_called_once_with(
+                    root, checkpoint=receipt,
+                    checkpoint_sha256=fake.manifest["source_receipt_sha256"])
             for child in result["selected_children"]:
                 assert (
                     child["model_visual_review"]
@@ -458,11 +473,23 @@ class ReviewPublicationTests(unittest.TestCase):
                     self.assertIn(child["board"], Path(plot["path"]).parent.name)
             published = json.loads(Path(result["receipt"]).read_text())
             for row in published["boards"]:
+                if row["board"] == "untouched":
+                    assert row == next(original for original in rows
+                                       if original["board"] == "untouched")
+                    continue
                 assert Path(row["producer"]).parent == Path(row["result"]).parent
                 assert (
                     "producer_source_path" not in row
                     and "measured_source_path" not in row
                 )
+            assert published["parent_receipt_sha256"] == fake.manifest["source_receipt_sha256"]
+            # Independently enforce intake even if a future _job adapter
+            # accidentally omits its own guard. Never compose a mixed base.
+            jobs["alpha"][1]["source_receipt_sha256"] = "0" * 64
+            with patch.object(publisher.workbench, "Workbench", return_value=fake):
+                with self.assertRaisesRegex(ValueError, "publication_intake"):
+                    publisher.publish(root, ["alpha"], root / "mixed-base")
+            assert not (root / "mixed-base").exists()
 
 
 if __name__ == "__main__":

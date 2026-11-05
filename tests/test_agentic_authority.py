@@ -78,6 +78,7 @@ def test_persisted_job_rechecks_semantic_and_environment_context(tmp_path, monke
     state = {"peer": "exact"}
     monkeypatch.setattr(authority, "inputs", lambda *args: dict(state))
     row = dict(
+        source_receipt_sha256="a" * 64,
         board="opaque",
         source=str(source),
         source_sha256=sha(source),
@@ -91,6 +92,7 @@ def test_persisted_job_rechecks_semantic_and_environment_context(tmp_path, monke
     (directory / "job.json").write_text(json.dumps(row))
     workbench = object.__new__(Workbench)
     workbench.workspace = tmp_path
+    workbench.manifest = dict(source_receipt_sha256="a" * 64)
     assert workbench._job(token)[1]["authority_inputs"] == state
     state["peer"] = "changed"
     with pytest.raises(ValueError, match="selected_assembly_input_changed"):

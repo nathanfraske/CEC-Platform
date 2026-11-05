@@ -35,13 +35,17 @@ def test_exact_saved_source_replay_receives_holes_and_multiple_zones(tmp_path, s
 
 
 @pytest.mark.parametrize('fault', ['other_pad','other_stroke','new_zone','removed_stroke',
-    'missing_declared_zone','changed_filled_region','fake_worker_flag','rehashed_bigger_slab'])
+    'missing_declared_zone','changed_filled_region','fake_worker_flag','rehashed_bigger_slab',
+    'reference_visibility'])
 def test_saved_phase_cannot_launder_unrelated_worker_changes(tmp_path, fault):
     source, candidate, rows = saved(tmp_path)
     b = pcbnew.LoadBoard(str(candidate)); zone = next(iter(b.Zones()))
     if fault == 'other_pad':
         p = next(iter(list(b.GetFootprints())[0].Pads()))
         p.SetSize(pcbnew.VECTOR2I_MM(4,4))
+    elif fault == 'reference_visibility':
+        ref = next(iter(b.GetFootprints())).Reference()
+        ref.SetVisible(not ref.IsVisible())
     elif fault == 'other_stroke':
         t = pcbnew.PCB_TRACK(b); t.SetStart(pcbnew.VECTOR2I_MM(10,10)); t.SetEnd(pcbnew.VECTOR2I_MM(15,10))
         t.SetNet(b.FindNet('/ARBITRARY_POWER')); t.SetLayer(pcbnew.B_Cu); t.SetWidth(200000); b.Add(t)

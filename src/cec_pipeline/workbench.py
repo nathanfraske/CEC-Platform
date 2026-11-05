@@ -29,36 +29,75 @@ class Workbench:
     ):
         self.workspace = Path(workspace).resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
-        if checkpoint is None and index is None:
-            current = json.loads((ROOT / "checkpoints/current.json").read_text())
-            checkpoint = ROOT / current["receipt"]
-            checkpoint_sha256 = current["sha256"]
-        if checkpoint is not None:
-            require(
-                checkpoint_sha256 is not None,
-                "exact_checkpoint_receipt_identity_required",
+        require(not (checkpoint is not None and index is not None),
+                "one_explicit_workspace_intake_required")
+        require(checkpoint is not None or checkpoint_sha256 is None,
+                "checkpoint_sha256_requires_explicit_checkpoint")
+        explicit = checkpoint is not None or index is not None
+        # Reopening a campaign must never follow a newer Git/dashboard pin.
+        # Serialize first binding; the receipt path AND bytes are immutable
+        # for this workspace. Legacy jobs require an explicit, matching base.
+        import fcntl
+
+        intake_path = self.workspace / "source-checkpoint.json"
+        with (self.workspace / ".source-checkpoint.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            bound = json.loads(intake_path.read_text()) if intake_path.is_file() else None
+            if intake_path.is_file():
+                require(type(bound) is dict and set(bound) ==
+                        {"schema", "source_receipt", "source_receipt_sha256"}
+                        and type(bound["schema"]) is int and bound["schema"] == 1
+                        and type(bound["source_receipt"]) is str
+                        and Path(bound["source_receipt"]).is_absolute()
+                        and type(bound["source_receipt_sha256"]) is str
+                        and re.fullmatch(r"[a-f0-9]{64}", bound["source_receipt_sha256"]),
+                        "invalid_workspace_source_checkpoint_binding")
+            legacy_jobs = list(self.workspace.glob("*/job.json")) if bound is None else []
+            require(not legacy_jobs or explicit,
+                    "legacy_workspace_requires_explicit_source_checkpoint")
+            if bound is not None and not explicit:
+                checkpoint = bound["source_receipt"]
+                checkpoint_sha256 = bound["source_receipt_sha256"]
+            elif checkpoint is None and index is None:
+                current = json.loads((ROOT / "checkpoints/current.json").read_text())
+                checkpoint = ROOT / current["receipt"]
+                checkpoint_sha256 = current["sha256"]
+            if checkpoint is not None:
+                require(checkpoint_sha256 is not None, "exact_checkpoint_receipt_identity_required")
+                source = Path(checkpoint).resolve(strict=True)
+                receipt = inspection.verify_receipt(source, checkpoint_sha256)
+                self.base = source.parent
+                self.manifest = dict(
+                    source_receipt=str(source), source_receipt_sha256=checkpoint_sha256,
+                    boards=[dict(board=row["board"],
+                                 name=inspection.NAMES.get(row["board"], row["board"]),
+                                 sha256=row["sha256"], counts=row["counts"])
+                            for row in receipt["boards"]],
+                )
+            else:
+                self.base, self.manifest = inspection._published(index)
+            self.receipt = inspection.verify_receipt(
+                self.manifest["source_receipt"], self.manifest["source_receipt_sha256"]
             )
-            source = Path(checkpoint).resolve(strict=True)
-            receipt = inspection.verify_receipt(source, checkpoint_sha256)
-            self.base = source.parent
-            self.manifest = dict(
-                source_receipt=str(source),
-                source_receipt_sha256=checkpoint_sha256,
-                boards=[
-                    dict(
-                        board=row["board"],
-                        name=inspection.NAMES.get(row["board"], row["board"]),
-                        sha256=row["sha256"],
-                        counts=row["counts"],
-                    )
-                    for row in receipt["boards"]
-                ],
-            )
-        else:
-            self.base, self.manifest = inspection._published(index)
-        self.receipt = inspection.verify_receipt(
-            self.manifest["source_receipt"], self.manifest["source_receipt_sha256"]
-        )
+            binding = dict(schema=1,
+                           source_receipt=str(Path(self.manifest["source_receipt"]).resolve(strict=True)),
+                           source_receipt_sha256=self.manifest["source_receipt_sha256"])
+            require(bound is None or binding == bound,
+                    "workspace_source_checkpoint_changed_use_new_workspace")
+            for legacy in legacy_jobs:
+                require(json.loads(legacy.read_text()).get("source_receipt_sha256") ==
+                        binding["source_receipt_sha256"],
+                        "legacy_job_source_checkpoint_mismatch")
+            self.manifest["source_receipt"] = binding["source_receipt"]
+            if bound is None:
+                inspection.write_json(intake_path, binding)
+                with intake_path.open("rb") as durable:
+                    os.fsync(durable.fileno())
+                descriptor = os.open(str(self.workspace), os.O_DIRECTORY)
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
         self.rows = {r["board"]: r for r in self.receipt["boards"]}
         from .campaign import Journal
 
@@ -85,6 +124,9 @@ class Workbench:
         path = self.workspace / token / "job.json"
         require(path.is_file(), "unknown_job")
         job = json.loads(path.read_text())
+        base_sha = getattr(self, "manifest", {}).get("source_receipt_sha256")
+        require(base_sha is not None and job.get("source_receipt_sha256") == base_sha,
+                "job_source_checkpoint_differs_from_workspace_intake")
         from .authority import inputs, environment_identity
 
         if "authority_inputs" in job:
@@ -861,21 +903,32 @@ class Workbench:
             proof_path.is_file(), "native_before_after_plots_required_before_selection"
         )
         proof = json.loads(proof_path.read_text())
+        from . import visual
+
+        manifest = visual.changed_copper(data["source"], data["candidate"])
         require(
-            proof["candidate_sha256"] == verdict["candidate_sha256"]
+            proof.get("schema") == 2
+            and proof["candidate_sha256"] == verdict["candidate_sha256"]
             and proof["source_sha256"] == data["source_sha256"]
             and proof["code_identity"] == code_identity()
+            and proof["changed_copper_sha256"] == manifest["sha256"]
             and all(
                 inspection.sha(path.parent / name) == identity
                 for name, identity in proof["plot_hashes"].items()
             ),
             "native_visual_evidence_changed",
         )
+        covered = visual.verify_views(proof, manifest, path.parent)
+        require(inspection.sha(data["candidate"]) == verdict["candidate_sha256"],
+                "candidate_changed_during_visual_receiving")
+        self._job(job)
         record = dict(
             **verdict,
             selected_at=time.time(),
             model_visual_review=visual_review,
             plot_hashes=proof["plot_hashes"],
+            visual_coverage=covered,
+            changed_copper_sha256=manifest["sha256"],
             source_catalog_overwritten=False,
         )
         self.journal.transition(job, "selected")
@@ -885,6 +938,8 @@ class Workbench:
 
     def render(self, job, layer, region_nm=None, guide=None):
         path, data = self._job(job)
+        candidate_sha = inspection.sha(data["candidate"])
+        epoch = code_identity()
         require(
             layer in ("F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu"),
             "actual_copper_layer_required",
@@ -893,23 +948,23 @@ class Workbench:
             guide in (None, "F.Fab", "B.Fab", "F.Silkscreen", "B.Silkscreen"),
             "native_guide_layer_required",
         )
-        bounds = None
-        if region_nm is not None:
-            require(
-                type(region_nm) is list and len(region_nm) == 4,
-                "bounded_region_required",
-            )
-            a, b = design.point(region_nm[:2]), design.point(region_nm[2:])
-            require(all(x < y for x, y in zip(a, b)), "positive_region_required")
-            bounds = [a[0] / 1e6, a[1] / 1e6, (b[0] - a[0]) / 1e6, (b[1] - a[1]) / 1e6]
+        from . import visual
+
+        manifest = visual.changed_copper(data["source"], data["candidate"])
+        if region_nm is None:
+            region_nm = visual.default_region(manifest)
+        require(type(region_nm) is list and len(region_nm) == 4, "bounded_region_required")
+        a, b = design.point(region_nm[:2]), design.point(region_nm[2:])
+        require(all(x < y for x, y in zip(a, b)), "positive_region_required")
+        bounds = [a[0] / 1e6, a[1] / 1e6, (b[0] - a[0]) / 1e6, (b[1] - a[1]) / 1e6]
+        view_key = digest(dict(layer=layer, region_nm=region_nm, guide=guide))[:16]
         result = {}
         previews = {}
         for label, p in (("before", data["source"]), ("after", data["candidate"])):
-            target = path.parent / (label + "-" + layer.replace(".", "-") + ".svg")
+            target = path.parent / (label + "-" + layer.replace(".", "-") + "-" + view_key + ".svg")
             layers = [layer, *([guide] if guide else []), "Edge.Cuts"]
             inspection.bounded(inspection.plot_command(p, target, layers), timeout=9.7)
-            if bounds:
-                inspection.reframe_svg(target, bounds)
+            inspection.reframe_svg(target, bounds)
             result[label] = dict(path=str(target), sha256=inspection.sha(target))
             if shutil.which("rsvg-convert"):
                 png = target.with_suffix(".png")
@@ -934,17 +989,34 @@ class Workbench:
                     "bounded_native_raster_preview_required",
                 )
                 previews[label] = dict(path=str(png), sha256=inspection.sha(png))
-        inspection.write_json(
-            path.parent / "render-proof.json",
-            dict(
+        proof_path = path.parent / "render-proof.json"
+        prior = json.loads(proof_path.read_text()) if proof_path.is_file() else {}
+        require(inspection.sha(data["candidate"]) == candidate_sha
+                and inspection.sha(data["source"]) == data["source_sha256"]
+                and code_identity() == epoch,
+                "native_source_candidate_or_code_changed_during_render")
+        self._job(job)
+        same = (prior.get("schema") == 2
+                and prior.get("source_sha256") == data["source_sha256"]
+                and prior.get("candidate_sha256") == candidate_sha
+                and prior.get("code_identity") == epoch
+                and prior.get("changed_copper_sha256") == manifest["sha256"])
+        views = [v for v in prior.get("views", []) if v["key"] != view_key] if same else []
+        views.append(dict(key=view_key, layer=layer, region_nm=region_nm, guide=guide,
+                          plot_hashes={Path(v["path"]).name: v["sha256"]
+                                       for v in result.values()}))
+        require(len(views) <= 64, "bounded_native_visual_views_required")
+        proof = dict(
+                schema=2,
                 source_sha256=data["source_sha256"],
-                candidate_sha256=inspection.sha(data["candidate"]),
-                code_identity=code_identity(),
-                plot_hashes={
-                    Path(v["path"]).name: v["sha256"] for v in result.values()
-                },
-            ),
-        )
+                candidate_sha256=candidate_sha,
+                code_identity=epoch,
+                changed_copper_sha256=manifest["sha256"],
+                views=views,
+                plot_hashes={name: identity for v in views
+                             for name, identity in v["plot_hashes"].items()},
+            )
+        inspection.write_json(proof_path, proof)
         return dict(
             ok=True,
             job=job,
@@ -952,5 +1024,6 @@ class Workbench:
             refilled=False,
             plots=result,
             previews=previews,
+            visual_coverage=visual.coverage(manifest, views),
             release_authority=False,
         )
