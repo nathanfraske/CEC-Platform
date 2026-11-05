@@ -26,7 +26,13 @@ function centerZoom(factor){if(box)writeBox(V.zoomBox(box,factor,{x:box.x+box.w/
 function historyState(){const params=new URLSearchParams();params.set('board',board.slug);params.set('layer',$('layer').value);if(selected?.kind==='finding')params.set('finding',selected.id);history.replaceState(null,'','#'+params.toString());}
 function updateModel(){const cx=board.outline[0]+board.outline[2]/2;$('model').setAttribute('transform',$('mirror').checked?'translate('+(2*cx)+' 0) scale(-1 1)':'');drawAnnotations();}
 function imageFrame(el){const [x,y,w,h]=board.frame;for(const [k,v]of Object.entries({x,y,width:w,height:h}))el.setAttribute(k,v);}
+function guideFieldNote(value){
+  const fields=value.annotation_fields,known=fields&&Number.isInteger(fields.silk_visible_total)&&fields.silk_visible_total>=0&&Number.isInteger(fields.fab_visible_total)&&fields.fab_visible_total>=0;
+  const counts=known?'Value/MPN fields — actual silkscreen: '+fields.silk_visible_total+' visible; Fab guides: '+fields.fab_visible_total+' visible. ':'Visible Value/MPN field counts are not available for this snapshot. ';
+  return counts+'Fab guides contain nonprinted component values/part names, not silkscreen. Reference designators and functional labels are unchanged.';
+}
 function loadLayers(){if(!board)return;const current=++token,layer=$('layer').value,other=$('compare').value,guide=$('guide').value;
+  $('guide-field-note').textContent=guideFieldNote(board);
   $('loading').hidden=false;$('loading').textContent='Loading '+layer+' from the verified snapshot…';$('viewer').style.visibility='hidden';
   const entries=[['copper',layer],['comparison',other],['drawing-guide',guide]];
   const pending=entries.filter(([,name])=>name);let loaded=0,failed=false;

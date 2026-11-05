@@ -1,0 +1,804 @@
+{
+ "board_sig": "fbcc97a39a76e160",
+ "recipe": {
+  "corridor_fcu_only": false,
+  "inner_pours": false,
+  "lane_w_json": "",
+  "pour_lanes": false,
+  "shunt_gap": false,
+  "shunt_gap_mm": 6.5,
+  "uniform": false
+ },
+ "specs": [
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+5VSB",
+   "notch": null,
+   "polygon": [
+    [
+     31.499999000000003,
+     49.4625
+    ],
+    [
+     39.2,
+     49.4625
+    ],
+    [
+     39.2,
+     93.5
+    ],
+    [
+     31.499999000000003,
+     93.5
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE5VSB_LO",
+   "notch": null,
+   "polygon": [
+    [
+     37.2,
+     1.4
+    ],
+    [
+     51.815,
+     1.4
+    ],
+    [
+     51.815,
+     45.5375
+    ],
+    [
+     37.2,
+     45.5375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     39.2,
+     45.5375
+    ],
+    [
+     52.685001,
+     45.5375
+    ],
+    [
+     52.685001,
+     93.5
+    ],
+    [
+     39.2,
+     93.5
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE3V3_HI",
+   "notch": null,
+   "polygon": [
+    [
+     52.685001,
+     49.4625
+    ],
+    [
+     63.2,
+     49.4625
+    ],
+    [
+     63.2,
+     93.5
+    ],
+    [
+     52.685001,
+     93.5
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE3V3_HI",
+   "notch": null,
+   "polygon": [
+    [
+     63.2,
+     49.4625
+    ],
+    [
+     67.099999,
+     49.4625
+    ],
+    [
+     67.099999,
+     93.5
+    ],
+    [
+     63.2,
+     93.5
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE3V3_LO",
+   "notch": null,
+   "polygon": [
+    [
+     20.314999,
+     1.4
+    ],
+    [
+     37.2,
+     1.4
+    ],
+    [
+     37.2,
+     45.5375
+    ],
+    [
+     20.314999,
+     45.5375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+3V3",
+   "notch": null,
+   "polygon": [
+    [
+     12.9072,
+     10.79
+    ],
+    [
+     72.08,
+     10.79
+    ],
+    [
+     72.08,
+     80.1433
+    ],
+    [
+     12.9072,
+     80.1433
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    12.9072,
+    10.79,
+    72.08,
+    80.1433
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+5VSB",
+   "notch": null,
+   "polygon": [
+    [
+     19.975,
+     33.745
+    ],
+    [
+     44.15,
+     33.745
+    ],
+    [
+     44.15,
+     93.5
+    ],
+    [
+     19.975,
+     93.5
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    19.975,
+    33.745,
+    44.15,
+    93.5
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": false,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "+5V_MAIN",
+   "notch": null,
+   "polygon": [
+    [
+     18.73,
+     1.4
+    ],
+    [
+     56.15,
+     1.4
+    ],
+    [
+     56.15,
+     76.0022
+    ],
+    [
+     18.73,
+     76.0022
+    ]
+   ],
+   "priority": 2,
+   "provenance": "placer_ask",
+   "region": [
+    18.73,
+    1.4,
+    56.15,
+    76.0022
+   ],
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     21.899999,
+     91.3
+    ],
+    [
+     30.499999,
+     91.3
+    ],
+    [
+     30.499999,
+     93.7
+    ],
+    [
+     21.899999,
+     93.7
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    21.899999,
+    91.3,
+    30.499999,
+    93.7
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     21.899999,
+     91.3
+    ],
+    [
+     30.499999,
+     91.3
+    ],
+    [
+     30.499999,
+     93.7
+    ],
+    [
+     21.899999,
+     93.7
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    21.899999,
+    91.3,
+    30.499999,
+    93.7
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_LO",
+   "notch": null,
+   "polygon": [
+    [
+     35.114999999999995,
+     1.2
+    ],
+    [
+     45.015,
+     1.2
+    ],
+    [
+     45.015,
+     8.6
+    ],
+    [
+     35.114999999999995,
+     8.6
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    35.114999999999995,
+    1.2,
+    45.015,
+    8.6
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "B.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_LO",
+   "notch": null,
+   "polygon": [
+    [
+     35.114999999999995,
+     1.2
+    ],
+    [
+     45.015,
+     1.2
+    ],
+    [
+     45.015,
+     8.6
+    ],
+    [
+     35.114999999999995,
+     8.6
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    35.114999999999995,
+    1.2,
+    45.015,
+    8.6
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     29.899999,
+     73.8
+    ],
+    [
+     40.30704,
+     73.8
+    ],
+    [
+     40.30704,
+     79.8
+    ],
+    [
+     29.899999,
+     79.8
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    29.899999,
+    73.8,
+    40.30704,
+    79.8
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "B.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     29.899999,
+     73.8
+    ],
+    [
+     40.30704,
+     73.8
+    ],
+    [
+     40.30704,
+     79.8
+    ],
+    [
+     29.899999,
+     79.8
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    29.899999,
+    73.8,
+    40.30704,
+    79.8
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     37.15704,
+     48.25546
+    ],
+    [
+     43.15704,
+     48.25546
+    ],
+    [
+     43.15704,
+     76.95
+    ],
+    [
+     37.15704,
+     76.95
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    37.15704,
+    48.25546,
+    43.15704,
+    76.95
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "B.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     37.15704,
+     48.25546
+    ],
+    [
+     43.15704,
+     48.25546
+    ],
+    [
+     43.15704,
+     76.95
+    ],
+    [
+     37.15704,
+     76.95
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    37.15704,
+    48.25546,
+    43.15704,
+    76.95
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     40.00704,
+     45.40546
+    ],
+    [
+     45.347123,
+     45.40546
+    ],
+    [
+     45.347123,
+     51.40546
+    ],
+    [
+     40.00704,
+     51.40546
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    40.00704,
+    45.40546,
+    45.347123,
+    51.40546
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "B.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     40.00704,
+     45.40546
+    ],
+    [
+     45.347123,
+     45.40546
+    ],
+    [
+     45.347123,
+     51.40546
+    ],
+    [
+     40.00704,
+     51.40546
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    40.00704,
+    45.40546,
+    45.347123,
+    51.40546
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "In3.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     42.197123,
+     38.209897
+    ],
+    [
+     48.197123,
+     38.209897
+    ],
+    [
+     48.197123,
+     48.55546
+    ],
+    [
+     42.197123,
+     48.55546
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    42.197123,
+    38.209897,
+    48.197123,
+    48.55546
+   ],
+   "shape": "lane"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "B.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSE12V_HI",
+   "notch": null,
+   "polygon": [
+    [
+     42.197123,
+     38.209897
+    ],
+    [
+     48.197123,
+     38.209897
+    ],
+    [
+     48.197123,
+     48.55546
+    ],
+    [
+     42.197123,
+     48.55546
+    ]
+   ],
+   "priority": 3,
+   "provenance": "rail_compiler",
+   "region": [
+    42.197123,
+    38.209897,
+    48.197123,
+    48.55546
+   ],
+   "shape": "lane"
+  }
+ ],
+ "version": 1
+}

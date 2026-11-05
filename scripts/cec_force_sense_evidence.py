@@ -771,8 +771,14 @@ def compare_contour_preservation(before, after, *, modified_nets,
         if type(rebind_covered_internal_contacts) is not bool:
             raise ValueError('explicit_internal_contact_rebinding_required')
         # This bounds and validates every field before copying or rebinding it.
-        for report in (before,after):
+        result['input_validation']=[]
+        for side,report in (('source',before),('candidate',after)):
             check=compare_contact_preservation(report,report)
+            result['input_validation'].append(dict(side=side,
+                replay_complete=report.get('complete') is True if isinstance(report,dict) else False,
+                replay_stop=report.get('stop') if isinstance(report,dict) and type(report.get('stop')) is str else None,
+                comparison_complete=check['comparison_complete'],same_evidence=check['same_evidence'],
+                errors=list(check.get('errors',[])),reason=check.get('reason')))
             if not check["comparison_complete"] or not check["same_evidence"]:
                 raise ValueError("invalid_or_unbound_contour_contact_evidence")
         selected=set(modified_nets)

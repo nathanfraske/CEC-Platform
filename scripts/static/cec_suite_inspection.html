@@ -11,11 +11,12 @@
 <div id="board-counts" class="metrics"></div>
 <div class="toolbar" aria-label="Board view controls">
 <label>Layer <select id="layer"></select></label><label>Compare <select id="compare"><option value="">None</option></select></label>
-<label>Guide <select id="guide"><option value="">None</option><option>F.Silkscreen</option><option>B.Silkscreen</option><option>F.Fab</option><option>B.Fab</option></select></label>
+<label>Guide <select id="guide" title="Fab guides contain nonprinted component values/part names, not silkscreen."><option value="">None</option><option>F.Silkscreen</option><option>B.Silkscreen</option><option>F.Fab</option><option>B.Fab</option></select></label>
 <label class="compact"><input id="mirror" type="checkbox">Physical bottom</label><label class="compact"><input id="labels" type="checkbox">References</label>
 <button id="fit" type="button">Fit <kbd>F</kbd></button><button id="zoom-in" type="button" aria-label="Zoom in">+</button><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="expand" type="button">Expand view</button>
 </div>
 <div class="gesture-help"><span>Two-finger scroll = pan · pinch / Ctrl+scroll = zoom at pointer · click-drag = pan · double-click = zoom</span><label><input id="wheel-zoom" type="checkbox">Plain wheel zoom</label></div>
+<p id="guide-field-note" class="subtle">Fab guides contain nonprinted component values/part names, not silkscreen. Guide defaults to None; source labels are unchanged.</p>
 <div class="viewer-shell"><div id="loading" role="status">Loading native layer…</div>
 <svg id="viewer" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="img" aria-label="Native PCB layer inspection. Use arrow keys to pan, plus and minus to zoom, F to fit.">
 <title>Exact saved KiCad copper and review annotations</title><g id="model"><image id="copper" preserveAspectRatio="none"/><image id="comparison" preserveAspectRatio="none" opacity="0.35"/><image id="drawing-guide" preserveAspectRatio="none" opacity="0.75"/><g id="net-highlight"></g><g id="selection"></g><g id="issue-markers"></g></g><g id="reference-labels"></g></svg>

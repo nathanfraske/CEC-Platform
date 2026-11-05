@@ -547,6 +547,78 @@ def _receive_reference_transports(candidate,plan):
             raise ValueError('saved_source_reference_group_cardinal_transport_differs')
 
 
+def _save_literal_projection(source, expected, projected, plan, moved_refs):
+    """Receive native scope first, then preserve every unowned Source AST.
+
+    The private expected board is not a writer-normalization waiver. Compare
+    both native serializations BEFORE restoring Source nodes so restoration
+    cannot conceal an accidental mutation of stationary geometry or process.
+    """
+    import copy
+    import cec_copper_echo as syntax
+    import cec_source_retaining_ses_import as raw
+    source = Path(source).resolve()
+    expected = Path(expected).resolve()
+    if source == expected:
+        raise ValueError('distinct_source_literal_projection_required')
+    source_root, source_nodes = additive._nodes(source)
+    original = pcbnew.LoadBoard(str(source))
+    by_ref = {fp.GetReference(): force._uid(fp) for fp in original.GetFootprints()}
+    if not set(moved_refs) <= by_ref.keys():
+        raise ValueError('fresh_actual_projection_owners_required')
+    owned = {by_ref[ref] for ref in moved_refs}
+    retired = set(plan['retired_track_uuids'])
+    if any(uid not in source_nodes or source_nodes[uid][0] != 'segment' for uid in retired):
+        raise ValueError('exact_source_projection_track_cuts_required')
+    if plan.get('reference_group_uuids'):
+        import cec_complete_macro_cell as macro
+        import cec_source_reference_group_cardinal_batch as cardinal
+        owned.update(cardinal.expected_nodes(macro._reference_requests(plan),
+            maximum_translation_mm=escape.complete_transport_shift_bound(plan)))
+    ground = {force._uid(zone) for zone in original.Zones()
+              if not zone.GetIsRuleArea() and zone.GetNetname() == 'GND'}
+    with tempfile.TemporaryDirectory(prefix='cec-literal-projection-') as directory:
+        source_native = Path(directory)/'source.kicad_pcb'
+        projection_native = Path(directory)/'projection.kicad_pcb'
+        field._save_field_snapshot(original, source_native)
+        field._save_field_snapshot(projected, projection_native)
+        old_root, old = additive._nodes(source_native)
+        new_root, new = additive._nodes(projection_native)
+        if set(new) != set(old)-retired:
+            raise ValueError('unexpected_native_projection_population_delta')
+        def globals_only(root, nodes):
+            objects = {id(node) for node in nodes.values()}
+            return syntax._freeze([node for node in root if id(node) not in objects])
+        if globals_only(old_root, old) != globals_only(new_root, new):
+            raise ValueError('native_projection_changed_unowned_global_context')
+        for uid, node in old.items():
+            if uid in retired or uid in owned:
+                continue
+            if uid in ground:
+                if additive._without(node, 'filled_polygon') != additive._without(new[uid], 'filled_polygon'):
+                    raise ValueError('native_projection_changed_ground_nonfill_context')
+            elif syntax._freeze(node) != syntax._freeze(new[uid]):
+                raise ValueError('native_projection_changed_unowned_source_context')
+        replacements = {uid: new[uid] for uid in owned}
+        for uid in ground:
+            node = copy.deepcopy(source_nodes[uid])
+            node = [part for part in node if not
+                    (isinstance(part, list) and part and part[0] == 'filled_polygon')]
+            node.extend(copy.deepcopy(part) for part in new[uid]
+                        if isinstance(part, list) and part and part[0] == 'filled_polygon')
+            replacements[uid] = node
+        text = raw.raw_text(source)
+        spans = raw.inventory(text)
+        for uid in sorted(owned | retired | ground, key=lambda value: spans[value][0], reverse=True):
+            start, end = spans[uid]
+            text = text[:start] + ('' if uid in retired else additive._render(replacements[uid])) + text[end:]
+        raw.write_raw(expected, text)
+    return dict(ok=True, complete=True, owned_native_uuids=sorted(owned),
+                retired_native_uuids=sorted(retired), ground_fill_uuids=sorted(ground),
+                native_unowned_context_independently_unchanged=True,
+                source_literal_unowned_context_preserved=True)
+
+
 def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
             allow_owned_locked_escapes=False,rebuild_projected_ground=False,allow_octilinear_rotations=False,
             reference_group_uuids=(),aggregate_capacitor_max_shift_mm=None,
@@ -592,7 +664,9 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
             raise ValueError('isolated_source_terminals_have_no_complete_saved_routing_obligation')
         with tempfile.TemporaryDirectory(prefix='cec-complete-saved-cell-') as work:
             expected=force._copy_family(paths[0],Path(work)/'expected')
-            additive._ground_refill(projected);field._save_field_snapshot(projected,expected)
+            additive._ground_refill(projected)
+            r['literal_source_projection_context'] = _save_literal_projection(
+                paths[0], expected, projected, plan, moved)
             if reference_group_uuids:
                 import cec_complete_macro_cell as complete_macro
                 row_plan=plan['row_plan']
@@ -614,6 +688,7 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         native_tracks={force._uid(t) for t in child.GetTracks()}
         incoming=set(proof['added_native_uuids'])&native_tracks
         r['actual_native_terminal_paths']=_receive_paths(parent,child,requests,incoming,board_hint,deadline,
+            allow_retained_no_additions=not incoming and not plan['retired_track_uuids'],
             source_proposal=plan)
         r['paired_actual_filled_island_preservation']=_preserve_partitions(
             parent,child,poses,set(plan['retired_track_uuids']),deadline)

@@ -102,7 +102,8 @@ def test_saved_annotation_receiver_cannot_truncate_noncardinal_turn(tmp_path):
 
 
 @pytest.mark.parametrize('turn',range(4))
-def test_connected_constructor_retains_exact_annotation_ast_and_unowned_groups(tmp_path,monkeypatch,turn):
+@pytest.mark.parametrize('bare_group_uuid',[False,True])
+def test_connected_constructor_retains_exact_annotation_ast_and_unowned_groups(tmp_path,monkeypatch,turn,bare_group_uuid):
     """Exercise the real native-save/AST-retention boundary, not a mock writer."""
     import cec_additive_route_receiving as syntax
     import cec_copper_echo as echo
@@ -117,6 +118,11 @@ def test_connected_constructor_retains_exact_annotation_ast_and_unowned_groups(t
     board.Add(text);other.AddItem(text);other.SetLocked(True)
     other_ids={force._uid(other),force._uid(text)}
     field._save_field_snapshot(board,source)
+    if bare_group_uuid:
+        text=source.read_text()
+        quoted='(uuid "'+group+'")'
+        assert text.count(quoted)==1
+        source.write_text(text.replace(quoted,'(uuid '+group+')'))
     original=source.read_bytes()
     original_nodes=syntax._nodes(source)[1]
     poses={'X7':[10.25,10.,90.*turn]}
@@ -146,6 +152,24 @@ def test_connected_constructor_retains_exact_annotation_ast_and_unowned_groups(t
         for uid in original_nodes.keys()-expected_ids)
     assert source.read_bytes()==original
     assert result['private_unadmitted'] and not result['release_authority']
+
+
+def test_cardinal_writer_accepts_only_group_uuid_quoting_not_other_changes():
+    import copy
+    import cec_complete_macro_cell as complete
+
+    uid='12345678-1234-1234-1234-123456789abc'
+    member='87654321-4321-4321-4321-cba987654321'
+    source=['group','"source-map"',['uuid',uid],['members','"'+member+'"'],['locked','yes']]
+    quoted=copy.deepcopy(source);quoted[2][1]='"'+uid+'"'
+    assert complete._cardinal_writer_signature(source)==complete._cardinal_writer_signature(quoted)
+    for index,value in [(1,'"different-map"'),(2,['uuid','"'+member+'"']),
+                        (3,['members','"'+uid+'"']),(4,['locked','no'])]:
+        changed=copy.deepcopy(quoted);changed[index]=value
+        assert complete._cardinal_writer_signature(source)!=complete._cardinal_writer_signature(changed)
+    malformed=copy.deepcopy(source);malformed[2][1]='not-a-uuid'
+    malformed_quote=copy.deepcopy(malformed);malformed_quote[2][1]='"not-a-uuid"'
+    assert complete._cardinal_writer_signature(malformed)!=complete._cardinal_writer_signature(malformed_quote)
 
 
 def test_plan_cell_api_preserves_explicit_annotation_scope(tmp_path):

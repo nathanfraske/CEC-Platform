@@ -1,0 +1,14 @@
+(version 1)
+
+# eps-out-db: four qualification-gated XFCN T34069 M3 bolt pads, ordered
+# GND/+12V/+12V/GND for symmetric current sharing around the retained 2x4
+# cable field. Both nets remain flooded on their own layer pair.
+
+(rule "Power min width"
+	(constraint track_width (min 0.4mm))
+	(condition "A.NetClass == 'Power'"))
+
+# The current KiCad board-edge checks deliberately remain active for every
+# XFCN land.  Do not waive them here: the imported drawings do not fully
+# qualify the daughterboard insertion geometry, so those findings are part of
+# the fail-closed incoming-sample and electrical-coupon release gate.
