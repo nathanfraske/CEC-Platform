@@ -94,7 +94,7 @@
     "active_workflow_tests_passed": 230,
     "independent_backend_tests_passed": 652,
     "retained_route_craft_tests_passed": 88,
-    "full_collection_tests": 52044,
+    "full_collection_tests": 52045,
     "full_collection_errors": 0,
     "full_collection_is_not_a_full_test_run": true,
     "native_board_files_changed": false,

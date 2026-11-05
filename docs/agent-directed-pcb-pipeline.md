@@ -78,9 +78,22 @@ orders, not implementation exceptions.
 * `power_route`: bounded full-current planar shortening on the source width
   and face. Exact native ports, boundaries, partitions and current contract
   replay independently. It cannot claim new layer-sharing or barrel capacity.
+  The explicit cut may be a connected tree rather than only a two-terminal
+  chain; every branch contact must still survive saved native receiving.
+  Omitting a short redundant tail must not leave a dangling remnant.
 * `bank_collector`: literal same-net pad-bank collector with solid actual
   saved fill and deliberate chamfers. Original pads and support conductors
   remain. Its outline does not create a new current rating.
+
+Kelvin preservation first attempts an exact non-interference proof for unrelated
+track-only edits. Both fresh full-denominator manifests must agree on all
+lineage, terminal and authority contracts; every other native object, hole,
+via, fill, edge, setting and project companion must remain exact. A changed
+force/sense net, unresolved lineage, or broader edit cannot use this proof.
+It preserves existing evidence without replaying irrelevant clipped cuts;
+it never establishes absolute Kelvin qualification. Relevant changes still
+owe physical replay, and native DRC/current/fields/assembly checks remain
+mandatory in either case.
 
 Mixed-authority macros are separate transactions, not one opaque batch.
 `add_connections` supplies model-authored ordinary-control/Ground tracks and
