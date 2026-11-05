@@ -1,0 +1,70 @@
+{
+  "board": "eps-8pin-rev3",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/eps-8pin-rev3/board.kicad_pcb",
+  "sha256": "2155294c33e99b68d0156faf5a41e323afe4abd992bd31242ee9e264d7d69a35",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_high_current",
+    "CEC_STACKUP_ROLES": "SIG/PWR/GND/SIG/PWR/GND/SIG/PWR",
+    "CEC_VENDOR_STACKUP": "JLC06162H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/eps-8pin-rev3/pipeline-policy.json",
+  "policy_fingerprint": "a2f50f2364f21f0c1c75ff6fcf1147602b2fc95249f5929e68665df301f79c6b",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "/SENSEC": 52.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "VCC_RJ45": 1.0,
+      "/VBUS_FUSED": 1.0
+    },
+    "net_current_contract_notes": [
+      "The single EPS design basis is four power pins at approximately 13 A per pin; the alias exists only for older artifact names.",
+      "Owner authorized 1 A continuous conductor design basis per TPS2121 input on 2026-10-23: U4 IN1 pin 7 on VCC_RJ45 and U4 IN2 pin 2 on hierarchical VBUS_FUSED. Each input retains the existing 1.25 geometry margin independently; no sharing is assumed. This is a routing requirement, not a changed load, output rating, part-capacity claim, or qualification."
+    ],
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "eps-8pin-rev3"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "U30",
+      "U31"
+    ],
+    "unverified_refs": [
+      "D1",
+      "D3",
+      "U1",
+      "U4"
+    ],
+    "component_power_W": {
+      "D1": 5e-06,
+      "D3": 5e-06,
+      "U1": 0.6336,
+      "U10": 0.00211,
+      "U11": 0.00211,
+      "U2": 0.0925,
+      "U20": 0.00064,
+      "U21": 0.00064,
+      "U3": 0.341372,
+      "U4": 0.056
+    },
+    "shunt_resistance_ohm": {
+      "RS1": 0.0005,
+      "RS2": 0.0005
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

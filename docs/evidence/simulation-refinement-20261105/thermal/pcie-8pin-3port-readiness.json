@@ -1,0 +1,83 @@
+{
+  "board": "pcie-8pin-3port",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/pcie-8pin-3port/board.kicad_pcb",
+  "sha256": "cca2ebcd5c2073ad72ee58f39b665075d9519ed0fd71c0cc6e2a333ab797f70e",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_high_current",
+    "CEC_STACKUP_ROLES": "SIG/PWR/GND/SIG/PWR/GND/SIG/PWR",
+    "CEC_VENDOR_STACKUP": "JLC06162H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/pcie-8pin-3port/pipeline-policy.json",
+  "policy_fingerprint": "6b8df42b3b47708081b0e20d55154d31080c66c63e249c5c1019fc904d568d88",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "/SENSEC": 39.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "/VCC_J1": 1.0,
+      "VCC_RJ45": 1.0,
+      "/VBUS_J5": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "net_current_contract_notes": [
+      "The cable basis is three 12V pins at approximately 13 A per pin.",
+      "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite.",
+      "User-approved routing requirement on 2026-10-24: /VCC_J1 and VCC_RJ45 each carry 1 A continuously with the existing 1.25 geometry margin and no input-sharing credit. This is explicit conductor authority, not an inferred upstream rating from the +5VSB mux output and not borrowed from another board.",
+      "Canonical chain: J1 pin 1 -> /VCC_J1 -> FB2 pin 1; FB2 pin 2 -> VCC_RJ45 -> TPS2121 U4 IN1 pin 7, C45 pin 1 and the R15/R17 divider upper legs. The requirement changes no part, pinout or claimed load and does not qualify the generic 0R link, connector contacts, via plating/barrels, inrush, capacitor leakage, fault current, thermal behavior or fabrication release."
+    ],
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "pcie-8pin-3port"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "U30",
+      "U31",
+      "U32"
+    ],
+    "unverified_refs": [
+      "D1",
+      "D3",
+      "D4",
+      "FB1",
+      "U1",
+      "U4"
+    ],
+    "component_power_W": {
+      "D1": 5e-06,
+      "D3": 5e-06,
+      "D4": 5e-06,
+      "FB1": 0.008,
+      "U1": 0.6336,
+      "U10": 0.00211,
+      "U11": 0.00211,
+      "U12": 0.00211,
+      "U2": 0.0925,
+      "U20": 0.00064,
+      "U21": 0.00064,
+      "U22": 0.00064,
+      "U3": 0.348288,
+      "U4": 0.056
+    },
+    "shunt_resistance_ohm": {
+      "RS1": 0.0005,
+      "RS2": 0.0005,
+      "RS3": 0.0005
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

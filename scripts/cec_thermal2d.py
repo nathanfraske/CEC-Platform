@@ -767,12 +767,7 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None, precond_out=None):
         pass
     x = spla.lsqr(Aspmat, rhs)[0]
     if not _resid_ok(Aspmat, rhs, x, tol=1e-4):
-        # last resort stays a return (callers fail-close on the field downstream:
-        # the oracle's mirage guard + dT~0 check), but NEVER a silent one
-        _b = float(np.linalg.norm(rhs)) or 1.0
-        print("[cec_thermal2d] WARNING: lsqr last-resort solution rel-residual %.2e "
-              "-- treat the field as suspect" % (float(np.linalg.norm(Aspmat @ x - rhs)) / _b),
-              file=sys.stderr)
+        raise RuntimeError("thermal_lsqr_true_residual_refused:relative_tolerance=0.0001")
     return x
 
 
@@ -966,7 +961,12 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
     g_mount=0 (default) -> OFF, byte-identical to the legacy result (keeps goldens).
     board_mask: optional bool (ny,nx); cells OUTSIDE the board contribute no
     convective/radiative loss (kills phantom-bbox loss on non-rectangular boards).
-    Returns T grid [C]."""
+    Returns T grid [C]. A nonfinite linear solve or exhausted nonlinear
+    iteration is a refusal, never an ambient-temperature substitute."""
+    if type(max_picard) is not int or max_picard < 1:
+        raise ValueError("max_picard must be a positive integer")
+    if isinstance(tol, bool) or not math.isfinite(tol) or tol <= 0:
+        raise ValueError("thermal iteration tolerance must be finite and positive")
     ny, nx = grid.ny, grid.nx
     extra_h = np.broadcast_to(np.asarray(additional_h_W_m2K, dtype=float), (ny, nx)).ravel()
     if not np.all(np.isfinite(extra_h)) or np.any(extra_h < 0):
@@ -1052,8 +1052,8 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
         Tnew = _spd_solve(Msolve, rhs, backend, precond=amg_precond, precond_out=_pout)
         if _pout and _pout.get("precond") is not None:
             amg_precond = _pout["precond"]       # stale hierarchy retired (FEM audit #1)
-        if not np.all(np.isfinite(Tnew)):
-            Tnew = np.full(N, Ta)
+        if np.shape(Tnew) != (N,) or not np.all(np.isfinite(Tnew)):
+            raise RuntimeError("thermal_linear_solve_invalid_temperature_field")
         if nonlinear:
             # under-relax for stability of the dT^1.25 / T^4 loss
             Tnew = 0.5 * Tnew + 0.5 * T
@@ -1063,6 +1063,10 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
             print(f"    picard it{it}: max_T={T.max():.2f} d={delta:.4f}")
         if not nonlinear or delta < tol:
             break
+    else:
+        raise RuntimeError(
+            f"thermal_picard_iteration_exhausted:iterations={max_picard}:"
+            f"last_delta_C={delta:.9g}:tolerance_C={tol:.9g}")
     return T.reshape(ny, nx)
 
 

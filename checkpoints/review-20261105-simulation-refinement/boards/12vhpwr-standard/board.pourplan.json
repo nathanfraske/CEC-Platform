@@ -1,0 +1,457 @@
+{
+ "board_sig": "d0e81803ab3c3994",
+ "recipe": {
+  "corridor_fcu_only": false,
+  "inner_pours": false,
+  "lane_w_json": "",
+  "pour_lanes": false,
+  "shunt_gap": false,
+  "shunt_gap_mm": 6.5,
+  "uniform": false
+ },
+ "specs": [
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/FAN_12V",
+   "notch": null,
+   "polygon": [
+    [
+     28.499997,
+     1.891499
+    ],
+    [
+     40.0,
+     1.891499
+    ],
+    [
+     40.0,
+     32.0375
+    ],
+    [
+     28.499997,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/FAN_12V",
+   "notch": null,
+   "polygon": [
+    [
+     40.0,
+     22.5
+    ],
+    [
+     49.5,
+     22.5
+    ],
+    [
+     49.5,
+     32.0375
+    ],
+    [
+     40.0,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP6_LO",
+   "notch": null,
+   "polygon": [
+    [
+     28.499999,
+     35.9625
+    ],
+    [
+     40.0,
+     35.9625
+    ],
+    [
+     40.0,
+     70.108501
+    ],
+    [
+     28.499999,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP1_HI",
+   "notch": null,
+   "polygon": [
+    [
+     4.0,
+     1.891499
+    ],
+    [
+     15.500001,
+     1.891499
+    ],
+    [
+     15.500001,
+     32.0375
+    ],
+    [
+     4.0,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP1_LO",
+   "notch": null,
+   "polygon": [
+    [
+     4.0,
+     35.9625
+    ],
+    [
+     15.500003,
+     35.9625
+    ],
+    [
+     15.500003,
+     70.108501
+    ],
+    [
+     4.0,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP2_HI",
+   "notch": null,
+   "polygon": [
+    [
+     15.500001,
+     1.891499
+    ],
+    [
+     18.5,
+     1.891499
+    ],
+    [
+     18.5,
+     32.0375
+    ],
+    [
+     15.500001,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP2_LO",
+   "notch": null,
+   "polygon": [
+    [
+     15.500003,
+     35.9625
+    ],
+    [
+     18.500002,
+     35.9625
+    ],
+    [
+     18.500002,
+     70.108501
+    ],
+    [
+     15.500003,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP3_HI",
+   "notch": null,
+   "polygon": [
+    [
+     18.5,
+     1.891499
+    ],
+    [
+     21.5,
+     1.891499
+    ],
+    [
+     21.5,
+     32.0375
+    ],
+    [
+     18.5,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP3_LO",
+   "notch": null,
+   "polygon": [
+    [
+     18.500002,
+     35.9625
+    ],
+    [
+     21.500001,
+     35.9625
+    ],
+    [
+     21.500001,
+     70.108501
+    ],
+    [
+     18.500002,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP4_HI",
+   "notch": null,
+   "polygon": [
+    [
+     22.499999,
+     1.891499
+    ],
+    [
+     26.4,
+     1.891499
+    ],
+    [
+     26.4,
+     32.0375
+    ],
+    [
+     22.499999,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP4_LO",
+   "notch": null,
+   "polygon": [
+    [
+     22.5,
+     35.9625
+    ],
+    [
+     26.4,
+     35.9625
+    ],
+    [
+     26.4,
+     70.108501
+    ],
+    [
+     22.5,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP5_HI",
+   "notch": null,
+   "polygon": [
+    [
+     26.4,
+     1.891499
+    ],
+    [
+     28.499997,
+     1.891499
+    ],
+    [
+     28.499997,
+     32.0375
+    ],
+    [
+     26.4,
+     32.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEP5_LO",
+   "notch": null,
+   "polygon": [
+    [
+     26.4,
+     35.9625
+    ],
+    [
+     28.499999,
+     35.9625
+    ],
+    [
+     28.499999,
+     70.108501
+    ],
+    [
+     26.4,
+     70.108501
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  }
+ ],
+ "version": 1
+}

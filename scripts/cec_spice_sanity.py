@@ -33,6 +33,7 @@ PIN_MODELS entry or a dedicated topology model.
 import argparse
 import itertools
 import json
+import math
 import os
 import re
 import shutil
@@ -215,9 +216,14 @@ class Deck:
 
     def n(self, net):
         net = self.aliases.get(net, net)
+        if not isinstance(net, str) or not net:
+            raise ValueError("nonempty_exact_schematic_net_identity_required")
         if net == "GND":
             return "0"
-        return "n_" + re.sub(r"[^A-Za-z0-9]", "_", net)
+        # SPICE names are case-insensitive. Sanitizing punctuation (or merely
+        # adding a case-sensitive suffix) can silently short distinct KiCad
+        # nets. Lowercase UTF-8 hex is injective even after SPICE case-folding.
+        return "n_" + net.encode("utf-8").hex()
 
     def add(self, line):
         self.lines.append(line)
@@ -705,6 +711,8 @@ def run_deck(d, probes):
     for p in probes:
         ctrl.append(f"print v({p})")
     ctrl += [f"print i(Vsrc{i})" for i in range(sum(1 for l in d.lines if l.startswith('Vsrc')))]
+    required = {f"v({p})".lower() for p in probes}
+    required.update(f"i(vsrc{i})" for i in range(sum(1 for l in d.lines if l.startswith('Vsrc'))))
     ctrl += [".endc", ".end"]
     cir = body + "\n".join(ctrl) + "\n"
     with tempfile.NamedTemporaryFile("w", suffix=".cir", delete=False) as f:
@@ -724,12 +732,26 @@ def run_deck(d, probes):
             detail = (r.stderr or r.stdout or "no simulator diagnostics").strip()
             raise RuntimeError(f"ngspice exited {r.returncode}: {detail}")
         out = {}
-        for m in re.finditer(r"^([a-z0-9_#\(\)vi\.]+) = ([\-\d.e+]+)",
+        for m in re.finditer(r"^\s*((?:v|i)\([^\r\n)]*\))\s*=\s*(\S+)\s*$",
                              r.stdout, re.M | re.I):
-            out[m.group(1).lower()] = float(m.group(2))
-        if (probes or any(line.startswith("Vsrc") for line in d.lines)) and not out:
+            key = m.group(1).lower()
+            if key not in required:
+                continue
+            try:
+                value = float(m.group(2))
+            except ValueError as exc:
+                raise RuntimeError(f"invalid requested ngspice value: {key}") from exc
+            if not math.isfinite(value):
+                raise RuntimeError(f"nonfinite requested ngspice value: {key}")
+            if key in out and out[key] != value:
+                raise RuntimeError(f"contradictory requested ngspice value: {key}")
+            out[key] = value
+        if required and not out:
             raise RuntimeError(
                 "ngspice exited successfully but returned no requested values")
+        if required - out.keys():
+            raise RuntimeError("ngspice returned incomplete requested values: " +
+                               ", ".join(sorted(required-out.keys())))
         return out, r.stdout, r.stderr
     finally:
         os.unlink(path)

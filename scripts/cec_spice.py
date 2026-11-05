@@ -99,10 +99,25 @@ def _run(cir):
     finally:
         os.unlink(path)
     vals = {}
-    for m in re.finditer(r"v\((\w+)\)\s*=\s*([-\d.eE+]+)", out):
-        vals[m.group(1)] = float(m.group(2))
+    required = {"ncsa", "nout"}
+    for m in re.finditer(r"^\s*v\((\w+)\)\s*=\s*(\S+)\s*$", out, re.M | re.I):
+        key = m.group(1).lower()
+        if key not in required:
+            continue
+        try:
+            value = float(m.group(2))
+        except ValueError as exc:
+            raise RuntimeError("invalid requested ngspice value: " + key) from exc
+        if not math.isfinite(value):
+            raise RuntimeError("nonfinite requested ngspice value: " + key)
+        if key in vals and vals[key] != value:
+            raise RuntimeError("contradictory requested ngspice value: " + key)
+        vals[key] = value
     if not vals:
         raise RuntimeError("ngspice exited successfully but returned no requested values")
+    if required - vals.keys():
+        raise RuntimeError("ngspice returned incomplete requested values: " +
+                           ", ".join(sorted(required-vals.keys())))
     return vals
 
 

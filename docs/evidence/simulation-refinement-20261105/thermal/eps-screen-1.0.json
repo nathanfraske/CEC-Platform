@@ -1,0 +1,614 @@
+{
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/output-daughterboards--eps-out-db/eps-out-db-board.kicad_pcb",
+  "sha256": "492a52f94fe35eb8e950f35cabbb1e1aa5d5ee1364c5761fbbeee4ff029da988",
+  "unchanged": true,
+  "elapsed_s": 0.35804832999929204,
+  "grid_mm": 1.0,
+  "scenario": {
+    "ambient_C": 50.0,
+    "copper_factor": 1.0,
+    "plating_um": 25.0,
+    "c_nat": 1.4,
+    "eps_rad": 0.75
+  },
+  "currents_A": {
+    "+12V": 65.0,
+    "GND": 65.0
+  },
+  "contact_mohm": 0.2,
+  "contact_W": {
+    "J13": 0.32,
+    "J14": 0.125,
+    "J10": 0.32,
+    "J11": 0.125
+  },
+  "max_T_C": 330.0178129842418,
+  "total_input_W": 3.8327789336024027,
+  "total_loss_W": 3.832779004013244,
+  "meta": {
+    "stackup_oz": {
+      "F.Cu": 2.0114942528735638,
+      "In1.Cu": 1.0057471264367819,
+      "In2.Cu": 1.0057471264367819,
+      "B.Cu": 2.0114942528735638
+    },
+    "dielectric_mm": {
+      "('F.Cu', 'In1.Cu')": 0.2,
+      "('In1.Cu', 'In2.Cu')": 1.065,
+      "('In2.Cu', 'B.Cu')": 0.2
+    },
+    "native_copper_graph_policy": "all_actual_same_net_copper_no_value_based_suppression",
+    "sense_copper_stripped": false,
+    "operation_complete": true,
+    "budget_exhausted": false,
+    "budget_phase": null,
+    "thermal_iterations_completed": 5,
+    "raster_topology": {
+      "schema": 1,
+      "complete": true,
+      "requested_pitch_mm": 1.0,
+      "selected_pitch_mm": 1.0,
+      "attempts": [
+        {
+          "index": 0,
+          "pitch_mm": 1.0,
+          "grid_cells": 589,
+          "estimated_working_bytes": 1196232,
+          "nodes": 1733,
+          "working_memory_reservation": {
+            "model": "all_copper_streaming_v1",
+            "geometry_pairs": 8,
+            "active_dense_pairs": 8,
+            "inactive_packed_pairs": 0,
+            "largest_graph_layers": 4,
+            "global_field_and_overlay_bytes": 77748,
+            "active_dense_electrical_bytes": 94240,
+            "inactive_packed_occupancy_bytes": 0,
+            "stream_temporary_bytes": 77748,
+            "graph_workspace_bytes": 942400,
+            "geometry_pair_metadata_bytes": 4096,
+            "total_bytes": 1196232
+          },
+          "nets": {
+            "+12V": {
+              "native_terminal_connected": true,
+              "raster_terminal_complete": true,
+              "raster_merges_native_components": false,
+              "nodes": 857,
+              "terminals": [
+                {
+                  "uuid": "7d2a2ebf-ecad-4d36-a258-b2a7f8f0e36e",
+                  "ref": "J14",
+                  "pad": "1",
+                  "side": "src",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "F.Cu"
+                  ],
+                  "represented_cells": 30,
+                  "raster_components": [
+                    0
+                  ]
+                },
+                {
+                  "uuid": "4df74c8a-dda3-4540-a2fd-2b29a89a0846",
+                  "ref": "J13",
+                  "pad": "1",
+                  "side": "src",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "F.Cu"
+                  ],
+                  "represented_cells": 30,
+                  "raster_components": [
+                    0
+                  ]
+                },
+                {
+                  "uuid": "b68bd281-34e4-4f35-bfaf-90655642e351",
+                  "ref": "J1",
+                  "pad": "5",
+                  "side": "sink",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 36,
+                  "raster_components": [
+                    0
+                  ]
+                },
+                {
+                  "uuid": "9d02fefd-eb2c-418d-a582-5c9c3d4c2f33",
+                  "ref": "J1",
+                  "pad": "6",
+                  "side": "sink",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 24,
+                  "raster_components": [
+                    0
+                  ]
+                },
+                {
+                  "uuid": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "ref": "J1",
+                  "pad": "7",
+                  "side": "sink",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 28,
+                  "raster_components": [
+                    0
+                  ]
+                },
+                {
+                  "uuid": "617be6a2-8775-4434-a1d3-7efd7da48d1b",
+                  "ref": "J1",
+                  "pad": "8",
+                  "side": "sink",
+                  "native_component": "3f578928-33d7-462f-bb25-dca5a53d727d",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 40,
+                  "raster_components": [
+                    0
+                  ]
+                }
+              ]
+            },
+            "GND": {
+              "native_terminal_connected": true,
+              "raster_terminal_complete": true,
+              "raster_merges_native_components": false,
+              "nodes": 876,
+              "terminals": [
+                {
+                  "uuid": "a21eb4db-0458-497d-bea1-427d9d5b4830",
+                  "ref": "J1",
+                  "pad": "1",
+                  "side": "src",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 36,
+                  "raster_components": [
+                    5
+                  ]
+                },
+                {
+                  "uuid": "7523c2bc-0f6d-404a-b195-5d3b6d5bd5a6",
+                  "ref": "J1",
+                  "pad": "2",
+                  "side": "src",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 32,
+                  "raster_components": [
+                    5
+                  ]
+                },
+                {
+                  "uuid": "68f29d9a-f709-4ce5-85f0-c61ad98edb5e",
+                  "ref": "J1",
+                  "pad": "3",
+                  "side": "src",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 28,
+                  "raster_components": [
+                    5
+                  ]
+                },
+                {
+                  "uuid": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "ref": "J1",
+                  "pad": "4",
+                  "side": "src",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "B.Cu",
+                    "F.Cu",
+                    "In1.Cu",
+                    "In2.Cu"
+                  ],
+                  "represented_cells": 36,
+                  "raster_components": [
+                    5
+                  ]
+                },
+                {
+                  "uuid": "9eb68c49-8187-47ac-ae4c-825bafe5b2b9",
+                  "ref": "J10",
+                  "pad": "1",
+                  "side": "sink",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "F.Cu"
+                  ],
+                  "represented_cells": 30,
+                  "raster_components": [
+                    5
+                  ]
+                },
+                {
+                  "uuid": "d2ad7e36-e9cb-4139-a617-55fec9dadddf",
+                  "ref": "J11",
+                  "pad": "1",
+                  "side": "sink",
+                  "native_component": "0d4e0eb5-fcca-4e28-b66a-ec551d5016f5",
+                  "layers": [
+                    "F.Cu"
+                  ],
+                  "represented_cells": 30,
+                  "raster_components": [
+                    5
+                  ]
+                }
+              ]
+            }
+          },
+          "mismatched_nets": []
+        }
+      ],
+      "limits": {
+        "max_attempts": 3,
+        "min_pitch_mm": 0.05,
+        "max_grid_cells": 600000,
+        "max_net_nodes": 1500000,
+        "max_total_nodes": 5000000,
+        "max_estimated_bytes": 2147483648,
+        "max_native_items": 50000,
+        "max_terminal_pads": 4096,
+        "max_contact_pairs": 4096,
+        "max_drills": 10000,
+        "preflight_seconds": 30.0
+      },
+      "refinement_changed_copper": false,
+      "added_graph_shortcuts": false,
+      "native_scope": "declared terminal component parity only",
+      "local_material_conductance_qualified": false,
+      "grid_convergence_verified": false,
+      "numerical_qualification": false,
+      "inherited_deadline_monotonic": null,
+      "preflight_deadline_monotonic": 13204.389407885,
+      "native_board_sha256": "bc2172e6bde6f92a6be5e5c5940c82ae99e8fd707bdd86f96010e07b19db4f30",
+      "legacy_unverified_nets": [],
+      "native_terminal_nets": [
+        "+12V",
+        "GND"
+      ],
+      "working_memory_reservation": {
+        "pitch_mm": 1.0,
+        "grid_cells": 589,
+        "model": "all_copper_streaming_v1",
+        "geometry_pairs": 8,
+        "active_dense_pairs": 8,
+        "inactive_packed_pairs": 0,
+        "largest_graph_layers": 4,
+        "global_field_and_overlay_bytes": 77748,
+        "active_dense_electrical_bytes": 94240,
+        "inactive_packed_occupancy_bytes": 0,
+        "stream_temporary_bytes": 77748,
+        "graph_workspace_bytes": 942400,
+        "geometry_pair_metadata_bytes": 4096,
+        "total_bytes": 1196232
+      },
+      "native_identity_verified": true,
+      "status": "native_terminal_parity_at_requested_grid",
+      "elapsed_s": 0.026984052999978303
+    },
+    "copper_raster_retention": {
+      "all_copper_thermal_contribution_preserved": true,
+      "inactive_occupancy_encoding": "numpy_packbits_lossless",
+      "dense_electrical_pairs": 8,
+      "inactive_packed_pairs": 0,
+      "inactive_packed_bytes": 0,
+      "peak_inactive_unpacked_layers": 0,
+      "thermal_accumulation_order": "zones_then_tracks_then_pads_unchanged"
+    },
+    "numerical_qualification": false,
+    "grid_convergence_verified": false,
+    "electrical_accounting": {
+      "+12V": {
+        "requested_A": 65.0,
+        "source_nodes": 60,
+        "sink_nodes": 128,
+        "represented_source_A": 65.0,
+        "represented_sink_A": 65.0,
+        "omitted_terminal_nodes": 0,
+        "signed_balance_A": 0.0,
+        "terminal_work_W": 0.4993463379203886,
+        "kirchhoff_relative_residual": 1.8822111444324438e-14,
+        "joule_W": 0.499346337920389,
+        "energy_residual_W": 3.885780586188048e-16,
+        "energy_conserved": true
+      },
+      "GND": {
+        "requested_A": 65.0,
+        "source_nodes": 132,
+        "sink_nodes": 60,
+        "represented_source_A": 64.99999999999999,
+        "represented_sink_A": 65.0,
+        "omitted_terminal_nodes": 0,
+        "signed_balance_A": 7.105427357601002e-15,
+        "terminal_work_W": 2.44343259568201,
+        "kirchhoff_relative_residual": 5.078782074607917e-14,
+        "joule_W": 2.4434325956820135,
+        "energy_residual_W": 3.552713678800501e-15,
+        "energy_conserved": true
+      }
+    },
+    "net_copper_joule_W": {
+      "+12V": 0.499346337920389,
+      "GND": 2.4434325956820135
+    },
+    "spatial_heat_evidence": {
+      "grid_mm": 1.0,
+      "copper_integral_W": 2.9427789336024057,
+      "component_integral_W": 0.8899999999999997,
+      "temperature_max_cell": 436,
+      "copper_W_at_temperature_max_cell": 0.005840282895444003,
+      "component_W_at_temperature_max_cell": 0.010666666666666665,
+      "package_or_contact_temperature_qualified": false
+    },
+    "h_eff": 15.0,
+    "gnd_inner_layers": [
+      "In1.Cu",
+      "In2.Cu"
+    ],
+    "inner_3v3_layer": null,
+    "t_plating_um": 25.0,
+    "nonlinear": true,
+    "c_nat": 1.4,
+    "eps_rad": 0.75,
+    "backend": "cpu",
+    "n_vias": 16,
+    "n_pth": 12,
+    "n_tracks": 32,
+    "copper_joule_W": 2.9427789336024026,
+    "component_W": 0.8900000000000001,
+    "component_injection": {
+      "requested_W": 0.89,
+      "applied_W": 0.89,
+      "applied_by_ref_W": {
+        "J10": 0.32,
+        "J14": 0.125,
+        "J13": 0.32,
+        "J11": 0.125
+      },
+      "missing_refs": [],
+      "pad_cells_by_ref": {
+        "J10": [
+          404,
+          405,
+          406,
+          407,
+          408,
+          409,
+          435,
+          436,
+          437,
+          438,
+          439,
+          440,
+          466,
+          467,
+          468,
+          469,
+          470,
+          471,
+          497,
+          498,
+          499,
+          500,
+          501,
+          502,
+          528,
+          529,
+          530,
+          531,
+          532,
+          533
+        ],
+        "J14": [
+          419,
+          420,
+          421,
+          422,
+          423,
+          424,
+          450,
+          451,
+          452,
+          453,
+          454,
+          455,
+          481,
+          482,
+          483,
+          484,
+          485,
+          486,
+          512,
+          513,
+          514,
+          515,
+          516,
+          517,
+          543,
+          544,
+          545,
+          546,
+          547,
+          548
+        ],
+        "J13": [
+          411,
+          412,
+          413,
+          414,
+          415,
+          416,
+          442,
+          443,
+          444,
+          445,
+          446,
+          447,
+          473,
+          474,
+          475,
+          476,
+          477,
+          478,
+          504,
+          505,
+          506,
+          507,
+          508,
+          509,
+          535,
+          536,
+          537,
+          538,
+          539,
+          540
+        ],
+        "J11": [
+          427,
+          428,
+          429,
+          430,
+          431,
+          432,
+          458,
+          459,
+          460,
+          461,
+          462,
+          463,
+          489,
+          490,
+          491,
+          492,
+          493,
+          494,
+          520,
+          521,
+          522,
+          523,
+          524,
+          525,
+          551,
+          552,
+          553,
+          554,
+          555,
+          556
+        ]
+      }
+    },
+    "component_board_temperature_C": {
+      "J10": 330.0178129842418,
+      "J14": 326.73176395485416,
+      "J13": 329.0435607298185,
+      "J11": 326.6555806146633
+    },
+    "additional_h_W_m2K_range": [
+      0.0,
+      0.0
+    ],
+    "include_traces": true,
+    "area_injection": true,
+    "ideal_pad_faces": false,
+    "rho_T": true,
+    "g_mount_W_per_K": 0.0,
+    "net_currents": {
+      "+12V": 65.0,
+      "GND": 65.0
+    },
+    "current_binding": {
+      "bindings": {
+        "+12V": {
+          "configured_net": "+12V",
+          "amps": 65.0,
+          "actual_net": "+12V",
+          "override_keys": [
+            "+12V"
+          ],
+          "design_current_net": "+12V",
+          "missing_refs": [],
+          "duplicate_refs": [],
+          "source_refs": [
+            "J13",
+            "J14"
+          ],
+          "sink_refs": [
+            "J1"
+          ],
+          "off_net_required_refs": [],
+          "resolution": "exact_name"
+        },
+        "GND": {
+          "configured_net": "GND",
+          "amps": 65.0,
+          "actual_net": "GND",
+          "override_keys": [
+            "GND"
+          ],
+          "design_current_net": "GND",
+          "missing_refs": [],
+          "duplicate_refs": [],
+          "source_refs": [
+            "J1"
+          ],
+          "sink_refs": [
+            "J10",
+            "J11"
+          ],
+          "off_net_required_refs": [],
+          "resolution": "exact_name"
+        }
+      },
+      "issues": [],
+      "ok": true,
+      "copper_connectivity_proved": false
+    }
+  },
+  "nets_dropped": {},
+  "nets_absent": {},
+  "qualification": false,
+  "scope": "2D board-temperature screening using declared XFCN nominal inputs, not junction/full3D/production qualification"
+}

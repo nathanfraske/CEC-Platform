@@ -203,12 +203,12 @@ class TestDeckGeneration(unittest.TestCase):
             {"U1": "INA180A2"},
             {"VS": [("U1", "5")], "WRONG": [("U1", "6")]},
         )
-        self.assertTrue(any("_U1_ld0 n_VS " in line for line in ina180.lines))
+        self.assertTrue(any("_U1_ld0 " + ina180.n("VS") + " " in line for line in ina180.lines))
         ina240 = spice.build_deck(
             {"U2": "INA240A3"},
             {"WRONG_TSSOP_VS": [("U2", "5")], "VS_SOIC": [("U2", "6")]},
         )
-        self.assertTrue(any("_U2_ld0 n_VS_SOIC " in line for line in ina240.lines))
+        self.assertTrue(any("_U2_ld0 " + ina240.n("VS_SOIC") + " " in line for line in ina240.lines))
 
     def test_esp32_wroom_uses_pin2_and_no_fabricated_load_current(self):
         deck = spice.build_deck(
@@ -216,7 +216,7 @@ class TestDeckGeneration(unittest.TestCase):
             {"VDD": [("U1", "2")], "EN": [("U1", "3")]},
         )
         load = next(line for line in deck.lines if "_U1_ld0 " in line)
-        self.assertIn("n_VDD", load)
+        self.assertIn(deck.n("VDD"), load)
         self.assertTrue(load.endswith(" 1Meg"))
 
     def test_unmodeled_conduction_parts_are_explicit_coverage_gaps(self):

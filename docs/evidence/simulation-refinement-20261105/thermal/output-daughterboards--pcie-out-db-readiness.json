@@ -1,0 +1,33 @@
+{
+  "board": "output-daughterboards/pcie-out-db",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/output-daughterboards--pcie-out-db/pcie-out-db-board.kicad_pcb",
+  "sha256": "ea12d133262dfd18551d38a5e31a9551de11026b904937c9f396871573247ea1",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_XFCN_CONTACT_INTERFACE": "DIRECT_TIN_PLATED_BRASS_TO_ENIG_NO_INTERPOSER",
+    "CEC_XFCN_CONTACT_INTERPOSER": "NONE",
+    "CEC_XFCN_COPPER_COIN": "NOT_FITTED"
+  },
+  "policy_source": null,
+  "policy_fingerprint": null,
+  "declared_relevant_params": {},
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [],
+    "unverified_refs": [],
+    "component_power_W": {},
+    "shunt_resistance_ohm": {},
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "board-local current and thermal policy"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

@@ -1,0 +1,75 @@
+{
+  "board": "pcie-8pin-2port",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/pcie-8pin-2port/board.kicad_pcb",
+  "sha256": "781c65177a7d83d8baa29e30b8716c2ef65aec94b86bbdc9093a727187f5b589",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_high_current",
+    "CEC_STACKUP_ROLES": "SIG/PWR/GND/SIG/PWR/GND/SIG/PWR",
+    "CEC_VENDOR_STACKUP": "JLC06162H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/pcie-8pin-2port/pipeline-policy.json",
+  "policy_fingerprint": "68d8a210d707e1ee7139f3d7d16fb80047e162db98ff8b3b6ec5995a953b6dac",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "/SENSEC": 39.0,
+      "+3V3": 0.25,
+      "+5VSB": 0.5,
+      "/VBUS_J5": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "net_current_contract_notes": [
+      "The cable basis is three 12V pins at approximately 13 A per pin.",
+      "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite."
+    ],
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "pcie-8pin-2port"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "U30",
+      "U31"
+    ],
+    "unverified_refs": [
+      "D1",
+      "D3",
+      "D4",
+      "FB1",
+      "U1",
+      "U4"
+    ],
+    "component_power_W": {
+      "D1": 5e-06,
+      "D3": 5e-06,
+      "D4": 5e-06,
+      "FB1": 0.008,
+      "U1": 0.6336,
+      "U10": 0.00211,
+      "U11": 0.00211,
+      "U2": 0.0925,
+      "U20": 0.00064,
+      "U21": 0.00064,
+      "U3": 0.344738,
+      "U4": 0.056
+    },
+    "shunt_resistance_ohm": {
+      "RS1": 0.0005,
+      "RS2": 0.0005
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

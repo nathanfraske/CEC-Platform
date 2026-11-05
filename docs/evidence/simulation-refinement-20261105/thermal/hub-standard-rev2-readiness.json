@@ -1,0 +1,96 @@
+{
+  "board": "hub-standard-rev2",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/hub-standard-rev2/board.kicad_pcb",
+  "sha256": "c7f56f3ed734716f23c6e8a32b6a0edee092c0677081fae2ed6ad6a12fa7addc",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_ASSEMBLY_POLICY": "{\"contract\": \"beta/assembly/hub-atx-stack.json\", \"pair\": \"build/hub-row-private-bundle-20261002-b/private-current-pair.json\", \"role\": \"cover\"}",
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_signal",
+    "CEC_STACKUP_ROLES": "SIG/GND/SIG/PWR/GND/SIG",
+    "CEC_VENDOR_STACKUP": "JLC06161H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/hub-standard-rev2/pipeline-policy.json",
+  "policy_fingerprint": "cb8577c0912cf4c3047d491e694b2dae0a6ab5729254962dd2135d8c13aec9ec",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "+5VSB": 2.5,
+      "/5VSB_RAW": 2.5,
+      "/MAIN_5V": 2.5,
+      "/PSU_5V": 2.5,
+      "/+5V_HOLD": 0.5,
+      "/USB_VBUS": 0.5,
+      "/VCC_P": 0.5,
+      "+3V3": 1.76,
+      "GND": 2.5
+    },
+    "net_current_contract_notes": [
+      "The 2.5 A shared 5VSB source already includes per-port distribution; its muxed stages are not summed for GND.",
+      "The held reservoir feeds the reviewed logic rail; 0.5 A includes conversion and transient headroom.",
+      "The 3V3 basis is limited by the inductor thermal-current rating rather than the regulator headline rating."
+    ],
+    "require_complete_current_injection": true,
+    "stackup_profile": "jlcpcb_6l_pofv_signal",
+    "thermal_board_hint": "hub-standard-rev2"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "U6",
+      "U8"
+    ],
+    "unverified_refs": [
+      "D2",
+      "D3",
+      "D4",
+      "D5",
+      "D6",
+      "D7",
+      "DL1",
+      "DL2",
+      "DL3",
+      "DL4",
+      "DL5",
+      "DL7",
+      "U1",
+      "U11",
+      "U3",
+      "U7"
+    ],
+    "component_power_W": {
+      "D2": 5e-06,
+      "D3": 5e-06,
+      "D4": 5e-06,
+      "D5": 5e-06,
+      "D6": 5e-06,
+      "D7": 5e-06,
+      "U1": 0.6336,
+      "U11": 0.056,
+      "U2": 0.0925,
+      "U3": 0.114115,
+      "U4": 4.9e-07,
+      "U7": 0.056,
+      "DL1": 0.28571433333333335,
+      "DL2": 0.28571433333333335,
+      "DL3": 0.28571433333333335,
+      "DL4": 0.28571433333333335,
+      "DL5": 0.28571433333333335,
+      "DL7": 0.28571433333333335
+    },
+    "shunt_resistance_ohm": {
+      "R28": 0.001
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

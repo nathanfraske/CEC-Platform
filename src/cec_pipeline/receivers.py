@@ -122,7 +122,8 @@ def worker(job_path, step, output):
     elif step == "kelvin_pair":
         from .safety import kelvin_pair
 
-        result = kelvin_pair(source, candidate, board_hint=job["board"])
+        result = kelvin_pair(source, candidate, board_hint=job["board"],
+                             evidence_dir=Path(output).with_name("kelvin-replay"))
     elif step.startswith("fields_"):
         pcbnew, quiet = _native()
         import cec_field_coupling as field

@@ -1,0 +1,200 @@
+{
+  "board": "atx-24pin-rev3",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/atx-24pin-rev3/board.kicad_pcb",
+  "sha256": "cf4d332c30c6466087584db02979707a446716d8c057124a6434dd474f9484fc",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_ASSEMBLY_POLICY": "{\"contract\": \"beta/assembly/hub-atx-stack.json\", \"pair\": \"build/atx-agent-right-placement-20261002-a/private-current-pair.json\", \"role\": \"carrier\"}",
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_high_current",
+    "CEC_STACKUP_ROLES": "SIG/PWR/GND/SIG/PWR/GND/SIG/PWR",
+    "CEC_VENDOR_STACKUP": "JLC06162H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/pipeline-policy.json",
+  "policy_fingerprint": "f05b4cc8441430ce80c98056c0e7d547dfaf62df4f847d83c44fcda59341a52f",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "/SENSE3V3": 20.0,
+      "/SENSE5V": 20.0,
+      "/SENSE12V": 12.0,
+      "/SENSE5VSB": 3.0,
+      "/ATX_NEG12V": 1.0,
+      "+5V_MAIN": 20.0,
+      "+3V3": 0.5,
+      "+5VSB": 3.0,
+      "+5V_SYS": 3.0,
+      "/5VSB_MUX": 3.0,
+      "/+5V_SYS_PORT": 2.5,
+      "/VBUS_RAW": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "current_endpoint_contracts": [
+      {
+        "net": "/ATX_NEG12V",
+        "sources": [
+          {
+            "ref": "J3",
+            "pins": [
+              "14"
+            ],
+            "mpn": "39291247",
+            "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "J_SIG1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "SSQ-102-03-G-D",
+            "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"
+          }
+        ],
+        "basis": "Owner-authorized 1 A sustained negative-12-volt pass-through design basis, 2026-10-17: actual J3 pin 14 to J_SIG1 pin 1. The existing 125 percent conductor geometry margin applies once to the complete path. C22, C23 and R75 are local bypass/divider leaves, not alternate full-current sinks or a basis for reducing the pass-through load. This is not a measured load, PSU source guarantee, connector/barrel capacity, inrush, thermal or release qualification."
+      },
+      {
+        "net": "/VBUS_RAW",
+        "sources": [
+          {
+            "ref": "J5",
+            "pins": [
+              "A4",
+              "A9",
+              "B4",
+              "B9"
+            ],
+            "mpn": "USB4215-03-A",
+            "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "F1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "1206L075/16WR",
+            "footprint": "cec-Resistor_SMD:R_1206_3216Metric"
+          }
+        ],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: USB-C VBUS bank to F1 input. Uses only the pre-existing 0.75 A service-chain conductor basis and its once-applied 125 percent geometry margin; no fuse clamp, equal pin sharing, barrel, inrush, thermal or release qualification is inferred."
+      },
+      {
+        "net": "/VBUS_F",
+        "sources": [
+          {
+            "ref": "F1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "1206L075/16WR",
+            "footprint": "cec-Resistor_SMD:R_1206_3216Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: F1 output to FB1 input. The existing service-chain current and margin are unchanged; component hold/trip/current ratings are not substituted for a load or fault-current bound."
+      },
+      {
+        "net": "/VBUS",
+        "sources": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "pins": [
+              "2"
+            ],
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A"
+          }
+        ],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
+      }
+    ],
+    "net_current_contract_notes": [
+      "Sustained worst case: 3V3 and 5V use the owner-ratified 20 A ceiling, 12V uses two 6 A circuits, and standby uses 3 A.",
+      "The owner authorized 1 A sustained for the ATX negative-12-volt pass-through on 2026-10-17. Size the actual selected-layer copper for 1.25 A after the unchanged routing margin, without dividing current among layers or counting the divider current as the pass-through load. The conservative shared-return calculation must include this newly declared rail; it receives no assumed cancellation credit. This authorization does not itself qualify the existing geometry or selected contacts.",
+      "The interconnect cross-check is 18.32 A per ratified blade joint after 125 percent margin.",
+      "The selected F1 1206L075/16WR (C371166) USB service chain uses the platform's existing 0.75 A sustained routing design basis (docs/usb-ingress-bom-delta-2026-07-24.md, 24-pin cascade; same explicit basis as the PCIe and 12VHPWR service cells). This is a conservative geometry envelope, not a measured load, guaranteed PTC clamp, TPS2121 fault-current limit, or barrel/inrush/release qualification. The normal 125 percent geometry margin applies once. Main-rail ceilings and reviewed component budgets are unchanged.",
+      "The Hub-bound output uses the existing Hub shared 2.5 A design basis, not 2.5 A per header: J6P and legacy J2 are alternate connections to the same single reviewed Hub. +5V_SYS and 5VSB_MUX use a conservative 3 A conductor design basis: the same 2.5 A shared external allocation plus 0.5 A local allowance. The existing wireless-disabled ATX +3V3 budget (0.2048376 A with its existing 20 percent margin), TJA1051 VCC short-circuit maximum (0.110 A; NXP TJA1051 Rev 9 table 7), and two TPS2121 quiescent maxima (0.0004 A each; TI SLVSEA3F section 7.5) remain below that local allowance. This adds missing routing authority only: it does not substitute a source rating for the actual component load budget, increase the standby source ceiling, rate terminal/barrel sharing, qualify inrush, or assert that the TPS2121 clamps at 3 A. Existing 125 percent conductor sizing applies once to these design bases. The USB-only service mode remains bounded by its separate 0.75 A basis; it is not qualified for the full external Hub allocation."
+    ],
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "atx-24pin-rev3"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "Q1",
+      "U4",
+      "U8"
+    ],
+    "unverified_refs": [
+      "D1",
+      "D3",
+      "D4",
+      "D7",
+      "D_USB1",
+      "FB1",
+      "U1",
+      "U5",
+      "U6"
+    ],
+    "component_power_W": {
+      "D1": 5e-06,
+      "D3": 5e-06,
+      "D4": 5e-06,
+      "D7": 5e-06,
+      "D_USB1": 5e-06,
+      "FB1": 0.008,
+      "U1": 0.6336,
+      "U10": 0.00211,
+      "U11": 0.00211,
+      "U12": 0.00211,
+      "U13": 0.00211,
+      "U2": 0.0925,
+      "U3": 0.348349,
+      "U5": 0.056,
+      "U6": 0.056,
+      "U612V1": 0.00064,
+      "U63V31": 0.00064,
+      "U65V1": 0.00064,
+      "U65VSB1": 0.00064
+    },
+    "shunt_resistance_ohm": {
+      "RS1": 0.002,
+      "RS2": 0.002,
+      "RS3": 0.002
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}

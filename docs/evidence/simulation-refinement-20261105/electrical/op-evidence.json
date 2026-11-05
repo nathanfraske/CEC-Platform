@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "scope": "synthetic_node_identity_and_declared_behavioral_OP_regression_only",
+  "ngspice_executable": "/usr/bin/ngspice",
+  "ngspice_version": "ngspice-42, KLU Direct Linear Solver",
+  "measured_at": "2026-11-05T23:38:02.295613+00:00",
+  "files_sha256": {
+    "scripts/cec_spice.py": "2675d9d36456ade1b64a44ebc1d5e743583ed17ad269bae76da24f7b1a8fe2fc",
+    "scripts/cec_spice_sanity.py": "4c52dfa4f263e4108376619e0a10f9d5d1db97b406f45f669bed6c031563c182",
+    "tests/test_agentic_spice_identity.py": "ccc4f030e100f566db75592e913d4353c9f188ab96f104304da36be9af49675d",
+    "tests/test_spice_sanity.py": "376cf94b00dcc10b857f7b3ccc2de9ab01c5d655b84c1d7c782d9402b530ab05"
+  },
+  "node_divider_V": {"/SIGNAL-A": 2.5, "/SIGNAL_A": 4.0, "/signal_a": 1.0},
+  "source_current_A": -0.0045,
+  "analytic_divider_V": [2.5, 4.0, 1.0],
+  "analytic_source_current_A": -0.0045,
+  "trip_A": 16.5001,
+  "analytic_trip_A": 16.5,
+  "saturation_A": 2.599,
+  "analytic_saturation_A": 2.6,
+  "tests": {"passed": 92, "failed": 0, "suites": ["tests/test_beta_electrical_audit.py", "tests/test_agentic_spice_identity.py", "tests/test_spice_runners.py", "tests/test_spice_sanity.py"]},
+  "runner_per_process_timeout_s": {"analog": 30, "sanity": 120},
+  "schematic_binding": null,
+  "pcb_binding": null,
+  "board_signoff": false,
+  "release_authority": false,
+  "limitations": [
+    "No current PCB or schematic was extracted or simulated.",
+    "Behavioral analog model only: no vendor-device, transient, thermal, current-capacity, protection, return-path, EMC or safety qualification.",
+    "No end-to-end Monte Carlo deadline or trial-completeness change was made."
+  ]
+}
