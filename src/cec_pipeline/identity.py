@@ -15,6 +15,7 @@ GATES = (
     "native_source",
     "native_candidate",
     "transaction_delta",
+    "pair_integrity",
     "fields_source",
     "fields_candidate",
     "craft_source",

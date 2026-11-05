@@ -1,0 +1,23 @@
+{
+  "complete": true,
+  "candidate": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/EPS-manual-final-merged380-20261101-root-axn/UNADMITTED-manual-merged-restoration/board.kicad_pcb",
+  "candidate_sha256": "baece7f405431b9e12e49c0eba31be631f3cdf28c49ce307599a3183a6dcb2d4",
+  "all_actual_terminal_identities_preserved": true,
+  "native_Source_partitions_preserved": true,
+  "all_known_Ground_returns_preserved": true,
+  "schematic_parity": true,
+  "new_field_blocker_keys": [
+    "[[[\"5791b0db-833d-4df5-b690-218c3934a37e\",\"/SENSEC2_HI\",\"F.Cu\"],[\"65c14a55-a700-4143-bc7f-76a93d4981fc\",\"/CAN_H\",\"In2.Cu\"]],\"unshielded layer crossing is not approximately perpendicular\",45.0,0.0,-0.197,57.1]",
+    "[[[\"5791b0db-833d-4df5-b690-218c3934a37e\",\"/SENSEC2_HI\",\"F.Cu\"],[\"7f51107c-9f83-4255-b26c-66daf2c8e6fe\",\"/CAN_TX\",\"F.Cu\"]],\"unshielded parallel aggressor/victim run\",0.0,1.775,0.425,0.0]",
+    "[[[\"65c14a55-a700-4143-bc7f-76a93d4981fc\",\"/CAN_H\",\"In2.Cu\"],[\"db232581-27bc-4fbe-ad9a-2c135a50e343\",\"/SENSEC2_HI\",\"F.Cu\"]],\"unshielded layer crossing is not approximately perpendicular\",45.0,0.0,-0.225,57.1]",
+    "[[[\"7f51107c-9f83-4255-b26c-66daf2c8e6fe\",\"/CAN_TX\",\"F.Cu\"],[\"b3ff1296-b6d5-419f-9be6-ea6073e52ca6\",\"/DETECT\",\"In2.Cu\"]],\"unshielded layer crossing is not approximately perpendicular\",45.0,0.0,-0.22,88.9]",
+    "[[[\"993934df-9822-4bcb-8e10-f17c13b64f49\",\"/CAN_TX\",\"F.Cu\"],[\"b3ff1296-b6d5-419f-9be6-ea6073e52ca6\",\"/DETECT\",\"In2.Cu\"]],\"unshielded layer crossing is not approximately perpendicular\",45.0,0.0,-0.082,57.1]"
+  ],
+  "ok": false,
+  "all_native_Source_and_candidate_full_families_unchanged": true,
+  "code_digest": "a45b66e62f511d58927be5d496f9f86278314010986a3ac1cbb037f3c30ea18d",
+  "current_qualified": false,
+  "thermal_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false
+}

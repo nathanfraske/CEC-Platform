@@ -64,6 +64,20 @@ def _construct_connected(source, candidate, request, board_hint):
     syntax._ground_refill(board)
     temporary = candidate.parent / "native-construction.kicad_pcb"
     field._save_field_snapshot(board, temporary)
+    if kind == "place_cell":
+        import cec_complete_macro_cell as macro
+        import cec_cell_escape_replan as escape
+
+        proposal = record["source_plan"]
+        requests = macro._reference_requests(proposal)
+        if requests:
+            macro._save_cardinal_reference_nodes(
+                temporary, requests,
+                maximum_translation_mm=escape.complete_transport_shift_bound(proposal),
+            )
+            for proof, _turn, _delta in requests:
+                affected.update(proof["member_uuids"])
+                affected.add(proof["group_uuid"])
     root, original = syntax._nodes(source)
     _, fresh = syntax._nodes(temporary)
     affected.update(
