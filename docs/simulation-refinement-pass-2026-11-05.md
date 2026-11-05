@@ -99,7 +99,9 @@ contact heat is 0.89 W at every mesh, distributed over actual pad cells rather
 than a fixed cell count. At 0.25 mm, +12 V copper contributes 0.484225 W and
 Ground copper 2.121908 W. The modeled return loss therefore deserves targeted
 native geometry/current-density review and validation of installed heat paths.
-The actual board measures 30.35 × 18.60 mm. No daughterboard copper was changed.
+The thermal grid uses a stroke-inclusive board-edge bounding box of
+30.35 × 18.60 mm; the actual closed Edge.Cuts outline measures
+30.25 × 18.50 mm. No daughterboard copper was changed.
 
 All nine boards also received source-bound thermal input inventories. All
 schematic-to-artifact discrete source mappings resolved, but many dissipations
@@ -166,6 +168,51 @@ preserved separately. The compact report is
 `fb23f51b4c257329d4fc94810ad4b1a56986c09d2e36c6b28e299b24c5289941`.
 These simulation reports bind the input board hashes; they are not relabelled
 as fresh full simulations of the later routing children.
+
+## Compaction objective and measured starting point
+
+The user explicitly prioritizes smaller boards and less occupied case space.
+No accepted edit in this pass changes a board outline or component placement.
+The current-checkpoint native Edge.Cuts inventory establishes these starting
+dimensions, without treating tighter-looking routing as an area saving:
+
+| Board | Outline width × height |
+| --- | ---: |
+| ATX | 78 × 89.5 mm |
+| Hub | 84.49 × 72.2 mm |
+| 12VHPWR | 58 × 72 mm |
+| EPS | 88 × 40 mm |
+| PCIe two-port | 86.5 × 47.6 mm |
+| PCIe three-port | 103.5 × 55.6 mm |
+| ATX daughter | 59.8 × 21.3 mm |
+| EPS daughter | 30.25 × 18.5 mm |
+| PCIe daughter | 24.5 × 20 mm |
+
+These are axis-aligned outline bounds, not laminate area or the complete
+installed envelope. Hub has six internal cutouts; several connector courtyards
+extend beyond their PCB outlines. Case fit must include native bodies, cables,
+mounting hardware, vents and the opposing dead-bug assembly.
+
+All nine filled-copper envelopes reach approximately 0.5 mm from each edge.
+That is **not proof that the boards cannot shrink**: an ordinary plane can be
+repoured. Compaction needs separate treatment of plane fill, protected power
+buses, tracks/pads/holes, component bodies and mechanical interfaces. No safe
+edge strip or achievable area saving is established by this inventory alone.
+
+First functional repack studies are the ATX four-rail sensing cells (monitor,
+amplifier, comparator and local support parts) and Hub's two power-selection
+cells with their bypass/divider/soft-start parts. Preserve shunt/Kelvin ports,
+short local returns and the complete coupled assembly; move groups and rebuild
+their owned routes rather than scattering individual parts. Re-run loaded
+current/thermal checks after reducing copper or cooling area. The EPS daughter
+requires return-loss and installed-boundary investigation before further power
+path compression. These are measured investigation targets, not completed
+placement improvements or promised dimension reductions.
+
+The hash-bound nine-board inventory is preserved as
+`docs/evidence/simulation-refinement-20261105/compaction/current-input-inventory.json`.
+It binds the published current receipt below. Its per-edge filled-copper
+setbacks must not be used as automatic fixed-outline constraints.
 
 ## Evidence and remaining work
 
