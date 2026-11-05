@@ -16,21 +16,23 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Pure Python test dependency
-        run: python -m pip install --target .cec/ci-deps pytest==8.3.5
       - name: Native construction, receiving, identity and protocol contracts
         run: |
           . ./versions.env
           mkdir -p .cec/ci-results
-          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+          # Install into the disposable native container, not a host-Python
+          # target directory. Compiled geometry wheels and child pytest
+          # processes must use the same interpreter/ABI as pcbnew.
+          docker run --rm -u 0:0 -e HOME=/tmp -e DEBIAN_FRONTEND=noninteractive \
             -e PYTHONDONTWRITEBYTECODE=1 \
-            -e PYTHONPATH="$PWD/.cec/ci-deps:$PWD/src:$PWD/scripts:$PWD/ops:$PWD/tests:$PWD/experiments/legacy_2026" \
+            -e PYTHONPATH="$PWD/src:$PWD/scripts:$PWD/ops:$PWD/tests:$PWD/experiments/legacy_2026" \
             -v "$PWD":"$PWD" -w "$PWD" --entrypoint bash \
             "${KICAD_IMAGE:-kicad/kicad:10.0}" -lc \
-            'python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py --junitxml=.cec/ci-results/agentic.xml'
+            'set -e
+             apt-get update -qq
+             apt-get install -y --no-install-recommends python3-pytest python3-numpy python3-shapely
+             python3 -c "import sys, pcbnew, numpy, shapely, pytest; print(sys.version); print(numpy.__version__, shapely.__version__, pytest.__version__)"
+             python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py --junitxml=.cec/ci-results/agentic.xml'
       - name: Test evidence
         if: always()
         uses: actions/upload-artifact@v4

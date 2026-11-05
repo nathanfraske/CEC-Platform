@@ -121,3 +121,9 @@ diagnostics remain in the external review/recovery directory, not new source
 hidden in build output. The existing main-branch hygiene script already
 rejects Mini-Fit references that main itself contains; it is not weakened or
 disabled to manufacture a green integration status.
+
+The first GitHub contract run exposed dependencies absent from the stock
+KiCad image: NumPy, Shapely and pytest for fresh child interpreters. CI now
+installs those using the native container's own package manager, instead of
+passing host-Python dependencies through `PYTHONPATH`. This changes no PCB,
+receiver predicate, resource bound or manufacturing rule.

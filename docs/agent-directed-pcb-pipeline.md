@@ -6,6 +6,14 @@ layout; the software constructs and independently receives that decision.
 It does not invoke a model API, incur background model billing, or run an
 unbounded placement/routing search.
 
+The native backend requires KiCad 10's Python interpreter with `pcbnew`,
+`wx`, NumPy and Shapely; tests additionally require pytest in that same
+interpreter. On the Debian/Ubuntu KiCad environment these are the
+`python3-numpy`, `python3-shapely` and `python3-pytest` packages. Do not copy
+compiled geometry wheels from a different host Python into its path. The
+dedicated CI installs these inside its disposable KiCad container so fresh
+receiver/pytest subprocesses see the same dependencies as the parent.
+
 ## Responsibilities
 
 | Layer | Home | Responsibility |
