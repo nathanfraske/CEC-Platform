@@ -70,6 +70,10 @@ Selected PCB identities:
    source evidence. Prior checker observations remain hash-bound historical
    evidence, not contradictory active results silently selected by timestamp
    or by the smaller count. Inspector conflict detection remains unchanged.
+   Physical fault keys are separately mapped to every actual native track
+   constituent for highlighting. An integration check caught the old viewer
+   interpreting physical hashes as UUIDs; the adapter now preserves both
+   identities, rejects contradictory maps and locates all seven live findings.
 
 No implementation rule names a board, component reference or coordinate.
 Board-specific geometry exists only in explicit frontier-authored work orders.
@@ -99,12 +103,12 @@ pair-aware authority, not repeated blind rerouting or waived field gates.
 
 ## Verification
 
-- Active workbench, native-contour and inspector integration: **355 passed**,
-  **37.32 seconds**. Includes missing/failed route-contract verdict tests,
+- Active workbench, native-contour and inspector integration: **361 passed**,
+  **36.73 seconds**. Includes missing/failed route-contract verdict tests,
   retained-via/zone tampering, native run subdivision and current/historical
-  field-publication integrity.
+  field-publication integrity and physical-run-to-native highlighting.
 - Fresh bounded backend replay: **1,061 passed**, **24 modules**, no failures,
-  errors or skips; **105.93 seconds**, peak owned RSS **1.59 GiB**. Code and
+  errors or skips; **101.65 seconds**, peak owned RSS **1.59 GiB**. Code and
   dependency identities remained unchanged. These test sets overlap; they
   are not added together as a unique-test total.
 - All three exact saved candidates passed native DRC, ordinary transaction
@@ -118,7 +122,7 @@ pair-aware authority, not repeated blind rerouting or waived field gates.
 
 Local detailed evidence:
 `C:/Users/Admin/Documents/CEC-Board-Reviews/field-refinement-20261105/`,
-including `active-tests-published.xml`, `backend-final.xml`, its identity-bound
+including `active-tests-inspector.xml`, `backend-inspector.xml`, its identity-bound
 regression receipt, `verified-work/` jobs and the trackpad-friendly inspector.
 An earlier backend run during live code edits was correctly marked invalid
 despite passing tests; it is not the successful replay quoted above.

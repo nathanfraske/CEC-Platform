@@ -222,7 +222,10 @@ def _metadata(spec_path, output):
     if field:
         if field['candidate_sha256']!=spec['sha256']:raise ValueError('field_receipt_not_for_this_saved_board')
         for i,key in enumerate(field['new_field_blocker_keys']):
-            parsed=json.loads(key);pair=parsed[0];uuids=[p[0]for p in pair]
+            parsed=json.loads(key);pair=parsed[0]
+            uuids=field.get('native_members_by_key',{}).get(key,[p[0]for p in pair])
+            if key in field.get('native_members_by_key',{})and any(u not in items for u in uuids):
+                raise ValueError('field_run_constituent_missing_from_saved_board')
             selected=[items[u]for u in uuids if u in items]
             loci=[p for item in selected for p in(item.get('a'),item.get('b'))if p]
             findings.append(dict(id='field-'+str(i),kind='coupling',severity='blocker',type='field-coupling',
@@ -288,7 +291,24 @@ def _normalize_field_report(value):
             need(type(body['blocking_count'])is int and body['blocking_count']==len(normalized))
         if 'ok'in body:
             need(type(body['ok'])is bool and body['ok']==(not normalized))
-    return dict(candidate_sha256=candidate,new_field_blocker_keys=sorted(normalized))
+    result=dict(candidate_sha256=candidate,new_field_blocker_keys=sorted(normalized))
+    if body is not None and body.get('audit_basis')=='exact_collinear_union_v1':
+        from cec_pipeline.fields import inventory
+        need(inventory(body).get('status')=='known','complete_semantic_field_geometry_required')
+        import cec_field_coupling as field
+        lookup={}
+        for row in body['interactions']:
+            if not row['blocking']:continue
+            raw_key=next(iter(field.blocker_keys(dict(interactions=[row]))))
+            # Use the same numeric canonicalization as the historical adapter.
+            parts=json.loads(raw_key)
+            key=json.dumps([sorted(parts[0]),parts[1],*map(float,parts[2:])],
+                           separators=(',',':'),allow_nan=False)
+            need(key in normalized and key not in lookup,'field_run_key_inventory_mismatch')
+            lookup[key]=sorted({uid for group in row['member_track_uuids']for uid in group})
+        need(set(lookup)==set(normalized),'field_run_key_inventory_mismatch')
+        result['native_members_by_key']=lookup
+    return result
 
 
 def field_receipt_index(receipt, *, receipt_path, field_receipt=None, field_sha256=None):
@@ -323,6 +343,10 @@ def field_receipt_index(receipt, *, receipt_path, field_receipt=None, field_sha2
             raise ValueError('conflicting_field_evidence_for_same_candidate')
         if previous is None:
             previous=observation;previous['recorded_field_receipts']=[];indexed[candidate]=previous
+        elif observation.get('native_members_by_key'):
+            if previous.get('native_members_by_key')not in(None,observation['native_members_by_key']):
+                raise ValueError('conflicting_field_constituents_for_same_candidate')
+            previous['native_members_by_key']=observation['native_members_by_key']
         provenance=dict(path=str(path),sha256=entry['sha256'])
         if provenance not in previous['recorded_field_receipts']:previous['recorded_field_receipts'].append(provenance)
     return indexed
