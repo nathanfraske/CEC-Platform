@@ -35,7 +35,7 @@ def action_identities(payload):
         request={
             key: value
             for key, value in request.items()
-            if key not in ("intent", "target_issue_ids", *context_keys)
+            if key not in ("intent", "target_issue_ids", "target_field_issue_ids", *context_keys)
         },
     )
     context = dict(

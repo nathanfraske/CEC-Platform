@@ -10,6 +10,7 @@ _PHYSICAL = ("current_pair", "kelvin_pair", "assembly_pair")
 CAPABILITIES = MappingProxyType(
     {
         "replace_chain": (),
+        "repair_chain": ("route_contract",),
         "place_cell": _PHYSICAL,
         "power_contour": ("assembly_pair",),
         "power_route": _PHYSICAL,
@@ -17,4 +18,4 @@ CAPABILITIES = MappingProxyType(
         "add_connections": _PHYSICAL,
     }
 )
-MACROS = frozenset(CAPABILITIES) - {"replace_chain"}
+MACROS = frozenset(CAPABILITIES) - {"replace_chain", "repair_chain"}

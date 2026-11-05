@@ -20,6 +20,7 @@ import contextlib
 from collections.abc import Mapping
 from functools import lru_cache
 import fnmatch
+import hashlib
 import json
 import math
 import os
@@ -328,6 +329,58 @@ def _design_identity(board_hint):
     return force._thermal_hint(board_hint)
 
 
+def _coalesce_straight_runs(segments, work=None):
+    """Exact integer-nanometre unions; never bridge gaps or intent boundaries."""
+    groups = collections.defaultdict(list)
+    source_order = {segment["uuid"]: index for index, segment in enumerate(segments)}
+    for segment in segments:
+        if work is not None:
+            work.tick()
+        a = tuple(segment.get("start_nm", (round(v * MM) for v in segment["a"])))
+        b = tuple(segment.get("end_nm", (round(v * MM) for v in segment["b"])))
+        width = segment.get("width_nm", round(segment["width_mm"] * MM))
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        divisor = math.gcd(dx, dy)
+        if not divisor:
+            raise ValueError("zero_length_field_run")
+        direction = (dx // divisor, dy // divisor)
+        if direction < (0, 0):
+            direction = tuple(-v for v in direction)
+        ux, uy = direction
+        role_key = json.dumps(segment["field_role"], sort_keys=True, separators=(",", ":"), allow_nan=False)
+        key = (segment["net"], segment["layer"], segment["layer_id"], width,
+               direction, ux * a[1] - uy * a[0], role_key)
+        endpoints = sorted((a, b), key=lambda p: ux*p[0]+uy*p[1])
+        groups[key].append((ux*endpoints[0][0]+uy*endpoints[0][1],
+                            ux*endpoints[1][0]+uy*endpoints[1][1], endpoints, segment))
+    result = []
+    for key, values in sorted(groups.items()):
+        values.sort(key=lambda value: (value[0], value[1], value[3]["uuid"]))
+        components = []
+        for lo, hi, endpoints, segment in values:
+            if work is not None:
+                work.tick()
+            if not components or lo > components[-1][1]:
+                components.append([lo, hi, endpoints[0], endpoints[1], [segment]])
+            else:
+                component = components[-1]
+                if hi > component[1]:
+                    component[1], component[3] = hi, endpoints[1]
+                component[4].append(segment)
+        for _, _, a, b, constituents in components:
+            ids = sorted(s["uuid"] for s in constituents)
+            if len(set(ids)) != len(ids):
+                raise ValueError("duplicate_field_constituent_identity")
+            geometry = dict(net=key[0], layer=key[1], start_nm=list(a), end_nm=list(b), width_nm=key[3])
+            run_key = hashlib.sha256(json.dumps([geometry, key[-1]], sort_keys=True,
+                separators=(",", ":")).encode()).hexdigest()
+            result.append(dict(constituents[0], uuid=ids[0], run_key=run_key,
+                constituent_uuids=ids, run_geometry=geometry,
+                a=tuple(v/MM for v in a), b=tuple(v/MM for v in b),
+                proposed=any(s.get("proposed", False) for s in constituents)))
+    return sorted(result, key=lambda run: min(source_order[uid] for uid in run["constituent_uuids"]))
+
+
 def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
                            parallel_angle_deg=DEFAULT_PARALLEL_ANGLE_DEG,
                            perpendicular_min_deg=DEFAULT_PERPENDICULAR_MIN_DEG,
@@ -389,6 +442,8 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
             "a": (start.x / MM, start.y / MM),
             "b": (end.x / MM, end.y / MM),
             "width_mm": item.GetWidth() / MM,
+            "start_nm": (start.x, start.y), "end_nm": (end.x, end.y),
+            "width_nm": item.GetWidth(),
             "field_role": role,
         })
     for proposed in _proposed_tracks:
@@ -592,6 +647,7 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
             "transition_return_evidence": best_return_evidence,
         }
 
+    segments = _coalesce_straight_runs(segments, _work)
     checked = 0
     interactions = []
     violations = []
@@ -620,7 +676,7 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
             continue
         if pair_mates(first["net"], second["net"]):
             continue
-        key = tuple(sorted((first["uuid"], second["uuid"])))
+        key = tuple(sorted((first["run_key"], second["run_key"])))
         if key in seen:
             continue
         seen.add(key)
@@ -652,14 +708,21 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
         elif (not same_layer and projected_copper_overlap and not shield["shielded"]
               and angle < perpendicular_min_deg - 1e-9):
             problem = "unshielded layer crossing is not approximately perpendicular"
+        # Attribute the actual directional relation, including per-conductor
+        # native roles. A net can be both aggressor and victim; testing only
+        # first.aggressor can label a non-victim DC backbone as the victim.
+        forward = first_role["aggressor"] and second_role["victim"]
         row = {
-            "aggressor": (first["net"] if first_role["aggressor"]
+            "aggressor": (first["net"] if forward
                           else second["net"]),
-            "victim": (second["net"] if first_role["aggressor"]
+            "victim": (second["net"] if forward
                        else first["net"]),
             "nets": [first["net"], second["net"]],
+            "member_roles": [dict(first_role), dict(second_role)],
             "layers": [first["layer"], second["layer"]],
             "track_uuids": [first["uuid"], second["uuid"]],
+            "member_track_uuids": [first["constituent_uuids"], second["constituent_uuids"]],
+            "member_geometry": [first["run_geometry"], second["run_geometry"]],
             "angle_deg": round(angle, 2),
             "parallel_overlap_mm": round(overlap, 3),
             "center_distance_mm": round(center_distance, 3),
@@ -683,7 +746,7 @@ def field_coupling_summary(board_path, *, board=None, sample_mm=0.5,
     active = {name: role for name, role in sorted(classifications.items())
               if role["aggressor"] or role["victim"]}
     return {
-        "schema": 1, "applicable": bool(active),
+        "schema": 1, "audit_basis": "exact_collinear_union_v1", "applicable": bool(active),
         "ok": not violations, "profile": profile_name,
         "classified_nets": active, "segments": len(segments),
         "native_conductor_field_roles":native_roles.report(),
@@ -707,7 +770,12 @@ def blocker_keys(report):
     for row in report.get('interactions', ()):
         if not row.get('blocking'):
             continue
-        members = sorted(zip(row['track_uuids'], row['nets'], row['layers']))
+        if 'member_geometry' in row:
+            members = sorted((hashlib.sha256(json.dumps([g, r], sort_keys=True,
+                separators=(',', ':'), allow_nan=False).encode()).hexdigest(), g['net'], g['layer'])
+                for g, r in zip(row['member_geometry'], row['member_roles']))
+        else:
+            members = sorted(zip(row['track_uuids'], row['nets'], row['layers']))
         result.add(json.dumps([members, row['reason'], row['angle_deg'],
             row['parallel_overlap_mm'], row['edge_gap_mm'],
             row['shield']['coverage_pct']], separators=(',', ':'), sort_keys=True))

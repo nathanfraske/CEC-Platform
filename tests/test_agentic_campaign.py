@@ -53,6 +53,9 @@ class CampaignTests(unittest.TestCase):
                     "b", "generic", "s", {"epoch": 1},
                     dict(request, target_issue_ids=["c" * 64]),
                 )
+            with self.assertRaisesRegex(ValueError, "identical_failed_decision"):
+                journal.begin("b", "generic", "s", {"epoch": 1},
+                              dict(request, target_field_issue_ids=["c" * 64]))
             changed = journal.begin(
                 # Changing a claimed repair target is not geometric replanning.
                 "b", "generic", "s", {"epoch": 1},
