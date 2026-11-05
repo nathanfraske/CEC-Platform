@@ -18,7 +18,7 @@ import cec_agentic_workbench as workbench
 import cec_suite_inspection as inspection
 
 
-def publish(workspace, jobs, output):
+def publish(workspace, jobs, output, *, checkpoint=None, checkpoint_sha256=None):
     require = workbench.require
     output = Path(output).resolve()
     require(not output.exists(), "fresh_review_receipt_directory_required")
@@ -26,10 +26,12 @@ def publish(workspace, jobs, output):
         type(jobs) is list and 1 <= len(jobs) <= 9 and len(set(jobs)) == len(jobs),
         "finite_unique_selected_jobs_required",
     )
-    w = workbench.Workbench(workspace)
+    w = workbench.Workbench(workspace, checkpoint=checkpoint, checkpoint_sha256=checkpoint_sha256)
     selected = {}
     for token in jobs:
         path, data = w._job(token)
+        require(data.get("source_receipt_sha256") == w.manifest["source_receipt_sha256"],
+                "selected_job_source_checkpoint_differs_from_publication_intake")
         record = json.loads((path.parent / "selected.json").read_text())
         verdict = w.verdict(token)
         require(
@@ -50,6 +52,14 @@ def publish(workspace, jobs, output):
             ),
             "review_plot_identity_changed",
         )
+        from cec_pipeline import visual
+
+        manifest = visual.changed_copper(data["source"], verdict["candidate"])
+        coverage = visual.verify_views(proof, manifest, path.parent)
+        require(record.get("changed_copper_sha256") == manifest["sha256"]
+                and record.get("visual_coverage") == coverage
+                and proof.get("changed_copper_sha256") == manifest["sha256"],
+                "selected_native_visual_coverage_changed")
         selected[data["board"]] = (path, data, verdict, proof, record)
     output.mkdir(parents=True)
     rows = []
@@ -105,11 +115,11 @@ def publish(workspace, jobs, output):
                     work_order=data["request"],
                     model_visual_review=record["model_visual_review"],
                     reviewed_native_plots={
-                        side: dict(path=str(path.parent / name), sha256=identity)
-                        for side in ("before", "after")
+                        name: dict(path=str(path.parent / name), sha256=identity)
                         for name, identity in proof["plot_hashes"].items()
-                        if name.startswith(side + "-")
                     },
+                    visual_coverage=record["visual_coverage"],
+                    changed_copper_sha256=record["changed_copper_sha256"],
                 )
             )
         rows.append(row)
@@ -150,5 +160,8 @@ if __name__ == "__main__":
     p.add_argument("--workspace", required=True)
     p.add_argument("--job", action="append", required=True)
     p.add_argument("--output", required=True)
+    p.add_argument("--checkpoint", help="Exact source receipt when binding a legacy workspace")
+    p.add_argument("--checkpoint-sha256", help="Required exact SHA-256 for --checkpoint")
     a = p.parse_args()
-    print(json.dumps(publish(a.workspace, a.job, a.output)))
+    print(json.dumps(publish(a.workspace, a.job, a.output,
+                             checkpoint=a.checkpoint, checkpoint_sha256=a.checkpoint_sha256)))

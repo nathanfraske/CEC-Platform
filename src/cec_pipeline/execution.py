@@ -182,13 +182,10 @@ def validate_worker(job_path):
     """Finite checklist coordinator. No candidate construction or redesign loop."""
     from .workbench import Workbench
     from .identity import check_passed
-    from .campaign import Journal
 
     path = Path(job_path)
     job = json.loads(path.read_text())
-    workbench = object.__new__(Workbench)
-    workbench.workspace = path.parent.parent
-    workbench.journal = Journal(workbench.workspace)
+    workbench = Workbench(path.parent.parent)
     deadline = time.monotonic() + 240.0
     result = dict(ok=False, complete=False, job=job["token"], release_authority=False)
     try:

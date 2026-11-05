@@ -126,6 +126,141 @@ def kelvin_pair(source, candidate, *, board_hint):
     )
 
 
+def _assembly_faults(result):
+    """Receive the native assembly schema, retaining identity AND severity.
+
+    Higher signed margins are safer. Missing dimensions are unknown, not
+    inherited physical debt. No fallback from an opaque FAIL to a category
+    name can authorize a changed assembly.
+    """
+    import math
+
+    def need(value):
+        require(value, "complete_typed_native_assembly_evidence_required")
+
+    def finite(value):
+        need(type(value) in (int, float) and math.isfinite(value))
+        return float(value)
+
+    def literal(value):
+        need(type(value) is str and bool(value))
+        return value
+
+    def rows(value):
+        need(type(value) is list and len(value) <= 16384)
+        return value
+
+    def boolean(value):
+        need(type(value) is bool)
+        return value
+
+    # Reject invalid numeric evidence even outside the failed-row subset.
+    def numeric_tree(value, depth=0):
+        need(depth <= 32)
+        if type(value) is float:
+            need(math.isfinite(value))
+        elif type(value) is dict:
+            for child in value.values():
+                numeric_tree(child, depth + 1)
+        elif type(value) in (list, tuple):
+            for child in value:
+                numeric_tree(child, depth + 1)
+
+    need(type(result) is dict)
+    numeric_tree(result)
+    need(type(result.get("schema")) is int and result["schema"] == 1)
+    need(result.get("applicable") is True and result.get("authority_unchanged") is True)
+    need(result.get("complete", True) is True and result.get("timed_out", False) is False)
+    need(result.get("source_unchanged", True) is True)
+    overall = boolean(result.get("ok"))
+    faults = {}
+
+    def add(key, severity=()):
+        need(key not in faults)
+        faults[key] = tuple(severity)
+
+    for row in rows(result.get("missing")):
+        need(type(row) is dict and row.get("side") in ("carrier", "cover"))
+        add(("missing", row["side"], literal(row.get("ref")), literal(row.get("footprint"))))
+    kinds = {"body_to_laminate", "body_to_laminate_edge_clearance", "vent_to_laminate",
+             "opposing_bodies", "opposing_body_edge_clearance"}
+    for row in rows(result.get("violations")):
+        need(type(row) is dict and row.get("kind") in kinds and row.get("ok") is False)
+        refs = tuple(literal(ref) for ref in rows(row.get("refs")))
+        need(len(refs) == 2)
+        margin = finite(row.get("margin_mm"))
+        need(margin < -1e-8)
+        add(("clearance", row["kind"], *refs), (margin,))
+
+    for index, group in enumerate(rows(result.get("contacts"))):
+        need(type(group) is dict)
+        contacts = rows(group.get("contacts"))
+        need(bool(contacts))
+        ids = set()
+        failures = 0
+        distances = []
+        for row in contacts:
+            need(type(row) is dict)
+            pin = literal(row.get("id"))
+            need(pin not in ids)
+            ids.add(pin)
+            distance = finite(row.get("distance_mm"))
+            need(distance >= 0)
+            distances.append(distance)
+            role = boolean(row.get("role_ok"))
+            good = boolean(row.get("ok"))
+            need(not good or role)
+            if not good:
+                failures += 1
+                # The immutable contract fixes mating-pair order; pin IDs
+                # remain actual numbered contacts, never nearest-pad matches.
+                add(("contact", str(index), pin), (-distance, int(role)))
+        need(boolean(group.get("ok")) == (failures == 0))
+        need(type(group.get("mismatched")) is int and group["mismatched"] == failures)
+        need(finite(group.get("max_offset_mm")) == max(distances))
+
+    for row in rows(result.get("hardware")):
+        need(type(row) is dict)
+        anchors = tuple(literal(ref) for ref in rows(row.get("anchor_pair")))
+        need(len(anchors) == 2)
+        conflicts = rows(row.get("conflicts"))
+        need(boolean(row.get("ok")) == (not conflicts))
+        for conflict in conflicts:
+            need(type(conflict) is list and len(conflict) == 2
+                 and conflict[0] in ("carrier", "cover"))
+            add(("hardware", *anchors, conflict[0], literal(conflict[1])))
+
+    for row in rows(result.get("vent_reservations")):
+        need(type(row) is dict and row.get("receiver") in ("carrier", "cover"))
+        ref = literal(row.get("ref"))
+        hits = rows(row.get("copper_hits"))
+        covers = boolean(row.get("native_rule_covers"))
+        need(boolean(row.get("ok")) == (not hits and covers))
+        if not covers:
+            add(("vent_rule", row["receiver"], ref))
+        for hit in hits:
+            add(("vent_copper", row["receiver"], ref, literal(hit)))
+
+    vertical = result.get("vertical")
+    need(type(vertical) is dict and vertical.get("complete") is True
+         and vertical.get("missing") == [])
+    vertical_ok = []
+    for name, dimensions in (("vent", ("worst_margin_mm",)),
+                             ("engagement", ("under_insertion_margin_mm", "over_insertion_margin_mm"))):
+        row = vertical.get(name)
+        need(type(row) is dict)
+        margins = tuple(finite(row.get(key)) for key in dimensions)
+        good = boolean(row.get("ok"))
+        need(good == all(margin >= -1e-9 for margin in margins))
+        vertical_ok.append(good)
+        for key, margin in zip(dimensions, margins):
+            if margin < -1e-9:
+                add(("vertical", name, key), (margin,))
+    need(boolean(vertical.get("ok")) == all(vertical_ok))
+    need(overall == (not faults))
+    return faults
+
+
 def assembly_pair(source, candidate):
     import cec_assembly_envelope as assembly
 
@@ -147,15 +282,20 @@ def assembly_pair(source, candidate):
         "complete_declared_assembly_evidence_required",
     )
 
-    def faults(result):
-        return set(map(str, assembly.failure_reasons(result)))
-
-    complete = all(type(row.get("ok")) is bool for row in (before, after))
-    new = sorted(faults(after) - faults(before))
+    try:
+        old, last = [_assembly_faults(result) for result in (before, after)]
+    except (ValueError, TypeError, KeyError) as exc:
+        return dict(ok=False, complete=False, errors=[str(exc)], before=before, after=after,
+                    assembly_qualified=False, inherited_faults_qualified=False, release_authority=False)
+    new = sorted(last.keys() - old.keys())
+    worse = sorted(key for key in old.keys() & last.keys()
+                   if len(old[key]) != len(last[key])
+                   or any(b < a for a, b in zip(old[key], last[key])))
     return dict(
-        ok=complete and not new,
-        complete=complete,
+        ok=not new and not worse,
+        complete=True,
         new_faults=new,
+        worsened_faults=worse,
         before=before,
         after=after,
         assembly_qualified=after.get("ok") is True,

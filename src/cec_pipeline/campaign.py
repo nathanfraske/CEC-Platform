@@ -1,8 +1,9 @@
 """Durable model-owned decisions and event history, without an optimizer loop.
 
 SQLite serializes writers and survives a stopped client. Decisions bind the
-source and code epoch. A failed identical decision cannot silently run again;
-the model must change the intent or explicitly explain its replanning.
+source and code epoch. Rationale is retained, but cannot disguise a failed
+identical action. Changed receiving context permits explicit reevaluation,
+not a claim that the geometry was replanned.
 """
 
 from __future__ import annotations
@@ -17,6 +18,34 @@ import time
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def action_identities(payload):
+    """Separate action, receiving context and prose without rewriting history.
+
+    Only mapping key order is normalized. Operation, point and permission lists
+    retain their exact order; no geometric equivalence is guessed. Legacy rows
+    already retain all these inputs, so they need no migration or new receipts.
+    """
+    request = payload["request"]
+    context_keys = ("source_family", "footprint_table_sha256")
+    action = dict(
+        board=payload["board"],
+        source_sha256=payload["source_sha256"],
+        request={
+            key: value
+            for key, value in request.items()
+            if key not in ("intent", *context_keys)
+        },
+    )
+    context = dict(
+        code_identity=payload["code_identity"],
+        **{key: request.get(key) for key in context_keys},
+    )
+    return tuple(
+        hashlib.sha256(canonical(value).encode()).hexdigest()
+        for value in (action, context)
+    )
 
 
 class Journal:
@@ -81,6 +110,13 @@ class Journal:
             request=request,
         )
         identity = hashlib.sha256(canonical(payload).encode()).hexdigest()
+        action_identity, context_identity = action_identities(payload)
+        diagnostics = dict(
+            action_identity=action_identity,
+            context_identity=context_identity,
+            context_changed=False,
+            reevaluation=False,
+        )
         with self.connection() as db:
             old = db.execute(
                 "SELECT job,state,reason FROM decisions WHERE identity=?", (identity,)
@@ -90,15 +126,33 @@ class Journal:
                     raise ValueError(
                         "identical_failed_decision_requires_changed_design:" + old[2]
                     )
-                return dict(identity=identity, job=old[0], state=old[1], resumed=True)
+                return dict(
+                    identity=identity, job=old[0], state=old[1], resumed=True,
+                    **diagnostics,
+                )
+            for previous, reason in db.execute(
+                "SELECT payload,reason FROM decisions WHERE board=? AND state='failed'",
+                (board,),
+            ):
+                old_action, old_context = action_identities(json.loads(previous))
+                if old_action != action_identity:
+                    continue
+                if old_context == context_identity:
+                    raise ValueError(
+                        "identical_failed_decision_requires_changed_design:" + reason
+                    )
+                diagnostics.update(context_changed=True, reevaluation=True)
             db.execute(
                 "INSERT INTO decisions(identity,job,board,state,payload) VALUES(?,?,?,?,?)",
                 (identity, job, board, "staged", canonical(payload)),
             )
             self._event(
-                db, "decision_staged", dict(identity=identity, job=job, board=board)
+                db, "decision_staged",
+                dict(identity=identity, job=job, board=board, **diagnostics),
             )
-        return dict(identity=identity, job=job, state="staged", resumed=False)
+        return dict(
+            identity=identity, job=job, state="staged", resumed=False, **diagnostics
+        )
 
     def transition(self, job, state, reason=""):
         if state not in ("staged", "checking", "failed", "selected"):
@@ -161,14 +215,36 @@ class Journal:
                 )
             ]
             count = db.execute("SELECT count(*) FROM decisions").fetchone()[0]
-        failures = sum(row["state"] == "failed" for row in decisions[:3])
+            # History paging must not mix boards/sources or hide a plateau.
+            # Keep only the three latest decisions per exact physical source.
+            scopes = {}
+            latest_sources = {}
+            for job, board, state, reason, payload in db.execute(
+                "SELECT job,board,state,reason,payload FROM decisions ORDER BY rowid DESC"
+            ):
+                source = json.loads(payload)["source_sha256"]
+                latest_sources.setdefault(board, source)
+                recent = scopes.setdefault((board, source), [])
+                if len(recent) < 3:
+                    recent.append(dict(job=job, state=state, reason=reason))
+        plateaus = [
+            dict(board=board, source_sha256=source, decisions=recent)
+            for (board, source), recent in scopes.items()
+            if len(recent) == 3 and all(row["state"] == "failed" for row in recent)
+        ]
+        replanning = [
+            scope for scope in plateaus
+            if latest_sources[scope["board"]] == scope["source_sha256"]
+        ]
         return dict(
             ok=True,
             complete=True,
             decision_count=count,
             decisions=decisions,
             events=events,
-            needs_replanning=len(decisions) >= 3 and failures == 3,
+            needs_replanning=bool(replanning),
+            replanning_scopes=replanning,
+            historical_replanning_scopes=[scope for scope in plateaus if scope not in replanning],
             autonomous_decision_loop=False,
             release_authority=False,
         )

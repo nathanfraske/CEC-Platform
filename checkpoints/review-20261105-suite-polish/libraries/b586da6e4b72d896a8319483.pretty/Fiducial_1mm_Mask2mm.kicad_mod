@@ -1,0 +1,110 @@
+(footprint "Fiducial_1mm_Mask2mm"
+	(version 20241229)
+	(generator "pcbnew")
+	(generator_version "9.0")
+	(layer "F.Cu")
+	(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
+	(tags "fiducial")
+	(property "Reference" "REF**"
+		(at 0 -1.95 0)
+		(layer "F.SilkS")
+		(uuid "88f63a70-df75-4817-9682-15b3f242ebfd")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "Fiducial_1mm_Mask2mm"
+		(at 0 1.95 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "450d41fc-9a38-46f1-90ca-75dd555b7f24")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "83e2cfd0-fd24-4b1e-a764-5814b31211f1")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "389b16b8-af24-4fd6-8d24-9158e3b80e37")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "KiLib_Generator" "fiducial"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "2fba86b6-32c3-4643-a853-4f82a01e8dd5")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr smd board_only exclude_from_bom)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_circle
+		(center 0 0)
+		(end 1.25 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "26fdde32-1897-4804-891f-a92ccdc79ce9")
+	)
+	(fp_circle
+		(center 0 0)
+		(end 1 0)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "013ef458-c8cf-4b84-93f7-10e49194b185")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "857079a3-53d5-4f5e-be7d-2d50a2ceb9b2")
+		(effects
+			(font
+				(size 0.5 0.5)
+				(thickness 0.08)
+			)
+		)
+	)
+	(pad "" smd circle
+		(at 0 0)
+		(size 1 1)
+		(property pad_prop_fiducial_glob)
+		(layers "F.Cu" "F.Mask")
+		(solder_mask_margin 0.5)
+		(clearance 0.6)
+		(uuid "6a9477a6-631b-48fe-ae73-3bff78be3133")
+	)
+	(embedded_fonts no)
+)

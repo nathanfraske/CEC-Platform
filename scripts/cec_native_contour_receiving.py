@@ -62,8 +62,18 @@ def receive_literal_phase(source, candidate, records, *, board_hint=None):
                 field._save_field_snapshot(rebuilt, expected)
                 rebuilt = pcbnew.LoadBoard(str(expected))
             _, actual = additive._nodes(expected)
-            if (actual.keys() != new.keys() or any(syntax._freeze(actual[u]) != syntax._freeze(new[u])
-                                                  for u in new)):
+            # Only the declared zones, recompiled Ground fills and their
+            # explicit existing group may come from native reconstruction.
+            # KiCad may reorder an unrelated property's hide/effects fields
+            # when saving. The constructor correctly retains that original
+            # literal node; do not demand unrelated serializer churn instead.
+            owned = set(ids) | {force._uid(z) for z in before.Zones()
+                if not z.GetIsRuleArea() and z.GetNetname() == 'GND'}
+            owned.update(row['plan']['group_uuid'] for row in records
+                if row['plan'].get('group_uuid'))
+            if (actual.keys() != new.keys() or any(
+                    syntax._freeze(actual[u] if u in owned else old[u]) != syntax._freeze(new[u])
+                    for u in new)):
                 raise ValueError('exact_signed_regions_and_ground_refill_replay_differs')
         stable = epoch == force._code_identity() and families == [
             force._family(path, board_hint) for path in paths]

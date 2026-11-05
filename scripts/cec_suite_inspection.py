@@ -249,21 +249,113 @@ def _metadata(spec_path, output):
     write_json(output,metadata)
 
 
+def _normalize_field_report(value):
+    """Adapt recorded evidence, never infer fresh qualification from a filename."""
+    def need(condition, reason='complete_valid_field_evidence_required'):
+        if not condition:raise ValueError(reason)
+    need(type(value)is dict and value.get('complete')is True)
+    candidate=value.get('candidate_sha256')
+    need(type(candidate)is str and re.fullmatch(r'[a-f0-9]{64}',candidate))
+    if 'result'in value:
+        body=value['result']
+        need(type(body)is dict and body.get('complete')is True
+             and 'new_field_blocker_keys'not in value)
+        keys=body.get('blocker_keys')
+    else:
+        body=None;keys=value.get('new_field_blocker_keys')
+    need(type(keys)is list and len(keys)<=16384)
+    normalized=[]
+    for key in keys:
+        need(type(key)is str)
+        try:parsed=json.loads(key)
+        except (ValueError,TypeError)as exc:raise ValueError('malformed_field_blocker_key')from exc
+        need(type(parsed)is list and len(parsed)==6,'malformed_field_blocker_key')
+        members,reason=parsed[:2]
+        need(type(members)is list and len(members)==2
+             and all(type(member)is list and len(member)==3
+                     and all(type(part)is str and part for part in member)for member in members)
+             and len({member[0]for member in members})==2
+             and type(reason)is str and bool(reason),'malformed_field_blocker_key')
+        numbers=parsed[2:]
+        need(all(type(number)in(int,float)and math.isfinite(number)for number in numbers)
+             and 0<=numbers[0]<=90 and numbers[1]>=0 and 0<=numbers[3]<=100,
+             'malformed_field_blocker_key')
+        normalized.append(json.dumps([sorted(members),reason,*map(float,numbers)],
+                                     separators=(',',':'),allow_nan=False))
+    need(len(set(normalized))==len(normalized),'duplicate_field_blocker_key')
+    if body is not None:
+        if 'blocking_count'in body:
+            need(type(body['blocking_count'])is int and body['blocking_count']==len(normalized))
+        if 'ok'in body:
+            need(type(body['ok'])is bool and body['ok']==(not normalized))
+    return dict(candidate_sha256=candidate,new_field_blocker_keys=sorted(normalized))
+
+
+def field_receipt_index(receipt, *, receipt_path, field_receipt=None, field_sha256=None):
+    """Hash-check ALL observations and index only by exact saved PCB identity.
+
+    A newer receipt does not supersede contradictory evidence for identical
+    copper. Equivalent observations can coexist with their actual provenance.
+    Stale-but-valid observations remain keyed to their old candidate, never
+    relabeled as evidence for a changed board.
+    """
+    entries=receipt.get('field_receipts',[])
+    if type(entries)is not list or len(entries)>128:raise ValueError('bounded_field_receipts_required')
+    if (field_receipt is None)!=(field_sha256 is None):
+        raise ValueError('exact_field_receipt_and_sha256_required')
+    sources=[(entry,True)for entry in entries]
+    if field_receipt is not None:sources.append((dict(path=str(field_receipt),sha256=field_sha256),False))
+    root=Path(receipt_path).resolve(strict=True).parent;indexed={};total=0
+    for entry,relative in sources:
+        if (type(entry)is not dict or type(entry.get('path'))is not str or not entry['path']
+                or type(entry.get('sha256'))is not str
+                or not re.fullmatch(r'[a-f0-9]{64}',entry['sha256'])):
+            raise ValueError('exact_field_receipt_and_sha256_required')
+        path=Path(entry['path']);path=(root/path if relative and not path.is_absolute()else path).resolve(strict=True)
+        size=path.stat().st_size;total+=size
+        if size>16*1024*1024 or total>64*1024*1024:raise ValueError('bounded_field_evidence_required')
+        raw=path.read_bytes()
+        if hashlib.sha256(raw).hexdigest()!=entry['sha256']or sha(path)!=entry['sha256']:
+            raise ValueError('field_evidence_identity_mismatch')
+        observation=_normalize_field_report(json.loads(raw))
+        candidate=observation['candidate_sha256'];previous=indexed.get(candidate)
+        if previous is not None and previous['new_field_blocker_keys']!=observation['new_field_blocker_keys']:
+            raise ValueError('conflicting_field_evidence_for_same_candidate')
+        if previous is None:
+            previous=observation;previous['recorded_field_receipts']=[];indexed[candidate]=previous
+        provenance=dict(path=str(path),sha256=entry['sha256'])
+        if provenance not in previous['recorded_field_receipts']:previous['recorded_field_receipts'].append(provenance)
+    return indexed
+
+
+def copy_review_refinements(receipt,out,assets):
+    """Keep every received layer/crop pair, including legacy single views."""
+    refinements=[]
+    for row in receipt.get('selected_children',[]):
+        copied=dict(row);copied['plots']={}
+        for key,plot in row.get('reviewed_native_plots',{}).items():
+            legacy=key in('before','after')
+            if (not(legacy or re.fullmatch(r'(?:before|after)-(?:F|B|In[1-4])-Cu-[a-f0-9]{16}\.svg',key))
+                    or sha(plot['path'])!=plot['sha256']):
+                raise ValueError('reviewed_refinement_plot_identity_mismatch')
+            relative='reviews/'+re.sub(r'[^a-zA-Z0-9_-]','-',row['board'])+'-'+key+('.svg'if legacy else'')
+            target=Path(out)/relative;target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes(Path(plot['path']).read_bytes())
+            assets[relative]=sha(target);copied['plots'][key]=relative
+        copied.pop('reviewed_native_plots',None);refinements.append(copied)
+    return refinements
+
+
 def build(args):
-    receipt=verify_receipt(args.receipt,args.receipt_sha256);out=Path(args.output).resolve();out.mkdir(parents=True,exist_ok=True)
-    field=None
-    if args.field_receipt:
-        if sha(args.field_receipt)!=args.field_sha256:raise ValueError('field_evidence_identity_mismatch')
-        field=json.loads(Path(args.field_receipt).read_text())
-    elif receipt.get('field_receipts'):
-        entry=receipt['field_receipts'][0]
-        if sha(entry['path'])!=entry['sha256']:raise ValueError('portable_field_evidence_changed')
-        field=json.loads(Path(entry['path']).read_text())
+    receipt=verify_receipt(args.receipt,args.receipt_sha256)
+    fields=field_receipt_index(receipt,receipt_path=args.receipt,
+                               field_receipt=args.field_receipt,field_sha256=args.field_sha256)
+    out=Path(args.output).resolve();out.mkdir(parents=True,exist_ok=True)
     boards=[];assets={};env=os.environ.copy();env['PYTHONDONTWRITEBYTECODE']='1'
     for index,row in enumerate(receipt['boards']):
         slug=re.sub(r'[^a-zA-Z0-9_-]','-',row['board']);directory=out/'assets'/slug;directory.mkdir(parents=True,exist_ok=True)
         spec=dict(row)
-        if field and field.get('candidate_sha256')==row['sha256']:spec['field']=field
+        if row['sha256']in fields:spec['field']=fields[row['sha256']]
         spec_path=directory/'input.json';write_json(spec_path,spec)
         metadata_path=directory/'metadata.json'
         print(json.dumps(dict(board=row['board'],phase='native metadata',index=index+1,total=len(receipt['boards']))),flush=True)
@@ -284,16 +376,7 @@ def build(args):
     order=['hub-standard-rev2','atx-24pin-rev3','eps-8pin-rev3','12vhpwr-standard','pcie-8pin-2port','pcie-8pin-3port',
         'output-daughterboards/atx24-out-db','output-daughterboards/eps-out-db','output-daughterboards/pcie-out-db']
     boards.sort(key=lambda b:order.index(b['board'])if b['board']in order else 99)
-    refinements=[]
-    for row in receipt.get('selected_children',[]):
-        copied=dict(row);copied['plots']={}
-        for side,plot in row.get('reviewed_native_plots',{}).items():
-            if side not in('before','after')or sha(plot['path'])!=plot['sha256']:
-                raise ValueError('reviewed_refinement_plot_identity_mismatch')
-            relative='reviews/'+re.sub(r'[^a-zA-Z0-9_-]','-',row['board'])+'-'+side+'.svg'
-            target=out/relative;target.parent.mkdir(parents=True,exist_ok=True)
-            target.write_bytes(Path(plot['path']).read_bytes());assets[relative]=sha(target);copied['plots'][side]=relative
-        copied.pop('reviewed_native_plots',None);refinements.append(copied)
+    refinements=copy_review_refinements(receipt,out,assets)
     manifest=dict(schema=1,title=f'CEC {len(boards)}-board inspection',source_receipt=str(Path(args.receipt).resolve()),
         source_receipt_sha256=args.receipt_sha256,boards=boards,assets=assets,review_refinements=refinements,
         totals={k:sum(b['counts'][k]for b in boards)for k in('opens','errors','warnings','exclusions')},

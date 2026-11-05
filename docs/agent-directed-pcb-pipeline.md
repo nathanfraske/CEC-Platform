@@ -43,6 +43,11 @@ service. It serves the explicitly published snapshot on localhost:8091 with
 `--inspection-only --no-watch`: no archive crawler, wave watcher or solver.
 The former port-8090 dashboard service is disabled. Re-publication remains an
 explicit, hash-bound operation, not a background scan of old candidates.
+On Windows, the systemd unit alone does not keep WSL running, as documented by
+[Microsoft](https://learn.microsoft.com/en-us/windows/wsl/systemd). The existing
+`CEC-WSL-Keepalive` logon task must be running for idle browser availability;
+its sleep process consumes no solver/model compute. Do not restart the old
+dashboard bootstrap or a retired wave manager to keep the inspector alive.
 
 ## Tools
 
@@ -125,20 +130,48 @@ The interface does not magically make every possible PCB edit qualified.
    checklist coordinators run per workspace. Each native constituent retains
    its existing <=10-second lease; composed checklists have finite watchdogs.
 5. Inspect the concrete refusal if a check fails or expires. Change the design
-   or scope; do not retry the identical failed decision. Three recent failed
-   decisions produce a replanning signal, not a success or a no-path proof.
-6. Inspect actual native before/after plots. Selection requires both those
-   hash-bound plots and all capability-specific gates.
+   or scope; prose-only changes cannot bypass failed-action memory. Changed
+   receiving code/family/table permits explicit reevaluation, not a claim of
+   geometric replanning. Three recent failures of the latest source of one
+   board produce a replanning signal; interleaved boards and historical sources
+   cannot manufacture or conceal it. This is not a no-path proof.
+6. Inspect actual native before/after plots. Saved copper differences determine
+   the required layers and regions, including changed Ground fill. `render`
+   defaults to a useful changed-copper crop, not the drawing sheet; multiple
+   views accumulate without overwriting other crops or layers. Selection and
+   publication independently require every delta region to be covered, exact
+   before/after SVG pairs, hashes and actual SVG viewports. A valid image of an
+   unrelated corner cannot stand in for review. This establishes evidence
+   relevance, never proof of model attention or electrical qualification.
 7. Select the child, optionally `fork` it as the next working parent. A separate
    publisher makes a fresh suite review receipt; originals remain immutable.
 
 The SQLite decision/event journal survives restart and verifies its hash chain.
+Each workspace also durably binds the exact original receipt path and SHA.
+Reopening it, including the finite validation worker and publisher, cannot
+follow a changed Git/dashboard pin. Explicitly selecting another base requires
+a new workspace; adopting a checked child still uses `fork`. Legacy unbound
+workspaces with jobs require an explicit checkpoint/SHA whose base matches
+every job; mixed or missing bases refuse before publication. Untouched suite
+rows always come from this bound receipt, not whichever pin is current later.
 Source observations alone may be reused, keyed to source/family/code/library/
 native-tool identity. Raw report hashes are checked again. Changed candidates
 never inherit native geometry checks. Code changes invalidate prior jobs.
 Semantic source/BOM/library-body inputs, the selected physical peer and
 hashed CEC/KiCad policy environment are bound too; changing one invalidates
 the job rather than silently reusing its old authority.
+
+Assembly nonregression compares typed native fault identities and signed
+clearances/offsets, not only top-level failure categories. A new collision
+cannot hide under an existing collision category; worsened known margins and
+incomplete/opaque observations are refusals. Unchanged inherited assembly
+faults remain debt, not approval. The no-declared-contract result remains
+explicitly unqualified.
+
+The visual material manifest presently covers native tracks, pads, vias and
+saved zone fills. Copper artwork is protected from these actors by literal
+transaction ownership, not independently reviewed by that manifest. Any future
+artwork actuator must extend the observer before gaining selection authority.
 
 ## Running locally
 
@@ -158,7 +191,7 @@ python3 scripts/cec_agentic_workbench.py --workspace .cec/campaign --call valida
 
 The default is `checkpoints/current.json`, not file age or an author's private
 review directory. `--checkpoint` requires its exact `--checkpoint-sha256`.
-The November 4 portable control retains all nine PCBs, actual footprint
+The portable control retains all nine PCBs, actual footprint
 libraries, fresh native reports and original provenance.
 
 Omit `--call` for MCP stdio. The project `.mcp.json` includes `cec-layout`;
@@ -168,6 +201,9 @@ environment. No user-wide client setting or authentication policy is changed.
 `ops/cec_publish_agentic_review.py --workspace ... --job <selected-token>
 --output <fresh-directory>` creates review-only lineage. Publishing the
 inspection index is a deliberate separate operator action.
+The publisher also accepts `--checkpoint` with `--checkpoint-sha256` for an
+explicit matching legacy intake. These options cannot rebase an existing
+bound campaign or waive any candidate/visual/physical check.
 
 ## Layout and qualification policy
 
@@ -205,6 +241,14 @@ checkpoint inputs, limits workers/RSS, never consumes ignored `build/` code,
 and never credits partial interrupted XML or a prior test pass.
 
 ## References
+
+The [November 5 agentic research and blind-spot review](agentic-pcb-research-review-2026-11-05.md)
+records version-pinned primary research, its limitations, missing outcome and
+context tooling, and a ten-task repair benchmark ladder. The complementary
+[PCB physics and methodology review](pcb-physics-methodology-review-2026-11-05.md)
+inventories actual interfaces, process exceptions, impedance/return/PDN/CAN
+gaps and separate release holds. Proposed checks in these reports are not
+silently counted as implemented or qualified.
 
 The local transport follows [OpenAI's MCP guidance](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
 and the [MCP stdio/tool contract](https://modelcontextprotocol.io/specification/2025-06-18/server/tools).

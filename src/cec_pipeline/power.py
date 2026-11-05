@@ -18,7 +18,7 @@ bootstrap()
 
 
 def parameters(board, source, operation, board_hint):
-    import cec_redundant_force_branch as authority
+    import cec_full_current_planar_reflow as authority
     import cec_fab_profile as fab
     import cec_fr as fr
 
@@ -37,7 +37,10 @@ def parameters(board, source, operation, board_hint):
         "one_literal_power_net_and_face_per_contour",
     )
     net, face = str(selected[0].GetNetname()), int(selected[0].GetLayer())
-    domain, contract = authority._model(board, net, board_hint)
+    # A thermal load and a deliberately larger conductor budget are distinct
+    # source contracts. Use the existing typed routing authority, not the old
+    # branch-subtraction helper's equality assumption. Preserve both exactly.
+    kind, domain, contract = authority._model(board, source, net, board_hint)
     layer = fab.COPPER_LAYER_IDS.get(face)
     required = contract.get("required_by_layer_mm", {}).get(layer)
     require(
@@ -63,6 +66,7 @@ def parameters(board, source, operation, board_hint):
         clearance_nm=gap,
         min_thickness_nm=min(floors),
         current_domain=domain,
+        current_domain_kind=kind,
         unchanged_current_contract=contract,
     )
 
@@ -163,7 +167,7 @@ def receive(source, candidate, operation, record, *, board_hint):
 
     model = parameters(pcbnew.LoadBoard(str(source)), source, operation, board_hint)
     require(
-        model == record["source_current_model"],
+        digest(model) == digest(record["source_current_model"]),
         "power_source_current_requirement_changed",
     )
     plan = record["contour_record"]["plan"]
