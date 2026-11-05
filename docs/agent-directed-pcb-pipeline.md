@@ -320,6 +320,25 @@ Align repeated functional cells, not all capacitors of one value. Owner-pin
 distance and immediate ground return outrank a cosmetic grid. Preserve
 mating keys, courtyards, vents and dead-bug stack contracts.
 
+Compact board area is an explicit frontier objective: usable space inside a
+computer case is scarce. Prefer packing related functional cells into orderly
+rows, bringing bypasses and returns toward their owners, consolidating shared
+support stages and removing unnecessary perimeter routing before choosing a
+smaller outline. Compare actual saved width, height and laminate area against
+the parent; tighter-looking contents alone are not a board-size reduction.
+Evaluate the complete mating assembly, including connector access, mounting
+hardware and opposing bodies, before counting perimeter space as removable.
+The current actuator catalog does not yet construct and independently receive
+outline/hole/interface changes; extend those tools for the complete changed
+mechanical and electrical scope. This is a tooling gap, not a restriction on
+the user's authorization to compact the boards. A plane fill following the
+outline is not itself a compaction limit: distinguish repourable plane copper
+from protected current paths and fixed physical constraints. Preserve loaded
+current/thermal evidence and all existing
+clearances: less cooling area cannot be assumed harmless. In particular, the
+EPS daughterboard's failed nominal thermal screen requires return-loss and
+installed-boundary review before compressing its power paths further.
+
 High-speed/RF treatment is interface-specific: impedance, pair spacing/skew,
 continuous return plane, transitions and ESD come first. Curves and ground
 fences are not universal requirements and are never silently added from a
