@@ -136,10 +136,15 @@ def _construct(source, candidate, request, board_hint):
     for index, op in enumerate(request["operations"]):
         kind = op.get("kind")
         kinds.append(kind)
-        if kind == "replace_chain":
+        if kind in ("replace_chain", "repair_chain"):
+            fields = {"kind", "track_uuids", "points_nm", "allow_locked_track_uuids"}
+            if kind == "repair_chain":
+                fields |= {"layer", "max_added_length_nm"}
+                require(len(request["operations"]) == 1
+                        and request.get("target_field_issue_ids"),
+                        "one_field_targeted_repair_per_transaction_required")
             require(
-                set(op)
-                == {"kind", "track_uuids", "points_nm", "allow_locked_track_uuids"},
+                set(op) == fields,
                 "exact_route_operation_fields_required",
             )
             rows = [
@@ -169,6 +174,12 @@ def _construct(source, candidate, request, board_hint):
             width = scope["source_width_nm"]
             face = scope["source_layer"]
             points = design.path(op["points_nm"], minimum_phase_nm=max(width, 20000))
+            repair = None
+            if kind == "repair_chain":
+                from .routes import policy
+
+                repair = policy(board, cut, points, op)
+                face = repair["target_layer"]
             require(
                 sorted([points[0], points[-1]]) == sorted(scope["endpoints_nm"]),
                 "exact_source_chain_ports_required",
@@ -260,15 +271,14 @@ def _construct(source, candidate, request, board_hint):
             direction = lambda a, b: tuple(
                 (b[k] > a[k]) - (b[k] < a[k]) for k in (0, 1)
             )
-            require(
-                direction(*old_points[:2]) == direction(*points[:2])
-                and direction(*old_points[-2:]) == direction(*points[-2:]),
-                "source_launch_tangents_must_remain_exact",
-            )
-            require(
-                design.length(points) < design.length(old_points),
-                "route_refinement_must_shorten_not_meander",
-            )
+            if kind == "replace_chain":
+                require(
+                    direction(*old_points[:2]) == direction(*points[:2])
+                    and direction(*old_points[-2:]) == direction(*points[-2:]),
+                    "source_launch_tangents_must_remain_exact",
+                )
+                require(design.length(points) < design.length(old_points),
+                        "route_refinement_must_shorten_not_meander")
             keep_locked = any(v.IsLocked() for v in cut)
             discard_items(board, cut)
             retired |= ids
@@ -287,6 +297,7 @@ def _construct(source, candidate, request, board_hint):
                 )
                 t.SetStart(pcbnew.VECTOR2I(*a))
                 t.SetEnd(pcbnew.VECTOR2I(*b))
+                t.SetLayer(face)
                 t.SetLocked(keep_locked)
                 board.Add(t)
                 added.add(uid(t))
@@ -296,6 +307,7 @@ def _construct(source, candidate, request, board_hint):
                     net=scope["net"],
                     retired=sorted(ids),
                     points_nm=points,
+                    repair_contract=repair,
                     saved_centerline_mm=round(
                         (design.length(old_points) - design.length(points)) / 1e6, 6
                     ),
@@ -321,7 +333,7 @@ def _construct(source, candidate, request, board_hint):
     root[1:] = out
     candidate.write_text(syntax._render(root) + "\n")
     visible = None
-    if all(k == "replace_chain" for k in kinds):
+    if all(k in ("replace_chain", "repair_chain") for k in kinds):
         visible = visible_delta(source, candidate, retired, added)
         require(
             visible["exposed_copper_changed"],
@@ -332,7 +344,7 @@ def _construct(source, candidate, request, board_hint):
         retired_track_uuids=sorted(retired),
         allow_locked_track_uuids=sorted(unlock),
         kinds=kinds,
-        ordinary_only=all(k == "replace_chain" for k in kinds),
+        ordinary_only=all(k in ("replace_chain", "repair_chain") for k in kinds),
         added_track_uuids=sorted(added),
         visible_material_delta=visible,
         private_unadmitted=True,

@@ -111,6 +111,14 @@ def worker(job_path, step, output):
         from .pairs import receive
 
         result = receive(source, candidate, timeout_s=8.0)
+    elif step == "route_contract":
+        from .routes import receive
+
+        operations = job["request"]["operations"]
+        require(len(operations) == 1 and operations[0]["kind"] == "repair_chain"
+                and job["request"].get("target_field_issue_ids"),
+                "one_field_targeted_repair_required")
+        result = receive(source, candidate, operations[0], board_hint=job["board"])
     elif step == "kelvin_pair":
         from .safety import kelvin_pair
 
@@ -120,9 +128,10 @@ def worker(job_path, step, output):
         import cec_field_coupling as field
 
         path = source if step == "fields_source" else candidate
+        board = pcbnew.LoadBoard(str(path))
         result = field.field_coupling_summary(
             str(path),
-            board=pcbnew.LoadBoard(str(path)),
+            board=board,
             board_hint=job["board"],
             _work=field._ProposalWork(
                 time.monotonic() + 8.0, 16384, 1000000, 1000000, 16384
@@ -130,6 +139,16 @@ def worker(job_path, step, output):
         )
         result["complete"] = True
         result["blocker_keys"] = sorted(field.blocker_keys(result))
+        from .fields import _native_geometry, inventory
+
+        wanted = {
+            uid
+            for row in result["interactions"]
+            for member in row.get("member_track_uuids", [[uid] for uid in row["track_uuids"]])
+            for uid in member
+        }
+        result["track_geometry"] = _native_geometry(board, wanted)
+        result["semantic_inventory"] = inventory(result)
     elif step.startswith("craft_"):
         pcbnew, quiet = _native()
         import cec_route_quality as quality

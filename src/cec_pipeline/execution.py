@@ -36,6 +36,9 @@ def required_gates(construction):
 
     kind = construction.get("transaction_kind", "ordinary_route")
     if construction.get("ordinary_only") is True:
+        kinds = construction.get("kinds", ["replace_chain"])
+        if "repair_chain" in kinds:
+            return (*GATES, "route_contract")
         return tuple(GATES)
     if kind in MACROS:
         return (*GATES, *CAPABILITIES[kind])

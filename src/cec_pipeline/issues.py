@@ -88,6 +88,8 @@ def compile_map(world, native, craft, fields):
             issue.get("track_uuids", issue.get("uuids", [])),
             issue,
         )
+        if issue.get("semantic_id"):
+            rows[-1]["target_field_issue_id"] = issue["semantic_id"]
     return dict(
         schema=1,
         complete=True,

@@ -650,7 +650,8 @@ class Workbench:
             release_authority=False,
         )
 
-    def stage(self, board, expected_source_sha256, intent, operations, target_issue_ids=None):
+    def stage(self, board, expected_source_sha256, intent, operations, target_issue_ids=None,
+              target_field_issue_ids=None):
         require(
             board in self.rows and expected_source_sha256 == self._row(board)["sha256"],
             "exact_expected_checkpoint_sha_required",
@@ -675,8 +676,19 @@ class Workbench:
                 and len(set(target_issue_ids)) == len(target_issue_ids),
                 "bounded_exact_craft_targets_required")
         request = dict(intent=intent, operations=operations)
+        require(target_field_issue_ids is None or type(target_field_issue_ids) is list
+                and len(target_field_issue_ids) <= 32
+                and all(type(key) is str and len(key) == 64
+                        and all(c in "0123456789abcdef" for c in key) for key in target_field_issue_ids)
+                and len(set(target_field_issue_ids)) == len(target_field_issue_ids),
+                "bounded_exact_field_targets_required")
+        if any(op["kind"] == "repair_chain" for op in operations):
+            require(len(operations) == 1 and target_field_issue_ids,
+                    "one_field_targeted_repair_per_transaction_required")
         if target_issue_ids:
             request["target_issue_ids"] = target_issue_ids
+        if target_field_issue_ids:
+            request["target_field_issue_ids"] = target_field_issue_ids
         token = self._make_job(board, request)
         path, job = self._job(token)
         decision = self.journal.begin(
@@ -688,6 +700,7 @@ class Workbench:
                 intent=intent,
                 operations=operations,
                 target_issue_ids=target_issue_ids or [],
+                target_field_issue_ids=target_field_issue_ids or [],
                 source_family=job["source_family"],
                 footprint_table_sha256=job["footprint_table_sha256"],
             ),
@@ -717,7 +730,7 @@ class Workbench:
         if gate == "ordinary_delta":
             gate = "transaction_delta"
         require(
-            gate in (*GATES, "current_pair", "kelvin_pair", "assembly_pair"),
+            gate in (*GATES, "current_pair", "kelvin_pair", "assembly_pair", "route_contract"),
             "known_independent_check_required",
         )
         path, data = self._job(job)
@@ -760,6 +773,7 @@ class Workbench:
         missing = []
         records = {}
         craft_delta = None
+        field_delta = None
         from .execution import required_gates
 
         built = path.parent / "construct.json"
@@ -863,14 +877,14 @@ class Workbench:
                 failed.append("new/worsened craft finding or uncleared target")
             first, last = [records[s] for s in ("fields_source", "fields_candidate")]
 
-            # Compare exact physical interaction records, not only their count.
-            def keys(r):
-                return set(r["blocker_keys"])
+            from .fields import compare as compare_fields
 
-            if any(r.get("complete") is not True for r in (first, last)):
+            field_delta = compare_fields(first, last,
+                target_ids=data["request"].get("target_field_issue_ids"))
+            if field_delta.get("complete") is not True:
                 failed.append("field observer incomplete")
-            elif keys(last) - keys(first):
-                failed.append("new field-coupling interaction")
+            elif field_delta["ok"] is not True:
+                failed.append("new/changed field-coupling interaction or uncleared target")
         result = dict(
             ok=not failed,
             job=job,
@@ -882,6 +896,7 @@ class Workbench:
             source_sha256=data["source_sha256"],
             native_counts=records["native_candidate"].get("counts"),
             craft_delta=craft_delta,
+            field_delta=field_delta,
             pair_integrity=records.get("pair_integrity"),
             saved_centerline_mm=sum(
                 c.get("saved_centerline_mm", 0) for c in c.get("changes", [])

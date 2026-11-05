@@ -81,8 +81,20 @@ Craft rows returned by `issues` expose `target_issue_id`. The optional
 `stage.target_issue_ids` list names up to 32 exact-source targets that must
 actually disappear. Improving a target without clearing it is not completion;
 changing a claimed target cannot disguise an identical failed geometry retry.
-This first outcome contract covers craft findings only, not every possible
-electrical/placement/thermal design objective.
+This outcome contract does not imply that every possible electrical,
+placement or thermal objective is covered.
+
+Field receiving has its own semantic outcome contract. Exact conductor
+geometry, effective per-conductor electrical roles and measured interactions
+identify a blocker; UUIDs are lookup evidence, not its identity. Incomplete or
+contradictory reports, policy changes, same-count defect substitution and
+changed retained blockers refuse. `issues.target_field_issue_id` and
+`stage.target_field_issue_ids` identify exact-source field blockers that must
+disappear. Clearing one crossing cannot compensate for creating another.
+The whole-board checker uses contiguous collinear copper runs rather than
+serialization fragments, so subdividing a trace cannot hide its parallel
+overlap. This is bounded geometric nonregression, not continuous-field or EMC
+qualification.
 
 Every actuator also receives `pair_integrity`. Scope is independently derived
 from saved conductor, pad and filled-zone geometry; shared reference or
@@ -108,6 +120,18 @@ without stripping reviewer annotations or bypassing copper ownership.
 * `replace_chain`: ordinary-signal shortening with source ports, launch
   tangents, width, face, native process and lock strength retained. Rejects
   exposed-material no-ops, foreign copper, edges and keepouts.
+* `repair_chain`: one field-targeted ordinary-signal chain, with explicit
+  geometry and a finite additional-length allowance (at most 16 mm).
+  Source ports, width, process, locks and source launch/arrival tangents on
+  the same face remain mandatory. Relayering requires two exact existing
+  through-barrels and a source-declared signal face; no new hole or rated
+  power, Ground, Kelvin or pair authority is inferred. Known manufacturing
+  profiles are checked against the complete actual saved buildup before
+  deriving their canonical layer roles, including compound `SIG/PWR` roles.
+  Independent `route_contract` receiving checks the saved path and allowance
+  in addition to ordinary native-delta receiving. The named field fault must
+  clear without new craft or field debt. `replace_chain` remains shortening
+  only; a repair does not silently weaken that actuator.
 * `place_cell`: explicit cardinal poses for up to eight functional owners,
   plus model-authored restoration routes to retained barrels. Source-owned cuts and connection obligations
   are recompiled; saved receiving checks surviving partitions, decoupler

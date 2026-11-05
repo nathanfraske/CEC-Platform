@@ -25,6 +25,13 @@ for _kind, _props in {
         points_nm=dict(type="array", items=_POINT, minItems=2, maxItems=33),
         allow_locked_track_uuids=_UIDS,
     ),
+    "repair_chain": dict(
+        track_uuids=_UIDS,
+        points_nm=dict(type="array", items=_POINT, minItems=2, maxItems=33),
+        allow_locked_track_uuids=_UIDS,
+        layer=dict(type="string"),
+        max_added_length_nm=dict(type="integer", minimum=0, maximum=16000000),
+    ),
 }.items():
     _OPERATIONS.append(
         dict(
@@ -154,6 +161,8 @@ TOOL_PARAMETERS = {
         "intent": {"type": "string"},
         "target_issue_ids": dict(type="array", items=dict(type="string", minLength=64, maxLength=64),
                                  maxItems=32, uniqueItems=True),
+        "target_field_issue_ids": dict(type="array", items=dict(type="string", pattern="^[a-f0-9]{64}$"),
+                                       maxItems=32, uniqueItems=True),
         "operations": dict(
             type="array", items=dict(oneOf=_OPERATIONS), minItems=1, maxItems=8
         ),
@@ -168,6 +177,7 @@ TOOL_PARAMETERS = {
                 "current_pair",
                 "kelvin_pair",
                 "assembly_pair",
+                "route_contract",
             ],
         },
     },

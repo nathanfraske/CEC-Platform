@@ -18,7 +18,54 @@ import cec_agentic_workbench as workbench
 import cec_suite_inspection as inspection
 
 
-def publish(workspace, jobs, output, *, checkpoint=None, checkpoint_sha256=None):
+def received_field_refresh(w, tokens, rows, selected):
+    """Replace active observations only with a full, current-epoch suite audit.
+
+    A checker revision can change physical fault identities or expose older
+    faults on identical copper. Never pick the smaller count or the newer date.
+    Explicit complete-suite receiving replaces the active audit atomically;
+    prior observations remain historical, hash-bound evidence.
+    """
+    from cec_pipeline.fields import inventory
+
+    require = workbench.require
+    require(type(tokens) is list and len(tokens) == len(rows)
+            and len(set(tokens)) == len(tokens), "exact_full_suite_field_jobs_required")
+    expected = {row["board"]: row["sha256"] for row in rows}
+    observations = {}
+    for token in tokens:
+        path, data = w._job(token)  # Rechecks source, libraries and code epoch.
+        board = data["board"]
+        require(board in expected and board not in observations,
+                "one_current_field_job_per_board_required")
+        if board in selected:
+            require(token == selected[board][1]["token"],
+                    "selected_child_field_job_required")
+            step = "fields_candidate"
+        else:
+            require(data["source_sha256"] == expected[board]
+                    and data["request"].get("kind") == "inspect",
+                    "untouched_board_exact_source_field_job_required")
+            step = "fields_source"
+        evidence = path.parent / (step + ".json")
+        record = json.loads(evidence.read_text())
+        require(record.get("complete") is True
+                and record.get("candidate_sha256") == expected[board],
+                "complete_current_board_field_evidence_required")
+        result = record.get("result")
+        known = inventory(result)
+        require(known.get("status") == "known"
+                and result.get("audit_basis") == "exact_collinear_union_v1"
+                and known == result.get("semantic_inventory"),
+                "complete_current_semantic_field_inventory_required")
+        inspection._normalize_field_report(record)
+        observations[board] = dict(path=str(evidence), sha256=inspection.sha(evidence))
+    require(set(observations) == set(expected), "all_published_boards_need_current_field_evidence")
+    return [observations[row["board"]] for row in rows]
+
+
+def publish(workspace, jobs, output, *, checkpoint=None, checkpoint_sha256=None,
+            field_jobs=None):
     require = workbench.require
     output = Path(output).resolve()
     require(not output.exists(), "fresh_review_receipt_directory_required")
@@ -123,6 +170,11 @@ def publish(workspace, jobs, output, *, checkpoint=None, checkpoint_sha256=None)
                 )
             )
         rows.append(row)
+    active_fields = copy.deepcopy(w.receipt.get("field_receipts", []))
+    superseded_fields = copy.deepcopy(w.receipt.get("superseded_field_receipts", []))
+    if field_jobs is not None:
+        active_fields = received_field_refresh(w, field_jobs, rows, selected)
+        superseded_fields.extend(copy.deepcopy(w.receipt.get("field_receipts", [])))
     result = dict(
         schema=1,
         complete=True,
@@ -131,7 +183,8 @@ def publish(workspace, jobs, output, *, checkpoint=None, checkpoint_sha256=None)
         parent_receipt=w.manifest["source_receipt"],
         parent_receipt_sha256=w.manifest["source_receipt_sha256"],
         selected_children=lineage,
-        field_receipts=copy.deepcopy(w.receipt.get("field_receipts", [])),
+        field_receipts=active_fields,
+        superseded_field_receipts=superseded_fields,
         source_controls_unchanged=True,
         release_authority=False,
         manufacturing_or_current_qualified=False,
@@ -162,6 +215,9 @@ if __name__ == "__main__":
     p.add_argument("--output", required=True)
     p.add_argument("--checkpoint", help="Exact source receipt when binding a legacy workspace")
     p.add_argument("--checkpoint-sha256", help="Required exact SHA-256 for --checkpoint")
+    p.add_argument("--field-job", action="append",
+                   help="Explicit complete-suite current-epoch field observation jobs")
     a = p.parse_args()
     print(json.dumps(publish(a.workspace, a.job, a.output,
-                             checkpoint=a.checkpoint, checkpoint_sha256=a.checkpoint_sha256)))
+                             checkpoint=a.checkpoint, checkpoint_sha256=a.checkpoint_sha256,
+                             field_jobs=a.field_job)))

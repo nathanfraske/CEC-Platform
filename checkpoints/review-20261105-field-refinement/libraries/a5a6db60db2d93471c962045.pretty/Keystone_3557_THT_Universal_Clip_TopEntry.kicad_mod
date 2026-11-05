@@ -1,0 +1,126 @@
+(footprint "Keystone_3557_THT_Universal_Clip_TopEntry"
+	(version 20260206)
+	(generator "cec-hand")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Keystone CAT 3557 UNIVERSAL CLIP, Top Entry -- bare brass auto-blade-fuse clip, tin-nickel plate, UL 30A @ 500V AC, THT ('maintains position during wave soldering'), catalog M55 p.41 (lib/datasheets/Keystone_3557-2.pdf -- NAMING NOTE: that vendored PDF page carries BOTH products; '3557-2' is the 2-IN-1 HOUSED FUSE HOLDER, a different line item; THIS part is the bare single clip). Body .150x.185x.400in (3.8 x 4.7 x 10.2mm tall); jaw .062/.027 (1.57/0.69); 2 legs .063 (1.60) dia at .134 (3.4mm) centres. LEG-PAIR AXIS, verified against the mounting details: the legs run PERPENDICULAR to the jaw/slot axis (the 3557-2 housed detail shows per-clip 3.4mm leg pairs perpendicular to the 13.5mm fuse axis, and an ATO blade's 5.2mm width runs ALONG the fuse axis: 13.5+5.2 = the fuse's ~18.7mm width -- so slot IS parallel to the fuse axis, legs perpendicular). Local frame = the CEC main-board mating orientation (blade-fit memo addendum 5): slot axis along +Y (perpendicular to the daughterboard wall line, accepting the descending 63951-1 blade broadside); legs at (+/-1.7, 0) ALONG the row (X); body 3.8 (X) x 4.7 (Y), legs' outer extent 5.0 along X (feet splay past the body sides). Drill 1.60 = the leg dia (friction fit for wave solder, same 1.6mm figure the fit memo Sec.6 corrected the 3557-2 holes to); pad 2.4mm (0.4 annulus -- the joint current rides the surrounding pour, keep NO thermal relief per the memo Sec.5). Along-row pad span 3.4+2.4 = 5.8mm -- THE row-pitch floor driver (5.8 + 0.5 solder web = 6.3mm), see the daughterboard TAB_PITCH derivation. Jaw designed for .025in/0.64mm fuse blades; the platform's 63951-1 tab is 0.77-0.83mm -- inside the family's published .020-.032 acceptance but 27% over the fuse design-centre = stiffer grip, the memo addendum-5 #1 sample-gate item.")
+	(property "Reference" "REF**"
+		(at 0 -3.6 0)
+		(layer "F.SilkS")
+		(uuid "5c1f0a2e-9b31-4b70-8f21-3f2a6c4d0e11")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "Keystone 3557"
+		(at 0 3.8 0)
+		(layer "F.Fab")
+		(uuid "6d203b3f-ac42-4c81-9032-4a3b7d5e1f22")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.keyelco.com/product.cfm/product_id/1131"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "7e314c40-bd53-4d92-a143-5b4c8e6f2033")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8f425d51-ce64-4ea3-b254-6c5d9f703144")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr through_hole)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_rect
+		(start -1.9 -2.35)
+		(end 1.9 2.35)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "9a536e62-df75-4fb4-c365-7d6ea0814255")
+	)
+	(fp_rect
+		(start -1.9 -2.35)
+		(end 1.9 2.35)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "ab647f73-e086-4fc5-d476-8e7fb1925366")
+	)
+	(fp_line
+		(start 0 -2.35)
+		(end 0 2.35)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "bc758084-f197-4fd6-e587-9f80c2a36477")
+	)
+	(fp_poly
+		(pts
+			(xy -2.75 -2.6)
+			(xy 2.75 -2.6)
+			(xy 2.75 2.6)
+			(xy -2.75 2.6)
+		)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "cd869195-02a8-4007-f698-a091d3b47588")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 90)
+		(layer "F.Fab")
+		(uuid "de97a2a6-13b9-4118-0709-b1a2e4c58699")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.12)
+			)
+		)
+	)
+	(pad "1" thru_hole circle
+		(at -1.7 0)
+		(size 2.4 2.4)
+		(drill 1.6)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "ef08b3b7-24ca-4229-181a-c2b3f5d697aa")
+	)
+	(pad "1" thru_hole circle
+		(at 1.7 0)
+		(size 2.4 2.4)
+		(drill 1.6)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "f019c4c8-35db-433a-292b-d3c4a6e7a8bb")
+	)
+	(embedded_fonts no)
+)

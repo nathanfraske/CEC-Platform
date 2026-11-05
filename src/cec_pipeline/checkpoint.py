@@ -131,13 +131,14 @@ def normalize(path, expected, *, repository=ROOT):
                 "portable_companion_changed",
             )
         verify_producer(row)
-    for entry in result.get("field_receipts", []):
-        asset = (path.parent / entry["path"]).resolve(strict=True)
-        require(
-            asset.is_relative_to(path.parent) and sha(asset) == entry["sha256"],
-            "portable_field_evidence_changed",
-        )
-        entry["path"] = str(asset)
+    for group in ("field_receipts", "superseded_field_receipts"):
+        for entry in result.get(group, []):
+            asset = (path.parent / entry["path"]).resolve(strict=True)
+            require(
+                asset.is_relative_to(path.parent) and sha(asset) == entry["sha256"],
+                "portable_field_evidence_changed",
+            )
+            entry["path"] = str(asset)
     for review in result.get("selected_children", []):
         require(
             any(
@@ -354,6 +355,13 @@ def export(receipt, expected, output, *, repository=ROOT, field_receipts=()):
         target.parent.mkdir(exist_ok=True)
         shutil.copy2(path, target)
         fields.append(dict(path=str(target.relative_to(output)), sha256=identity))
+    superseded_fields = []
+    for entry in original.get("superseded_field_receipts", []):
+        require(sha(entry["path"]) == entry["sha256"], "historical_field_evidence_changed")
+        target = output / "superseded-fields" / (str(len(superseded_fields)) + ".json")
+        target.parent.mkdir(exist_ok=True)
+        shutil.copy2(entry["path"], target)
+        superseded_fields.append(dict(path=str(target.relative_to(output)), sha256=entry["sha256"]))
     reviews = export_reviews(original, output)
     result = dict(
         schema=2,
@@ -363,6 +371,7 @@ def export(receipt, expected, output, *, repository=ROOT, field_receipts=()):
         origin_receipt_sha256=expected,
         boards=rows,
         field_receipts=fields,
+        superseded_field_receipts=superseded_fields,
         selected_children=reviews,
         scope="byte_identical_native_geometry_with_fresh_relocated_context_DRC",
         totals={
