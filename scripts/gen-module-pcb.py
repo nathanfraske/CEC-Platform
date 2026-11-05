@@ -347,19 +347,19 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
     end = layer_fields[0][1]
     s = s[:end] + f'\n\t(at {ff(x)} {ff(y)} {rot})\n\t(uuid "{U()}")' + s[end:]
     s = re.sub(r'\(property "Reference" "[^"]*"', f'(property "Reference" "{ref}"', s, count=1)
-    # Value property: set to the real component value and move it onto F.SilkS so
-    # the value is visible on the board. Footprints default the Value to the
-    # footprint name on the non-plotted F.Fab layer (so values never showed up);
-    # the Reference stays on F.SilkS. Mechanical parts (mounts, logo) pass val=None
-    # and keep their Fab default.
-    if val:
-        mv = re.search(r'\(property "Value" ', s)
-        if mv:
-            blk = carve(s, mv.start())
-            nb = re.sub(r'^\(property "Value" "[^"]*"',
-                        lambda m: f'(property "Value" "{val}"', blk, count=1)
-            nb = nb.replace('(layer "F.Fab")', '(layer "F.SilkS")', 1)
-            s = s[:mv.start()] + nb + s[mv.start() + len(blk):]
+    # References identify assembled parts on silk; full part names/values
+    # belong on the physical face's fabrication drawing, never printed ink.
+    # Retain the value, visibility, position, font and mirror state. Apply the
+    # same rule to a library's default Value when no override was supplied.
+    mv = re.search(r'\(property "Value" ', s)
+    if mv:
+        blk = carve(s, mv.start())
+        nb = (re.sub(r'^\(property "Value" "[^"]*"',
+                     lambda m: f'(property "Value" "{val}"', blk, count=1)
+              if val else blk)
+        nb = re.sub(r'\(layer "[FB]\.(?:Fab|SilkS)"\)',
+                    '(layer "%s.Fab")' % ('B' if flip else 'F'), nb, count=1)
+        s = s[:mv.start()] + nb + s[mv.start() + len(blk):]
     out, pos = "", 0
     for m in re.finditer(r'\(pad "([^"]*)"', s):
         if m.start() < pos: continue

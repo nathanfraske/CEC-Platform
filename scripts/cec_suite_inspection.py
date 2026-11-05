@@ -119,6 +119,25 @@ def reframe_svg(path, bounds):
     tree.write(path,encoding='utf-8',xml_declaration=True)
 
 
+def _visible_component_field_layers(board):
+    """Actual saved field layers, not a combined plot or an inferred BOM."""
+    import pcbnew
+    layers = {pcbnew.F_SilkS: 'F.Silkscreen', pcbnew.B_SilkS: 'B.Silkscreen',
+              pcbnew.F_Fab: 'F.Fab', pcbnew.B_Fab: 'B.Fab'}
+    counts = {name: dict(Value=0, MPN=0) for name in layers.values()}
+    for fp in board.GetFootprints():
+        for label in fp.GetFields():
+            name, layer = str(label.GetName()), int(label.GetLayer())
+            if (name in ('Value', 'MPN') and layer in layers
+                    and label.IsVisible() and str(label.GetText()).strip()):
+                counts[layers[layer]][name] += 1
+    return dict(schema_version=1, scope='visible_nonempty_Value_MPN_fields_only',
+                by_layer=counts,
+                silk_visible_total=sum(sum(counts[name].values()) for name in ('F.Silkscreen', 'B.Silkscreen')),
+                fab_visible_total=sum(sum(counts[name].values()) for name in ('F.Fab', 'B.Fab')),
+                reference_and_functional_labels_excluded=True)
+
+
 def _metadata(spec_path, output):
     import cec_swig_guard;cec_swig_guard.pin()
     import pcbnew,wx
@@ -237,6 +256,7 @@ def _metadata(spec_path, output):
         source=str(source),sha256=spec['sha256'],counts=spec['counts'],outline=bounds,frame=frame,
         thickness_mm=mm(board.GetDesignSettings().GetBoardThickness()),properties=props,layers=layers,
         board_default_limits_mm=defaults,declared_profile=profile_name,
+        annotation_fields=_visible_component_field_layers(board),
         components=sorted(components,key=lambda f:(re.sub(r'\d+','',f['ref']),int(re.search(r'\d+',f['ref']).group())if re.search(r'\d+',f['ref'])else 0,f['ref'])),
         nets=net_rows,tracks=track_rows,vias=via_rows,findings=findings,
         craft_observer_complete=craft.get('complete')is True,

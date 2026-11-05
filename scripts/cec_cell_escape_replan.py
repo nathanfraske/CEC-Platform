@@ -112,6 +112,43 @@ def prepare(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_esca
                 if shared_supply_root_pad_uuids else {}))
 
 
+def _stationary_bypass_owner_context(board, poses, by_cap):
+    """Positive selected Source assignment, never a moving-device contract."""
+    context = {}
+    for cap_ref, requirements in by_cap.items():
+        if cap_ref not in poses or len(requirements) != 1:
+            continue
+        req = requirements[0]
+        ref = req.get('ref')
+        if ref not in poses or ref == cap_ref:
+            continue
+        owner = board.FindFootprintByReference(ref)
+        target = poses[ref]
+        if (owner is None or type(target) not in (list, tuple) or len(target) != 3
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in target)):
+            raise ValueError('exact_finite_stationary_source_owner_pose_required')
+        if (tuple(owner.GetPosition()) != tuple(round(v*1e6) for v in target[:2])
+                or abs((owner.GetOrientationDegrees()-target[2]+180)%360-180) >= 1e-9):
+            continue
+        pin = str(req.get('pin', ''))
+        supply = [pad for pad in owner.Pads() if pad.GetNumber() == pin]
+        cap = board.FindFootprintByReference(cap_ref)
+        rail = req.get('rail')
+        if (not pin or len(supply) != 1 or not isinstance(rail, str) or not rail
+                or rail == 'GND' or supply[0].GetNetname() != rail
+                or supply[0].GetNetCode() <= 0 or cap is None
+                or (req.get('return_rail') or 'GND') != 'GND'
+                or len(list(cap.Pads())) != 2
+                or {str(p.GetNetname()) for p in cap.Pads()} != {rail, 'GND'}):
+            raise ValueError('exact_positive_source_bypass_owner_pin_net_required')
+        proof = context.setdefault(ref, dict(owner_uuid=force._uid(owner),
+            source_pose=[owner.GetPosition().x/1e6, owner.GetPosition().y/1e6, owner.GetOrientationDegrees()],
+            source_locked=bool(owner.IsLocked()), source_flipped=bool(owner.IsFlipped()),
+            selected_bypasses={}, motion_authority=False, cut_authority=False, unlock_authority=False))
+        proof['selected_bypasses'][cap_ref] = dict(pin=pin, rail=rail, pad_uuid=force._uid(supply[0]))
+    return context
+
+
 def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_escapes=False,
             rebuild_projected_ground=False,allow_octilinear_rotations=False,reference_group_uuids=(),
             source_rc_input_prefixes=(),aggregate_capacitor_max_shift_mm=None,
@@ -153,6 +190,7 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
     by_cap = {}
     for selected in assigned['assigned'].values():
         by_cap.setdefault(selected['cap_ref'], []).append(selected['requirement'])
+    stationary_context = _stationary_bypass_owner_context(board, poses, by_cap)
     import cec_additional_aggregate_macro as aggregate_caps
     additional_caps=aggregate_caps.collect(board,poses,board_hint=board_hint,
         reference_group_uuids=reference_group_uuids,
@@ -199,6 +237,9 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         return True
     for ref, target in poses.items():
         fp = board.FindFootprintByReference(ref)
+        if ref in stationary_context:
+            stationary_owners.append(ref)
+            continue
         if (fp is None or fp.IsLocked() or len(target) != 3
                 or any(type(v) not in (int, float) or not math.isfinite(v) for v in target)
                 or math.dist(tuple(fp.GetPosition()), [round(v*1e6) for v in target[:2]]) >
@@ -387,10 +428,16 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
             if any(req['ref'] == ref for req in reqs)]
         if not selected or any(cap not in poses for cap in selected):
             raise ValueError('complete_selected_supply_followers_required')
-    for selected in bypasses.values():
+    for cap_ref, selected in bypasses.items():
         owner = board.FindFootprintByReference(selected['owner'])
         pad = owner.FindPadByNumber(selected['pin'])
         model = models.get(selected['owner'])
+        if selected['owner'] in stationary_context:
+            proof = stationary_context[selected['owner']]['selected_bypasses'].get(cap_ref)
+            if (proof is None or pad is None or force._uid(pad) != proof['pad_uuid']
+                    or pad.GetNetname() != proof['rail']):
+                raise ValueError('positive_selected_owner_supply_role_required')
+            continue
         if (pad is None or pad.GetNetname() != selected['rail'] or not model
                 or not (model['pins'].get(selected['pin']) == 'power_input'
                     or model['pins'].get(selected['pin']) == 'power_output'
@@ -425,7 +472,10 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
                     allow_owned_locked=allow_owned_locked_escapes))
             except ValueError as exc:
                 input_refusals.append(dict(pad_uuid=force._uid(pad),reason=str(exc),source_copper_retained=True))
-    plan = row.plan(board, poses, {}, protected_nets=protected,
+    # Context owners never enter the moving/cut backend. Their complete native
+    # geometry and lock state remain bound by source_native_binding and replay.
+    row_poses = {ref: target for ref, target in poses.items() if ref not in stationary_context}
+    plan = row.plan(board, row_poses, {}, protected_nets=protected,
         allow_owned_locked=allow_owned_locked_escapes, allow_cardinal_rotations=True,
         allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,
         maximum_reference_translation_mm=max(max_shift_mm,aggregate_capacitor_max_shift_mm or 0.),
@@ -523,6 +573,8 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         board_hint=board_hint, max_shift_mm=max_shift_mm,
         routing_admitted=False, release_authority=False,
         requires_new_placement_power_and_independent_saved_board_receiving=True)
+    if stationary_context:
+        result['stationary_bypass_owner_context'] = stationary_context
     if control_shunts:result['selected_control_shunts']=control_shunts
     if control_pullups:result['selected_control_pullups']=control_pullups
     if control_gate_biases:result['selected_control_gate_biases']=control_gate_biases

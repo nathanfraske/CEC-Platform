@@ -13,6 +13,8 @@ interpreter. On the Debian/Ubuntu KiCad environment these are the
 compiled geometry wheels from a different host Python into its path. The
 dedicated CI installs these inside its disposable KiCad container so fresh
 receiver/pytest subprocesses see the same dependencies as the parent.
+Node.js also executes the inspector's small UI contract tests; it is not a
+layout worker or background model runtime.
 
 ## Responsibilities
 
@@ -114,6 +116,29 @@ expected AST. Unrelated locked groups remain exact. An exactly stationary
 grouped contextual owner needs no moving authority; that does not authorize
 moving or unlocking its group. This enables useful connected-cell decisions
 without stripping reviewer annotations or bypassing copper ownership.
+
+A source-assigned bypass may name its exactly stationary device as context,
+even if that device has through-hole lands or locked/grouped geometry. Its
+unique source owner/pin/net and literal unchanged pose are recompiled; only
+the moving bypass enters the cut domain. This grants no device motion,
+unlocking or arbitrary-context authority. A zero-cut move may retain every
+original conductor without adding redundant copper, but every local supply,
+immediate Ground return, current contract and surviving partition still has
+to pass. Native connectivity through a remote plane is not a local bypass
+path. A missing bounded explicit supply proof remains a refusal.
+
+The saved receiver independently checks the native projected scope before
+restoring literal unowned Source nodes into its expected reconstruction.
+Writer reordering of an unrelated field is not a geometry mutation, but a
+changed pad, lock, global, group or other unowned node still refuses. Only a
+well-formed group's UUID quote spelling is normalized during cardinal writer
+comparison; group membership and final saved Source AST remain exact.
+
+Component values and full part names belong on Fab/BOM, not silkscreen.
+The shared footprint emitter now keeps Value on the correct physical Fab
+face, with its text, pose, visibility and lands intact. The inspector reports
+actual visible Value/MPN field counts by layer and distinguishes optional Fab
+guides from printed silk; references and functional markings are preserved.
 
 ## Received construction capabilities
 

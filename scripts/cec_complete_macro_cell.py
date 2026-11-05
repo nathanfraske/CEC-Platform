@@ -43,8 +43,20 @@ def _cardinal_writer_signature(node):
     visibility, geometry and process settings are not ignored.
     """
     import copy
+    import re
     import cec_source_reference_group_transport as reference
     item=copy.deepcopy(node)
+    if item[0]=='group':
+        # KiCad's native writer quotes a group UUID even when the valid
+        # Source token is bare. Compare only that known lexical permutation;
+        # members, locks and every other field remain literal. The saved
+        # receiver below still requires the exact Source-derived AST.
+        for child in item[1:]:
+            if isinstance(child,list)and len(child)==2 and child[0]=='uuid':
+                value=child[1]
+                bare=value[1:-1] if value.startswith('"')and value.endswith('"')else value
+                if re.fullmatch(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}',bare):
+                    child[1]=bare
     if item[0]=='gr_text':
         for at in item[1:]:
             if isinstance(at,list)and len(at)==4 and at[0]=='at'and at[3]in('0','0.0','-0','-0.0'):
