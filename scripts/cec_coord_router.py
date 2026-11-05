@@ -84,6 +84,11 @@
 # or pitch_mm -- see build/teeth_coord_router.py's CONVERGENCE section for the full reasoning.
 #
 # CLI: python3 scripts/cec_coord_router.py <board> [--cpu] [--grid-mm 0.5] [--iters 40]
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import math
 import os
 import sys

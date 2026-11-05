@@ -3,21 +3,37 @@
   "board": "atx-24pin-rev3",
   "params": {
     "respect_antenna_keepout": false,
-    "assembly_envelope": {"role": "carrier", "contract": "beta/assembly/hub-atx-stack.json", "pair": "docs/hub-atx-active-placement-pair.json"},
+    "assembly_envelope": {
+      "role": "carrier",
+      "contract": "beta/assembly/hub-atx-stack.json",
+      "pair": "docs/hub-atx-active-placement-pair.json"
+    },
     "outline_compaction": {
       "enabled": true,
       "step_mm": 4.0,
       "max_steps": 2,
-      "shrink_axes": ["width"],
+      "shrink_axes": [
+        "width"
+      ],
       "include_incremental": true,
       "include_fresh_placement": false,
       "repack_collisions": true,
       "repack_max_variants": 1,
       "repack_beam_width": 16,
       "probe_route_preflight": false,
-      "edge_follow_exclude_refs": ["J6P", "J6C", "J6D", "H1"],
+      "edge_follow_exclude_refs": [
+        "J6P",
+        "J6C",
+        "J6D",
+        "H1"
+      ],
       "edge_follow": [
-        {"edge": "right", "margin_mm": 14.0, "mode": "contain", "clearance_mm": 0.5}
+        {
+          "edge": "right",
+          "margin_mm": 14.0,
+          "mode": "contain",
+          "clearance_mm": 0.5
+        }
       ],
       "minimum_edge_margin_mm": 0.5,
       "fallback_steps_mm": []
@@ -46,26 +62,101 @@
     "current_endpoint_contracts": [
       {
         "net": "/ATX_NEG12V",
-        "sources": [{"ref": "J3", "pins": ["14"], "mpn": "39291247", "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"}],
-        "sinks": [{"ref": "J_SIG1", "pins": ["1"], "mpn": "SSQ-102-03-G-D", "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"}],
+        "sources": [
+          {
+            "ref": "J3",
+            "pins": [
+              "14"
+            ],
+            "mpn": "39291247",
+            "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "J_SIG1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "SSQ-102-03-G-D",
+            "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"
+          }
+        ],
         "basis": "Owner-authorized 1 A sustained negative-12-volt pass-through design basis, 2026-10-17: actual J3 pin 14 to J_SIG1 pin 1. The existing 125 percent conductor geometry margin applies once to the complete path. C22, C23 and R75 are local bypass/divider leaves, not alternate full-current sinks or a basis for reducing the pass-through load. This is not a measured load, PSU source guarantee, connector/barrel capacity, inrush, thermal or release qualification."
       },
       {
         "net": "/VBUS_RAW",
-        "sources": [{"ref": "J5", "pins": ["A4", "A9", "B4", "B9"], "mpn": "USB4215-03-A", "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A"}],
-        "sinks": [{"ref": "F1", "pins": ["1"], "mpn": "1206L075/16WR", "footprint": "cec-Resistor_SMD:R_1206_3216Metric"}],
+        "sources": [
+          {
+            "ref": "J5",
+            "pins": [
+              "A4",
+              "A9",
+              "B4",
+              "B9"
+            ],
+            "mpn": "USB4215-03-A",
+            "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "F1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "1206L075/16WR",
+            "footprint": "cec-Resistor_SMD:R_1206_3216Metric"
+          }
+        ],
         "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: USB-C VBUS bank to F1 input. Uses only the pre-existing 0.75 A service-chain conductor basis and its once-applied 125 percent geometry margin; no fuse clamp, equal pin sharing, barrel, inrush, thermal or release qualification is inferred."
       },
       {
         "net": "/VBUS_F",
-        "sources": [{"ref": "F1", "pins": ["2"], "mpn": "1206L075/16WR", "footprint": "cec-Resistor_SMD:R_1206_3216Metric"}],
-        "sinks": [{"ref": "FB1", "pins": ["1"], "mpn": "MPZ2012S601AT000", "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"}],
+        "sources": [
+          {
+            "ref": "F1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "1206L075/16WR",
+            "footprint": "cec-Resistor_SMD:R_1206_3216Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "1"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
         "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: F1 output to FB1 input. The existing service-chain current and margin are unchanged; component hold/trip/current ratings are not substituted for a load or fault-current bound."
       },
       {
         "net": "/VBUS",
-        "sources": [{"ref": "FB1", "pins": ["2"], "mpn": "MPZ2012S601AT000", "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"}],
-        "sinks": [{"ref": "U6", "pins": ["2"], "mpn": "TPS2121RUXR", "footprint": "cec-Package_DFN_QFN:RUX0012A"}],
+        "sources": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "pins": [
+              "2"
+            ],
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A"
+          }
+        ],
         "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
       }
     ],
@@ -105,6 +196,194 @@
     "decoupler_cell_pre_route": true,
     "post_route_corner_chamfer": true,
     "post_route_teardrops": "release",
-    "certificate_repair": true
+    "certificate_repair": true,
+    "anchor_pins": {
+      "J6C": [
+        68.0,
+        20.159899,
+        270.0
+      ],
+      "J6D": [
+        65.989999,
+        69.5,
+        90.0
+      ],
+      "J6P": [
+        10.933498999999998,
+        72.668201,
+        90.0
+      ]
+    },
+    "anchor_roles": {
+      "J2": "power_out",
+      "J3": "power_in"
+    },
+    "blade_group_gap": 4.7,
+    "blade_pitch": 4.7,
+    "blueprint_cells": [
+      {
+        "anchor_ref": "RS1",
+        "ideal_internal": false,
+        "net_map": {
+          "CELL_DET": "/DET12V",
+          "CELL_DETAMP": "/DETAMP12V",
+          "CELL_HI": "/SENSE12V_HI",
+          "CELL_LO": "/SENSE12V_LO"
+        },
+        "ref_map": {
+          "RS2": "RS1",
+          "U11": "U10",
+          "U65V1": "U612V1",
+          "U75V1": "U712V1"
+        },
+        "template": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/blueprints/sense-rail-v1.json"
+      },
+      {
+        "anchor_ref": "RS2",
+        "ideal_internal": false,
+        "net_map": {
+          "CELL_DET": "/DET5V",
+          "CELL_DETAMP": "/DETAMP5V",
+          "CELL_HI": "/SENSE5V_HI",
+          "CELL_LO": "+5V_MAIN"
+        },
+        "ref_map": {
+          "RS2": "RS2",
+          "U11": "U11",
+          "U65V1": "U65V1",
+          "U75V1": "U75V1"
+        },
+        "template": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/blueprints/sense-rail-v1.json"
+      },
+      {
+        "anchor_ref": "RS3",
+        "ideal_internal": false,
+        "net_map": {
+          "CELL_DET": "/DET3V3",
+          "CELL_DETAMP": "/DETAMP3V3",
+          "CELL_HI": "/SENSE3V3_HI",
+          "CELL_LO": "/SENSE3V3_LO"
+        },
+        "ref_map": {
+          "RS2": "RS3",
+          "U11": "U12",
+          "U65V1": "U63V31",
+          "U75V1": "U73V31"
+        },
+        "template": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/blueprints/sense-rail-v1.json"
+      },
+      {
+        "anchor_ref": "RS4",
+        "ideal_internal": false,
+        "net_map": {
+          "CELL_DET": "/DET5VSB",
+          "CELL_DETAMP": "/DETAMP5VSB",
+          "CELL_HI": "+5VSB",
+          "CELL_LO": "/SENSE5VSB_LO"
+        },
+        "ref_map": {
+          "RS2": "RS4",
+          "U11": "U13",
+          "U65V1": "U65VSB1",
+          "U75V1": "U75VSB1"
+        },
+        "template": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/blueprints/sense-rail-v1.json"
+      }
+    ],
+    "connector_overhang": "edge",
+    "corner_radius": 2.5,
+    "dual_sided": false,
+    "edge_override": {
+      "J2": "right",
+      "J3": "bottom",
+      "J_SIG1": "top",
+      "TB1": "top",
+      "TB10": "top",
+      "TB2": "top",
+      "TB3": "top",
+      "TB4": "top",
+      "TB5": "top",
+      "TB6": "top",
+      "TB7": "top",
+      "TB8": "top",
+      "TB9": "top"
+    },
+    "force_rails": true,
+    "inner_power_routing": true,
+    "lastmile": true,
+    "lastmile_max_mm": 8.0,
+    "mount_fp_override": {
+      "H1": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via_Slim_6mm_Hardware"
+    },
+    "mount_pos_override": {
+      "H1": [
+        18.0,
+        20.159899
+      ]
+    },
+    "overunder": true,
+    "plane_tht_exclude": true,
+    "pour_asks": [
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "+3V3",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "+5VSB",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "+5V_MAIN",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      }
+    ],
+    "pour_first": true,
+    "pour_plan": true,
+    "pour_reserve": true,
+    "power_pickup": true,
+    "power_pour_layers": [
+      "In3.Cu",
+      "B.Cu",
+      "F.Cu",
+      "In2.Cu"
+    ],
+    "rail_alt_layer": "In3.Cu",
+    "rail_mirror_bcu": true,
+    "slab_pour": true,
+    "source_sync_extra_pad_nets": {
+      "H1.1": "GND"
+    },
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "atx-24pin-rev3",
+    "wave_fr_timeout": 1200,
+    "wave_opt": 10,
+    "wave_passes": 8,
+    "wave_plateau_floor": 170
+  },
+  "policy_origin": {
+    "migration": "Resolved values retained from retired wave policy fallback; no current, clearance, component, or mating requirement changed.",
+    "source_commit": "7b5dd47b323afedb990c429f02316cbb4097d3fe",
+    "retired_source": "scripts/cec_fresh_wave.py"
   }
 }

@@ -11,7 +11,6 @@ import cec_cascade as cascade
 import cec_router as router
 import cec_constraints as constraints
 import cec_field_coupling as field
-import hub_pipeline_run as hub
 from route_final_craft_fixtures import clean_quality
 from test_reverse_jog_everywhere import POINTS
 from test_route_junction_serial_bridges import native_board
@@ -82,7 +81,6 @@ def test_native_all_faces_reach_every_legacy_final_consumer(face, kink, tmp_path
     # Even a legacy caller incorrectly claiming gates_pass=True is rechecked.
     inherited = dict(gates_pass=True, drc=0, unconnected=0, route_quality=report)
     assert cascade._route_ok(inherited) is expected
-    assert hub._acceptance_terms(inherited, 0, [], True, True)[1] is expected
     other_independent_gates(monkeypatch)
     independent = router.independent_drc(str(path), SimpleNamespace(kelvin_pairs=[]))
     assert independent['electrical_gates_pass'] is True
@@ -129,7 +127,6 @@ def test_partial_stale_or_contradictory_reports_cannot_be_final_acceptance(kind)
     row = dict(gates_pass=True, route_quality=report, drc=0, unconnected=0)
     assert not dispatch._candidate_accepts(row)
     assert not cascade._route_ok(row)
-    assert not hub._acceptance_terms(row, 0, [], True, True)[1]
     assert report == before
 
 

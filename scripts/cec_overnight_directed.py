@@ -48,6 +48,11 @@
 #   python3 scripts/cec_overnight_directed.py --shakeout                    # ~1 round, fast
 #   # (internal) docker compose exec routing python3 ... --route-one --board eps-8pin --round N
 # ============================================================================
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import hashlib
 import json

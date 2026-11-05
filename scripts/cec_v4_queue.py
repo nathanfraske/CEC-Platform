@@ -8,6 +8,11 @@
 # without contending with an active route/run. Cloud Claude workflows do NOT count as busy -- they use no
 # local GPU; V4 only contends with local routes/runs. Tasks + results live under docs/v4-queue/.
 
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import glob
 import json

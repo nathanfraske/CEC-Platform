@@ -4,6 +4,13 @@ The active orchestration has one owner: `src/cec_pipeline/`. The root is not
 an output workspace. Add new orchestration to the package; do not add another
 dated repair runner or a second autonomous pipeline.
 
+Legacy job retirement is recorded in `legacy-job-retirement-2026-11-05.json`.
+The old wave workflows, wrappers, local manager and callback bridge are gone;
+remaining old-named modules are import-only compatibility libraries, not
+standalone jobs. Current board policy is declarative and no longer imports a
+wave runner. Tests solely for removed job APIs retired with those APIs;
+physical/material receiver tests and immutable controls remain.
+
 | Directory | Role |
 | --- | --- |
 | `src/cec_pipeline` | Direct/MCP protocol, immutable intake, observation, explicit construction, receiver adapters, campaign state, review and regression orchestration |

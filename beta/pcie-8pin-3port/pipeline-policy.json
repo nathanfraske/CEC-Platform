@@ -7,7 +7,10 @@
       "enabled": true,
       "step_mm": 4.0,
       "max_steps": 2,
-      "shrink_axes": ["width", "height"],
+      "shrink_axes": [
+        "width",
+        "height"
+      ],
       "include_incremental": true,
       "include_fresh_placement": false,
       "repack_collisions": true,
@@ -17,8 +20,18 @@
       "minimum_edge_margin_mm": 0.5,
       "fallback_steps_mm": [],
       "edge_follow": [
-        {"edge": "right", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5},
-        {"edge": "bottom", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5}
+        {
+          "edge": "right",
+          "margin_mm": 12.0,
+          "mode": "contain",
+          "clearance_mm": 0.5
+        },
+        {
+          "edge": "bottom",
+          "margin_mm": 12.0,
+          "mode": "contain",
+          "clearance_mm": 0.5
+        }
       ]
     },
     "qualified_interface_anchor": {
@@ -43,6 +56,134 @@
       "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite.",
       "User-approved routing requirement on 2026-10-24: /VCC_J1 and VCC_RJ45 each carry 1 A continuously with the existing 1.25 geometry margin and no input-sharing credit. This is explicit conductor authority, not an inferred upstream rating from the +5VSB mux output and not borrowed from another board.",
       "Canonical chain: J1 pin 1 -> /VCC_J1 -> FB2 pin 1; FB2 pin 2 -> VCC_RJ45 -> TPS2121 U4 IN1 pin 7, C45 pin 1 and the R15/R17 divider upper legs. The requirement changes no part, pinout or claimed load and does not qualify the generic 0R link, connector contacts, via plating/barrels, inrush, capacitor leakage, fault current, thermal behavior or fabrication release."
-    ]
+    ],
+    "anchor_pins": {
+      "J_IN1": [
+        18.7524,
+        1.8,
+        180
+      ],
+      "J_IN2": [
+        45.65,
+        1.8,
+        180
+      ],
+      "J_IN3": [
+        72.5476,
+        1.8,
+        180
+      ],
+      "RS1": [
+        19.85,
+        29.8,
+        -90
+      ],
+      "RS2": [
+        49.85,
+        29.8,
+        -90
+      ],
+      "RS3": [
+        79.85,
+        29.8,
+        -90
+      ],
+      "TB11": [
+        15.75,
+        54.55,
+        0
+      ],
+      "TB13": [
+        29.75,
+        54.55,
+        0
+      ],
+      "TB21": [
+        44.75,
+        54.55,
+        0
+      ],
+      "TB23": [
+        58.75,
+        54.55,
+        0
+      ],
+      "TB31": [
+        73.75,
+        54.55,
+        0
+      ],
+      "TB33": [
+        87.75,
+        54.55,
+        0
+      ]
+    },
+    "antenna_overhang": 5.0,
+    "inner_power_routing": true,
+    "lastmile": true,
+    "lastmile_attempts": 4,
+    "lastmile_final_attempts": 8,
+    "lastmile_final_max_mm": 100.0,
+    "lastmile_final_maze_margin_mm": 8.0,
+    "lastmile_final_maze_max_mm": 100.0,
+    "lastmile_final_winner": true,
+    "lastmile_max_mm": 8.0,
+    "mcu_antenna_edge": "left",
+    "mcu_cluster_seat": true,
+    "mcu_slim_axis": "x",
+    "mount_holes": "4_corner",
+    "overunder": true,
+    "plane_tht_exclude": true,
+    "pour_first": true,
+    "pour_plan": true,
+    "pour_reserve": true,
+    "power_corridor_anchor_slides": {
+      "J_IN1": {
+        "axis": "x",
+        "max_mm": 12.0,
+        "step_mm": 4.0
+      },
+      "J_IN2": {
+        "axis": "x",
+        "max_mm": 12.0,
+        "step_mm": 4.0
+      }
+    },
+    "power_corridor_placement_max_mm": 8.0,
+    "power_corridor_placement_rounds": 4,
+    "power_corridor_placement_step_mm": 4.0,
+    "power_corridor_placement_trials": 96,
+    "power_parallel_fraction": 0.5,
+    "power_parallel_layers": [
+      "B.Cu",
+      "F.Cu"
+    ],
+    "power_parallel_min_amps": 20.0,
+    "power_pickup": true,
+    "power_pour_layers": [
+      "In3.Cu",
+      "B.Cu",
+      "F.Cu",
+      "In2.Cu"
+    ],
+    "power_route_priority_nets": [
+      "/SENSEC1_HI",
+      "/SENSEC2_HI",
+      "/SENSEC3_HI",
+      "/SENSEC1_LO",
+      "/SENSEC2_LO",
+      "/SENSEC3_LO"
+    ],
+    "rail_alt_layer": "In3.Cu",
+    "service_interface_clearance_mm": 1.0,
+    "slab_pour": true,
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "pcie-8pin-3port"
+  },
+  "policy_origin": {
+    "migration": "Resolved values retained from retired wave policy fallback; no current, clearance, component, or mating requirement changed.",
+    "source_commit": "7b5dd47b323afedb990c429f02316cbb4097d3fe",
+    "retired_source": "scripts/cec_fresh_wave.py"
   }
 }

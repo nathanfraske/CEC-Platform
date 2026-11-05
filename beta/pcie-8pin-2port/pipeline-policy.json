@@ -14,6 +14,167 @@
     "net_current_contract_notes": [
       "The cable basis is three 12V pins at approximately 13 A per pin.",
       "The service USB path is bounded by its 750 mA hold current from connector through fuse and ferrite."
-    ]
+    ],
+    "anchor_pins": {
+      "J_IN1": [
+        23.7012,
+        1.8311,
+        180
+      ],
+      "J_IN2": [
+        50.5988,
+        1.8311,
+        180
+      ],
+      "RS1": [
+        30.9012,
+        23.8,
+        -90
+      ],
+      "RS2": [
+        51.7988,
+        23.8,
+        -90
+      ],
+      "TB11": [
+        20.0,
+        42.55,
+        0
+      ],
+      "TB13": [
+        34.0,
+        42.55,
+        0
+      ],
+      "TB21": [
+        49.0,
+        42.55,
+        0
+      ],
+      "TB23": [
+        63.0,
+        42.55,
+        0
+      ]
+    },
+    "antenna_overhang": 5.0,
+    "button_pair_corner": "top_left",
+    "button_pair_corner_inset_mm": 10.0,
+    "button_pair_target_mm": [
+      9.0,
+      14.0
+    ],
+    "inner_power_routing": true,
+    "lastmile": true,
+    "lastmile_attempts": 4,
+    "lastmile_final_attempts": 8,
+    "lastmile_final_max_mm": 100.0,
+    "lastmile_final_maze_margin_mm": 8.0,
+    "lastmile_final_maze_max_mm": 100.0,
+    "lastmile_final_winner": true,
+    "lastmile_max_mm": 8.0,
+    "mcu_antenna_edge": "left",
+    "mcu_cluster_seat": true,
+    "mcu_slim_axis": "x",
+    "mount_holes": "4_corner",
+    "outline_compaction": {
+      "edge_follow": [
+        {
+          "edge": "bottom",
+          "mode": "rigid",
+          "refs": [
+            "H3",
+            "H4"
+          ]
+        },
+        {
+          "clearance_mm": 0.05,
+          "edge": "bottom",
+          "exclude_refs": [
+            "H3",
+            "H4",
+            "FID1",
+            "FID2",
+            "FID3"
+          ],
+          "margin_mm": 15.0,
+          "mode": "contain",
+          "refs": [
+            "J5"
+          ]
+        }
+      ],
+      "edge_follow_exclude_refs": [
+        "FID1",
+        "FID2",
+        "FID3"
+      ],
+      "enabled": true,
+      "include_fresh_placement": false,
+      "include_incremental": true,
+      "max_steps": 15,
+      "minimum_height_mm": 46.5,
+      "probe_route_preflight": true,
+      "probe_route_repair_trials": 0,
+      "repack_beam_width": 32,
+      "repack_clearance_mm": 0.1,
+      "repack_collisions": true,
+      "repack_max_steps": 8,
+      "repack_max_variants": 4,
+      "shrink_axes": [
+        "height"
+      ],
+      "step_mm": 0.5
+    },
+    "overunder": true,
+    "plane_tht_exclude": true,
+    "pour_first": true,
+    "pour_plan": true,
+    "pour_reserve": true,
+    "power_corridor_anchor_slides": {
+      "J_IN1": {
+        "axis": "x",
+        "max_mm": 12.0,
+        "step_mm": 4.0
+      },
+      "J_IN2": {
+        "axis": "x",
+        "max_mm": 12.0,
+        "step_mm": 4.0
+      }
+    },
+    "power_corridor_placement_max_mm": 8.0,
+    "power_corridor_placement_rounds": 4,
+    "power_corridor_placement_step_mm": 4.0,
+    "power_corridor_placement_trials": 96,
+    "power_parallel_fraction": 0.5,
+    "power_parallel_layers": [
+      "B.Cu",
+      "F.Cu"
+    ],
+    "power_parallel_min_amps": 20.0,
+    "power_pickup": true,
+    "power_pour_layers": [
+      "In3.Cu",
+      "B.Cu",
+      "F.Cu",
+      "In2.Cu"
+    ],
+    "power_route_priority_nets": [
+      "/SENSEC1_HI",
+      "/SENSEC2_HI",
+      "/SENSEC1_LO",
+      "/SENSEC2_LO"
+    ],
+    "rail_alt_layer": "In3.Cu",
+    "service_interface_clearance_mm": 1.0,
+    "slab_pour": true,
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "pcie-8pin-2port"
+  },
+  "policy_origin": {
+    "migration": "Resolved values retained from retired wave policy fallback; no current, clearance, component, or mating requirement changed.",
+    "source_commit": "7b5dd47b323afedb990c429f02316cbb4097d3fe",
+    "retired_source": "scripts/cec_fresh_wave.py"
   }
 }

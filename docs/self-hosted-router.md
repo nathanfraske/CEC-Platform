@@ -1,5 +1,9 @@
 # Self-hosted routing — run the CPU-heavy compute on your own hardware
 
+> Retired on 2026-11-05. This is historical documentation, not a runnable
+> installation guide. The Route/Synthesize workflows and launch wrappers were
+> removed. Use [the model-directed workbench](agent-directed-pcb-pipeline.md).
+
 The automated routing system (`scripts/cec_fr.py` + `cec_score.py` + `cec_router.py`, see
 `scripts/README-cec_pcb.md`) splits into two planes:
 

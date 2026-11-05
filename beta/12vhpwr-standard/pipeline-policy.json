@@ -50,17 +50,31 @@
     "mount_edge_inset_mm": 3.75,
     "mount_hardware_diameter_mm": 6.0,
     "mount_hardware_clearance_mm": 0.25,
-    "edge_override": {"J1": "right", "J5": "right"},
-    "edge_packing": {"right": {"alignment": "end"}},
+    "edge_override": {
+      "J1": "right",
+      "J5": "right"
+    },
+    "edge_packing": {
+      "right": {
+        "alignment": "end"
+      }
+    },
     "outline_compaction": {
       "enabled": false,
       "step_mm": 4.0,
       "max_steps": 4,
-      "shrink_axes": ["height"],
+      "shrink_axes": [
+        "height"
+      ],
       "include_incremental": false,
       "include_fresh_placement": true,
       "probe_route_preflight": false,
-      "edge_follow": [{"edge": "bottom", "margin_mm": 10.0}]
+      "edge_follow": [
+        {
+          "edge": "bottom",
+          "margin_mm": 10.0
+        }
+      ]
     },
     "thermal_cooling_intent": {
       "type": "downfiring_slim_fan",
@@ -68,12 +82,180 @@
       "stand_off_mm": null,
       "qualified": false,
       "note": "Owner intends a fan. No airflow, cooling coefficient or package clearance is inferred until the installed geometry is specified."
-    }
+    },
+    "anchor_pins": {
+      "J2": [
+        48.5,
+        23.5,
+        90
+      ]
+    },
+    "anchor_roles": {
+      "J3": "power_in",
+      "J4": "power_out"
+    },
+    "blueprint_cells": [
+      {
+        "anchor_ref": "RS1",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN1_N",
+          "/IN{n}_P": "/IN1_P",
+          "/ISENSEP{n}": "/ISENSEP1",
+          "/SENSEP{n}_HI": "/SENSEP1_HI",
+          "/SENSEP{n}_LO": "/SENSEP1_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C10",
+          "CF4": "CF1",
+          "RFH4": "RFH1",
+          "RFL4": "RFL1",
+          "RS4": "RS1",
+          "U13": "U10"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      },
+      {
+        "anchor_ref": "RS2",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN2_N",
+          "/IN{n}_P": "/IN2_P",
+          "/ISENSEP{n}": "/ISENSEP2",
+          "/SENSEP{n}_HI": "/SENSEP2_HI",
+          "/SENSEP{n}_LO": "/SENSEP2_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C11",
+          "CF4": "CF2",
+          "RFH4": "RFH2",
+          "RFL4": "RFL2",
+          "RS4": "RS2",
+          "U13": "U11"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      },
+      {
+        "anchor_ref": "RS3",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN3_N",
+          "/IN{n}_P": "/IN3_P",
+          "/ISENSEP{n}": "/ISENSEP3",
+          "/SENSEP{n}_HI": "/SENSEP3_HI",
+          "/SENSEP{n}_LO": "/SENSEP3_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C12",
+          "CF4": "CF3",
+          "RFH4": "RFH3",
+          "RFL4": "RFL3",
+          "RS4": "RS3",
+          "U13": "U12"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      },
+      {
+        "anchor_ref": "RS4",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN4_N",
+          "/IN{n}_P": "/IN4_P",
+          "/ISENSEP{n}": "/ISENSEP4",
+          "/SENSEP{n}_HI": "/SENSEP4_HI",
+          "/SENSEP{n}_LO": "/SENSEP4_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C13",
+          "CF4": "CF4",
+          "RFH4": "RFH4",
+          "RFL4": "RFL4",
+          "RS4": "RS4",
+          "U13": "U13"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      },
+      {
+        "anchor_ref": "RS5",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN5_N",
+          "/IN{n}_P": "/IN5_P",
+          "/ISENSEP{n}": "/ISENSEP5",
+          "/SENSEP{n}_HI": "/SENSEP5_HI",
+          "/SENSEP{n}_LO": "/SENSEP5_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C14",
+          "CF4": "CF5",
+          "RFH4": "RFH5",
+          "RFL4": "RFL5",
+          "RS4": "RS5",
+          "U13": "U14"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      },
+      {
+        "anchor_ref": "RS6",
+        "ideal_internal": false,
+        "net_map": {
+          "+{n}V{n}": "+3V3",
+          "/IN{n}_N": "/IN6_N",
+          "/IN{n}_P": "/IN6_P",
+          "/ISENSEP{n}": "/ISENSEP6",
+          "/SENSEP{n}_HI": "/FAN_12V",
+          "/SENSEP{n}_LO": "/SENSEP6_LO",
+          "GND": "GND"
+        },
+        "ref_map": {
+          "C13": "C15",
+          "CF4": "CF6",
+          "RFH4": "RFH6",
+          "RFL4": "RFL6",
+          "RS4": "RS6",
+          "U13": "U15"
+        },
+        "template": "beta/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+      }
+    ],
+    "connector_overhang": "edge",
+    "force_lanes": true,
+    "lane_center": 22.0,
+    "lane_pitch": 6.8,
+    "power_pour_layers": [
+      "In3.Cu",
+      "B.Cu",
+      "F.Cu",
+      "In2.Cu"
+    ],
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "straight_through": true,
+    "thermal_board_hint": "12vhpwr-standard",
+    "wave_fr_timeout": 1200,
+    "wave_opt": 10,
+    "wave_pair_grid": true,
+    "wave_passes": 8,
+    "wave_precision": true
   },
   "notes": [
     "Owner 2026-09-12: retain the current board dimensions for now. Four M2 mounts retain their 2.2 mm plated bores, but use the platform 4.4 mm slim ground contact. The 6 mm hardware allowance and 0.25 mm margin remain reserved; 1.05 mm main-pad clearance excludes foreign copper from that envelope. This supersedes the September 9 full-width copper contact, not the grounded/solid-connection requirement.",
     "Four total mandatory M2 corner clearance holes per owner 2026-09-07; 6 mm hardware envelope plus 0.25 mm component clearance is a reserved allowance, not qualification of a selected washer, screw length or fan stack. Owner corrected RJ-45 to face right in the lower area, with USB-C alongside it. The right-edge bank is end-aligned against actual mandatory mounting hardware; this is not an approved routed board.",
     "Wired-only module. This is a mechanical compaction rule for the physical MCU module, not a wireless-use requirement or an RF keepout.",
     "Keep the module's physical antenna end at an outward board edge. The 0.3 mm inset is a placement tolerance; pad containment and connector/body clearance remain independent gates. No board edge or coordinate is pinned."
-  ]
+  ],
+  "policy_origin": {
+    "migration": "Resolved values retained from retired wave policy fallback; no current, clearance, component, or mating requirement changed.",
+    "source_commit": "7b5dd47b323afedb990c429f02316cbb4097d3fe",
+    "retired_source": "scripts/cec_fresh_wave.py"
+  }
 }

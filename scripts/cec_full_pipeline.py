@@ -22,6 +22,11 @@ outputs are never emitted from a failing route or a DRAFT source tree.
 
 from __future__ import annotations
 
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import ast
 import copy
