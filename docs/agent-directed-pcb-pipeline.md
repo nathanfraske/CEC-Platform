@@ -185,6 +185,25 @@ it never establishes absolute Kelvin qualification. Relevant changes still
 owe physical replay, and native DRC/current/fields/assembly checks remain
 mandatory in either case.
 
+Relevant Kelvin replay now uses the existing exact per-input/leg shards through
+`kelvin.py`: two native workers total for the pair, each process capped at 9.7 s
+with a 9.1 s internal budget, inside a finite 45 s checklist. Both sides require
+a fresh full manifest, every physical leg, one legacy diagnostic and the
+independent fresh-manifest coverage join. Missing, stale, timed-out or duplicate
+constituents refuse; failed/unknown physical cuts remain visible. Source and
+candidate family identities are checked across both replay and the later native
+transform comparison. This removes the whole-board replay time bottleneck
+without adding physical authority or raising any native constituent deadline.
+
+The [simulation/refinement pass](simulation-refinement-pass-2026-11-05.md)
+records current thermal and electrical model limits. Thermal solves now refuse
+nonfinite or wrongly shaped temperature fields, exhausted nonlinear iteration
+and the last-resort linear solve when its existing residual check fails. SPICE
+preserves exact schematic net identities under simulator case folding and
+requires every requested operating-point voltage/current to be finite and
+consistent. These checks establish numerical integrity, not missing package,
+contact, cooling, parasitic or operating-case physics.
+
 Mixed-authority macros are separate transactions, not one opaque batch.
 `add_connections` supplies model-authored ordinary-control/Ground tracks and
 through-vias before connected pose reconstruction. It retains all source

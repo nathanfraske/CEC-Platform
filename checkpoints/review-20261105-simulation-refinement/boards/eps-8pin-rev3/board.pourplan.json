@@ -1,0 +1,151 @@
+{
+ "board_sig": "a17095c06d0e7712",
+ "recipe": {
+  "corridor_fcu_only": false,
+  "inner_pours": false,
+  "lane_w_json": "",
+  "pour_lanes": false,
+  "shunt_gap": false,
+  "shunt_gap_mm": 6.5,
+  "uniform": false
+ },
+ "specs": [
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEC1_HI",
+   "notch": null,
+   "polygon": [
+    [
+     29.8448,
+     6.331099
+    ],
+    [
+     44.444795,
+     6.331099
+    ],
+    [
+     44.444795,
+     14.1092
+    ],
+    [
+     29.8448,
+     14.1092
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEC1_LO",
+   "notch": null,
+   "polygon": [
+    [
+     20.875,
+     18.0342
+    ],
+    [
+     38.872299,
+     18.0342
+    ],
+    [
+     38.872299,
+     38.6
+    ],
+    [
+     20.875,
+     38.6
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEC2_HI",
+   "notch": null,
+   "polygon": [
+    [
+     51.5552,
+     6.331099
+    ],
+    [
+     66.155195,
+     6.331099
+    ],
+    [
+     66.155195,
+     18.0375
+    ],
+    [
+     51.5552,
+     18.0375
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  },
+  {
+   "evac": true,
+   "exempt_nets": [],
+   "frozen": false,
+   "island_removal": 0,
+   "layers": [
+    "F.Cu"
+   ],
+   "min_thickness": 0.25,
+   "net": "/SENSEC2_LO",
+   "notch": null,
+   "polygon": [
+    [
+     51.875,
+     21.9625
+    ],
+    [
+     67.125,
+     21.9625
+    ],
+    [
+     67.125,
+     38.6
+    ],
+    [
+     51.875,
+     38.6
+    ]
+   ],
+   "priority": 2,
+   "provenance": "derived",
+   "region": null,
+   "shape": "rect"
+  }
+ ],
+ "version": 1
+}

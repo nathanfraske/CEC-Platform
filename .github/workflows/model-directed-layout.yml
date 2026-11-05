@@ -30,9 +30,9 @@ jobs:
             "${KICAD_IMAGE:-kicad/kicad:10.0}" -lc \
             'set -e
              apt-get update -qq
-             apt-get install -y --no-install-recommends python3-pytest python3-numpy python3-scipy python3-shapely nodejs
+             apt-get install -y --no-install-recommends python3-pytest python3-numpy python3-scipy python3-shapely nodejs ngspice
              python3 -c "import sys, pcbnew, numpy, scipy, shapely, pytest; print(sys.version); print(numpy.__version__, scipy.__version__, shapely.__version__, pytest.__version__)"
-             python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py --junitxml=.cec/ci-results/agentic.xml'
+             python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py tests/test_force_sense_shards.py tests/test_spice_runners.py tests/test_spice_sanity.py tests/test_thermal_solver_completion.py --junitxml=.cec/ci-results/agentic.xml'
       - name: Test evidence
         if: always()
         uses: actions/upload-artifact@v4

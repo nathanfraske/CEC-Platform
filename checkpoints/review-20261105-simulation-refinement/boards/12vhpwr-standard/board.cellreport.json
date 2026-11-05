@@ -1,0 +1,826 @@
+{
+  "board": "board.kicad_pcb",
+  "force_lanes": {
+    "laid": 6,
+    "ok": true,
+    "refused": {},
+    "results": {
+      "1": {
+        "nets": [
+          "/SENSEP1_HI",
+          "/SENSEP1_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      },
+      "2": {
+        "nets": [
+          "/SENSEP2_HI",
+          "/SENSEP2_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      },
+      "3": {
+        "nets": [
+          "/SENSEP3_HI",
+          "/SENSEP3_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      },
+      "4": {
+        "nets": [
+          "/SENSEP4_HI",
+          "/SENSEP4_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      },
+      "5": {
+        "nets": [
+          "/SENSEP5_HI",
+          "/SENSEP5_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      },
+      "6": {
+        "nets": [
+          "/FAN_12V",
+          "/SENSEP6_LO"
+        ],
+        "preserved": true,
+        "vias": 0
+      }
+    },
+    "total": 6
+  },
+  "ground_portals": {
+    "replan": {
+      "accepted": [],
+      "changed": 0,
+      "clearance_mm": 0.25,
+      "portal_postcheck_scope": "track_obstacles_only_not_via_or_plane_signoff",
+      "refused": [],
+      "remaining_blocked_portals": [],
+      "schema": 1,
+      "scope": "constructor_owned_tracks_only",
+      "trials": 0
+    },
+    "reservations": {
+      "budget": 128,
+      "portals": [
+        {
+          "at_mm": [
+            51.3241,
+            10.7949
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C1",
+          "uuid": "067558a1-af01-4c37-8c10-d40252489927"
+        },
+        {
+          "at_mm": [
+            4.72,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C10",
+          "uuid": "06970659-e594-4048-924d-b28c67da9b7d"
+        },
+        {
+          "at_mm": [
+            11.52,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C11",
+          "uuid": "cfa2ed7d-dbfb-4d5a-8c03-1aa1fc7de452"
+        },
+        {
+          "at_mm": [
+            18.32,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C12",
+          "uuid": "b870a127-bf7d-474f-a444-9f61ad0da4ab"
+        },
+        {
+          "at_mm": [
+            25.12,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C13",
+          "uuid": "3ed19675-a9b2-4cb2-9117-112dccdf5e36"
+        },
+        {
+          "at_mm": [
+            31.92,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C14",
+          "uuid": "04495e91-4e1d-4333-991b-4aa3d906cc7a"
+        },
+        {
+          "at_mm": [
+            38.72,
+            41.4
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C15",
+          "uuid": "9adedcfb-ce97-4f70-bf84-7c00e8c2843c"
+        },
+        {
+          "at_mm": [
+            51.5741,
+            15.1149
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C2",
+          "uuid": "36a63a9f-5ff2-4205-b170-e660f9314925"
+        },
+        {
+          "at_mm": [
+            5.413,
+            60.9056
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C23",
+          "uuid": "0f93510e-efb0-4a62-a0df-05990b7a3a9a"
+        },
+        {
+          "at_mm": [
+            46.354,
+            15.832299
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C27",
+          "uuid": "a94aff69-1ea8-4278-8c11-c1dd4ed5867c"
+        },
+        {
+          "at_mm": [
+            46.304,
+            18.652297
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C29",
+          "uuid": "1fdbf4e2-e1d2-478d-8a32-da7fb79cb3d9"
+        },
+        {
+          "at_mm": [
+            48.4524,
+            66.299399
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C3",
+          "uuid": "34207569-376a-4561-8868-48bdf7a51f1c"
+        },
+        {
+          "at_mm": [
+            51.96,
+            32.275
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C4",
+          "uuid": "e5a2a89e-cba2-4150-ab63-0b506b6cb6b1"
+        },
+        {
+          "at_mm": [
+            46.754,
+            14.392299
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C6",
+          "uuid": "15467d0c-1b0c-4d61-8b36-18b9fb2f1025"
+        },
+        {
+          "at_mm": [
+            48.9774,
+            69.389399
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "C7",
+          "uuid": "860aceb7-0102-400a-a5a6-bd95dc87233c"
+        },
+        {
+          "at_mm": [
+            46.9774,
+            67.189399
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "U1",
+          "uuid": "02360a9a-9756-4254-9fc3-48c6d78de918"
+        },
+        {
+          "at_mm": [
+            46.9774,
+            69.089399
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "62",
+          "ref": "U1",
+          "uuid": "dee68e96-1934-4f40-b186-ac8acf13d77a"
+        },
+        {
+          "at_mm": [
+            4.065,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U10",
+          "uuid": "40ec5a9d-2fd7-5914-9ec0-4b526d707f7a"
+        },
+        {
+          "at_mm": [
+            10.865,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U11",
+          "uuid": "7bb7ef6d-a0da-57c4-9eed-9d9ab001d1db"
+        },
+        {
+          "at_mm": [
+            17.665,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U12",
+          "uuid": "33633527-a40f-5178-bdd7-416e416d0755"
+        },
+        {
+          "at_mm": [
+            24.465,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U13",
+          "uuid": "ff936c1d-ca5d-5f89-b48a-b4f69b640dda"
+        },
+        {
+          "at_mm": [
+            31.265,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U14",
+          "uuid": "e480b8e0-55b0-58ca-8aa0-7c825412d120"
+        },
+        {
+          "at_mm": [
+            38.065,
+            43.325
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U15",
+          "uuid": "1051f78b-d9bb-546d-913a-c6e26452c7f3"
+        },
+        {
+          "at_mm": [
+            51.3241,
+            13.8424
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "3",
+          "ref": "U16",
+          "uuid": "463da260-c118-4ae1-a2c0-ae3d37ecbf11"
+        },
+        {
+          "at_mm": [
+            50.6741,
+            12.9549
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "7",
+          "ref": "U16",
+          "uuid": "2819736e-233a-43bc-9b5b-effc9ce7c56a"
+        },
+        {
+          "at_mm": [
+            50.175,
+            32.335
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "2",
+          "ref": "U2",
+          "uuid": "556ee744-6dd8-4221-9b7f-640f827ac899"
+        },
+        {
+          "at_mm": [
+            7.713,
+            60.01695
+          ],
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "3",
+          "ref": "U4",
+          "uuid": "b392bdbc-acf8-451d-8b1b-b9618cf27cdb"
+        }
+      ],
+      "profile": "jlcpcb_6l_pofv_high_current",
+      "refused": [
+        {
+          "at_mm": [
+            45.379001,
+            18.017298
+          ],
+          "checks": {
+            "copper": false,
+            "edge": true,
+            "hole": true,
+            "smd": true
+          },
+          "copper": {
+            "at_mm": [
+              45.379001,
+              18.017298
+            ],
+            "blockers": [
+              {
+                "contact": "via_land_exclusion",
+                "kind": "pad",
+                "net": "GND",
+                "pad": "12",
+                "ref": "U5"
+              }
+            ],
+            "clearance_mm": 0.2,
+            "diameter_mm": 0.35,
+            "layer": null,
+            "ok": false,
+            "reason": "pad or hole excludes via land"
+          },
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "12",
+          "ref": "U5",
+          "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a"
+        },
+        {
+          "at_mm": [
+            45.379001,
+            15.7173
+          ],
+          "checks": {
+            "copper": false,
+            "edge": true,
+            "hole": true,
+            "smd": true
+          },
+          "copper": {
+            "at_mm": [
+              45.379001,
+              15.7173
+            ],
+            "blockers": [
+              {
+                "contact": "via_land_exclusion",
+                "kind": "pad",
+                "net": "GND",
+                "pad": "3",
+                "ref": "U5"
+              }
+            ],
+            "clearance_mm": 0.2,
+            "diameter_mm": 0.35,
+            "layer": null,
+            "ok": false,
+            "reason": "pad or hole excludes via land"
+          },
+          "diameter_mm": 0.35,
+          "drill_mm": 0.25,
+          "layer_ids": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "net_code": 2,
+          "pad": "3",
+          "ref": "U5",
+          "uuid": "b8968221-5e84-4875-9738-9832ac8552cf"
+        }
+      ],
+      "schema": 1,
+      "scope": "future_pad_center_portals_not_installed"
+    }
+  },
+  "laid": 6,
+  "locked_segments": 228,
+  "preserved_nets": [
+    "/FAN_12V",
+    "/SENSEP1_HI",
+    "/SENSEP1_LO",
+    "/SENSEP2_HI",
+    "/SENSEP2_LO",
+    "/SENSEP3_HI",
+    "/SENSEP3_LO",
+    "/SENSEP4_HI",
+    "/SENSEP4_LO",
+    "/SENSEP5_HI",
+    "/SENSEP5_LO",
+    "/SENSEP6_LO"
+  ],
+  "refused": [],
+  "schema": 1,
+  "total": 6,
+  "noncontact_retention": {
+    "source_sha256": "3af185f38201c8f9e0b08a3f85204cc40b61e4998fe588b7d82902a3ce32293a",
+    "source_report_sha256": "32b7443ce4ed79cde337098c52dff2cb06da3e32659f32010eb8ab6321a5532d",
+    "output_sha256": "e9fd08b171747ac1eb3b6cb567036b4047218f29935410d876eedba465872323",
+    "unchanged_members": [
+      "C1",
+      "C10",
+      "C11",
+      "C12",
+      "C13",
+      "C14",
+      "C15",
+      "C2",
+      "C23",
+      "C27",
+      "C29",
+      "C3",
+      "C4",
+      "C6",
+      "C7",
+      "CF1",
+      "CF2",
+      "CF3",
+      "CF4",
+      "CF5",
+      "CF6",
+      "D5",
+      "J2",
+      "J3",
+      "J4",
+      "R5",
+      "RFH1",
+      "RFH2",
+      "RFH3",
+      "RFH4",
+      "RFH5",
+      "RFH6",
+      "RFL1",
+      "RFL2",
+      "RFL3",
+      "RFL4",
+      "RFL5",
+      "RFL6",
+      "RS1",
+      "RS2",
+      "RS3",
+      "RS4",
+      "RS5",
+      "RS6",
+      "U1",
+      "U10",
+      "U11",
+      "U12",
+      "U13",
+      "U14",
+      "U15",
+      "U16",
+      "U2",
+      "U4",
+      "U5"
+    ],
+    "exact_native_remainder_preserved": true,
+    "release_authority": false
+  }
+}

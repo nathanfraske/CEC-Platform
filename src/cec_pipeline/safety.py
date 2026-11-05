@@ -75,7 +75,7 @@ def _kelvin_noninterference(source, candidate, *, board_hint):
                 source_candidate_and_code_unchanged=True, release_authority=False)
 
 
-def kelvin_pair(source, candidate, *, board_hint):
+def kelvin_pair(source, candidate, *, board_hint, evidence_dir=None):
     import pcbnew
     import cec_force_sense_evidence as sense
     import cec_additive_route_receiving as additive
@@ -85,10 +85,18 @@ def kelvin_pair(source, candidate, *, board_hint):
     if preserved is not None:
         return preserved
 
-    before, after = [
-        sense.replay(path, board_hint=board_hint, timeout_s=10.0)
-        for path in (source, candidate)
-    ]
+    from .kelvin import replay_pair
+    import cec_force_current as force
+
+    families = [force._family(path, board_hint) for path in (source, candidate)]
+    epoch = force._code_identity()
+    before, after = replay_pair(source, candidate, board_hint=board_hint,
+                                evidence_dir=evidence_dir)
+    require(all(report["source_family_before"] == family
+                and report["source_family_after"] == family
+                and report["code_before"] == epoch and report["code_after"] == epoch
+                for report, family in zip((before, after), families)),
+            "kelvin_pair_replay_epoch_changed")
     _, old = additive._nodes(source)
     _, new = additive._nodes(candidate)
     changed = {
@@ -116,11 +124,15 @@ def kelvin_pair(source, candidate, *, board_hint):
         )
     else:
         result = sense.compare_contact_preservation(before, after)
+    require(families == [force._family(path, board_hint) for path in (source, candidate)]
+            and epoch == force._code_identity(), "kelvin_pair_comparison_epoch_changed")
     return dict(
         ok=result.get("comparison_complete") is True
         and result.get("same_evidence") is True,
         complete=result.get("comparison_complete") is True,
         physical_evidence=result,
+        replay_transport="bounded_exact_full_denominator_shards",
+        replay_coverage=[report["sharded_replay"] for report in (before, after)],
         full_kelvin_qualification=False,
         release_authority=False,
     )

@@ -1,0 +1,95 @@
+{
+  "board": "12vhpwr-standard",
+  "source": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-visual-refinement/boards/12vhpwr-standard/board.kicad_pcb",
+  "sha256": "34765dc6995f0b84c9b434a3d5fd6d9294ec035a8fd7f2de27bb7b2e10dbe25f",
+  "source_unchanged": true,
+  "receipt_sha256": "036815e07d648053eed932e8f2d40c455fccc61d339527f1bcde6e87782894bb",
+  "native_properties": {
+    "CEC_FAB_PROFILE": "jlcpcb_6l_pofv_high_current",
+    "CEC_STACKUP_ROLES": "SIG/PWR/GND/SIG/PWR/GND/SIG/PWR",
+    "CEC_VENDOR_STACKUP": "JLC06162H-3313",
+    "CEC_VIA_PROTECTION": "POFV_EPOXY_FILLED_COPPER_CAPPED"
+  },
+  "policy_source": "/home/codex/src/CEC-Platform/beta/12vhpwr-standard/pipeline-policy.json",
+  "policy_fingerprint": "1b1849eda16e7cdf728ae79a5fedfb33ab9b30f91f61d14ea5cf8d13542ab75b",
+  "declared_relevant_params": {
+    "net_current_contracts": {
+      "/SENSEP": 9.2,
+      "+3V3": 0.5,
+      "+5VSB": 0.5,
+      "/01-input/FAN_RET": 1.0,
+      "/VCC_RAW": 1.0,
+      "/VCC_RJ45": 1.0
+    },
+    "net_current_contract_notes": [
+      "Per-pin sensing uses the connector's 9.2 A pin rating; six pins provide 55.2 A against the 50 A sustained 600 W requirement.",
+      "Owner approved 1 A continuous on each auxiliary fan supply and return conductor on 2026-10-26, retaining the existing 1.25 geometry margin. /01-input/FAN_RET is the distinct J2.1, AO3400A Q1 drain.3 and SS34 D5 anode.2 conductor; conservatively require every trace on this complete net to carry the whole 1 A with no sharing. This row enforces the switched-return trace requirement only. /FAN_12V also carries the GPU /SENSEP6_HI backbone and MUST retain its unchanged 9.2 A times 1.25 authority; the separate thermal 8.33 A row is not substituted. The fan-supply branch still needs exact additional conductor receiving and must not be assigned a whole-net 1 A override. These are conductor routing requirements, not a fan load/parts rating, source-total budget or qualification of contact/barrel ampacity, startup/flyback, faults, thermal performance, fabrication or release.",
+      "Owner approved 1 A continuous conductor design basis independently on /VCC_RAW and /VCC_RJ45 on 2026-10-24, retaining the existing 1.25 geometry margin on each complete net and assuming no input sharing. Canonical pins are Kinghelm KH-RJ45-58-8P8C J1.1 -> /VCC_RAW -> UNI-ROYAL 0805W8F0000T5E populated 0R FB2.2; FB2.1 -> /VCC_RJ45 -> TPS2121RUXR U5 IN1.7 plus the existing C6, OV1 and PR1 branches. This is an explicit routing requirement, not a changed load or part, borrowed EPS authority, source clamp, or qualification of jumper/contact/barrel ampacity, capacitor leakage, inrush, faults, transients, thermal performance or fabrication/release. The stale FB2.Note reverses actual pins and is not connectivity authority."
+    ],
+    "thermal_cooling_intent": {
+      "type": "downfiring_slim_fan",
+      "model": null,
+      "stand_off_mm": null,
+      "qualified": false,
+      "note": "Owner intends a fan. No airflow, cooling coefficient or package clearance is inferred until the installed geometry is specified."
+    },
+    "stackup_profile": "jlcpcb_6l_pofv_high_current",
+    "thermal_board_hint": "12vhpwr-standard"
+  },
+  "heat_contract": {
+    "mapping_ok": true,
+    "mapping_issues": [],
+    "uncovered_active_refs": [
+      "Q1"
+    ],
+    "unverified_refs": [
+      "D1",
+      "D3",
+      "D4",
+      "FB1",
+      "U1",
+      "U10",
+      "U11",
+      "U12",
+      "U13",
+      "U14",
+      "U15",
+      "U5"
+    ],
+    "component_power_W": {
+      "D1": 5e-06,
+      "D3": 5e-06,
+      "D4": 5e-06,
+      "FB1": 0.008,
+      "U1": 0.6336,
+      "U10": 0.0085,
+      "U11": 0.0085,
+      "U12": 0.0085,
+      "U13": 0.0085,
+      "U14": 0.0085,
+      "U15": 0.0085,
+      "U16": 0.361081,
+      "U2": 0.0925,
+      "U4": 0.00014,
+      "U5": 0.056
+    },
+    "shunt_resistance_ohm": {
+      "RS1": 0.001,
+      "RS2": 0.001,
+      "RS3": 0.001,
+      "RS4": 0.001,
+      "RS5": 0.001,
+      "RS6": 0.001
+    },
+    "component_temperature_qualified": false
+  },
+  "missing_for_requested_qualified_input_screen": [
+    "source-approved coherent simultaneous load scenario (routing current limits alone are not dissipated heat)",
+    "source-approved ambient and convection/radiation/chassis boundary conditions",
+    "qualified discrete-device dissipation inputs"
+  ],
+  "ready_for_requested_screen": false,
+  "mesh_convergence_established": false,
+  "component_temperature_qualified": false,
+  "scope": "readiness inventory only; no invented thermal loads or boundaries; native properties are declarations, not measured stackup qualification"
+}
