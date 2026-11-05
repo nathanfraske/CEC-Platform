@@ -30,8 +30,8 @@ jobs:
             "${KICAD_IMAGE:-kicad/kicad:10.0}" -lc \
             'set -e
              apt-get update -qq
-             apt-get install -y --no-install-recommends python3-pytest python3-numpy python3-shapely
-             python3 -c "import sys, pcbnew, numpy, shapely, pytest; print(sys.version); print(numpy.__version__, shapely.__version__, pytest.__version__)"
+             apt-get install -y --no-install-recommends python3-pytest python3-numpy python3-scipy python3-shapely
+             python3 -c "import sys, pcbnew, numpy, scipy, shapely, pytest; print(sys.version); print(numpy.__version__, scipy.__version__, shapely.__version__, pytest.__version__)"
              python3 -m pytest -q --show-capture=no --tb=short tests/test_agentic_*.py --junitxml=.cec/ci-results/agentic.xml'
       - name: Test evidence
         if: always()
