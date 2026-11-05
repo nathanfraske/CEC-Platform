@@ -37,6 +37,11 @@
 #   python3 scripts/cec_inloop_audit.py --hours 7 --board eps-8pin
 #   python3 scripts/cec_inloop_audit.py --shakeout            # 2 rounds, fast
 # ============================================================================
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import json
 import os

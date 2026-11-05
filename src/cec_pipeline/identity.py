@@ -44,20 +44,6 @@ def digest(value):
 
 def code_identity():
     """Bind package and retained validator implementations, not just a launcher."""
-    names = (
-        "cec_agentic_workbench.py",
-        "cec_agentic_design.py",
-        "cec_suite_inspection.py",
-        "cec_native_literal_route.py",
-        "cec_native_ordinary_chain_scope.py",
-        "cec_ordinary_route_receiving.py",
-        "cec_additive_route_receiving.py",
-        "cec_native_partition_pair.py",
-        "cec_field_coupling.py",
-        "cec_route_quality.py",
-        "cec_native_drc_runner.py",
-        "cec_stage_admission.py",
-    )
     # Validators import one another lazily. Bind the full local Python tree
     # instead of pretending a short hand-maintained list is its closure.
     paths = list((ROOT / "scripts").rglob("*.py"))

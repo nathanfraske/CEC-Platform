@@ -200,30 +200,22 @@ scripts/checklist.sh
 Reports and fab outputs are written under `build/` (gitignored). Fab packages
 are committed only as tagged release snapshots under `fab/<rev>/`.
 
-### The agentic routing / synthesis plane (Python)
+### Model-directed PCB work (Python / MCP)
 
-The deterministic compute plane plus its control-plane hooks (see
-[`scripts/README-cec_pcb.md`](scripts/README-cec_pcb.md) and
-[`docs/self-hosted-router.md`](docs/self-hosted-router.md) for depth):
+Use [`src/cec_pipeline`](src/cec_pipeline) through
+`python3 scripts/cec_agentic_workbench.py --workspace .cec/campaign`.
+The frontier model chooses explicit geometry; independent native/current/
+Kelvin/assembly receivers gate each private candidate. See the
+[workflow guide](docs/agent-directed-pcb-pipeline.md) and
+[repository map](docs/repository-map.md).
 
-| Script | Role |
-|---|---|
-| `scripts/cec_fr.py` | Freerouting candidate generator (DSN/SES round-trip, pours after route, via normalize) |
-| `scripts/cec_score.py` | scorer + HARD gates (Kelvin `_HI/_LO`, diff `_P/_N`), one cosmetic DRC filter, `drc_types`/`drc_loci` |
-| `scripts/cec_router.py` | the `route()` orchestration loop + decision log (what `route.yml` runs) |
-| `scripts/cec_route.py` | pcbnew real-copper hand-routing primitives for the sub-agent routing pass |
-| `scripts/cec_dispatch.py` | compute-as-tools (`request_candidates`) + the budgeted `agent_route` tier loop |
-| `scripts/cec_synth_pipeline.py` | the synthesis pipeline: cascade stages, placer, physics (IPC electrothermal), `run_pipeline` |
-| `scripts/cec_constraints.py` / `cec_hc.py` / `cec_place.py` / `cec_dcir.py` / `cec_loop.py` | constraint registry + checkers, high-current pass, placer, DC-IR, the place→route→check self-correction loop |
-| `scripts/cec_ledger.py` | SB-01 durable run ledger + determinism manifest (sibling `cec-runs` repo) |
-| `scripts/cec_golden.py` | SB-08 golden-board pipeline regression (run before merging `scripts/**` changes) |
-| `scripts/cec_corpus_lint.py` | SB-13/14 corpus provenance lint (wired into `checklist.sh`) |
-
-Self-hosted workflows: `.github/workflows/route.yml` (Route) and `synth.yml`
-(Synthesize: `run` / `sweep` / `candidates` modes) — manual `workflow_dispatch`
-only; both append the run verdict to the job Summary. On this development box
-the same plane runs in the `docker/` routing container
-(`docker compose -f docker/compose.yaml run --rm --no-deps routing ...`).
+The old self-hosted Route/Synthesize workflows, overnight launchers, local
+wave manager, legacy compute MCP registration and wave wakeup bridge are
+retired. Shared CAD/physical libraries remain importable for receiving and
+regression coverage, but their old autonomous CLI entry points fail closed.
+Board-local `pipeline-policy.json` files own the approved requirements;
+loading one no longer imports the old wave runner. Retirement inventory and
+recovery instructions are in `docs/legacy-job-retirement-2026-11-05.json`.
 
 ### Self-contained & reproducible (clone parity)
 

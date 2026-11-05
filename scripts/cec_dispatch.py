@@ -28,6 +28,11 @@
 #
 # `where`: 'local' runs the compute here; 'runner' will dispatch to synth.yml on the self-hosted
 # runner (async; the LLM swarm stays in the cloud, the CPU stays on the box) -- TODO.
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import os
 import re
 import sys

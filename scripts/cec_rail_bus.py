@@ -13,6 +13,11 @@
 #
 # Usage (in the routing container):
 #   python3 scripts/cec_rail_bus.py --board-pcb build/.../X.kicad_pcb --board beta/eps-8pin-rev3 --out OUT.kicad_pcb
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import json
 import os

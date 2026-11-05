@@ -32,6 +32,11 @@
 # whole framework runs end-to-end with no LLM (reproducible + testable). The tiered LLM
 # realisation plugs sub-agent verdicts into those same callable slots -- see
 # make_subagent_policy() and scripts/README-cec_pcb.md ("automated routing system").
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import os, re, sys, json, time, shutil, copy, tempfile, contextlib
 from dataclasses import dataclass, field, asdict
 

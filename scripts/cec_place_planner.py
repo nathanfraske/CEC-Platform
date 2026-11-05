@@ -20,6 +20,11 @@
 # and calls the cloud LLM planner seat host-side. Run the driver from the host:
 #   python3 scripts/cec_place_planner.py --run --board beta/eps-8pin-rev3 --rounds 6
 
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import dataclasses
 import json

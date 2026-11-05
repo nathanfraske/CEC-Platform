@@ -30,6 +30,20 @@ The retained validators are compatibility backends, not parallel competing
 orchestrators. Their historical source interfaces remain stable for existing
 tests. New orchestration belongs in the package, not another dated root script.
 
+The legacy self-hosted Route/Synthesize jobs, overnight wrappers, local wave
+manager and wave wakeup bridge are removed. `cec-compute` is no longer in
+the project MCP configuration. Retained library modules refuse their former
+standalone autonomous CLI launches; import compatibility does not authorize
+running an old wave. The complete retirement inventory is
+`legacy-job-retirement-2026-11-05.json`. Model files and hardware libraries
+are not deleted, and shared receivers/regression fixtures remain intact.
+
+`ops/systemd/cec-inspection.service` is the supported local inspection
+service. It serves the explicitly published snapshot on localhost:8091 with
+`--inspection-only --no-watch`: no archive crawler, wave watcher or solver.
+The former port-8090 dashboard service is disabled. Re-publication remains an
+explicit, hash-bound operation, not a background scan of old candidates.
+
 ## Tools
 
 The direct and MCP surfaces share one dispatcher and exact operation schemas.

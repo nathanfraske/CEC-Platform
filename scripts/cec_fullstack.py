@@ -49,6 +49,11 @@
 #   python3 scripts/cec_fullstack.py --board eps-8pin --rounds 8     # the run-through
 #   python3 scripts/cec_fullstack.py --board eps-8pin --hours 7      # a night
 # ============================================================================
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import json
 import os

@@ -36,6 +36,11 @@
 # land in subsequent commits and plug into this backbone.
 #
 # Verified against the current EPS module (beta/eps-8pin-rev3) -- see the __main__ self-test.
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import os
 import re
 import sys
@@ -335,23 +340,10 @@ class Config:
         name = os.path.basename(os.path.normpath(d))
         params = dict(cls.DEFAULT_PARAMS)
         explicit_params = kw.pop("params", {}) or {}
-        # The current BETA board contracts historically lived in
-        # cec_fresh_wave.BOARD_PARAMS, while direct synthesis/route entry points
-        # loaded only generic defaults.  That split let the same Hub placement
-        # route without its pour, pickup, last-mile, stackup, and mechanical
-        # policy.  Resolve the authoritative current-BETA contract lazily to
-        # avoid a module-import cycle; explicit caller values still win.  This
-        # is a compatibility bridge until the contracts move to declarative
-        # files beside each beta board.
-        try:
-            import cec_fresh_wave as _fresh_wave
-            params.update(copy.deepcopy(
-                (_fresh_wave.BOARD_PARAMS or {}).get(name, {})))
-        except (ImportError, AttributeError):
-            pass
-        # Declarative board-local policy is the cross-entry-point authority.
-        # It overlays the legacy mapping during migration, while an explicit
-        # caller override remains the final word for controlled experiments.
+        # Board-local data is the sole policy source. Approved legacy fallback
+        # values were migrated verbatim before retiring the wave launch path;
+        # loading a board no longer imports an autonomous runner or silently
+        # drops its constraints when that runner is absent.
         import cec_board_policy as _board_policy
         params = _board_policy.merge_params(params, d, board_hint=name)
         params.update(explicit_params)

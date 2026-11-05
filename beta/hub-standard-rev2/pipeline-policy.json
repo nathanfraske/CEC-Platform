@@ -3,7 +3,11 @@
   "board": "hub-standard-rev2",
   "params": {
     "respect_antenna_keepout": false,
-    "assembly_envelope": {"role": "cover", "contract": "beta/assembly/hub-atx-stack.json", "pair": "docs/hub-atx-active-placement-pair.json"},
+    "assembly_envelope": {
+      "role": "cover",
+      "contract": "beta/assembly/hub-atx-stack.json",
+      "pair": "docs/hub-atx-active-placement-pair.json"
+    },
     "schematic_first_normalization": true,
     "critical_route_nets": [
       "BLACKOUT_SENSE",
@@ -69,21 +73,329 @@
       "enabled": true,
       "step_mm": 4.0,
       "max_steps": 2,
-      "shrink_axes": ["width", "height"],
+      "shrink_axes": [
+        "width",
+        "height"
+      ],
       "include_incremental": true,
       "include_fresh_placement": false,
       "repack_collisions": true,
       "repack_max_variants": 1,
       "repack_beam_width": 16,
       "probe_route_preflight": false,
-      "edge_follow_exclude_refs": ["J6P", "J6C", "J6D", "H1", "SW_RESET", "SW_BOOT"],
+      "edge_follow_exclude_refs": [
+        "J6P",
+        "J6C",
+        "J6D",
+        "H1",
+        "SW_RESET",
+        "SW_BOOT"
+      ],
       "edge_follow": [
-        {"edge": "right", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5},
-        {"edge": "bottom", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5}
+        {
+          "edge": "right",
+          "margin_mm": 12.0,
+          "mode": "contain",
+          "clearance_mm": 0.5
+        },
+        {
+          "edge": "bottom",
+          "margin_mm": 12.0,
+          "mode": "contain",
+          "clearance_mm": 0.5
+        }
       ],
       "minimum_edge_margin_mm": 0.5,
       "fallback_steps_mm": []
     },
-    "plateau_family_patience": 3
+    "plateau_family_patience": 3,
+    "anchor_local_placements": {
+      "D6": {
+        "offset": [
+          0.85,
+          -8.425
+        ],
+        "owner": "J_USB",
+        "rotation": 270.0
+      },
+      "R10": {
+        "offset": [
+          3.45,
+          -5.825
+        ],
+        "owner": "J_USB",
+        "rotation": 90.0
+      },
+      "R9": {
+        "offset": [
+          -3.45,
+          -6.25
+        ],
+        "owner": "J_USB",
+        "rotation": 90.0
+      }
+    },
+    "anchor_pins": {
+      "J6C": [
+        18.0,
+        10.359898999999999,
+        90.0
+      ],
+      "J6D": [
+        20.010001,
+        59.7,
+        270.0
+      ],
+      "J6P": [
+        75.066501,
+        62.868201,
+        270.0
+      ],
+      "SW_BOOT": [
+        75.0,
+        27.0,
+        0.0
+      ],
+      "SW_RESET": [
+        75.0,
+        20.0,
+        0.0
+      ]
+    },
+    "anchor_roles": {
+      "J2": "host",
+      "J3": "host",
+      "J4": "host",
+      "J5": "host",
+      "J6C": "free",
+      "J6D": "free",
+      "J6P": "free",
+      "J_KVM": "host",
+      "J_USB": "usb"
+    },
+    "antenna_overhang": 6.5,
+    "connector_overhang": "edge",
+    "corner_radius": 2.5,
+    "edge_override": {
+      "J2": "left",
+      "J3": "left",
+      "J4": "left",
+      "J5": "left",
+      "J_KVM": "bottom",
+      "J_USB": "bottom"
+    },
+    "fixed_back_refs": [],
+    "inner_power_routing": true,
+    "lastmile": true,
+    "lastmile_attempts": 4,
+    "lastmile_final_attempts": 8,
+    "lastmile_final_max_mm": 100.0,
+    "lastmile_final_maze_margin_mm": 8.0,
+    "lastmile_final_maze_max_mm": 100.0,
+    "lastmile_final_winner": true,
+    "lastmile_max_mm": 50.0,
+    "logo_at": "ring",
+    "logo_ring_refs": [
+      "DL1",
+      "DL2",
+      "DL3",
+      "DL4",
+      "DL5",
+      "DL7"
+    ],
+    "logo_side": "back",
+    "mcu_cluster_seat": true,
+    "mcu_slim_axis": "y",
+    "mount_fp_override": {
+      "H1": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via_Slim_6mm_Hardware"
+    },
+    "mount_holes": "corners",
+    "mount_pos_override": {
+      "H1": [
+        68.0,
+        10.359898999999999
+      ]
+    },
+    "overunder": true,
+    "plane_tht_exclude": true,
+    "polish_opt": 30,
+    "polish_passes": 24,
+    "polish_unconnected_max": 40,
+    "pour_asks": [
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "+5VSB",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "+5V_SYS",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/PSU_5V_KVM",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/+5V_HOLD",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/VCC_P1",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/VCC_P2",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/VCC_P3",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      },
+      {
+        "evac": false,
+        "layers": [
+          "In3.Cu"
+        ],
+        "net": "/VCC_P4",
+        "priority": 2,
+        "provenance": "placer_ask",
+        "region_hint": null,
+        "shape": "rect"
+      }
+    ],
+    "pour_reserve": true,
+    "power_pickup": true,
+    "power_pour_layers": [
+      "In3.Cu",
+      "B.Cu",
+      "F.Cu"
+    ],
+    "rigid_groups": [
+      {
+        "logo": true,
+        "offsets": {
+          "C29": [
+            2.92,
+            -11.92,
+            270
+          ],
+          "C30": [
+            8.67,
+            -8.57,
+            0
+          ],
+          "C31": [
+            9.92,
+            8.63,
+            0
+          ],
+          "C32": [
+            -0.08,
+            10.63,
+            0
+          ],
+          "C33": [
+            -11.33,
+            9.93,
+            180
+          ],
+          "C34": [
+            -10.08,
+            -2.07,
+            90
+          ],
+          "DL1": [
+            -0.08,
+            -10.42,
+            90
+          ],
+          "DL2": [
+            7.42,
+            -4.32,
+            90
+          ],
+          "DL3": [
+            9.92,
+            5.68,
+            0
+          ],
+          "DL4": [
+            -0.08,
+            7.68,
+            0
+          ],
+          "DL5": [
+            -10.08,
+            5.68,
+            270
+          ],
+          "DL7": [
+            -7.08,
+            -4.32,
+            270
+          ]
+        },
+        "score": "center"
+      }
+    ],
+    "stack_gap_mm": 22.0,
+    "stack_inward_height_mm": 17.2,
+    "stackup_profile": "jlcpcb_6l_pofv_signal",
+    "thermal_board_hint": "hub-standard-rev2",
+    "wave_fr_timeout": 1500,
+    "wave_plateau_floor": 150
+  },
+  "policy_origin": {
+    "migration": "Resolved values retained from retired wave policy fallback; no current, clearance, component, or mating requirement changed.",
+    "source_commit": "7b5dd47b323afedb990c429f02316cbb4097d3fe",
+    "retired_source": "scripts/cec_fresh_wave.py"
   }
 }

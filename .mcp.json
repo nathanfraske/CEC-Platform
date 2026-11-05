@@ -23,12 +23,6 @@
         "--workspace",
         ".cec/campaign"
       ]
-    },
-    "cec-compute": {
-      "command": "python",
-      "args": [
-        "scripts/cec_compute_mcp.py"
-      ]
     }
   }
 }

@@ -20,6 +20,11 @@ Run INSIDE the routing container:
 The variant set is deliberately structure-first (the 2026-06-30 placer-feasibility
 finding: partitions/intents move the needle, absolute-coord jitter does not).
 """
+# Library compatibility only. Autonomous legacy job entry points are retired.
+if __name__ == "__main__":
+    raise SystemExit("Retired legacy job. Use scripts/cec_agentic_workbench.py; "
+                     "see docs/agent-directed-pcb-pipeline.md.")
+
 import argparse
 import copy
 import glob
