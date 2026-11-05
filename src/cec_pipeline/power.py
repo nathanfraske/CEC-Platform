@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from collections import defaultdict
 
 from .identity import digest, require
 from .legacy import bootstrap
@@ -188,10 +189,37 @@ def receive(source, candidate, operation, record, *, board_hint):
     )
 
 
+def _source_tree(tracks):
+    """A bounded connected tree, including short branch tails, not a guessed chain.
+
+    This is construction scope only. Saved receiving must still restore every
+    native boundary and surviving partition, including branches not chosen as
+    the replacement path's two endpoints.
+    """
+    graph = defaultdict(set)
+    edges = set()
+    for item in tracks:
+        a, b = tuple(item.GetStart()), tuple(item.GetEnd())
+        edge = frozenset((a, b))
+        require(a != b and edge not in edges, "nondegenerate_unique_power_tree_edges_required")
+        edges.add(edge)
+        graph[a].add(b)
+        graph[b].add(a)
+    require(graph, "nonempty_power_source_tree_required")
+    seen, pending = set(), [next(iter(graph))]
+    while pending:
+        node = pending.pop()
+        if node not in seen:
+            seen.add(node)
+            pending.extend(graph[node] - seen)
+    require(len(seen) == len(graph) == len(edges) + 1,
+            "one_connected_acyclic_power_source_tree_required")
+    return sorted(list(p) for p, adjacent in graph.items() if len(adjacent) == 1)
+
+
 def construct_route(board, source, operation, *, board_hint, request):
     import pcbnew
     import cec_full_current_planar_reflow as planar
-    import cec_pair_local_reference_refinement as chain
     from cec_native_items import discard_items
     from .geometry import path, length
     from .cells import emit_connections
@@ -219,12 +247,13 @@ def construct_route(board, source, operation, *, board_hint, request):
         "exact_locked_full_current_cut_permission_required",
     )
     points = path(operation["points_nm"], minimum_phase_nm=20000)
-    original = [list(point) for point in chain._chain(cut)]
+    ports = _source_tree(cut)
     require(
-        sorted([points[0], points[-1]]) == sorted([original[0], original[-1]]),
-        "full_current_chain_source_ports_must_remain_exact",
+        points[0] in ports and points[-1] in ports,
+        "full_current_path_endpoints_must_be_exact_source_tree_leaves",
     )
-    require(length(points) < length(original), "power_route_must_shorten_not_meander")
+    original_length = sum(item.GetLength() for item in cut)
+    require(length(points) < original_length, "power_route_must_shorten_not_meander")
     locked = any(item.IsLocked() for item in cut)
     discard_items(board, cut)
     added = emit_connections(
@@ -251,7 +280,9 @@ def construct_route(board, source, operation, *, board_hint, request):
         added_zone_uuids=[],
         source_width_face_and_current_retained=True,
         new_barrel_capacity_credited=False,
-        saved_centerline_mm=round((length(original) - length(points)) / 1e6, 6),
+        source_tree_leaves_nm=ports,
+        all_native_branch_boundaries_still_require_saved_receiving=True,
+        saved_centerline_mm=round((original_length - length(points)) / 1e6, 6),
     )
 
 
