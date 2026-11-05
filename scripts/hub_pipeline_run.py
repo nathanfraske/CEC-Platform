@@ -27,6 +27,7 @@ import cec_score                        # noqa: E402
 import cec_seats                        # noqa: E402  (the cloud/local residency resolver)
 import cec_constraints                  # noqa: E402
 import cec_outline_compaction            # noqa: E402
+import cec_route_quality                 # noqa: E402
 
 REF = "beta/hub-standard-rev2/candidate/hub-standard-rev2-candidate.kicad_pcb"
 REF_SCH = "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch"
@@ -201,7 +202,8 @@ def _fill_worker(out, rail_nets=()):
     import cec_precision_route
 
     bd = pcbnew.LoadBoard(out)
-    pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(bd)
     resolver = cec_fr._project_netclass_resolver(out)
     # Critical coupled geometry owns the freshly filled board before any broad
     # local fanout.  Even same-footprint power topology is not intrinsically
@@ -234,7 +236,8 @@ def _fill_worker(out, rail_nets=()):
             bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(bd)
 
     before_pickup = {item.m_Uuid.AsString() for item in bd.GetTracks()}
     pickup = cec_fr.synthesize_power_pickups(
@@ -248,7 +251,8 @@ def _fill_worker(out, rail_nets=()):
             bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(bd)
 
     # A second pass is not redundant: multi-pad GND/rail groups may only
     # become one proven component after the plane/pour pickups above land.
@@ -262,7 +266,8 @@ def _fill_worker(out, rail_nets=()):
             bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(bd)
     else:
         post_pickup_normalization = {"tracks": 0, "vias": 0}
     bd.BuildConnectivity()
@@ -275,7 +280,8 @@ def _fill_worker(out, rail_nets=()):
             bd, out, preserve_nets=precision_nets)
         for zone in bd.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(bd)
     pickup_prune = cec_fr.prune_redundant_dangling_pickups(
         bd, pickup_item_ids, discover_nets=tuple(rail_nets),
         discover_pofv_nets=tuple(rail_nets))
@@ -754,6 +760,7 @@ def _acceptance_terms(route_verdict, conformance_fail, physics_flags,
     """One explicit fail-closed contract for the Hub runner's accepted artifact."""
     terms = {
         "route": route_verdict.get("gates_pass") is True,
+        **cec_route_quality.final_craft_terms(route_verdict.get('route_quality')),
         "conformance": int(conformance_fail) == 0,
         "physics": len(physics_flags) == 0,
         "policy": policy_ok is True,

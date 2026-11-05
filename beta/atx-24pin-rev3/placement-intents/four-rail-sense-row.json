@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "purpose": "Extend the current three-channel sense row on its left with the complete 12 V channel; preserve rail-specific electrical definitions and supply followers.",
+  "cells": {
+    "12V": {"shunt": "RS1", "monitor": "U10", "amplifier": "U612V1", "comparator": "U712V1"},
+    "5VSB": {"shunt": "RS4", "monitor": "U13", "amplifier": "U65VSB1", "comparator": "U75VSB1"},
+    "5V": {"shunt": "RS2", "monitor": "U11", "amplifier": "U65V1", "comparator": "U75V1"},
+    "3V3": {"shunt": "RS3", "monitor": "U12", "amplifier": "U63V31", "comparator": "U73V31"}
+  },
+  "moving_cell": "12V",
+  "row_cells": ["5VSB", "5V", "3V3"],
+  "anchor_role": "shunt",
+  "side": "before",
+  "superseded_placement_reservations": [
+    {"reservation_uuid": "6ca7ef62-b75b-45b9-8c10-38e228bd157e", "replacement_guard_uuid": "b5b1aa66-8ef9-4fca-a964-754737bc9926"},
+    {"reservation_uuid": "a583a8ea-9635-4a3b-97e5-04dfbae8025d", "replacement_guard_uuid": "ee4f8b78-7a5d-4433-b006-8047f76cdd43"}
+  ],
+  "routing_admitted": false,
+  "release_authority": false
+}

@@ -35,6 +35,7 @@
 # protect, same contract as lanes/cells).
 import math
 import cec_fab_profile as cec_fab
+import cec_via_field_layout
 
 MM = 1e6
 
@@ -49,7 +50,14 @@ def _amps_for(nets):
     return 10.0
 
 
-def plan_bands(items, j3_bot, *, y0_off=2.5):
+def _sink_priority(rl):
+    """Critical-first ordering for terminal-side rail collectors."""
+    xs = [q[2] for q in rl.get("tb", ())] + [rl["lo"][0]]
+    span = max(xs) - min(xs) if xs else 0.0
+    return (-span, -float(rl.get("amps", 0.0)), rl["rs"])
+
+
+def plan_bands(items, j3_bot, *, y0_off=2.5, widest_first=False):
     """Greedy interval-packed BAND rows (shared by the lay and the placement
     keepouts -- one geometry, two consumers). *items* = [{key, w, x_lo, x_hi}];
     x-spans on a shared row must clear each other by the TRACKS' half-widths +
@@ -57,15 +65,26 @@ def plan_bands(items, j3_bot, *, y0_off=2.5):
     multi-mm tracks is copper-on-copper). Returns ({key: band_center_y},
     total_depth).
 
-    Row order: NARROWEST span first => the WIDEST bands land on the LOWEST
-    rows (closest to the shunts). Measured consequence (first alt lay,
+    Source-row order defaults to NARROWEST span first => the WIDEST bands land
+    on the LOWEST rows (closest to the shunts). Measured consequence (first alt lay,
     2026-07-19): pin drops descend from the J3 field to their own row -- with
     a full-width band (3V3 spans the whole connector) on the TOP row, every
     other rail's drops crossed it on the same alt layer and refused;
     widest-lowest means a rail's drops stop at their row before reaching any
-    wider band."""
+    wider band.
+
+    Sink collectors use ``widest_first=True``. Their drops run in the
+    opposite direction (shunt toward terminal edge), so the topological rule
+    is the conjugate: the widest collector must occupy the edge-most row.
+    Narrower descents then terminate before reaching it instead of forcing a
+    horizontal crossing on every available trunk layer.
+    """
     ranks, assign = [], {}
-    for it in sorted(items, key=lambda q: ((q["x_hi"] - q["x_lo"]), q["key"])):
+    def _order(q):
+        span = q["x_hi"] - q["x_lo"]
+        return ((-span if widest_first else span), q["key"])
+
+    for it in sorted(items, key=_order):
         hw = it["w"] / 2.0
         for ri, occ in enumerate(ranks):
             if all(it["x_hi"] + hw + w_o / 2.0 + 1.0 <= a
@@ -165,7 +184,8 @@ def _plan_rail_chains_forward(rails, j3_bot, *, alt=False):
     for tag in ("alt", "back"):
         sub = [it for it in _sink_items if body_of.get(it["key"], "alt") == tag]
         if sub:
-            ys, _d = plan_bands(sub, 0.0, y0_off=0.0)
+            ys, _d = plan_bands(sub, 0.0, y0_off=0.0,
+                                widest_first=True)
             _sink_ys.update(ys)
     out = {}
     for rank, rl in enumerate(rails):
@@ -218,8 +238,19 @@ def _plan_rail_chains_forward(rails, j3_bot, *, alt=False):
         # (2026-07-19: the full-width face drop grazed a neighbor cell's cap
         # at 2.8 vs 3.75mm; per-joint share needs ~2mm at the 2oz class).
         band2 = max(lyy + 1.5, tb_y - 2.0 - _sink_ys.get(rl["rs"], 1.0))
+        # A monolithic multi-leg terminal is not a row of independent blade
+        # tabs.  Keep the full-rail-width collection band beyond its physical
+        # body/courtyard, then use one current-sharing neck per solder leg.
+        # This prevents a wide trunk from occupying the narrow foreign-net
+        # gaps inside a compact screw-terminal field.
+        if rl.get("tb_escape_y") is not None:
+            band2 = min(band2, float(rl["tb_escape_y"]))
         txs = [q[2] for q in rl["tb"]] + [lx]
-        dwt = max(2.0, w / max(1, len(rl["tb"])))
+        terminal_refs = {q[0] for q in rl["tb"]}
+        if len(terminal_refs) == 1 and len(rl["tb"]) > 1:
+            dwt = max(0.8, min(2.0, w / len(rl["tb"])))
+        else:
+            dwt = max(2.0, w / max(1, len(rl["tb"])))
         if not alt:
             _mid = min(lyy + 3.0, band2)         # pad-width tail off the LO pad
             snk = [(lx, lyy, lx, _mid, sw, "face"),   # (mirror of the src clamp)
@@ -269,6 +300,8 @@ def plan_rail_chains(rails, j3_bot, *, alt=False):
                    for p in rl.get("j3", ())]
         q["tb"] = [tuple(list(p[:3]) + [-p[3]] + list(p[4:]))
                   for p in rl.get("tb", ())]
+        if rl.get("tb_escape_y") is not None:
+            q["tb_escape_y"] = -float(rl["tb_escape_y"])
         return q
 
     rrails = [_ry(rl) for rl in rails]
@@ -362,73 +395,84 @@ def _seg_seg_d2(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2):
                _seg_pt_d2(bx2, by2, ax1, ay1, ax2, ay2))
 
 
-def discover_rails(board):
-    """[{rs, src_net, snk_net, amps, face, hi(x,y), lo(x,y), j3:[(pad,x,y,half)],
-    tb:[(ref,pad,x,y,half)]}] -- name-independent straddle discovery."""
-    import pcbnew
-    pads_by_net = {}
-    for fp in board.GetFootprints():
-        for p in fp.Pads():
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net.setdefault(nn, []).append((fp.GetReference(), p))
-    rails = []
-    for fp in board.GetFootprints():
-        ref = fp.GetReference()
-        if not ref.startswith("RS") or fp.GetPadCount() != 2:
-            continue
-        p1, p2 = list(fp.Pads())
-        nets = (p1.GetNetname(), p2.GetNetname())
-        if not all(nets) or nets[0] == nets[1]:
-            continue
+def rail_current_contract(nets, *, board_hint=None, current_by_net=None):
+    """Resolve sustained current once for reservation and copper generation.
 
-        def _has(net, pref):
-            return any(r.startswith(pref) for r, _ in pads_by_net.get(net, ()))
-        src = next((n for n in nets if _has(n, "J3")), None)
-        snk = next((n for n in nets if n != src and _has(n, "TB")), None)
-        if not (src and snk):
-            continue
-        hi_p = p1 if p1.GetNetname() == src else p2
-        lo_p = p2 if hi_p is p1 else p1
-        face = "B.Cu" if fp.IsFlipped() else "F.Cu"
-        j3 = [(p.GetPadName(), p.GetPosition().x / MM, p.GetPosition().y / MM,
-               max(p.GetSize().x, p.GetSize().y) / (2 * MM),
-               p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
-              for r, p in pads_by_net[src] if r.startswith("J3")]
-        tb = [(r, p.GetPadName(), p.GetPosition().x / MM, p.GetPosition().y / MM,
-               max(p.GetSize().x, p.GetSize().y) / (2 * MM),
-               p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
-              for r, p in pads_by_net[snk] if r.startswith("TB")]
-        rails.append({
-            "rs": ref, "src_net": src, "snk_net": snk,
-            "amps": _amps_for(nets), "face": face,
-            "hi": (hi_p.GetPosition().x / MM, hi_p.GetPosition().y / MM),
-            "lo": (lo_p.GetPosition().x / MM, lo_p.GetPosition().y / MM),
-            # the shunt pad's long dim: the face stub's width ceiling (the pad
-            # IS the neck -- a stub wider than its landing pad buys no copper
-            # and grazes the sense cell's own parts; probe: U65V1 3.5mm off a
-            # 6mm stub)
-            "pad_w": max(hi_p.GetSize().x, hi_p.GetSize().y) / MM,
-            "j3": sorted(j3, key=lambda q: q[1]), "tb": sorted(tb, key=lambda q: q[2]),
-        })
-    rails.sort(key=lambda rl: rl["hi"][0])                     # rank by shunt column
-    return rails
+    A declared board is required to supply a rating. The historical voltage
+    ladder is retained only for anonymous legacy callers and is identified in
+    the returned provenance instead of silently overriding current policy.
+    """
+    explicit = dict(current_by_net or {})
+    if board_hint:
+        import cec_synth_pipeline
+        for net in nets:
+            if net not in explicit:
+                contract = cec_synth_pipeline.spec_net_current_contract(
+                    board_hint, net)
+                if contract is not None:
+                    explicit[net] = contract["amps"]
+    selected = [(net, float(explicit[net])) for net in nets if net in explicit]
+    if selected:
+        if any(not math.isfinite(amps) or amps <= 0 for _, amps in selected):
+            raise ValueError("invalid sustained rail current: %r" % selected)
+        return {"amps": max(amps for _, amps in selected),
+                "source": "declared_current_contract", "net_ratings": dict(selected)}
+    if board_hint or current_by_net is not None:
+        raise ValueError("no declared current for rail nets %r" % (tuple(nets),))
+    return {"amps": _amps_for(nets), "source": "legacy_voltage_current_ladder"}
+
+
+def discover_rails(board, *, board_hint=None, current_by_net=None, topology=None):
+    """Resolve physical rail terminals and currents using the shared compiler."""
+    import cec_rail_geometry as geometry
+    pads, courtyards, roles = geometry.board_facts(board)
+    if topology is None:
+        topology = geometry.discover_topology(pads, roles=roles)
+    return geometry.compile_rails(
+        topology, pads, courtyards,
+        lambda nets: rail_current_contract(
+            nets, board_hint=board_hint, current_by_net=current_by_net))
 
 
 def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
-                    mirror_bcu=False):
+                    mirror_bcu=False, escape_layers=(), board_hint=None,
+                    current_by_net=None, topology=None, preserved_nets=(),
+                    detour_budget_s=2.0, construction_evidence=None,
+                    access_report=None, transition_budget_s=2.0, pickup_budget_s=2.0):
     """Lay the per-rail force copper LOCKED. Returns {rs: report|'REFUSED: ...'}.
     *alt_layer* (e.g. "In2.Cu", the board-class inner POWER-ROUTING layer -- In1
     stays the solid GND plane per the owner's 2026-07-19 ruling): plan in ALT
     mode (bands/sinks on the inner layer, direct into THT barrels, via arrays at
     the SMD shunt stubs). Absent/not-found -> face-only planning (unchanged)."""
     import pcbnew
-    rails = discover_rails(board)
+    if not math.isfinite(float(detour_budget_s)) or float(detour_budget_s)<0:
+        raise ValueError('invalid force-rail detour budget')
+    if not math.isfinite(float(transition_budget_s)) or float(transition_budget_s)<0:
+        raise ValueError('invalid force-rail transition budget')
+    if not math.isfinite(float(pickup_budget_s)) or float(pickup_budget_s)<0:
+        raise ValueError('invalid force-rail pickup budget')
+    rails = discover_rails(board, board_hint=board_hint,
+                           current_by_net=current_by_net, topology=topology)
+    if preserved_nets:
+        import cec_frozen_copper
+        cec_frozen_copper.require_present(board, preserved_nets)
     if not rails:
         return {}
+    import cec_portal_copper
+    _portal_report = cec_portal_copper.required_ground_portals(
+        board, board_path=board.GetFileName())
+    _portals = _portal_report['portals']
+    _portal_clearance = cec_portal_copper.reservation_clearance(board)
+    _portal_report['clearance_mm'] = _portal_clearance
+    if access_report is not None:
+        access_report.update(_portal_report)
     layer_id = {"F.Cu": board.GetLayerID("F.Cu"), "B.Cu": board.GetLayerID("B.Cu")}
     alt_id = board.GetLayerID(alt_layer) if alt_layer else -1
     alt_on = alt_id >= 0
+    _escape_layers = tuple(
+        ln for ln in dict.fromkeys(escape_layers or ())
+        if ln not in {"F.Cu", "B.Cu", alt_layer}
+        and board.GetLayerID(ln) >= 0)
     netmap = {str(k): v for k, v in board.GetNetInfo().NetsByName().items()}
 
     pads = []                                                  # foreign-guard universe
@@ -438,12 +482,13 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             pads.append((fp.GetReference(), p.GetNetname(), pos.x / MM, pos.y / MM,
                          max(p.GetSize().x, p.GetSize().y) / (2 * MM),
                          p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH))
+    import cec_native_pad_obstacles
+    pad_obstacles = cec_native_pad_obstacles.Index(board, clearance_mm=.25)
     laid_segs = []                                             # (net, x1,y1,x2,y2, w, tag)
     laid_vias = []                                             # (x, y)
     # PRE-INDEX existing LOCKED copper (audit landmine: the collider started
     # empty while blueprint-cell copper is laid BEFORE the rails on the same
     # board) -- tagged by layer class so the layer-aware checks apply.
-    _alt_ln = alt_layer or ""
     for _t0 in board.GetTracks():
         if not _t0.IsLocked():
             continue
@@ -452,28 +497,51 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             laid_vias.append((_p0.x / MM, _p0.y / MM))
         else:
             _ln = board.GetLayerName(_t0.GetLayer())
-            _tag0 = ("alt" if _ln == _alt_ln
-                     else ("back" if _ln == "B.Cu" else "face"))
+            # Retained boards may rename In*.Cu (for example a power plane).
+            # Preserve the real layer identity, not a display-name comparison
+            # with the configured canonical alias or this rail's relative face.
+            _tag0 = _ln
             _s0, _e0 = _t0.GetStart(), _t0.GetEnd()
             laid_segs.append((_t0.GetNetname() or "", _s0.x / MM, _s0.y / MM,
                               _e0.x / MM, _e0.y / MM, _t0.GetWidth() / MM, _tag0))
 
-    def _collide(plan, own_nets, skip_refs=()):
+    def _collide(plan, own_nets, skip_refs=(), *, pending_segments=(), pending_vias=(),
+                 feedback=False):
         """Layer-aware: an ALT segment passes under SMD pads (face-only copper)
         and foreign face segments; it collides with THT barrels (all layers),
         same-tag laid copper, and laid via barrels. FACE segments collide as
         before (all pads + face copper + vias)."""
+        if feedback:
+            # Placement needs the COMPLETE physical blocker set of this
+            # principal conductor, including pads later in the same segment
+            # and on later segments. First-hit admission below stays intact.
+            attempt = pad_obstacles.conductor_obstructions([
+                dict(segment_mm=list(segment[:5]), layer=board.GetLayerName(
+                    board.GetLayerID(_tag_layer(segment[5], rl['face']))))
+                for segment in plan], own_nets, skip_prefixes=skip_refs)
+            if attempt['blocked_segments'] and attempt not in _rail_obstruction_sets:
+                _rail_obstruction_sets.append(attempt)
+            for witness in attempt['blocked_segments']:
+                if witness not in _rail_blocked_segments and len(_rail_blocked_segments) < 64:
+                    _rail_blocked_segments.append(witness)
         for (x1, y1, x2, y2, w, tag) in plan:
-            for ref, net, px, py, half, tht in pads:
-                if net in own_nets or ref.startswith(tuple(skip_refs) or ("\0",)):
-                    continue
-                if tag in ("alt", "back") and not tht:
-                    continue
-                if _seg_pt_d2(px, py, x1, y1, x2, y2) < (w / 2 + half + 0.25) ** 2:
-                    return ("%s [%s] at (%.1f,%.1f) vs plan (%.1f,%.1f)-(%.1f,%.1f)"
-                            % (ref, net, px, py, x1, y1, x2, y2))
-            for (net2, a1, b1, a2, b2, w2, tag2) in laid_segs:
-                if net2 in own_nets or tag2 != tag:
+            layer = board.GetLayerID(_tag_layer(tag, rl['face']))
+            conflict = cec_portal_copper.segment_portal_conflict(
+                (x1,y1),(x2,y2),w,net=next(iter(own_nets)),layer_id=layer,
+                portals=_portals,clearance_mm=_portal_clearance)
+            if conflict is not None:
+                return 'reserved return portal %s.%s on %s' % (
+                    conflict['ref'],conflict['pad'],board.GetLayerName(layer))
+            obstruction = pad_obstacles.collision(
+                (x1,y1,x2,y2,w), layer, own_nets, skip_prefixes=skip_refs)
+            if obstruction is not None:
+                ref, net = obstruction['ref'], obstruction['net']
+                px, py = obstruction['at_mm']
+                return ("%s [%s] at (%.1f,%.1f) vs plan (%.1f,%.1f)-(%.1f,%.1f)"
+                        % (ref, net, px, py, x1, y1, x2, y2))
+            for (net2, a1, b1, a2, b2, w2, tag2) in [*laid_segs,*pending_segments]:
+                if (net2 in own_nets or
+                        board.GetLayerID(_tag_layer(tag2,rl['face'])) != layer):
                     continue
                 # exact seg-seg distance (audit landmine: 5-point sampling
                 # missed thin crossings)
@@ -481,7 +549,7 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                     return ("laid copper [%s] (%.1f,%.1f)-(%.1f,%.1f) vs plan "
                             "(%.1f,%.1f)-(%.1f,%.1f)"
                             % (net2, a1, b1, a2, b2, x1, y1, x2, y2))
-            for (vx, vy) in laid_vias:
+            for (vx, vy) in [*laid_vias,*pending_vias]:
                 if _seg_pt_d2(vx, vy, x1, y1, x2, y2) < (w / 2 + 0.45 + 0.25) ** 2:
                     return "laid via at (%.1f,%.1f)" % (vx, vy)
         return None
@@ -499,8 +567,66 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     # a board with no Edge.Cuts (synthetic fixtures) yields a degenerate bbox --
     # the edge-margin test must not reject every site then
     _bb_ok = (_bx1 - _bx0) > 2.0 and (_by1 - _by0) > 2.0
+    _detour_region = None
+    _detour_region_checked = False
 
-    def _array_sites(x, y, n, own_nets, pending=()):
+    def _detour(plan, own_nets, *, anchors=(), array_anchors=None,
+                pending_segments=(), pending_vias=(), deadline=None):
+        """Search XY before surrendering a layer; never move graph terminals."""
+        nonlocal _detour_region, _detour_region_checked
+        import time
+        deadline=_rail_detour_deadline if deadline is None else deadline
+        if not _bb_ok or time.monotonic() >= deadline:
+            _rail_detours.append(dict(schema=1,changed=False,admitted=False,
+                reason='missing_native_outline' if not _bb_ok else 'bounded_search_exhausted'))
+            return plan
+        import cec_rail_detour
+        import cec_pour_plan
+        import cec_fr
+        from shapely.geometry import Point, LineString
+        if not _detour_region_checked:
+            _detour_region = cec_rail_detour.native_region(
+                board, edge_clearance_mm=max(.25,
+                    board.GetDesignSettings().m_CopperEdgeClearance / MM))
+            _detour_region_checked = True
+        if _detour_region is None or _detour_region.is_empty:
+            _rail_detours.append(dict(schema=1,changed=False,admitted=False,
+                                     reason='missing_native_outline'))
+            return plan
+        net = next(iter(own_nets))
+        def obstacles(tag):
+            layer = _tag_layer(tag, rl['face'])
+            lid = board.GetLayerID(layer)
+            values = cec_pour_plan._geo_obstacles(
+                board, board.GetNetcodeFromNetname(net), [layer], .25, 0.)[layer]
+            # The shared model already includes conservative pad bounding
+            # boxes. A second maximum-dimension circle used to enlarge long
+            # rectangular pads sideways and erase otherwise legal channels.
+            values.extend(Point(x,y).buffer(.70,quad_segs=8) for x,y in laid_vias)
+            values.extend(Point(x,y).buffer(.70,quad_segs=8) for x,y in pending_vias)
+            values.extend(LineString(((x1,y1),(x2,y2))).buffer(width/2+.25)
+                for other,x1,y1,x2,y2,width,tg in pending_segments
+                if other not in own_nets and _tag_layer(tg,rl['face'])==layer)
+            values.extend(Point(*p['at_mm']).buffer(
+                p['diameter_mm']/2+_portal_clearance,quad_segs=8)
+                for p in _portals if p['net'] not in own_nets and lid in p['layer_ids'])
+            values.extend(cec_fr._zone_outline_geometry(z).buffer(.25,join_style=2)
+                          for z in board.Zones() if z.GetIsRuleArea()
+                          and z.IsOnLayer(lid) and z.GetDoNotAllowTracks())
+            return values
+        fixed_anchors = tuple(anchors) + tuple(
+            (x,y) for _ref,net,x,y,_half,_tht in pads if net in own_nets)
+        fixed_anchors += (tuple(array_anchors) if array_anchors is not None else
+                         tuple((x,y) for x,y,_n,net in _plan_arrays if net in own_nets))
+        replacement, evidence = cec_rail_detour.repair_plan(
+            plan, region=_detour_region, obstacles_for=obstacles, anchors=fixed_anchors,
+            collision=lambda rows:_collide(rows,own_nets,skip_refs=('FID',),
+                pending_segments=pending_segments,pending_vias=pending_vias),
+            deadline=deadline, relax_unanchored_bends=True, repair_topology=True)
+        _rail_detours.append(evidence)
+        return replacement if replacement is not None else plan
+
+    def _array_sites(x, y, n, own_nets, pending=(), *, pending_segments=(), landing_plan=None):
         """n clear through-barrel sites clustered at (x,y), or None. Via barrels
         pierce every layer -> clear of ALL pads regardless of tag, ALL laid
         copper on any tag (audit landmine: tracks were unchecked), the board
@@ -509,13 +635,10 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         occupied = list(laid_vias) + [q for arr in pending for q in arr]
         intended_net = sorted(own_nets)[0] if own_nets else ""
         intended_code = board.GetNetcodeFromNetname(intended_net)
-        for dx, dy in _ARR_OFF:
-            if len(sites) >= n:
-                break
-            cx, cy = x + dx, y + dy
+        def clear_site(cx, cy, accepted):
             if _bb_ok and not (_bx0 + 1.2 <= cx <= _bx1 - 1.2
                                and _by0 + 1.2 <= cy <= _by1 - 1.2):
-                continue
+                return False
             # Through POFV may land inside a same-net SMD pad only when the
             # board declares the approved profile and the complete 0.9/0.5mm
             # land passes the central fabrication check. Legacy boards, THT
@@ -532,24 +655,169 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             ok = ok and all(not (net2 not in own_nets
                                  and _seg_pt_d2(cx, cy, a1, b1, a2, b2)
                                  < (w2 / 2 + 0.45 + 0.25) ** 2)
-                            for (net2, a1, b1, a2, b2, w2, _tg) in laid_segs)
+                            for (net2, a1, b1, a2, b2, w2, _tg) in [*laid_segs,*pending_segments])
             ok = ok and all((vx - cx) ** 2 + (vy - cy) ** 2 >= 1.15 ** 2
-                            for vx, vy in (occupied + sites))
-            if ok:
+                            for vx, vy in (occupied + accepted))
+            ok = ok and all(p['net'] in own_nets or math.dist(p['at_mm'],(cx,cy))
+                            >= .45+p['diameter_mm']/2+_portal_clearance for p in _portals)
+            return ok
+        for dx, dy in _ARR_OFF:
+            if len(sites) >= n and landing_plan is None:
+                break
+            cx, cy = x + dx, y + dy
+            if clear_site(cx, cy, sites):
                 sites.append((cx, cy))
-        return sites if len(sites) >= n else None
+        chosen=sites[:n] if len(sites)>=n else None
+        landing_evidence={}
+        legal=None
+        if landing_plan is not None:
+            import cec_transition_landings
+            actual=[(*s[:5],_tag_layer(s[5],rl['face'])) for s in landing_plan]
+            layers=tuple(dict.fromkeys(s[5] for s in actual))
+            actual_pending=[(*s[:6],_tag_layer(s[6],rl['face'])) for s in pending_segments]
+            legal=cec_transition_landings.proposal_filter(board,intended_net,layers,actual,
+                portals=_portals,pending_segments=actual_pending,
+                clearance_mm=_portal_clearance,evidence=landing_evidence)
+        # Prefer whole exact-count symmetric proposals rather than a prefix
+        # of a ring-ordered grid. Keep existing pitch/reach/count and all
+        # all-layer obstacles and full-landing checks. No committed via moves.
+        center_nm=(round(x*MM),round(y*MM));symmetric=None
+        symmetric_rejections={'site_blocked':0,'full_landing_refused':0}
+        for offsets in cec_via_field_layout.centered_offsets(n,pitch_nm=1300000,reach_nm=2600000):
+            trial=[((center_nm[0]+dx)/MM,(center_nm[1]+dy)/MM) for dx,dy in offsets]
+            accepted=[]
+            for point in trial:
+                if not clear_site(*point,accepted):
+                    symmetric_rejections['site_blocked']+=1
+                    break
+                accepted.append(point)
+            if len(accepted)!=n:
+                continue
+            if legal is not None and not legal(trial):
+                symmetric_rejections['full_landing_refused']+=1
+                continue
+            symmetric=trial
+            break
+        if symmetric is not None:
+            chosen=symmetric
+        elif chosen is not None and legal is not None:
+            # Every compact subset used to include a central site whose land
+            # would be clipped, while excluding a farther usable site. Remove
+            # individually impossible lands before the bounded subset search;
+            # never reduce the required field size or omit the joint test.
+            viable=legal.viable_sites(sites)
+            landing_evidence['site_candidates']=len(sites)
+            landing_evidence['viable_sites']=len(viable)
+            # At most 26 deterministic compact subsets, never combinatorial
+            # enumeration or fewer barrels than the current contract requires.
+            options=([viable[:n]]+[sorted(viable,key=lambda p:(math.dist(p,seed),math.dist(p,(x,y)),p))[:n]
+                                   for seed in viable]) if len(viable)>=n else []
+            chosen=next((q for q in options if legal(q)),None)
+        observed=(cec_via_field_layout.shape_evidence(
+            [(round(a*MM),round(b*MM)) for a,b in chosen],center_nm) if chosen else None)
+        _rail_arrays.append(dict(center=[x,y],required=n,available=max(len(sites),len(chosen or ())),
+                                 nets=sorted(own_nets),ok=chosen is not None,
+                                 legacy_grid_available=len(sites),
+                                 layout_mode=('symmetric_exact_count' if symmetric is not None
+                                     else 'obstacle_qualified_fallback' if chosen is not None else 'refused'),
+                                 centered_pattern_rejections=symmetric_rejections,
+                                 field_shape=observed,
+                                 landing_preview_required=landing_plan is not None,
+                                 landing_preview=landing_evidence))
+        return chosen
+
+    def _transition_repair(plan, array, own_nets, *, anchors=(),
+                           pending_arrays=(), pending_segments=(), remaining_variants=1):
+        """Move only an uncommitted transition; never its contact or rating."""
+        nonlocal _rail_transition_deadline
+        import time
+        import cec_rail_transition_search
+        import cec_rail_detour
+        if _rail_transition_deadline is None:
+            _rail_transition_deadline=time.monotonic()+float(transition_budget_s)
+        # A difficult first layer must not consume the whole portfolio's
+        # budget before a different legal layer gets a turn.
+        now=time.monotonic()
+        call_deadline=now+max(0.,_rail_transition_deadline-now)/max(1,remaining_variants)
+        contacts=[(x,y) for _r,n,x,y,_h,_t in pads if n in own_nets]
+        pending_vias=[p for sites in pending_arrays for p in sites]
+        for trial,center in cec_rail_transition_search.candidates(
+                plan,array[:2],fixed_contacts=contacts,
+                # Two field-grid pitches of extra reach at full body width.
+                # The short pad neck and complete via/current contract stay
+                # unchanged; native admission still qualifies the proposal.
+                full_width_extensions_mm=(1.3,2.6),limit=48):
+            if time.monotonic()>=call_deadline:
+                _rail_transitions.append(dict(reason='bounded_search_exhausted',accepted=False))
+                break
+            row=dict(old_center=list(array[:2]),new_center=list(center),
+                     required_vias=array[2],nets=sorted(own_nets),accepted=False)
+            _rail_transitions.append(row)
+            def collision(parts):
+                return _collide(parts,own_nets,skip_refs=('FID',),
+                    pending_segments=pending_segments,pending_vias=pending_vias)
+            blocked=collision([s for s in trial if s[5]=='face'])
+            if blocked:
+                row.update(reason='face_neck_blocked',detail=blocked)
+                continue
+            # Moving the virtual transition can reverse its old body elbow
+            # without creating a collision. Rebuild only that unanchored
+            # equal-width chain BEFORE qualifying its complete via field.
+            # Existing copper, physical contacts and branches stay fixed.
+            topology_anchors=tuple(contacts)+tuple(anchors)+(center,)
+            if cec_rail_detour.has_virtual_backtrack(trial,anchors=topology_anchors):
+                trial=_detour(trial,own_nets,anchors=anchors,array_anchors=(center,),
+                    pending_segments=pending_segments,pending_vias=pending_vias,
+                    deadline=call_deadline)
+                if cec_rail_detour.has_virtual_backtrack(trial,anchors=topology_anchors):
+                    row['reason']='virtual_backtrack_unresolved'
+                    continue
+            sites=_array_sites(*center,array[2],own_nets,pending=pending_arrays,
+                               pending_segments=pending_segments,landing_plan=trial)
+            if sites is None:
+                row['reason']='full_via_field_unavailable'
+                continue
+            if collision(trial):
+                trial=_detour(trial,own_nets,anchors=anchors,array_anchors=(center,),
+                    pending_segments=pending_segments,pending_vias=pending_vias,
+                    deadline=call_deadline)
+            blocked=collision(trial)
+            if blocked:
+                row.update(reason='body_blocked',detail=blocked)
+                continue
+            row.update(reason='proposal_requires_native_landing_admission',accepted=True,
+                       available_vias=len(sites))
+            return trial,(*center,array[2]),sites
+        return None
 
     def _layer_of(tag, face_ly):
         if tag == "back":
             return layer_id["B.Cu"]
-        return alt_id if (tag == "alt" and alt_on) else face_ly
+        if tag == "alt" and alt_on:
+            return alt_id
+        if tag not in {"face", "alt"}:
+            lid = board.GetLayerID(tag)
+            if lid >= 0:
+                return lid
+        return face_ly
+
+    def _tag_layer(tag, face_name):
+        if tag == "alt" and alt_on:
+            return alt_layer
+        if tag == "back":
+            return "B.Cu"
+        if tag not in {"face", "alt"}:
+            return tag
+        return face_name
 
     def _commit(net, plan, face_ly):
         for (x1, y1, x2, y2, w, tag) in plan:
+            if (round(x1*MM),round(y1*MM)) == (round(x2*MM),round(y2*MM)):
+                continue  # A collapsed collector is not a native track.
             t = pcbnew.PCB_TRACK(board)
-            t.SetStart(pcbnew.VECTOR2I(int(x1 * MM), int(y1 * MM)))
-            t.SetEnd(pcbnew.VECTOR2I(int(x2 * MM), int(y2 * MM)))
-            t.SetWidth(int(w * MM))
+            t.SetStart(pcbnew.VECTOR2I(round(x1 * MM), round(y1 * MM)))
+            t.SetEnd(pcbnew.VECTOR2I(round(x2 * MM), round(y2 * MM)))
+            t.SetWidth(round(w * MM))
             t.SetLayer(_layer_of(tag, face_ly))
             ni = netmap.get(net)
             if ni is not None:
@@ -557,42 +825,41 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             if lock:
                 t.SetLocked(True)
             board.Add(t)
-            laid_segs.append((net, x1, y1, x2, y2, w, tag))
+            laid_segs.append((net, x1, y1, x2, y2, w,
+                              board.GetLayerName(_layer_of(tag,face_ly))))
+
+    def _normalize_primary(net, plan, sites):
+        import cec_conductor_proposal
+        import cec_parallel_copper
+        tags = {s[5] for s in plan}
+        tests = {tag: cec_parallel_copper.native_anchor_test(
+            board, net, _tag_layer(tag, rl['face'])) for tag in tags}
+        fixed = [(x, y, tag) for x, y in sites for tag in tags]
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if pad.GetNetname() != net:
+                    continue
+                point = pad.GetPosition()
+                fixed.extend((point.x/MM, point.y/MM, tag) for tag in tags
+                    if pad.IsOnLayer(board.GetLayerID(_tag_layer(tag, rl['face']))))
+        return cec_conductor_proposal.normalize_terminal_paths(plan,
+            anchored_at=lambda point, tag: tests[tag](point), fixed_points=fixed,
+            layer_key=lambda tag: _tag_layer(tag, rl['face']))
 
     def _commit_array(net, sites, face_ly, face_name="F.Cu", alt_name=None):
-        # LANDING PATCHES as RECTANGULAR ZONES (owner 2026-07-20: "make the
-        # via fields one rectangular pour... not pills of rows of traces"):
-        # one sharp-cornered filled zone per layer over the site bbox,
-        # collide-checked as a covering fat segment, collected for
-        # add_power_pours at the end of the lay. Segment pills retired.
+        # Every declared transition requires both real layer landings. A
+        # capsule proxy overhangs a rectangle and used to silently suppress
+        # one landing while still emitting every barrel. Native filling and
+        # complete-field admission now own this decision in the materializer.
         if sites:
-            _pxs = [s[0] for s in sites]
-            _pys = [s[1] for s in sites]
-            _px0, _px1, _py0, _py1 = min(_pxs), max(_pxs), min(_pys), max(_pys)
-            _pm = 0.65
-            _r0x, _r1x = _px0 - _pm, _px1 + _pm
-            _r0y, _r1y = _py0 - _pm, _py1 + _pm
-            _lays = [("face", face_name)]
-            if alt_on and alt_name:
-                _lays.append(("alt", alt_name))
-            for _ptag, _lname in _lays:
-                _chk = [((_r0x + _r1x) / 2.0, _r0y, (_r0x + _r1x) / 2.0, _r1y,
-                         _r1x - _r0x, _ptag)]
-                if _collide(_chk, {net}) is None:
-                    _patch_pours.append({"net": net, "layer": _lname,
-                                         "priority": 3,
-                                         # patch-class zone name (v3 nowhere-
-                                         # reaper exemption: a landing zone is
-                                         # sanctioned per-terminal copper --
-                                         # single-cluster BY DESIGN, never
-                                         # "leads nowhere")
-                                         "name": "patch:%s" % net,
-                                         "polygon": [(_r0x, _r0y), (_r1x, _r0y),
-                                                     (_r1x, _r1y), (_r0x, _r1y)]})
+            import cec_transition_landings
+            _patch_pours.extend(cec_transition_landings.patches_for(
+                net, sites, (face_name, alt_name), diameter_mm=.9,
+                drill_mm=.5, margin_mm=.65))
         for (cx, cy) in sites:
             v = pcbnew.PCB_VIA(board)
             v.SetViaType(pcbnew.VIATYPE_THROUGH)
-            v.SetPosition(pcbnew.VECTOR2I(int(cx * MM), int(cy * MM)))
+            v.SetPosition(pcbnew.VECTOR2I(int(round(cx * MM)), int(round(cy * MM))))
             v.SetDrill(int(0.5 * MM))
             v.SetWidth(int(0.9 * MM))
             ni = netmap.get(net)
@@ -610,9 +877,38 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     # keepouts inflate the same plan's FACE segs + array sites.
     chains = plan_rail_chains(rails, j3_bot, alt=alt_on)
     report = {}
+    frozen = set(preserved_nets or ())
     _twin_cands = []          # (rs, net, seg, face_ly) -- committed pass 2
     _patch_pours = []         # rectangular landing-zone dicts (add_power_pours)
-    for rank, rl in enumerate(rails):
+    # Commit dominant collectors first.  The collider is intentionally
+    # asymmetric: copper already accepted owns its corridor and later rails
+    # adapt.  Therefore lexical/shunt-X order can strand a wide collector
+    # behind several narrow descents even when the inverse order is routable.
+    # This is the power-copper equivalent of critical-net-first detailed
+    # routing: largest terminal interval, then current, then reference for a
+    # deterministic tie break.
+    for rank, rl in enumerate(sorted(rails, key=_sink_priority)):
+        import time
+        _rail_detour_deadline = time.monotonic() + float(detour_budget_s)
+        _rail_detours = []
+        _rail_arrays = []
+        _rail_transitions = []
+        _rail_blocked_segments = []
+        _rail_obstruction_sets = []
+        _rail_transition_deadline = None
+        if construction_evidence is not None:
+            construction_evidence[rl['rs']] = dict(
+                schema=1, detours=_rail_detours, arrays=_rail_arrays,
+                transition_search=_rail_transitions,
+                blocked_segments=_rail_blocked_segments,
+                obstruction_sets=_rail_obstruction_sets,
+                release_authority=False)
+        owned = {rl["src_net"], rl["snk_net"]}
+        if owned & frozen:
+            report[rl["rs"]] = (
+                {"preserved": True, "nets": sorted(owned)} if owned <= frozen
+                else "REFUSED: partially frozen rail requires explicit topology replacement")
+            continue
         _ch = chains[rl["rs"]]
         w = _ch["w"]
         face_ly = layer_id[rl["face"]]
@@ -632,48 +928,60 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         # planned pickup with the same drop shapes; a pin with NO viable drop
         # leaves the band span, which shrinks to the pins that can actually
         # join (+ the shunt column).
-        _xs_live = [hx]
-        for (px, py, x2, y2, dw, pn, dtag) in _ch["pin_drops"]:
-            for _ddx in (0.0, 2.1, -2.1, 1.8, -1.8):
-                if _ddx == 0.0:
-                    _dtry = [(px, py, x2, y2, dw, dtag)]
-                else:
-                    _dw2 = min(dw, 1.0)
-                    _dtry = [(px, py, px + _ddx, py, _dw2, dtag),
-                             (px + _ddx, py, px + _ddx, y2, _dw2, dtag)]
-                if _collide(_dtry, own_src, skip_refs=("FID",)) is None:
-                    _xs_live.append(px)
-                    break
         # BAND-WIDTH shrink (2026-07-19: a pin can pass the drop-width pre-test
         # while the FULL-width band still dies at its thin extremity -- RS3's
         # w=5 band's 4.35mm radius vs J1's VCC pad; the pin's 6A reach doesn't
         # need rail width): iteratively drop the extreme pin farther from the
         # shunt column until the band itself guards clean.
-        def _band_ok(xs):
+        def _band_ok(xs, tag):
             if max(xs) - min(xs) < 0.1:
                 return True
             # test on the rail's OWN primary layer (hardcoded "alt" shrank a
             # back-bodied rail's band against the wrong layer's copper --
             # measured: RS1 degenerated to a point, 2026-07-20)
-            _b = [(min(xs), band_y, max(xs), band_y, w,
-                   _ch.get("body", "alt") if alt_on else "face")]
+            _b = [(min(xs), band_y, max(xs), band_y, w, tag)]
             return _collide(_b, own_src, skip_refs=("FID",)) is None
-        while len(_xs_live) > 1 and not _band_ok(_xs_live):
-            _lo_e, _hi_e = min(_xs_live), max(_xs_live)
-            _cut = _lo_e if abs(_lo_e - hx) >= abs(_hi_e - hx) else _hi_e
-            if _cut == hx:
-                break
-            _xs_live.remove(_cut)
 
-        def _respan(segs):
+        _source_spans = {}
+        def _live_span(tag):
+            # Access on one layer is not evidence about another. Reuse the
+            # existing pickup grammar and widths, but evaluate it anew for
+            # each permitted layer before shortening that layer's collector.
+            if tag in _source_spans:
+                return _source_spans[tag]
+            xs = [hx]
+            through = {p[0]: p[4] for p in rl['j3']}
+            for px, py, x2, y2, dw, pn, _old_tag in _ch['pin_drops']:
+                if not through.get(pn) and _tag_layer(tag,rl['face']) != rl['face']:
+                    continue
+                for ddx in (0.0, 2.1, -2.1, 1.8, -1.8):
+                    if ddx == 0.0:
+                        drop = [(px,py,x2,y2,dw,tag)]
+                    else:
+                        neck = min(dw,1.0)  # Existing pickup policy, not a new rating.
+                        drop = [(px,py,px+ddx,py,neck,tag),
+                                (px+ddx,py,px+ddx,y2,neck,tag)]
+                    if _collide(drop,own_src,skip_refs=('FID',)) is None:
+                        xs.append(px)
+                        break
+            while len(xs)>1 and not _band_ok(xs,tag):
+                lo,hi=min(xs),max(xs)
+                cut=lo if abs(lo-hx)>=abs(hi-hx) else hi
+                if cut==hx:
+                    break
+                xs.remove(cut)
+            _source_spans[tag]=xs
+            return xs
+
+        def _respan(segs, xs):
             """Clamp the (single) band segment of a source shape to the live span;
             a span collapsed to a point drops the band seg entirely (a zero-length
             seg still collides as a point -- measured)."""
             o = []
             for (x1, y1, x2, y2, w2, tg) in segs:
                 if y1 == y2 == band_y and abs(x2 - x1) > 0.1:
-                    if max(_xs_live) - min(_xs_live) > 0.1:
-                        o.append((min(_xs_live), band_y, max(_xs_live), band_y, w2, tg))
+                    if max(xs) - min(xs) > 0.1:
+                        o.append((min(xs), band_y, max(xs), band_y, w2, tg))
                 else:
                     o.append((x1, y1, x2, y2, w2, tg))
             return o
@@ -683,7 +991,10 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         # column where the one-sided cell bank sits): the column offsets
         # sideways, the alt band EXTENDS to the jog x, the via array moves to
         # the jog junction, and a short axial elbow re-enters the pad.
-        _src_variants = [(_respan(list(_ch["src"])), _src_arr, None)]
+        _primary_tag = _ch.get('body','alt') if alt_on else 'face'
+        _primary_span = _live_span(_primary_tag)
+        _src_variants = [(_respan(list(_ch["src"]),_primary_span),
+                          _src_arr, None, _primary_span)]
         if alt_on and any(tg == "face" and abs(y2 - y1) > 4.0
                           for (x1, y1, x2, y2, _w2, tg) in _ch["src"]):
             _alt_only = [s for s in _ch["src"] if s[5] != "face"]
@@ -698,50 +1009,84 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                        (_jx, hy - 2.0, hx, hy - 2.0, w, "face"),
                        (hx, hy - 2.0, hx, hy, w, "face")]
                 _sa = (_jx, band_y, _src_arr[2]) if _src_arr else None
-                _src_variants.append((_v, _sa, None))
+                _src_variants.append((_v, _sa, None, _primary_span))
         if alt_on:
             # LAST-RESORT plain-FACE source (pour doc §2.3 layer stagger; s0d
             # probe: ATX interleaves 5V/12V pins at the SAME x, so an earlier
             # rail's laid In2 pin drops contend the next rail's In2 band --
             # stagger the loser onto the face. THT pickups need no via array;
             # pin drops follow onto the face (tag threaded per-variant).
-            _face_src = [(min(_xs_live), band_y, max(_xs_live), band_y, w, "face"),
+            _face_span = _live_span('face')
+            _face_src = [(min(_face_span), band_y, max(_face_span), band_y, w, "face"),
                          (hx, band_y, hx, hy, w, "face")]
-            _src_variants.append((_face_src, None, "face"))
+            _src_variants.append((_face_src, None, "face", _face_span))
             # THIRD ESCAPE TIER: the rail's OTHER inner/bottom layer (owner
             # 2026-07-19/20 -- with per-rail primary layers, "other" is B.Cu
             # for an In2-bodied rail and In2 for a B.Cu-bodied one). THT
             # pickups pierce natively, the same via array bonds the stub end.
             _body0 = _ch.get("body", "alt")
             _other0 = "back" if _body0 == "alt" else "alt"
+            _other_span = _live_span(_other0)
             _back_src = [(x1, y1, x2, y2, w2, (_other0 if tg == _body0 else tg))
-                         for (x1, y1, x2, y2, w2, tg) in _respan(list(_ch["src"]))]
-            _src_variants.append((_back_src, _src_arr, _other0))
+                         for (x1, y1, x2, y2, w2, tg) in _respan(list(_ch["src"]),_other_span)]
+            _src_variants.append((_back_src, _src_arr, _other0, _other_span))
+            # Remaining profile-declared routing layers are genuine escape
+            # resources too.  They are supplied by the central stackup
+            # authority, never guessed here; through pickups and through-via
+            # arrays make the transition legal without blind/buried vias.
+            for _extra0 in _escape_layers:
+                _extra_span = _live_span(_extra0)
+                _extra_src = [
+                    (x1, y1, x2, y2, w2,
+                     (_extra0 if tg == _body0 else tg))
+                    for (x1, y1, x2, y2, w2, tg)
+                    in _respan(list(_ch["src"]),_extra_span)]
+                _src_variants.append((_extra_src, _src_arr, _extra0, _extra_span))
+        if construction_evidence is not None:
+            construction_evidence[rl['rs']]['source_spans'] = {
+                _tag_layer(tag,rl['face']): list(xs) for tag,xs in _source_spans.items()}
         col, spine, arr_sites = "no plan", None, []
         _drops_tag = None
         _vreasons = []                       # per-variant refusal trace (audit:
-        for _vi, (_sv, _sa, _dtag_v) in enumerate(_src_variants):  # the message showed only the LAST
-            col = _collide(_sv, own_src, skip_refs=("FID",))
+        # Reserve every possible drop endpoint in the existing bounded
+        # pickup portfolio for both conductor and via-field repair paths.
+        taps=[(x2+dx,y2) for _x,_y,x2,y2,_w,_p,_t in _ch['pin_drops']
+              for dx in (0.,2.1,-2.1,1.8,-1.8)]
+        for _vi, (_sv, _sa, _dtag_v, _xs_live) in enumerate(_src_variants):  # the message showed only the LAST
+            col = _collide(_sv, own_src, skip_refs=("FID",), feedback=True)
+            if col is not None:
+                _sv = _detour(_sv, own_src, anchors=taps)
+                col = _collide(_sv, own_src, skip_refs=("FID",))
+            if col is not None:
+                if _sa is not None:
+                    moved=_transition_repair(_sv,_sa,own_src,anchors=taps,
+                        remaining_variants=len(_src_variants)-_vi)
+                    if moved is not None:
+                        _sv,_sa,_sites=moved
+                        col=None
             if col is not None:
                 _vreasons.append("v%d %s" % (_vi, col))
                 continue
             _trial, _ok = [], True
             if _sa is not None:
-                s_ = _array_sites(_sa[0], _sa[1], _sa[2], {rl["src_net"]})
+                s_ = _array_sites(_sa[0], _sa[1], _sa[2], {rl["src_net"]},landing_plan=_sv)
+                if s_ is None:
+                    # A clear conductor can still have an impossible via
+                    # field. That failure needs the same bounded transition
+                    # search, not only a retry after conductor collisions.
+                    moved=_transition_repair(_sv,_sa,own_src,anchors=taps,
+                        remaining_variants=len(_src_variants)-_vi)
+                    if moved is not None:
+                        _sv,_sa,s_=moved
                 if s_ is None:
                     col = "no clear %d-via src array at (%.1f,%.1f)" % (_sa[2], _sa[0], _sa[1])
                     _ok = False
                 else:
                     _trial.append((rl["src_net"], s_))
-            if _ok:
-                for (ax, ay, nv, an) in _oth_arrs:
-                    s_ = _array_sites(ax, ay, nv, {an},
-                                      pending=[s for _n2, s in _trial])
-                    if s_ is None:
-                        col = "no clear %d-via array at (%.1f,%.1f)" % (nv, ax, ay)
-                        _ok = False
-                        break
-                    _trial.append((an, s_))
+            # The sink has its own face/layer/transition portfolio below.
+            # Refusing its original virtual field here would prevent that
+            # portfolio from ever running. Nothing is committed until both
+            # sides and their actual required fields have been qualified.
             if _ok:
                 spine, arr_sites, _drops_tag = _sv, _trial, _dtag_v
                 break
@@ -753,7 +1098,11 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                 print("[force-rails] %s (%s) REFUSED: %s"
                       % (rl["rs"], rl["src_net"], col), flush=True)
             continue
+        _source_tag = next((s[5] for s in spine if s[5] != "face"), "face")
+        _source_layer = _tag_layer(_source_tag, rl["face"])
         picked, dropped = 0, []
+        picked_numbers=set()
+        pickup_repairs=[]
         for _tpn in _ch.get("trimmed", ()):
             dropped.append("J3.%s [trimmed: >18mm span outlier]" % _tpn)
         pin_plans = []
@@ -786,22 +1135,80 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
             if c2 is None:
                 pin_plans += drop
                 picked += 1
+                picked_numbers.add(pn)
             else:
                 dropped.append("J3.%s [%s]" % (pn, "; ".join(_dreasons)))
+        # A band shrunk on the original layer is not the authority for a
+        # source subsequently rerouted on another layer. Reconnect unresolved
+        # physical contacts to the ACTUAL admitted trunk, retaining their
+        # declared pickup width. Never force an SMD contact onto an inner layer.
+        if _bb_ok and picked<len(rl['j3']):
+            import cec_rail_detour
+            import cec_precision_route
+            pickup_deadline=time.monotonic()+float(pickup_budget_s)
+            widths={p[5]:p[4] for p in _ch['pin_drops']}
+            for pn,px,py,_half,tht in rl['j3']:
+                if pn in picked_numbers or (not tht and _source_tag!='face'): continue
+                if time.monotonic()>=pickup_deadline: break
+                width=widths.get(pn,min(w,1.4))
+                for target in cec_rail_detour.contact_targets((px,py),spine,_source_tag):
+                    if time.monotonic()>=pickup_deadline: break
+                    path=[(px,py),(px,target[1]),target]
+                    path=[p for i,p in enumerate(path) if i==0 or p!=path[i-1]]
+                    direct=[(*a,*b,width,_source_tag) for a,b in zip(path,path[1:])]
+                    if not direct: continue
+                    proposal=direct
+                    if _collide(proposal,own_src,skip_refs=('FID',)):
+                        proposal=_detour(proposal,own_src,anchors=((px,py),target),
+                                         array_anchors=(),deadline=pickup_deadline)
+                    if _collide(proposal,own_src,skip_refs=('FID',)) is not None: continue
+                    # Preserve target and contact while softening the simple
+                    # two-leg fallback, only if its full width stays legal.
+                    if proposal==direct:
+                        smooth=cec_precision_route._chamfer_axis_path(path)
+                        polished=[(*a,*b,width,_source_tag) for a,b in zip(smooth,smooth[1:])]
+                        if _collide(polished,own_src,skip_refs=('FID',)) is None:
+                            proposal=polished
+                    pin_plans+=proposal
+                    picked+=1; picked_numbers.add(pn)
+                    dropped=[reason for reason in dropped if not reason.startswith('J3.%s [' % pn)]
+                    pickup_repairs.append(dict(pad=str(pn),contact=[px,py],target=list(target),
+                        layer=_source_layer,width_mm=width,segments=len(proposal),
+                        reason='reattached_to_actual_trunk'))
+                    break
         # SINK from the plan: lo -> lower band -> TB drops. FACE-STAGGER
         # retry (2026-07-19, the source-side medicine applied to the sink:
         # TB fields interleave in x, so one rail's alt sink drop crosses the
         # next rail's alt sink band -- measured at 3.95 vs 4.0mm on W74):
         # the whole sink moves to the face; THT TB barrels need no array.
+        pending_arrays=[sites for net,sites in arr_sites if net!=rl['snk_net']]
+        pending_segments=[(rl['src_net'],*s) for s in spine+pin_plans]
+        pending_vias=[p for sites in pending_arrays for p in sites]
+        def sink_collision(plan, *, feedback=False):
+            return _collide(plan,own_snk,skip_refs=('FID',),feedback=feedback,
+                pending_segments=pending_segments,pending_vias=pending_vias)
+        def sink_detour(plan):
+            return _detour(plan,own_snk,pending_segments=pending_segments,
+                           pending_vias=pending_vias)
         snk = list(_ch["snk"])
-        c3 = _collide(snk, own_snk, skip_refs=("FID",))
+        c3 = sink_collision(snk, feedback=True)
+        if c3:
+            snk = sink_detour(snk)
+            c3 = sink_collision(snk)
         _snk_arr_on = True
+        _snk_layer = _tag_layer(
+            next((s[5] for s in snk if s[5] != "face"), "face"),
+            rl["face"])
         if c3 and alt_on:
             _snk_face = [(x1, y1, x2, y2, w2, "face")
                          for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
-            c3b = _collide(_snk_face, own_snk, skip_refs=("FID",))
+            c3b = sink_collision(_snk_face, feedback=True)
+            if c3b:
+                _snk_face = sink_detour(_snk_face)
+                c3b = sink_collision(_snk_face)
             if c3b is None:
                 snk, c3, _snk_arr_on = _snk_face, None, False
+                _snk_layer = rl["face"]
             else:
                 # THIRD ESCAPE TIER: the rail's OTHER layer (via-around rung;
                 # TB barrels pierce, the LO-stub array bonds)
@@ -809,17 +1216,81 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                 _oth1 = "back" if _bod1 == "alt" else "alt"
                 _snk_back = [(x1, y1, x2, y2, w2, (_oth1 if _tg == _bod1 else _tg))
                              for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
-                c3c = _collide(_snk_back, own_snk, skip_refs=("FID",))
+                c3c = sink_collision(_snk_back, feedback=True)
+                if c3c:
+                    _snk_back = sink_detour(_snk_back)
+                    c3c = sink_collision(_snk_back)
                 if c3c is None:
                     snk, c3 = _snk_back, None
+                    _snk_layer = _tag_layer(_oth1, rl["face"])
                 else:
-                    c3 = c3 + "; face retry: " + c3b + "; back retry: " + c3c
+                    _snk_reasons = [c3, "face retry: " + c3b,
+                                    "back retry: " + c3c]
+                    for _extra1 in _escape_layers:
+                        _snk_extra = [
+                            (x1, y1, x2, y2, w2,
+                             (_extra1 if _tg == _bod1 else _tg))
+                            for (x1, y1, x2, y2, w2, _tg) in _ch["snk"]]
+                        _c3x = sink_collision(_snk_extra, feedback=True)
+                        if _c3x:
+                            _snk_extra = sink_detour(_snk_extra)
+                            _c3x = sink_collision(_snk_extra)
+                        if _c3x is None:
+                            snk, c3 = _snk_extra, None
+                            _snk_layer = _extra1
+                            break
+                        _snk_reasons.append("%s retry: %s" % (_extra1, _c3x))
+                    if c3 is not None:
+                        c3 = "; ".join(_snk_reasons)
+        sink_array=next(((x,y,n) for x,y,n,net in _oth_arrs
+                         if net==rl['snk_net']),None)
+        if c3 is None and alt_on and _snk_arr_on and sink_array is not None:
+            sites=_array_sites(*sink_array,own_snk,pending=pending_arrays,
+                pending_segments=pending_segments,landing_plan=snk)
+            if sites is None:
+                c3='complete sink transition field unavailable'
+            else:
+                arr_sites.append((rl['snk_net'],sites))
+        if c3 and alt_on:
+            # The old layer portfolio held the virtual face/array junction
+            # fixed even when that location, rather than the rail, was blocked.
+            # Retry bounded positions without moving the pad or shrinking the
+            # neck/field. Source proposals are foreign pending copper here.
+            if sink_array is not None:
+                body=_ch.get('body','alt')
+                variants=list(dict.fromkeys((body,'back' if body=='alt' else 'alt',
+                                             *_escape_layers)))
+                for variant,layer_tag in enumerate(variants):
+                    candidate=[(*s[:5],layer_tag if s[5]==body else s[5])
+                               for s in _ch['snk']]
+                    moved=_transition_repair(candidate,sink_array,own_snk,
+                        pending_arrays=pending_arrays,pending_segments=pending_segments,
+                        remaining_variants=len(variants)-variant)
+                    if moved is not None:
+                        snk,_position,sites=moved
+                        arr_sites=[(net,s) for net,s in arr_sites if net!=rl['snk_net']]
+                        arr_sites.append((rl['snk_net'],sites))
+                        _snk_arr_on=True
+                        _snk_layer=_tag_layer(layer_tag,rl['face'])
+                        c3=None
+                        break
         if c3:
             report[rl["rs"]] = "REFUSED: snk spine vs " + c3
             if verbose:
                 print("[force-rails] %s (%s) REFUSED snk: %s"
                       % (rl["rs"], rl["snk_net"], c3), flush=True)
             continue
+        # All real pickups and relocated transitions are known now. Remove
+        # uncommitted virtual tails and duplicate backtracking, never an
+        # existing protected item or a terminal-to-terminal current path.
+        _src_count = len(spine)
+        _src_parts, _src_normalization = _normalize_primary(rl['src_net'],
+            spine + pin_plans, [p for n, sites in arr_sites if n == rl['src_net'] for p in sites])
+        _snk_parts, _snk_normalization = _normalize_primary(rl['snk_net'], snk,
+            [p for n, sites in arr_sites if n == rl['snk_net'] for p in sites])
+        spine = [s for i, s in _src_parts if i < _src_count]
+        pin_plans = [s for i, s in _src_parts if i >= _src_count]
+        snk = [s for _, s in _snk_parts]
         _commit(rl["src_net"], spine + pin_plans, face_ly)
         _commit(rl["snk_net"], snk, face_ly)
         _bcu_twins = 0
@@ -844,9 +1315,11 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
         if not _snk_arr_on:          # face-staggered sink: no layer transition,
             arr_sites = [(n, s_) for (n, s_) in arr_sites   # its array would dangle
                          if n != rl["snk_net"]]
-        _bodyl = _ch.get("body", "alt")
-        _alt_name = (alt_layer if _bodyl == "alt" else "B.Cu")
         for (a_net, s_) in arr_sites:
+            _alt_name = (_source_layer if a_net == rl["src_net"]
+                         else _snk_layer)
+            if _alt_name == rl["face"]:
+                _alt_name = None
             _commit_array(a_net, s_, face_ly, face_name=rl["face"],
                           alt_name=_alt_name)
         n_arr = sum(len(s_) for _n2, s_ in arr_sites)
@@ -855,6 +1328,17 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
                             "vias": n_arr, "alt": alt_on,
                             "bcu_twins": _bcu_twins,
                             "w": w, "face": rl["face"],
+                            "source_layer": _source_layer,
+                            "source_spans": {_tag_layer(tag,rl['face']):list(xs)
+                                             for tag,xs in _source_spans.items()},
+                            "sink_layer": _snk_layer,
+                            "source_segments": spine,
+                            "sink_segments": snk,
+                            "detours": _rail_detours,
+                            "transition_search": _rail_transitions,
+                            "pickup_repairs": pickup_repairs,
+                            "proposal_normalization": {
+                                "source": _src_normalization, "sink": _snk_normalization},
                             "dropped_pins": dropped}
         if verbose:
             print("[force-rails] %s %s->%s laid: %d segs + %d array via(s), "
@@ -868,22 +1352,41 @@ def lay_force_rails(board, *, lock=True, verbose=True, alt_layer=None,
     # yield to primaries by construction; a colliding twin is skipped and the
     # original carries alone).
     _twinned = 0
+    _twin_groups = {}
     for (_rs2, _net_m, _seg_m, _fl2) in _twin_cands:
         if not isinstance(report.get(_rs2), dict):
             continue                          # its rail refused -- no primary to twin
-        if _collide([_seg_m], {_net_m}, skip_refs=("FID",)) is None:
-            _commit(_net_m, [_seg_m], _fl2)
-            report[_rs2]["bcu_twins"] = report[_rs2].get("bcu_twins", 0) + 1
-            _twinned += 1
+        _twin_groups.setdefault((_rs2, _net_m, _seg_m[5], _fl2), []).append(_seg_m)
+    for (_rs2, _net_m, _tag_m, _fl2), proposals in _twin_groups.items():
+        import cec_parallel_copper
+        legal = cec_parallel_copper.normalize_proposals([
+            seg for seg in proposals
+            if _collide([seg], {_net_m}, skip_refs=("FID",)) is None])
+        anchors = cec_parallel_copper.native_anchor_test(
+            board, _net_m, _tag_layer(_tag_m, board.GetLayerName(_fl2)))
+        admitted = cec_parallel_copper.connected_proposals(legal, anchors)
+        for index in admitted:
+            _commit(_net_m, [legal[index]], _fl2)
+        report[_rs2]["bcu_twins"] += len(admitted)
+        report[_rs2]["unlanded_twin_proposals"] = (
+            report[_rs2].get("unlanded_twin_proposals", 0) + len(legal)-len(admitted))
+        _twinned += len(admitted)
     if verbose and _twin_cands:
         print("[force-rails] ampacity twins: %d/%d laid (pass 2, yield-to-primary)"
               % (_twinned, len(_twin_cands)), flush=True)
     if _patch_pours:
         report["_patches"] = {"pours": _patch_pours}
+    if construction_evidence is not None:
+        for ref, evidence in construction_evidence.items():
+            outcome = report.get(ref)
+            evidence['constructed'] = isinstance(outcome, dict)
+            if isinstance(outcome, str):
+                evidence['refusal'] = outcome
     return report
 
 
-def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
+def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False,
+                           laid_report=None):
     """THE POUR COMPILER (§2.1/§2.4 of docs/pour-strategy-refinement-2026-07-19.md,
     owner GO "do the pour compiler... so it's done instead of deferred"): compile
     the rail plan into WIDENED same-net pour ASKS that ride the PourPlan sidecar
@@ -904,15 +1407,36 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
     exempts this provenance (deliberate plan-derived copper, not the geometric
     deriver's mega-pour class)."""
     asks = []
+    laid_report = laid_report or {}
+
+    def _planned_layer(body):
+        if body == "alt" and alt_layer:
+            return alt_layer
+        if body == "back":
+            return "B.Cu"
+        return "F.Cu"
+
+    def _uniq(*layers):
+        return tuple(dict.fromkeys(ln for ln in layers if ln))
+
+    def _mirror(layer):
+        return (alt_layer or "B.Cu") if layer == "B.Cu" else "B.Cu"
+
     for rl in rails:
         ch = chains.get(rl["rs"]) or {}
         w = float(ch.get("w", 1.5))
         band_y = float(ch.get("band_y", 0.0))
-        # regions follow the rail's PRIMARY layer (per-rail 2-coloring)
+        # Regions follow the ACTUALLY LAID source/sink layer.  The guarded lay
+        # may move one side to another profile-approved routing layer; pour
+        # widening must not silently revert to the ideal-plan layer.
         _body = ch.get("body", "alt")
-        _blayer = (alt_layer if (_body == "alt" and alt_layer)
-                   else ("B.Cu" if _body == "back" else None))
-        layers_src = ("F.Cu",) + ((_blayer,) if _blayer else ())
+        _rr = laid_report.get(rl["rs"], {})
+        if not isinstance(_rr, dict):
+            _rr = {}
+        _base_layer = _planned_layer(_body)
+        _src_layer = _rr.get("source_layer") or _base_layer
+        _snk_layer = _rr.get("sink_layer") or _base_layer
+        layers_src = _uniq("F.Cu", _src_layer)
         # 1. J3 pickup flood
         if rl["j3"]:
             xs = [q[1] for q in rl["j3"]]
@@ -936,9 +1460,8 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
             # the shunt pad + its outboard via row so the sink flood BONDS there)
             reg = (min(txs) - 2.2, min(band2 - w / 2.0 - 3.0, min(tys) - 1.2),
                    max(txs) + 2.2, max(tys) + 1.2)
-            _mirr = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
-            lset = layers_src + ((_mirr,) if mirror_bcu and _mirr not in layers_src
-                                 else ())
+            lset = _uniq("F.Cu", _snk_layer,
+                         _mirror(_snk_layer) if mirror_bcu else None)
             for ln in lset:
                 asks.append({"net": rl["snk_net"], "region_hint": reg,
                              "layers": (ln,), "priority": 3,
@@ -946,21 +1469,25 @@ def compile_rail_pour_asks(rails, chains, *, alt_layer=None, mirror_bcu=False):
         # 3. trunk widen -- EVERY non-face trunk seg, src AND snk (owner
         # 2026-07-20: rectangular pours over the whole trunk so the spine
         # tracks read as clean rectangles on the final board)
-        segs = [s for s in (list(ch.get("src") or ()) + list(ch.get("snk") or ()))
-                if s[5] != "face"
-                and (abs(s[2] - s[0]) > 2.0 or abs(s[3] - s[1]) > 2.0)]
-        for (x1, y1, x2, y2, w2, _tg) in segs:
-            if abs(x2 - x1) >= abs(y2 - y1):     # horizontal run
-                reg = (min(x1, x2) - 0.5, min(y1, y2) - w2,
-                       max(x1, x2) + 0.5, max(y1, y2) + w2)
-            else:                                # vertical run
-                reg = (min(x1, x2) - w2, min(y1, y2) - 0.5,
-                       max(x1, x2) + w2, max(y1, y2) + 0.5)
-            _mirr2 = "B.Cu" if _body == "alt" else (alt_layer or "B.Cu")
-            lset = ((_blayer,) if _blayer else ("F.Cu",)) \
-                + ((_mirr2,) if mirror_bcu and _mirr2 != _blayer else ())
-            for ln in lset:
-                asks.append({"net": rl["src_net"], "region_hint": reg,
-                             "layers": (ln,), "priority": 3,
-                             "provenance": "rail_compiler"})
+        for _net, _segments, _actual_layer in (
+                (rl["src_net"], _rr.get("source_segments",ch.get("src")) or (), _src_layer),
+                (rl["snk_net"], _rr.get("sink_segments",ch.get("snk")) or (), _snk_layer)):
+            segs = [s for s in _segments
+                    if s[5] != "face"
+                    and (abs(s[2] - s[0]) > 2.0
+                         or abs(s[3] - s[1]) > 2.0)]
+            for (x1, y1, x2, y2, w2, _tg) in segs:
+                if abs(x2 - x1) >= abs(y2 - y1):  # horizontal run
+                    reg = (min(x1, x2) - 0.5, min(y1, y2) - w2,
+                           max(x1, x2) + 0.5, max(y1, y2) + w2)
+                else:                             # vertical run
+                    reg = (min(x1, x2) - w2, min(y1, y2) - 0.5,
+                           max(x1, x2) + w2, max(y1, y2) + 0.5)
+                lset = _uniq(
+                    _actual_layer,
+                    _mirror(_actual_layer) if mirror_bcu else None)
+                for ln in lset:
+                    asks.append({"net": _net, "region_hint": reg,
+                                 "layers": (ln,), "priority": 3,
+                                 "provenance": "rail_compiler"})
     return asks

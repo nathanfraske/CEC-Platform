@@ -119,6 +119,204 @@ def _mkboard(*, foreign_at=None, src_net="/SENSE5V_HI", snk_net="+5V_MAIN"):
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (routing container)")
 class TestDiscovery(unittest.TestCase):
+    def test_clear_conductor_with_refused_field_dispatches_full_width_transition(self):
+        """Exercise field-only refusal, not the existing track-collision path."""
+        import math
+        from unittest.mock import patch
+        import cec_transition_landings as landings
+        b=_mkboard_alt()
+        edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+        edge.SetStart(VECTOR2I(MM(-5),MM(-12)))
+        edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+        edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+        poses=[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+               for fp in b.GetFootprints() for p in fp.Pads()]
+        original=landings.proposal_filter
+        def field_only_refusal(board, net, layers, plan, **kwargs):
+            legal=original(board,net,layers,plan,**kwargs)
+            if net!='/SENSE5V_HI':
+                return legal
+            face={p for s in plan if s[5]=='F.Cu' for p in (s[:2],s[2:4])}
+            body={p for s in plan if s[5]!='F.Cu' for p in (s[:2],s[2:4])}
+            # A synthetic, independent landing constraint. Short-neck-only
+            # proposals fail even though every native conductor is clear.
+            if any(math.dist(p,(20.,28.5))>3.01 for p in face & body):
+                return legal
+            return landings._ProposalFilter(lambda _sites: False, lambda _site: True)
+        with patch.object(landings,'proposal_filter',side_effect=field_only_refusal):
+            result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False,
+                current_by_net={'/SENSE5V_HI':3.,'+5V_MAIN':3.})
+        self.assertIsInstance(result['RS2'],dict,result)
+        moves=[q for q in result['RS2']['transition_search'] if q['accepted']]
+        self.assertTrue(any(q['nets']==['/SENSE5V_HI'] and
+            math.dist(q['new_center'],(20.,28.5))>3.01 for q in moves),result)
+        self.assertTrue(all(q['required_vias']==q['available_vias']==2 for q in moves))
+        self.assertEqual(poses,[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+            for fp in b.GetFootprints() for p in fp.Pads()])
+        self.assertTrue(landings.install(b,result['_patches']['pours'])['ok'])
+
+    def test_collapsed_collector_proposal_is_not_emitted_as_a_native_track(self):
+        from unittest.mock import patch
+        planner = FR.plan_rail_chains
+        def with_collapsed_segment(*args, **kwargs):
+            chains = planner(*args, **kwargs)
+            for chain in chains.values():
+                first = chain['src'][0]
+                chain['src'].append((*first[:2], *first[:2], *first[4:]))
+            return chains
+        board = _mkboard_alt()
+        with patch.object(FR, 'plan_rail_chains', side_effect=with_collapsed_segment):
+            result = FR.lay_force_rails(board, alt_layer='In2.Cu', verbose=False)
+        self.assertIsInstance(result['RS2'], dict, result)
+        self.assertTrue(all(item.GetLength() > 0 for item in board.GetTracks()
+                            if item.GetClass() == 'PCB_TRACK'))
+
+    def test_layer_retry_reconnects_contacts_excluded_by_the_old_band(self):
+        b=_mkboard_alt()
+        edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+        edge.SetStart(VECTOR2I(MM(-5),MM(-12)));edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+        edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+        wall=pcbnew.PCB_TRACK(b)
+        wall.SetStart(VECTOR2I(MM(12),MM(-3.5)));wall.SetEnd(VECTOR2I(MM(28),MM(-3.5)))
+        wall.SetWidth(MM(1));wall.SetLayer(b.GetLayerID('In2.Cu'))
+        wall.SetNet(b.FindNet('/FOREIGN'));wall.SetLocked(True);b.Add(wall)
+        result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False,
+            current_by_net={'/SENSE5V_HI':3.,'+5V_MAIN':3.})
+        self.assertIsInstance(result['RS2'],dict,result)
+        row=result['RS2']
+        self.assertEqual(row['source_layer'],'F.Cu')
+        self.assertEqual(row['pins'],'2/2')
+        # Original-layer blockage must not shorten the face fallback's band.
+        self.assertEqual(sorted(row['source_spans']['F.Cu']),[16.,20.,24.])
+        self.assertEqual(row['source_spans']['In2.Cu'],[20.])
+        from shapely.geometry import LineString
+        from shapely.ops import unary_union
+        collector = [s for s in row['source_segments'] if s[5]=='face' and s[1]==s[3]]
+        self.assertTrue(collector)
+        self.assertTrue(unary_union([LineString((s[:2], s[2:4])) for s in collector]).covers(
+            LineString(((16., collector[0][1]), (24., collector[0][1])))))
+        # Pickup width still comes from the unchanged declared grammar.
+        self.assertTrue(all(q['width_mm']==1.4 for q in row['pickup_repairs']))
+
+    def test_custom_copper_layer_name_cannot_hide_existing_locked_foreign_track(self):
+        b=_mkboard_alt()
+        edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+        edge.SetStart(VECTOR2I(MM(-5),MM(-12)));edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+        edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+        layer=b.GetLayerID('In2.Cu')
+        b.SetLayerName(layer,'CUSTOM_POWER')
+        obstacle=pcbnew.PCB_TRACK(b)
+        obstacle.SetStart(VECTOR2I(MM(10),MM(15)))
+        obstacle.SetEnd(VECTOR2I(MM(30),MM(15)))
+        obstacle.SetWidth(MM(1));obstacle.SetLayer(layer)
+        obstacle.SetNet(b.FindNet('/FOREIGN'));obstacle.SetLocked(True);b.Add(obstacle)
+        result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False)
+        self.assertIsInstance(result['RS2'],dict,result)
+        for track in b.GetTracks():
+            if track==obstacle or track.GetLayer()!=layer or track.GetNetname()=='/FOREIGN':continue
+            self.assertFalse(obstacle.GetEffectiveShape(layer).Collide(
+                track.GetEffectiveShape(layer),MM(.25)),result)
+
+    def test_obstructed_virtual_source_and_sink_arrays_can_move_without_moving_pads(self):
+        for side,obstacle_y in (('source',25.5),('sink',34.0)):
+            with self.subTest(side=side):
+                b=_mkboard_alt()
+                edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+                edge.SetStart(VECTOR2I(MM(-5),MM(-12)))
+                edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+                edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+                obstruction=_fp(b,'ARBITRARY_BLOCKER')
+                _pad(obstruction,'other',b.FindNet('/FOREIGN'),20.,obstacle_y,.8,.8)
+                # An actual local courtyard, not the legacy fixture's
+                # footprint-origin-spanning fallback bounding box.
+                courtyard=pcbnew.PCB_SHAPE(obstruction)
+                courtyard.SetShape(pcbnew.SHAPE_T_RECT);courtyard.SetLayer(pcbnew.F_CrtYd)
+                courtyard.SetStart(VECTOR2I(MM(19.5),MM(obstacle_y-.5)))
+                courtyard.SetEnd(VECTOR2I(MM(20.5),MM(obstacle_y+.5)))
+                obstruction.Add(courtyard)
+                poses=[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+                       for fp in b.GetFootprints() for p in fp.Pads()]
+                evidence={}
+                # Explicit synthetic 3 A contract; no production current is changed.
+                result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False,
+                    current_by_net={'/SENSE5V_HI':3.,'+5V_MAIN':3.},
+                    construction_evidence=evidence)
+                self.assertIsInstance(result['RS2'],dict,result)
+                moves=[q for q in result['RS2']['transition_search'] if q['accepted']]
+                self.assertTrue(moves,result)
+                self.assertTrue(all(q['required_vias']==q['available_vias']==2 for q in moves))
+                self.assertEqual(result['RS2']['vias'],4)
+                self.assertEqual(poses,[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+                    for fp in b.GetFootprints() for p in fp.Pads()])
+                import cec_transition_landings
+                try:
+                    landing=cec_transition_landings.install(b,result['_patches']['pours'])
+                except cec_transition_landings.LandingRefused as exc:
+                    import json
+                    self.fail(json.dumps(exc.evidence,sort_keys=True))
+                self.assertTrue(landing['ok'],landing)
+
+    def test_zero_transition_budget_keeps_refusal_instead_of_moving_contact(self):
+        b=_mkboard_alt()
+        obstacle=_fp(b,'UNRELATED')
+        _pad(obstacle,'1',b.FindNet('/FOREIGN'),20.,34.,.8,.8)
+        result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False,
+            current_by_net={'/SENSE5V_HI':3.,'+5V_MAIN':3.},transition_budget_s=0)
+        self.assertIsInstance(result['RS2'],str)
+        self.assertEqual(len(list(b.GetTracks())),0)
+
+    def test_shared_rail_constructor_preserves_measured_future_return_portal(self):
+        from unittest.mock import patch
+        import cec_portal_copper
+        b=_mkboard_alt()
+        edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+        edge.SetStart(VECTOR2I(MM(-5),MM(-12)));edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+        edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+        portal=dict(ref='ARBITRARY_OWNER',pad='renamed',net='/FOREIGN',
+            at_mm=[20.,15.],diameter_mm=.35,drill_mm=.25,
+            layer_ids=list(b.GetEnabledLayers().CuStack()))
+        evidence={}
+        with patch.object(cec_portal_copper,'required_ground_portals',return_value=dict(
+                schema=1,portals=[portal],refused=[])):
+            result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False,
+                                      access_report=evidence)
+        self.assertIsInstance(result['RS2'],dict,result)
+        self.assertEqual(evidence['portals'],[portal])
+        self.assertTrue(any(d['changed'] for d in result['RS2']['detours']))
+        for track in b.GetTracks():
+            if track.GetClass()!='PCB_TRACK': continue
+            a,z=track.GetStart(),track.GetEnd()
+            self.assertGreaterEqual(cec_portal_copper.point_segment_distance(
+                portal['at_mm'],(a.x/1e6,a.y/1e6),(z.x/1e6,z.y/1e6)),
+                track.GetWidth()/2e6+.175+evidence['clearance_mm']-1e-6)
+
+    def test_declared_outline_allows_bounded_detour_around_foreign_barrel(self):
+        b=_mkboard_alt()
+        edge=pcbnew.PCB_SHAPE(b);edge.SetShape(pcbnew.SHAPE_T_RECT)
+        edge.SetStart(VECTOR2I(MM(-5),MM(-12)));edge.SetEnd(VECTOR2I(MM(45),MM(65)))
+        edge.SetLayer(pcbnew.Edge_Cuts);b.Add(edge)
+        foreign=_fp(b,'OBSTACLE')
+        _pad_tht(foreign,'1',b.FindNet('/FOREIGN'),20.,15.)
+        before=[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+                for fp in b.GetFootprints() for p in fp.Pads()]
+        result=FR.lay_force_rails(b,alt_layer='In2.Cu',verbose=False)
+        self.assertIsInstance(result['RS2'],dict)
+        self.assertTrue(any(row['changed'] for row in result['RS2']['detours']))
+        rail=FR.discover_rails(b)[0]
+        chains=FR.plan_rail_chains([rail],max(p[2] for p in rail['j3']),alt=True)
+        # Widening consumes the accepted path, not the obstructed ideal line.
+        asks=FR.compile_rail_pour_asks([rail],chains,alt_layer='In2.Cu',laid_report=result)
+        changed=result['RS2']['source_segments']
+        for s in changed:
+            if s[5]=='face' or max(abs(s[2]-s[0]),abs(s[3]-s[1]))<=2:continue
+            mid=((s[0]+s[2])/2,(s[1]+s[3])/2)
+            self.assertTrue(any(row['net']==rail['src_net']
+                and row['region_hint'][0]<=mid[0]<=row['region_hint'][2]
+                and row['region_hint'][1]<=mid[1]<=row['region_hint'][3] for row in asks))
+        after=[(fp.GetReference(),p.GetNumber(),p.GetPosition().x,p.GetPosition().y)
+               for fp in b.GetFootprints() for p in fp.Pads()]
+        self.assertEqual(before,after)
+
     def test_name_independent_straddle(self):
         b = _mkboard()
         rails = FR.discover_rails(b)
@@ -150,6 +348,8 @@ class TestDiscovery(unittest.TestCase):
                        for p in rl["j3"]]
             q["tb"] = [tuple(list(p[:3]) + [axis2 - p[3]] + list(p[4:]))
                       for p in rl["tb"]]
+            if rl.get("tb_escape_y") is not None:
+                q["tb_escape_y"] = axis2 - rl["tb_escape_y"]
             rev.append(q)
         back = FR.plan_rail_chains(rev, max(q[2] for q in rev[0]["j3"]))
         for kind in ("src", "snk"):
@@ -160,6 +360,75 @@ class TestDiscovery(unittest.TestCase):
                     round(y2, 6), w, tag)
                    for x1, y1, x2, y2, w, tag in back["RS2"][kind]}
             self.assertEqual(got, want)
+
+    def test_monolithic_terminal_escapes_per_leg_before_full_width_band(self):
+        rail = dict(FR.discover_rails(_mkboard())[0])
+        rail["tb"] = [
+            ("TB2", str(index), x, y, 1.25, True)
+            for index, (x, y) in enumerate(
+                ((18.0, 48.0), (22.0, 48.0),
+                 (18.0, 50.0), (22.0, 50.0)), start=1)
+        ]
+        rail["tb_escape_y"] = 45.0
+        plan = FR._plan_rail_chains_forward(
+            [rail], max(q[2] for q in rail["j3"]))["RS2"]
+
+        self.assertLessEqual(plan["snk_band"][2], 45.0)
+        leg_drops = plan["snk"][-4:]
+        self.assertEqual({segment[4] for segment in leg_drops}, {1.25})
+
+    def test_sink_scheduler_puts_widest_collector_at_terminal_edge(self):
+        items = [
+            {"key": "wide", "w": 5.0, "x_lo": 10.0, "x_hi": 50.0},
+            {"key": "left", "w": 3.0, "x_lo": 12.0, "x_hi": 20.0},
+            {"key": "right", "w": 3.0, "x_lo": 38.0, "x_hi": 46.0},
+        ]
+        rows, _depth = FR.plan_bands(
+            items, 0.0, y0_off=0.0, widest_first=True)
+
+        self.assertLess(rows["wide"], rows["left"])
+        self.assertLess(rows["wide"], rows["right"])
+
+    def test_sink_commit_priority_is_widest_then_current(self):
+        rails = [
+            {"rs": "RS1", "amps": 12.0, "lo": (20.0, 0.0),
+             "tb": [("TB1", "1", 24.0, 0.0, 1.0, True)]},
+            {"rs": "RS3", "amps": 20.0, "lo": (30.0, 0.0),
+             "tb": [("TB3", "1", 50.0, 0.0, 1.0, True)]},
+            {"rs": "RS2", "amps": 20.0, "lo": (40.0, 0.0),
+             "tb": [("TB2", "1", 44.0, 0.0, 1.0, True)]},
+        ]
+        order = sorted(rails, key=FR._sink_priority)
+
+        self.assertEqual([rail["rs"] for rail in order],
+                         ["RS3", "RS2", "RS1"])
+
+    def test_pour_compiler_follows_actual_side_layers_and_nets(self):
+        rail = {
+            "rs": "RS4", "src_net": "/SRC", "snk_net": "/SNK",
+            "j3": [("1", 10.0, 40.0, 1.0, True)],
+            "tb": [("TB4", "1", 10.0, 2.0, 1.0, True)],
+        }
+        chains = {"RS4": {
+            "w": 1.5, "band_y": 35.0, "body": "alt",
+            "src": [(8.0, 35.0, 12.0, 35.0, 1.5, "alt")],
+            "snk": [(8.0, 8.0, 12.0, 8.0, 1.5, "alt")],
+            "snk_desc": (10.0, 20.0, 8.0, 1.5),
+        }}
+        asks = FR.compile_rail_pour_asks(
+            [rail], chains, alt_layer="In3.Cu", mirror_bcu=False,
+            laid_report={"RS4": {
+                "source_layer": "B.Cu", "sink_layer": "In2.Cu"}})
+
+        self.assertTrue(any(a["net"] == "/SRC"
+                            and a["layers"] == ("B.Cu",) for a in asks))
+        self.assertTrue(any(a["net"] == "/SNK"
+                            and a["layers"] == ("In2.Cu",) for a in asks))
+        sink_trunk = [a for a in asks
+                      if a["region_hint"][1] <= 8.0 <= a["region_hint"][3]
+                      and a["layers"] == ("In2.Cu",)]
+        self.assertTrue(sink_trunk)
+        self.assertEqual({a["net"] for a in sink_trunk}, {"/SNK"})
 
     def test_tht_probe_reserves_inner_power_runs(self):
         rails = FR.discover_rails(_mkboard_alt())
@@ -207,12 +476,68 @@ class TestLay(unittest.TestCase):
         # foreign pad dead on the source band row (plan_bands center for the
         # single w=6 rail: j3_bot(-6) + 2.5 + w/2 = -0.5)
         b = _mkboard(foreign_at=(18.0, -0.5))
-        rep = FR.lay_force_rails(b, verbose=False)
+        evidence = {}
+        rep = FR.lay_force_rails(b, verbose=False, construction_evidence=evidence)
         r = rep["RS2"]
         if isinstance(r, dict):                            # geometry drifted -> fail loud
             self.fail("expected rail-fatal refusal, got lay: %r" % r)
         self.assertIn("REFUSED", r)
         self.assertEqual(len(self._laid(b)), 0)
+        self.assertFalse(evidence['RS2']['constructed'])
+        self.assertFalse(evidence['RS2']['release_authority'])
+        self.assertEqual(evidence['RS2']['refusal'], r)
+        self.assertTrue(evidence['RS2']['detours'])
+        witnesses = evidence['RS2']['blocked_segments']
+        self.assertTrue(witnesses)
+        self.assertEqual(witnesses[0]['ref'], 'U9')
+        self.assertEqual(witnesses[0]['kind'], 'pad')
+        self.assertEqual(witnesses[0]['layer'], 'F.Cu')
+        self.assertEqual(witnesses[0]['clearance_mm'], .25)
+        self.assertGreater(witnesses[0]['segment_mm'][4], 0)
+
+    def test_virtual_sink_bend_moves_without_relocating_physical_contacts(self):
+        import cec_rail_detour
+        from unittest.mock import patch
+        def fixture():
+            board = _mkboard_alt()
+            terminal = board.FindFootprintByReference('TB2')
+            next(iter(terminal.Pads())).SetPosition(VECTOR2I(MM(34), MM(48)))
+            edge = pcbnew.PCB_SHAPE(board)
+            edge.SetShape(pcbnew.SHAPE_T_RECT)
+            edge.SetStart(VECTOR2I(MM(-5), MM(-12)))
+            edge.SetEnd(VECTOR2I(MM(45), MM(65)))
+            edge.SetLayer(pcbnew.Edge_Cuts)
+            board.Add(edge)
+            rail = FR.discover_rails(board)[0]
+            chain = FR.plan_rail_chains([rail], -6, alt=True)['RS2']
+            x, _other, y, _width = chain['snk_band']
+            obstacle=_fp(board, 'FIXED_OBSTACLE')
+            _pad_tht(obstacle, '1', board.FindNet('/FOREIGN'), x, y)
+            courtyard=pcbnew.PCB_SHAPE(obstacle)
+            courtyard.SetShape(pcbnew.SHAPE_T_RECT);courtyard.SetLayer(pcbnew.F_CrtYd)
+            courtyard.SetStart(VECTOR2I(MM(x-1),MM(y-1)))
+            courtyard.SetEnd(VECTOR2I(MM(x+1),MM(y+1)))
+            obstacle.Add(courtyard)
+            return board
+        old = cec_rail_detour.repair_plan
+        def fixed_only(*args, **kwargs):
+            kwargs['relax_unanchored_bends'] = False
+            return old(*args, **kwargs)
+        with patch.object(cec_rail_detour, 'repair_plan', fixed_only):
+            self.assertIsInstance(FR.lay_force_rails(
+                fixture(), alt_layer='In2.Cu', verbose=False)['RS2'], str)
+        board = fixture()
+        before = [(p.GetPosition().x, p.GetPosition().y)
+                  for fp in board.GetFootprints() for p in fp.Pads()]
+        evidence = {}
+        report = FR.lay_force_rails(board, alt_layer='In2.Cu', verbose=False,
+                                    construction_evidence=evidence)
+        self.assertIsInstance(report['RS2'], dict)
+        self.assertTrue(evidence['RS2']['constructed'])
+        self.assertTrue(any(d.get('virtual_bends') for row in evidence['RS2']['detours']
+                            for d in row.get('detours', [])))
+        self.assertEqual(before, [(p.GetPosition().x, p.GetPosition().y)
+                                 for fp in board.GetFootprints() for p in fp.Pads()])
 
 
 @unittest.skipUnless(HAVE_PCBNEW, "pcbnew required (routing container)")

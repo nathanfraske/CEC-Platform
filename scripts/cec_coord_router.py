@@ -180,6 +180,7 @@ def build_problem(board_path, grid_mm=0.5, excluded_nets=("GND",),
     # candidates instead of hallucinating capacity through existing copper.
     from collections import defaultdict
     cell_owners = defaultdict(set)
+    terminal_records = defaultdict(list)
 
     def _item_cells(item, layers, *, centre=None):
         cells = set()
@@ -229,7 +230,15 @@ def build_problem(board_path, grid_mm=0.5, excluded_nets=("GND",),
                 for layer in layers:
                     foreign_cells.add((layer, gy, gx))
                 continue
-            pads_by_net.setdefault(n, set()).add((layers[0], gy, gx))
+            terminal_cell = (layers[0], gy, gx)
+            pads_by_net.setdefault(n, set()).add(terminal_cell)
+            terminal_records[(n, terminal_cell)].append({
+                "ref": fp.GetReference(), "pad": p.GetNumber(),
+                "uuid": p.m_Uuid.AsString(),
+                "position_mm": (
+                    round(p.GetPosition().x / 1e6, 6),
+                    round(p.GetPosition().y / 1e6, 6)),
+            })
             try:
                 netclasses[n] = p.GetNet().GetNetClassName()
             except Exception:                              # noqa: BLE001
@@ -253,8 +262,9 @@ def build_problem(board_path, grid_mm=0.5, excluded_nets=("GND",),
     # only; the relax/via cost handles the actual layer-crossing cost during routing).
     conns = []
     conn_classes = []
+    connection_terminals = []
     for n, pts in pads_by_net.items():
-        pts = list(pts)
+        pts = sorted(pts)
         if len(pts) < 2:
             continue
         used = {0}
@@ -263,8 +273,17 @@ def build_problem(board_path, grid_mm=0.5, excluded_nets=("GND",),
         while len(used) < len(pts):
             best, bi = min((dd, i) for i, dd in enumerate(d) if i not in used)
             used.add(bi)
-            conns.append((n, pts[par[bi]], pts[bi]))
+            src, dst = pts[par[bi]], pts[bi]
+            conns.append((n, src, dst))
             conn_classes.append(netclasses.get(n, ""))
+            connection_terminals.append({
+                "src": tuple(sorted(
+                    terminal_records.get((n, src), ()),
+                    key=lambda row: (row["ref"], row["pad"]))),
+                "dst": tuple(sorted(
+                    terminal_records.get((n, dst), ()),
+                    key=lambda row: (row["ref"], row["pad"]))),
+            })
             for i, p in enumerate(pts):
                 nd = math.hypot(pts[bi][1] - p[1], pts[bi][2] - p[2])
                 if nd < d[i]:
@@ -350,6 +369,7 @@ def build_problem(board_path, grid_mm=0.5, excluded_nets=("GND",),
         # Internal route inputs are removed by public consumers before the
         # JSON-safe stackup metadata is returned.
         "_blocked_cells_by_conn": tuple(blocked_cells_by_conn),
+        "_connection_terminals": tuple(connection_terminals),
     }
     return conns, H, W, foreign_cells, meta
 
@@ -1377,8 +1397,11 @@ def main():
         i = args.index("--iters")
         iters = int(args[i + 1])
         del args[i:i + 2]
-    board = args[0] if args else \
-        "/workspace/build/fresh/atx-24pin-rev3/20260708T2055-periph-left-dataflow-s1.kicad_pcb"
+    if not args:
+        raise SystemExit(
+            "usage: cec_coord_router.py [--cpu] [--grid-mm N] "
+            "[--iters N] BOARD.kicad_pcb")
+    board = args[0]
 
     conns, H, W, foreign, meta = build_problem(
         board, grid_mm=grid_mm, detailed=True)

@@ -21,13 +21,15 @@ class AtomicPairFallbackTest(unittest.TestCase):
               mock.patch.object(fallback.cec_fr, "copy_project_sidecars"),
               mock.patch.object(
                   fallback.cec_pair_return, "synthesize",
-                  return_value={"ok": True, "generated_items": []}),
+                  return_value={"ok": True, "generated_items": []}) as returned,
               mock.patch.object(
                   fallback.cec_constraints, "high_speed_pair_summary",
                   side_effect=gate_side_effect) as gate):
             report = fallback.route_atomic_pairs(
                 source, directory, tier_groups=[["P", "N"]],
                 pre_locked_nets={"LOCKED"}, seed=7, verbose=False)
+            for call in returned.call_args_list:
+                self.assertEqual(call.kwargs['pair_nets'], {'P','N'})
         return report, staged, gate
 
     def test_first_physics_clean_candidate_is_published(self):
@@ -66,6 +68,26 @@ class AtomicPairFallbackTest(unittest.TestCase):
         self.assertIsNone(report["board"])
         self.assertEqual(staged.call_count, 3)
         self.assertEqual(len(report["attempts"]), 3)
+        for attempt in report['attempts']:
+            self.assertEqual(attempt['staged']['tiers'][0]['completed_nets'], ['P','N'])
+
+    def test_original_tier_failure_survives_later_return_exception(self):
+        original={'tiers':[{'refused':True, 'reason':'tier_pair_physics_refused',
+            'pair_physics':{'ok':False, 'pairs':[{'p':'LEFT','n':'RIGHT',
+                'violations':['unmatched transition']}]}}]}
+        with tempfile.TemporaryDirectory() as directory:
+            with (mock.patch.object(fallback.cec_staged_fr,'route_tiered',return_value=original),
+                  mock.patch.object(fallback.cec_fr,'copy_project_sidecars'),
+                  mock.patch.object(fallback.cec_pair_return,'synthesize',
+                                    side_effect=RuntimeError('still open')) as returned,
+                  mock.patch.object(fallback.cec_constraints,'high_speed_pair_summary') as quality):
+                report=fallback.route_atomic_pairs('source.kicad_pcb',directory,
+                    tier_groups=[['LEFT','RIGHT']],seed_offsets=(0,),verbose=False)
+        self.assertFalse(report['ok'])
+        self.assertIsNone(report['board'])
+        self.assertEqual(report['attempts'][0]['staged'],original)
+        self.assertEqual(returned.call_args.kwargs['pair_nets'],{'LEFT','RIGHT'})
+        quality.assert_not_called()
 
 
 if __name__ == "__main__":

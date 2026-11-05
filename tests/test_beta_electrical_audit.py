@@ -3,6 +3,41 @@ import sys
 import unittest
 
 
+def test_mezzanine_audit_does_not_invent_out_of_scope_boards():
+    import cec_beta_electrical_audit as audit
+    assert audit.check_mezzanine({"isolated-board": {"inventory": {}, "pins": {}}}) == []
+    one_peer = audit.check_mezzanine({"hub-standard-rev2": {"inventory": {}, "pins": {}}})
+    assert any(f["code"] == "MEZZ_MISSING" for f in one_peer)
+    assert not any(f["code"] == "MEZZ_MATCH" for f in one_peer)
+
+
+def test_usb_input_bulk_is_not_hidden_behind_a_bead_fuse_or_mux():
+    import cec_beta_electrical_audit as audit
+    inventory = {
+        "PORT_X": {"lib_id":"fixture:USB_C_Receptacle_USB2.0_16P"},
+        "RD_A": {"value":"5.1kΩ"}, "RD_B": {"value":"5.1kΩ"},
+        "BEAD_X": {"lib_id":"fixture:FerriteBead_Small"},
+        "FUSE_X": {"value":"750mA PTC"},
+        "C_A": {"lib_id":"fixture:C_Small", "value":"10uF"},
+        "C_B": {"lib_id":"fixture:C_Small", "value":"10uF"},
+        "C_OUT": {"lib_id":"fixture:C_Small", "value":"1000uF"},
+        "MUX_X": {"lib_id":"fixture:TPS2121"}}
+    pins = {"PORT_X":{"A4":"raw","A5":"cc1","B5":"cc2"},
+        "RD_A":{"1":"cc1","2":"GND"}, "RD_B":{"1":"cc2","2":"GND"},
+        "BEAD_X":{"1":"raw","2":"filtered"}, "FUSE_X":{"1":"filtered","2":"input"},
+        "MUX_X":{"7":"input","1":"output"},
+        "C_A":{"1":"filtered","2":"GND"}, "C_B":{"1":"input","2":"GND"},
+        "C_OUT":{"1":"output","2":"GND"}}
+    findings = audit.check_usb_ingress_capacitance("fixture", inventory, pins)
+    assert len(findings) == 1
+    assert abs(findings[0]["evidence"]["nominal_uf"] - 20.) < 1e-9
+    inventory["C_B"]["dnp"] = True
+    assert not audit.check_usb_ingress_capacitance("fixture", inventory, pins)
+    inventory["C_B"]["dnp"] = False
+    inventory["RD_A"]["dnp"] = True
+    assert not audit.check_usb_ingress_capacitance("fixture", inventory, pins)
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
@@ -302,7 +337,7 @@ class TestBetaElectricalAudit(unittest.TestCase):
         }
         self.assertEqual(audit.check_bom("board", inv), [])
 
-    def test_in_house_daughterboard_field_is_not_a_purchased_part(self):
+    def test_description_and_footprint_substrings_do_not_exempt_a_part(self):
         inv = {
             "J1": {
                 "lib_id": "x:Connector",
@@ -318,9 +353,8 @@ class TestBetaElectricalAudit(unittest.TestCase):
             }
         }
         findings = audit.check_bom("board", inv)
-        self.assertFalse(any(f["code"] in {"MISSING_BOM_FIELD",
-                                             "GENERIC_CONNECTOR_SELECTION"}
-                             for f in findings))
+        self.assertTrue(any(f["code"] == "MISSING_BOM_FIELD" and
+                            f["severity"] == "BLOCKER" for f in findings))
 
     def test_generic_pin_header_has_one_selection_blocker_not_missing_mpn_blocker(self):
         inv = {

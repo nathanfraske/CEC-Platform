@@ -22,4 +22,6 @@
   (lib (name "cec-Connector_PinHeader_2.00mm")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_PinHeader_2.00mm.pretty")(options "")(descr "Vendored, pinned; J6 2x08 2.00mm header (was unregistered in rev3, present in lib)"))
   (lib (name "cec-Package_DFN_QFN")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_DFN_QFN.pretty")(options "")(descr "Vendored, pinned; U5 TPS2121 RUX0012A QFN-12 (canonical nickname, matches hub-standard)"))
   (lib (name "cec-Connector_Screw")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_Screw.pretty")(options "")(descr "CEC reviewed XFCN high-current screw-terminal footprints; prototype qualification gated"))
+  (lib (name "cec-Package_SON")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_SON.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/MountingHole.pretty")(options "")(descr "Vendored, pinned"))
 )

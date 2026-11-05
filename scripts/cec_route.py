@@ -217,7 +217,8 @@ class Router:
         re-filling an already-filled multi-layer zone in the same process segfaults."""
         for z in self.b.Zones():
             z.UnFill()
-        return pcbnew.ZONE_FILLER(self.b).Fill(self.b.Zones())
+        import cec_zone_fill
+        return cec_zone_fill.fill(self.b)
 
     def save(self, path=None):
         pcbnew.SaveBoard(path or self.path, self.b)

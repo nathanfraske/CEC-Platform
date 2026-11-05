@@ -96,6 +96,8 @@ class Spec:
                                                      # AFTER each FR route (see cec_fr.add_power_pours);
                                                      # [] = none. Each: {net, polygon[(x,y) mm], layer?, ...}
 
+    rated_current_policy: object = None             # appended: positional compatibility
+
 
 @dataclass
 class Plan:
@@ -121,7 +123,8 @@ class DecisionLog:
         self.entries = []
         self.final = None
 
-    def add(self, *, region, iteration, candidates, chosen, verdict, note=""):
+    def add(self, *, region, iteration, candidates, chosen, verdict, note="",
+            generation_rejections=None):
         self.entries.append({
             "ts": round(time.time() - self.t0, 2),
             "region": region,
@@ -133,6 +136,8 @@ class DecisionLog:
                         "tier": verdict.tier, "edit": verdict.edit} if verdict else None,
             "note": note,
         })
+        if generation_rejections is not None:
+            self.entries[-1]["generation_rejections"] = generation_rejections
         return self.entries[-1]
 
     @staticmethod
@@ -258,7 +263,8 @@ def _refine_selected_lastmile(board_path, rules, *, verbose=False,
         cec_fr.normalize_netclass_geometry(board, trial)
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         pcbnew.SaveBoard(trial, board)
         cec_fr.ensure_unique_board_file_uuids(trial)
         after = cec_score.score(trial, rules)
@@ -1048,6 +1054,36 @@ def _vital_keepouts_from_rules(board, rules):
                                     layers=layers)
 
 
+def _candidate_rejection_evidence(cands, *, limit=32):
+    """Keep bounded producer/ownership failures when no candidate is scored.
+
+    An emitted PCB is not necessarily an admissible routing candidate. These
+    exact importer/contract refusals used to disappear behind 'none routed',
+    causing managers to increase router effort instead of repairing import.
+    This diagnostic does not put a refused board back into the scoring pool.
+    """
+    if type(limit) is not int or not 1 <= limit <= 64:
+        raise ValueError("bounded candidate rejection limit required")
+    rejected = [c for c in cands if not (c.ok and c.board)]
+    rows = []
+    for candidate in rejected[:limit]:
+        path = getattr(candidate, "board", None)
+        try:
+            digest = _tc.sha256_file(path) if path and os.path.isfile(path) else None
+        except OSError:
+            digest = None
+        rows.append({
+            "seed": candidate.seed, "board": path, "sha256": digest,
+            "error": str(getattr(candidate, "err", None) or
+                         "producer did not return an admissible PCB")[:4096],
+            "trace": str(getattr(candidate, "trace", None) or "")[-16384:],
+            "stage_s": (candidate.params or {}).get("stage_s", {}),
+        })
+    return {"count": len(rejected), "samples": rows,
+            "truncated": max(0, len(rejected) - len(rows)),
+            "scope": "diagnostic_not_route_admission"}
+
+
 def _candidate_pool(cands, rules, weights, protected_contract=None):
     """Score ok candidates, sort best-first by (gates_pass desc, objective asc).
     Content-hash dedupe BEFORE scoring (R-01 adjunct): FR is deterministic, so identical
@@ -1232,7 +1268,13 @@ def independent_drc(final, rules, *, weights=None):
     m = cec_score.score(final, rules)
     passed, reasons = cec_score.gate(m, rules)
     reasons = list(reasons)
-    verdict = {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
+    import cec_route_quality
+    craft = cec_route_quality.final_craft_terms(m.detail.get('route_quality'))
+    reasons.extend('saved-board route craft failed or unverified: ' + key
+                   for key, ok in craft.items() if not ok)
+    verdict = {"gates_pass": passed is True and all(craft.values()),
+               "electrical_gates_pass": passed, "route_craft_terms": craft,
+               "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
                "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
                "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
                "route_quality": m.detail.get("route_quality", {}),
@@ -1441,7 +1483,8 @@ def normalize_final_artifact_geometry(board_path):
     if changed:
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         pcbnew.SaveBoard(board_path, board)
     return {"rounded_tracks": rounded, **by_class, "changed": changed}
 
@@ -1960,7 +2003,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 hints=[hint for region in (spec.regions or ())
                        for hint in (region.hints or ())],
                 skip_locked_taps=skip_locked_taps,
-                include_residual=False)
+                include_residual=False,
+                rated_current_policy=spec.rated_current_policy)
             cec_fr.copy_project_sidecars(route_base, critical_base)
             after = cec_score.score(critical_base, rules)
             stranded = sorted(
@@ -2069,7 +2113,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                                           out_dir=outd, params=_mkparams,
                                           max_workers=spec.max_workers,
                                           protect_nets=protect_nets,
-                                          skip_locked_taps=skip_locked_taps)
+                                          skip_locked_taps=skip_locked_taps,
+                                          rated_current_policy=spec.rated_current_policy)
             scored = _candidate_pool(
                 cands, rules, spec.weights,
                 protected_contract=protected_contract)
@@ -2084,7 +2129,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             verdict = generation_verdict or manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
-                    note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}")
+                    note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}",
+                    generation_rejections=_candidate_rejection_evidence(cands))
             _persist_iteration_best(spec, region, it, best, scored)
             if verbose:
                 bm = best[1] if best else None
@@ -2276,25 +2322,33 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     # already used this guarded subprocess, but the production route-swarm
     # bridge stopped at its selected-board last-mile result.  Reuse that
     # result's exact refusal certificates here; the helper protects authored
-    # copper and adopts only a strict full-board improvement.  Unconnected-only
-    # boards still bypass surgery and feed placement/congestion learning.
+    # copper and adopts only a strict full-board improvement.  DRC-clean boards
+    # with open connectivity still require this stage: zero DRC does not make
+    # an unrouted net manufacturable.  Forward the actual pre-route floorplan
+    # so locked pipeline-generated copper remains eligible for certificate-
+    # named atomic negotiation while authored copper stays immutable.
     certificate_repair = {"schema": 1, "changed": False,
                           "skipped": "not_applicable"}
     if os.environ.get("CEC_CERTIFICATE_REPAIR", "1") != "0":
         try:
             pre_certificate = cec_score.score(spec.out, rules)
             completion = (selected_lastmile or {}).get("result") or {}
-            if pre_certificate.drc > 0 and completion.get("refused_details"):
+            if ((pre_certificate.drc > 0
+                 or pre_certificate.unconnected > 0)
+                    and completion.get("refused_details")):
                 import cec_synth_pipeline as _csp
                 repaired_path, certificate_repair = \
                     _csp._route_oracle_certificate_repair(
                         spec.out, {"final_completion": completion}, work_dir,
-                        max_targets=1, verbose=verbose)
+                        max_targets=1,
+                        authored_baseline=(spec.board or board0),
+                        verbose=verbose)
                 if repaired_path != spec.out:
                     shutil.copy2(repaired_path, spec.out)
                     cec_fr.copy_project_sidecars(repaired_path, spec.out)
-            elif pre_certificate.drc <= 0:
-                certificate_repair["skipped"] = "no_structural_drc"
+            elif (pre_certificate.drc <= 0
+                  and pre_certificate.unconnected <= 0):
+                certificate_repair["skipped"] = "no_open_connectivity"
             else:
                 certificate_repair["skipped"] = "no_refusal_certificates"
         except Exception as exc:                           # noqa: BLE001
@@ -2392,7 +2446,7 @@ def find_board(board):
 def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, threads=1,
                kmax=2, max_iters=4, max_workers=None, opt_spread=0,
                fr_timeout=600, precision=False, precision_pair_grid=False,
-               source_schematic=None):
+               source_schematic=None, rated_current_policy=None):
     """Build a single-region Spec for a board (the small-/single-board path: one region,
     all nets, vital-area keep-outs derived from the 12V nets). The larger multi-region path
     is driven by populating spec.regions/contracts (e.g. from an Opus planner sub-agent)."""
@@ -2403,6 +2457,7 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     rules = cec_score.Rules.from_board(board_path)
     spec = Spec(board=board_path, out=out, rules=rules,
                 source_schematic=str(source_schematic or ""),
+                rated_current_policy=rated_current_policy,
                 seeds=tuple(seeds), Kmax=kmax,
                 max_iters=max_iters, max_workers=max_workers, opt_spread=opt_spread,
                 precision=bool(precision), precision_pair_grid=bool(precision_pair_grid),
@@ -2861,6 +2916,21 @@ def render(board_path, png_path):
     return png_path if (r.returncode == 0 and os.path.exists(png_path)) else None
 
 
+def _compact_cli_verdict(verdict, *, evidence_path=None):
+    """Console status only; the decision artifact retains the full evidence."""
+    reasons = verdict.get("reasons") or []
+    if not isinstance(reasons, list):
+        reasons = [reasons]
+    return {
+        **{key: verdict.get(key) for key in (
+            "gates_pass", "drc", "unconnected", "kelvin_ok", "diffpair_ok")},
+        "reason_count": len(reasons),
+        "reasons": [str(reason)[:300] for reason in reasons[:8]],
+        "more_reasons": max(0, len(reasons)-8),
+        "full_evidence": evidence_path,
+    }
+
+
 def main(argv=None):
     """CLI entry: route a board's floorplan and write the routed candidate + decision log
     (+ optional render) to --out. Drives the deterministic control plane (no LLM); this is
@@ -3010,7 +3080,8 @@ def main(argv=None):
     print(f"final:   {final}")
     print(f"log:     {logp}")
     if log.final and log.final.get("verdict"):
-        print(f"verdict: {json.dumps(log.final['verdict'])}")
+        print("verdict: %s" % json.dumps(_compact_cli_verdict(
+            log.final['verdict'], evidence_path=logp)))
     # exit 0 even when gates don't fully pass: a candidate + log IS the deliverable; the
     # workflow inspects the verdict. (Reserve non-zero for an actual failure to produce one.)
     return 0 if final else 1

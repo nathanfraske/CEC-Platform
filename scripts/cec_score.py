@@ -209,6 +209,7 @@ def _run_drc(board_path: str, tmp: str) -> dict:
         [cli, "pcb", "drc", "--exit-code-violations",
          "--format", "json", "-o", tmp, board_path],
         capture_output=True,
+        timeout=10.0,
     )
     # KiCad's JSON is UTF-8 and may contain non-ASCII net/reference text.  Do not
     # inherit Python's process locale here: headless workers and fresh WSL images
@@ -421,6 +422,44 @@ def _drop_profile_qualified_pofv_geometry(struct: list, board) -> list:
     return [row for row in struct if not _qualified(row)]
 
 
+def _drop_group_qualified_local_via_geometry(struct: list, board) -> list:
+    """Suppress via-size rows only for exact, independently re-proven groups.
+
+    The fab audit normalizes board-wide minima on a disposable copy, so KiCad
+    reports every deliberately local POFV/return barrel again.  Reuse the same
+    geometry validators as strict netclass signoff instead of relying on a
+    group name or maintaining a weaker second proof in the fab path.
+    """
+    qualified_types = {
+        "via_diameter", "annular_width", "drill_out_of_range"}
+    try:
+        import cec_constraints
+        context = {}
+        path = board.GetFileName() or "<in-memory-board>"
+        legal = set()
+        legal.update(cec_constraints._validated_local_pair_return_uuids(
+            board, path, context))
+        legal.update(cec_constraints._validated_local_single_return_uuids(
+            board, path, context))
+        legal.update(cec_constraints._validated_local_pofv_signal_uuids(
+            board, path, context))
+    except Exception:                                    # noqa: BLE001
+        legal = set()
+    if not legal:
+        return list(struct)
+
+    def qualified(row):
+        if row.get("type") not in qualified_types:
+            return False
+        items = row.get("items") or ()
+        via_items = [item for item in items
+                     if (item.get("description") or "").startswith("Via [")]
+        return (len(via_items) == 1
+                and str(via_items[0].get("uuid") or "") in legal)
+
+    return [row for row in struct if not qualified(row)]
+
+
 def _drop_qualified_endpoint_neckdown_geometry(struct: list, board) -> list:
     """Suppress only bounded, locked fine-pitch launch width findings.
 
@@ -556,6 +595,7 @@ def qualify_structural_violations(struct: list, board) -> list:
     """
     rows = _drop_impossible_pad_artifacts(list(struct), board)
     rows = _drop_profile_qualified_pofv_geometry(rows, board)
+    rows = _drop_group_qualified_local_via_geometry(rows, board)
     return _drop_qualified_endpoint_neckdown_geometry(rows, board)
 
 
@@ -1090,6 +1130,11 @@ def score(
                 pass
 
     all_violations = drc_data.get("violations", [])
+    # This is report metadata, not a weaker scorer or a mutation waiver. In
+    # particular, capped native warning lists must not be presented as the
+    # complete failure inventory or used as an exhaustive UUID delta.
+    import cec_native_drc_inventory as native_inventory
+    native_drc_inventory = native_inventory.assess(drc_data)
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
     struct = qualify_structural_violations(struct, b)
     unconn = drc_data.get("unconnected_items", [])
@@ -1149,6 +1194,9 @@ def score(
     topology_fault_nets = {
         row.get("net") for row in route_quality.get("issues", ())
         if row.get("severity") == "blocking" and row.get("net")}
+    topology_fault_nets |= {
+        row.get("net") for row in route_quality.get("non_octilinear", ())
+        if row.get("severity") == "blocking" and row.get("net")}
     if route_quality.get("error") and watch_nets:
         topology_reason = (
             "protected-route topology audit errored (fail-closed): %s"
@@ -1169,7 +1217,8 @@ def score(
                 continue
             messages = [
                 "%s topology gate: %s" % (label, row["message"])
-                for row in route_quality.get("issues", ())
+                for row in (list(route_quality.get("issues", ()))
+                            + list(route_quality.get("non_octilinear", ())))
                 if row.get("net") in affected
                 and row.get("severity") == "blocking"]
             if label == "kelvin":
@@ -1227,6 +1276,7 @@ def score(
         # different board state.  These JSON rows let every final blocker keep
         # its KiCad UUIDs and loci from the same signoff observation.
         "structural_violations": struct,
+        "native_drc_inventory": native_drc_inventory,
         "unconnected_items": unconn,
         "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
         "route_quality": route_quality,
@@ -1485,18 +1535,14 @@ def pour_integrity_ok(pour_facts, *, min_copper_mm2=None):
 #  Self-test
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    BOARDS = [
-        ("/tmp/fr-test/b_routed.kicad_pcb", "routed"),
-        ("/tmp/fr-test/b.kicad_pcb",         "unrouted"),
-        (os.path.join(ROOT, "beta", "eps-8pin-rev3", "eps-8pin-rev3.kicad_pcb"),
-         "floorplan"),
-    ]
+    if len(sys.argv) < 2:
+        print("usage: python3 scripts/cec_score.py BOARD.kicad_pcb [...]",
+              file=sys.stderr)
+        sys.exit(2)
+    BOARDS = [(os.path.abspath(path), os.path.basename(path))
+              for path in sys.argv[1:]]
 
-    # Use pre-existing DRC for the routed board to save time; run fresh for others
-    drc_cache = {
-        "/tmp/fr-test/b_routed.kicad_pcb": "/tmp/b_routed_drc.json"
-        if os.path.exists("/tmp/b_routed_drc.json") else None,
-    }
+    drc_cache = {}
 
     header = (
         f"{'board':<12} {'drc':>4} {'unc':>4} {'trk':>5} {'via':>4} "

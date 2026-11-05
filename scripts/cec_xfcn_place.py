@@ -17,6 +17,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -283,7 +284,7 @@ def _target_edge_box(plan, fallback):
         return fallback
     x0, y0, x1, y1 = map(float, rect)
     # The generated Edge.Cuts segments use a 0.10 mm stroke.
-    return (x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05)
+    return tuple(round(v,6) for v in (x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05))
 
 
 def _set_rect_outline(board, rect):
@@ -360,6 +361,12 @@ def _integrated(board, plan, pad_nets):
             return False
         part = contract.PARTS[expectation["part"]]
         if _footprint_id(fp) != part["footprint"]:
+            return False
+        # Placement idempotence includes the assembly identity.  A footprint
+        # can be mechanically correct while still carrying a superseded MPN
+        # as its value; treating that state as integrated lets stale BOM data
+        # survive indefinitely on otherwise current boards.
+        if fp.GetValue() != part["value"]:
             return False
         x, y, angle = plan["placements_mm"][ref]
         pos = fp.GetPosition()
@@ -485,6 +492,20 @@ def _live_net(board, name):
 
 def _add_bolt_pad_stitching(board, plan, net_objects):
     """Four through-vias outside each provisional T34069 washer/contact pad."""
+    import cec_interface_routes
+    stamps=set()
+    for ref, expectation in plan['refs'].items():
+        if expectation['part'] != contract.T340_DB: continue
+        poses=[plan['placements_mm'][ref]] + list(plan.get('_prior_stitch_poses', {}).get(ref, ()))
+        for x,y,angle in poses:
+            if angle != 0: raise ValueError('stitch source rotation requires explicit geometry')
+            for dx in (-2.25,-.75,.75,2.25):
+                start=(round((x+dx)*1e6),round((y-3.35)*1e6))
+                end=(start[0],round((y-2)*1e6))
+                stamps.add(('via',expectation['net'],start,1000000,500000,int(pcbnew.F_Cu),int(pcbnew.B_Cu)))
+                for layer in ('F.Cu','B.Cu'):
+                    stamps.add(('track',expectation['net'],tuple(sorted((start,end))),1000000,board.GetLayerID(layer)))
+    cec_interface_routes.discard_exact_construction_copper(board, stamps)
     vias = tracks = 0
     for ref, expectation in plan["refs"].items():
         if expectation["part"] != contract.T340_DB:
@@ -492,7 +513,7 @@ def _add_bolt_pad_stitching(board, plan, net_objects):
         x, y, angle = plan["placements_mm"][ref]
         if angle != 0:
             raise SystemExit(f"REFUSE: {ref} bolt-pad stitch generator expects rotation 0")
-        net = net_objects[expectation["net"]]
+        net = _live_net(board, expectation["net"])
         # The provisional pad spans y +/-2.5. Vias stay outside the pad and
         # its sample-gated washer/contact envelope, with symmetric F/B pickups.
         via_y = y - 3.35
@@ -516,6 +537,12 @@ def _add_bolt_pad_stitching(board, plan, net_objects):
 
 def _add_contract_routes(board, plan, net_objects):
     count = 0
+    if any(route.get('target_pad') for route in plan.get('routes_mm', [])):
+        # This constructor owns/refills the mutable source zones below.
+        # Stale fills must not masquerade as fixed obstacles to the tail solver.
+        for zone in board.Zones():
+            if not zone.GetIsRuleArea():
+                zone.UnFill()
     for route in plan.get("routes_mm", []):
         net = _live_net(board, route["net"])
         for start, end in zip(route["points"], route["points"][1:]):
@@ -526,6 +553,12 @@ def _add_contract_routes(board, plan, net_objects):
                     f"REFUSE: generated route net changed from {route['net']} "
                     f"to {item.GetNetname()}")
             if item:
+                count += 1
+        if route.get('target_pad'):
+            import cec_interface_routes
+            layer, legs = cec_interface_routes.declared_tail(board, route)
+            for a, b, width in legs:
+                _add_track(board, _live_net(board, route['net']), layer, width, a, b)
                 count += 1
     return count
 
@@ -600,7 +633,10 @@ def _enforce_contract_copper_nets(board, plan):
 
 
 def apply_project(name, write=False, force=False, source_pcb=None, output_pcb=None):
-    plan = contract.PROJECTS[name]
+    import cec_interface_routes
+    plan = cec_interface_routes.resolve_constructor_geometry(contract.PROJECTS[name])
+    # Must precede directory creation, sidecar copying and all PCB mutation.
+    contract.require_mating_compilation(plan)
     source_path = Path(source_pcb).resolve() if source_pcb else ROOT / plan["pcb"]
     pcb_path = Path(output_pcb).resolve() if output_pcb else source_path
     root_schematic = ROOT / plan["root_schematic"]
@@ -608,7 +644,23 @@ def apply_project(name, write=False, force=False, source_pcb=None, output_pcb=No
         raise SystemExit(f"{name}: missing PCB {source_path}")
     if write:
         pcb_path.parent.mkdir(parents=True, exist_ok=True)
+        if pcb_path != source_path:
+            for suffix in ('.kicad_pro', '.kicad_dru'):
+                rules = source_path.with_suffix(suffix)
+                if rules.is_file():
+                    shutil.copy2(rules, pcb_path.with_suffix(suffix))
     board = pcbnew.LoadBoard(str(source_path))
+    import cec_interface_eco
+    eco_record = cec_interface_eco.read_status(source_path)
+    plan['_prior_stitch_poses'] = {
+        ref:[tuple(row['before'])] for ref,row in (eco_record or {}).get('moved', {}).items()}
+    # Constructor rebuilding can also replace a currently installed legacy
+    # pattern without an ECO sidecar. Bind cleanup to exact native poses.
+    for fp in board.GetFootprints():
+        if fp.GetReference() in plan['refs']:
+            p=fp.GetPosition()
+            plan['_prior_stitch_poses'].setdefault(fp.GetReference(), []).append(
+                (p.x/1e6,p.y/1e6,fp.GetOrientationDegrees()))
     outline_before = _edge_box(board)
     outline_target = _target_edge_box(plan, outline_before)
     pad_nets = _source_pad_nets(root_schematic)
@@ -616,30 +668,62 @@ def apply_project(name, write=False, force=False, source_pcb=None, output_pcb=No
     contracted_refs = contract.project_refs(plan)
     interface_refs = set(plan["remove_refs"]) | set(contracted_refs)
 
+    source_findings = contract.audit_project(name)
+    if source_findings:
+        raise SystemExit(
+            f"{name}: REFUSE stale schematic contract: "
+            + "; ".join(source_findings))
+
     # A routed candidate may predate a value-only source correction.  Refresh
     # metadata only when source and candidate still agree on footprint
     # geometry; a footprint mismatch remains a hard reconciliation problem.
     refreshed_values = []
-    if source_pcb is not None:
-        for footprint in board.GetFootprints():
-            ref = footprint.GetReference()
-            expected = inventory.get(ref)
-            if ref in interface_refs or expected is None:
-                continue
-            expected_value = expected.get("value")
-            expected_footprint = expected.get("footprint")
-            old_value = footprint.GetValue()
-            if (expected_value is not None and old_value != expected_value and
-                    _footprint_id(footprint) == expected_footprint):
-                footprint.SetValue(expected_value)
-                refreshed_values.append({
-                    "ref": ref, "from": old_value, "to": expected_value,
-                })
+    for footprint in board.GetFootprints():
+        ref = footprint.GetReference()
+        expected = inventory.get(ref)
+        if expected is None:
+            continue
+        expected_value = expected.get("value")
+        expected_footprint = expected.get("footprint")
+        # Contracted parts use the pinned part identity.  Other candidate
+        # parts retain the older copy-refresh behavior and are only eligible
+        # when operating on a derived input board.
+        if ref in contracted_refs:
+            part = contract.PARTS[contracted_refs[ref]["part"]]
+            expected_value = part["value"]
+            expected_footprint = part["footprint"]
+        elif source_pcb is None or ref in interface_refs:
+            continue
+        old_value = footprint.GetValue()
+        if (expected_value is not None and old_value != expected_value and
+                _footprint_id(footprint) == expected_footprint):
+            footprint.SetValue(expected_value)
+            refreshed_values.append({
+                "ref": ref, "from": old_value, "to": expected_value,
+            })
     placements_integrated = _integrated(board, plan, pad_nets)
-    already_integrated = placements_integrated
+    already_integrated = placements_integrated and not refreshed_values
     managed_pour_nets = set(plan.get("managed_pour_nets", ()))
     if placements_integrated and managed_pour_nets:
-        already_integrated = _managed_pours_match(board, source_path, plan)
+        already_integrated = (
+            already_integrated
+            and _managed_pours_match(board, source_path, plan))
+    # A BOM/value-only refresh must not run a geometry/copper regeneration.
+    # In particular it must not rip up routes on an already-integrated row.
+    # This does not waive any placement or release gate; geometry is unchanged.
+    metadata_only = (not force and placements_integrated and bool(refreshed_values)
+                     and (not managed_pour_nets or
+                          _managed_pours_match(board, source_path, plan)))
+    if metadata_only:
+        if write:
+            pcbnew.SaveBoard(str(pcb_path), board)
+        return {
+            "project": name, "status": "applied" if write else "dry-run",
+            "source_pcb": str(source_path), "pcb": str(pcb_path),
+            "outline_before_mm": outline_before, "outline_after_mm": outline_before,
+            "removed_refs": [], "added_refs": [], "local_copper_removed": 0,
+            "refreshed_values": refreshed_values, "metadata_only": True,
+        }
     if not force and already_integrated:
         if write and pcb_path != source_path:
             pcbnew.SaveBoard(str(pcb_path), board)
@@ -960,7 +1044,8 @@ def apply_project(name, write=False, force=False, source_pcb=None, output_pcb=No
         _cleanup_temporary_board(copper_board)
     _enforce_contract_copper_nets(board, plan)
     if list(board.Zones()):
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
     # ZONE_FILLER can rebuild the local net table.  Serialize and reload that
     # final table once more, then bind contract copper without any later board
     # mutation.  This mirrors a normal editor open/save cycle and prevents a
@@ -1014,6 +1099,14 @@ def main(argv=None):
         parser.error("--input-board/--output-board require exactly one --project")
     if args.output_board and not args.apply:
         parser.error("--output-board requires --apply")
+    # Preflight the whole batch before the first worker can write a member.
+    blocked = [dict(project=name, status='mating_geometry_conflict',
+                    evidence=contract.PROJECTS[name]['mating_row_compilation'])
+               for name in projects
+               if contract.PROJECTS[name].get('mating_row_compilation', {}).get('ok') is not True]
+    if blocked:
+        print(json.dumps(blocked, indent=2))
+        raise SystemExit(2)
     # pcbnew's SWIG ownership can return an invalid board proxy after a prior
     # board in the same process removed children.  Isolate each project in its
     # own worker process; this also makes all-project unattended runs reliable.

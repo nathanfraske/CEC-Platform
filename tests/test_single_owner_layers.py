@@ -17,6 +17,48 @@ def z(name, net, layer, poly):
 
 
 class RedundantLayerTest(unittest.TestCase):
+    def test_saved_pad_points_keep_surface_layer_and_tht_reach(self):
+        class LayerSet:
+            def __init__(self, layers):
+                self.layers = layers
+
+            def CuStack(self):
+                return self.layers
+
+        class Pad:
+            def __init__(self, net, x, layers, name):
+                self.net, self.x, self.layers, self.name = \
+                    net, x, layers, name
+
+            def GetNetname(self):
+                return self.net
+
+            def GetPosition(self):
+                return type("Point", (), {"x": self.x * 1e6,
+                                           "y": 2.0 * 1e6})()
+
+            def GetLayerSet(self):
+                return LayerSet(self.layers)
+
+            def GetLayerName(self):
+                return self.name
+
+        pads = [Pad("/SMD", 1.0, [0], "F.Cu"),
+                Pad("/THT", 3.0, [0, 2, 31], "F.Cu")]
+        footprint = type("Footprint", (), {"Pads": lambda self: pads})()
+
+        class Board:
+            def GetFootprints(self):
+                return [footprint]
+
+            def GetLayerID(self, name):
+                return {"F.Cu": 0, "In1.Cu": 2, "B.Cu": 31}.get(name, -1)
+
+        points = sp.physical_pad_connection_points(Board())
+
+        self.assertIn(("/SMD", 1.0, 2.0, "F.Cu"), points)
+        self.assertIn(("/THT", 3.0, 2.0, None), points)
+
     def test_exact_copy_on_another_layer_is_dropped(self):
         """The measured 24-pin defect: same pads, same barrels, other layer."""
         a = z("manifold:J3:/N", "/N", "F.Cu", rect(0, 0, 20, 10))
@@ -35,6 +77,30 @@ class RedundantLayerTest(unittest.TestCase):
         kept, _ = sp.drop_redundant_layers([a, b], pads=pads, vias=[])
         self.assertEqual(len(kept), 2,
                          "neither reaches the other's terminal -- both real")
+
+    def test_pad_annulus_contact_keeps_required_bridge_layer(self):
+        """A lane touching a plated land need not cover its drill centre.
+
+        This is the measured Hub P2/P3/P4 failure: the second lane reached the
+        destination pad's annular copper, but centre-point ownership called it
+        redundant and subsequently orphan-pruned the transition vias.
+        """
+        source = z("source", "/N", "F.Cu", rect(0, 0, 12, 4))
+        bridge = z("bridge", "/N", "B.Cu", rect(10, 0, 20.6, 4))
+        pads = [
+            ("/N", 2.0, 2.0, None, 1.0, 0.4),
+            # The bridge ends 0.4 mm before centre but overlaps the annulus.
+            ("/N", 21.0, 2.0, None, 1.0, 0.4),
+        ]
+        vias = [
+            {"net": "/N", "x_mm": 11.0, "y_mm": 2.0},
+        ]
+
+        kept, dropped = sp.drop_redundant_layers(
+            [source, bridge], pads=pads, vias=vias)
+
+        self.assertEqual({row["name"] for row in kept}, {"source", "bridge"})
+        self.assertFalse(any(row["name"] == "bridge" for row, _ in dropped))
 
     def test_smd_pad_is_not_owned_by_a_layer_that_only_passes_over_it(self):
         """An inner zone crossing an F.Cu SMD pad connects NOTHING there, so

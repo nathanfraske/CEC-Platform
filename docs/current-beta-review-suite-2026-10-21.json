@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "scope": "Owner-requested full-suite routing review milestone: zero opens and zero native DRC errors, with warnings/exclusions and qualification debt visible. No fabrication release.",
+  "selection": "Explicit recorded candidates; not newest-file discovery. Historical continuation seeds must pass fresh current-source intake before work proceeds.",
+  "out_of_scope": ["argb-standard"],
+  "scope_authority": "Owner explicitly selected the nine existing PCBs and left the schematic-only ARGB draft out of this goal on 2026-10-21.",
+  "boards": [
+    {
+      "board": "12vhpwr-standard",
+      "path": "build/priority-force-vhp-20261002-private-c/output.kicad_pcb",
+      "sha256": "325ee4e80b643d3fc180b6dc42c90cb359ba4abb1ad5a565fac1927d3b75a598",
+      "lineage": "docs/pcb-release-readiness-2026-10-20.json: parallel_continuation"
+    },
+    {"board": "argb-standard", "path": null, "sha256": null, "lineage": "Manifest-declared schematic-only DRAFT; not silently excluded or treated as routed."},
+    {
+      "board": "atx-24pin-rev3",
+      "path": "build/release-atx-mount-stitches-20261020-a/board.kicad_pcb",
+      "sha256": "edbffc7046e5f14740d877e4ad8fa2331701d4fb66bdff571b799b1286dec8e9",
+      "role": "preserved_review_control",
+      "assembly_instance": {
+        "schema": 1, "role": "carrier",
+        "contract": {"path": "beta/assembly/hub-atx-stack.json", "sha256": "7426660a7eeba70630f2bddb069b2d4310bcab9d86270faf46474979aabb65ce"},
+        "members": {
+          "carrier": {"path": "build/release-atx-mount-stitches-20261020-a/board.kicad_pcb", "sha256": "edbffc7046e5f14740d877e4ad8fa2331701d4fb66bdff571b799b1286dec8e9"},
+          "cover": {"path": "build/hub-paged-ground-batch-20261020-goal1523/trial-2/UNADMITTED-source-local-ground-entry/board.kicad_pcb", "sha256": "06da1c2c62fed04db1c07200136924065a35096160cc2bd3fd3ac0d92c95dc61"}
+        }
+      }
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "path": "build/native-assembly-eps-compaction-20260920/eps-8pin-rev3/02-placement/board.kicad_pcb",
+      "sha256": "c13cdca9785e0bcf9d90211f2153dc6eb85c1d542406544acd01d9bb11964536",
+      "lineage": "build/ordinary-relief-next-inputs-20260920.json: rows[eps-8pin-rev3]"
+    },
+    {
+      "board": "hub-standard-rev2",
+      "path": "build/hub-paged-ground-batch-20261020-goal1523/trial-2/UNADMITTED-source-local-ground-entry/board.kicad_pcb",
+      "sha256": "06da1c2c62fed04db1c07200136924065a35096160cc2bd3fd3ac0d92c95dc61",
+      "role": "preserved_review_control",
+      "assembly_instance": {
+        "schema": 1, "role": "cover",
+        "contract": {"path": "beta/assembly/hub-atx-stack.json", "sha256": "7426660a7eeba70630f2bddb069b2d4310bcab9d86270faf46474979aabb65ce"},
+        "members": {
+          "carrier": {"path": "build/release-atx-mount-stitches-20261020-a/board.kicad_pcb", "sha256": "edbffc7046e5f14740d877e4ad8fa2331701d4fb66bdff571b799b1286dec8e9"},
+          "cover": {"path": "build/hub-paged-ground-batch-20261020-goal1523/trial-2/UNADMITTED-source-local-ground-entry/board.kicad_pcb", "sha256": "06da1c2c62fed04db1c07200136924065a35096160cc2bd3fd3ac0d92c95dc61"}
+        }
+      }
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "path": "build/release-pcie2-mount-stitches-20261020-a/board.kicad_pcb",
+      "sha256": "8ccd59037e83e166c18bd11c214d425ec75af0a69c832e784ab694503878a2bd",
+      "role": "preserved_review_control"
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "path": "build/frozen-priority-production-probe-20260916/pcie-8pin-3port/02-placement/checkpoints/slot-0/board.kicad_pcb",
+      "sha256": "58c66a712f5a54e211a05f3ebb2f673913fe2507b2226dced593543f8e9fa4db",
+      "lineage": "build/ordinary-relief-next-inputs-20260920.json: rows[pcie-8pin-3port]"
+    },
+    {
+      "board": "output-daughterboards/atx24-out-db",
+      "path": "beta/output-daughterboards/atx24-out-db/atx24-out-db-board.kicad_pcb",
+      "sha256": "085f7332cac608cb1e3daece541a1988cb079106c488f19f9b95c9aa8ed7ac09",
+      "lineage": "Current manifest PCB; fresh source and native checks required."
+    },
+    {
+      "board": "output-daughterboards/eps-out-db",
+      "path": "beta/output-daughterboards/eps-out-db/eps-out-db-board.kicad_pcb",
+      "sha256": "e0984d8dae6c7a8a999c8ffd74f141d91eb91a0fc77eb7c485523e6f99a7ff1e",
+      "lineage": "Current manifest PCB; fresh source and native checks required."
+    },
+    {
+      "board": "output-daughterboards/pcie-out-db",
+      "path": "beta/output-daughterboards/pcie-out-db/pcie-out-db-board.kicad_pcb",
+      "sha256": "b4b578b171224e6963e2a84dbe34e0e82651ee5f6650776229003c6b13b2239c",
+      "lineage": "Current manifest PCB; fresh source and native checks required."
+    }
+  ],
+  "dimensions_may_increase": false,
+  "rules_may_be_relaxed": false,
+  "production_selector_changed": false,
+  "release_authority": false
+}

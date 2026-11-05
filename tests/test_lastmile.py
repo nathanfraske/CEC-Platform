@@ -94,6 +94,230 @@ def _bypass_board():
 
 
 class TestLastmile(unittest.TestCase):
+    def test_closure_uses_private_native_graph_without_relabeling_source_shorts(self):
+        import pcbnew
+        import cec_fr
+        board = _board([(5,5,'/SELECTED'),(7,5,'/SELECTED'),(12,12,'/PROTECTED')])
+        foreign = pcbnew.NETINFO_ITEM(board,'/FOREIGN');board.Add(foreign)
+        inherited = pcbnew.PCB_TRACK(board);inherited.SetNet(foreign)
+        inherited.SetStart(pcbnew.VECTOR2I_MM(12,12));inherited.SetEnd(pcbnew.VECTOR2I_MM(14,12))
+        inherited.SetWidth(200000);inherited.SetLayer(pcbnew.F_Cu);board.Add(inherited)
+        saved = (inherited.GetNetCode(), inherited.GetNetname(), inherited.GetWidth())
+        with mock.patch.object(pcbnew.BOARD,'BuildConnectivity',side_effect=AssertionError('no net propagation')):
+            before=cec_fr.net_connectivity_component_count(board,board.GetNetcodeFromNetname('/SELECTED'))
+            result=cec_fr.synthesize_lastmile(board,include_nets={'/SELECTED'},
+                min_w=.2,clearance=.2,max_mm=5.,maze_max_mm=0.)
+            after=cec_fr.net_connectivity_component_count(board,board.GetNetcodeFromNetname('/SELECTED'))
+        self.assertEqual((before,result['closed'],after),(2,1,1))
+        self.assertEqual(saved,(inherited.GetNetCode(),inherited.GetNetname(),inherited.GetWidth()))
+
+    def test_exact_component_count_tracks_live_closure_not_refusal_rows(self):
+        import cec_fr
+
+        board = _board([(5, 5, "/N"), (7, 5, "/N")])
+        net_code = board.GetNetcodeFromNetname("/N")
+        board.BuildConnectivity()
+        self.assertEqual(
+            cec_fr.net_connectivity_component_count(board, net_code), 2)
+        report = cec_fr.synthesize_lastmile(
+            board, max_mm=5.0, min_w=0.2, clearance=0.2,
+            include_nets={"/N"}, maze_max_mm=0.0)
+        board.BuildConnectivity()
+        self.assertEqual(report["closed"], 1)
+        self.assertEqual(
+            cec_fr.net_connectivity_component_count(board, net_code), 1)
+
+    def test_plane_detection_uses_polygon_area_not_long_thin_bbox(self):
+        import cec_fr
+
+        edges = mock.Mock()
+        edges.GetWidth.return_value = 100
+        edges.GetHeight.return_value = 100
+        layer_set = mock.Mock()
+        layer_set.CuStack.return_value = [2]
+
+        def zone(area):
+            item = mock.Mock()
+            item.GetIsRuleArea.return_value = False
+            item.GetLayerSet.return_value = layer_set
+            item.Outline.return_value.Area.return_value = area
+            bbox = mock.Mock()
+            bbox.GetWidth.return_value = 90
+            bbox.GetHeight.return_value = 90
+            item.GetBoundingBox.return_value = bbox
+            return item
+
+        board = mock.Mock()
+        board.GetBoardEdgesBoundingBox.return_value = edges
+        board.GetLayerName.return_value = "B.Cu"
+        board.Zones.return_value = [zone(1000)]
+        self.assertEqual(cec_fr.plane_layers(board), [])
+        board.Zones.return_value = [zone(6000)]
+        self.assertEqual(cec_fr.plane_layers(board), ["B.Cu"])
+
+    def test_bounded_nearest_anchor_pairs_match_exhaustive_top_k(self):
+        import cec_fr
+
+        # Metadata after x/y deliberately differs; the helper must preserve
+        # the original anchor rows while ranking only their exact coordinates.
+        left = [
+            (0, 0, "L0"),
+            (8_000_000, 0, "L1"),
+            (20_000_000, 0, "L2"),
+        ]
+        right = [
+            (1_000_000, 0, "R0"),
+            (9_500_000, 0, "R1"),
+            (40_000_000, 0, "R2"),
+        ]
+        got = cec_fr._bounded_nearest_anchor_pairs(
+            left, right, limit=3, max_mm=25.0)
+        expected = sorted(
+            ((math.hypot(a[0] - b[0], a[1] - b[1]) / 1e6, a, b)
+             for a in left for b in right
+             if math.hypot(a[0] - b[0], a[1] - b[1]) <= 25e6),
+            key=lambda row: (
+                row[0], left.index(row[1]), right.index(row[2])))[:3]
+        self.assertEqual(got, expected)
+
+    def test_multi_island_candidates_interleave_anchor_depth(self):
+        import cec_fr
+
+        rows = [
+            (1, 1.1, 0, 1, "pair-01-second"),
+            (0, 10.0, 0, 2, "pair-02-first"),
+            (0, 1.0, 0, 1, "pair-01-first"),
+            (2, 1.2, 0, 1, "pair-01-third"),
+        ]
+        ordered = cec_fr._interleave_component_pair_candidates(rows)
+
+        self.assertEqual([row[-1] for row in ordered], [
+            "pair-01-first",
+            "pair-02-first",
+            "pair-01-second",
+            "pair-01-third",
+        ])
+
+    def test_route_aware_anchor_order_prefers_existing_layer_access(self):
+        import cec_fr
+
+        surface = (0, 0, frozenset((0,)), None, {"kind": "pad"})
+        remote = (1_000_000, 0, frozenset((0,)), None,
+                  {"kind": "pad"})
+        existing_via = (200_000, 0, frozenset((0, 2, 4, 31)), None,
+                        {"kind": "via"})
+        rows = [
+            (1.0, surface, remote),
+            (1.2, existing_via, remote),
+        ]
+
+        ordered = cec_fr._route_aware_anchor_pair_order(rows)
+
+        self.assertIs(ordered[0][1], existing_via)
+
+    def test_route_aware_anchor_order_preserves_pad_escape_authority(self):
+        import cec_fr
+
+        remote_via = (0, 0, frozenset((0, 2, 4, 31)), None,
+                      {"kind": "via"})
+        point = (1_000_000, 0)
+        raw_track = (*point, frozenset((0,)), None, {"kind": "trk"})
+        fine_pad = (*point, frozenset((0,)), (200_000, 1_500_000),
+                    {"kind": "pad", "ref": "U1", "pad": "1"})
+
+        ordered = cec_fr._route_aware_anchor_pair_order([
+            (1.0, remote_via, raw_track),
+            (1.0, remote_via, fine_pad),
+        ])
+
+        self.assertIs(ordered[0][2], fine_pad)
+
+    def test_bounded_route_portfolio_reserves_existing_via_candidate(self):
+        import cec_fr
+
+        remote = (0, 0, frozenset((0,)), None, {"kind": "pad"})
+        surface = [
+            (index * 10_000, 0, frozenset((0,)), None,
+             {"kind": "trk", "index": index})
+            for index in range(12)
+        ]
+        existing_via = (
+            500_000, 0, frozenset((0, 2, 4, 31)), None,
+            {"kind": "via"})
+        left = surface + [existing_via]
+
+        ordered = cec_fr._bounded_route_aware_anchor_pairs(
+            left, [remote], limit=4, max_mm=2.0)
+
+        self.assertTrue(any(row[1] is existing_via for row in ordered))
+        self.assertIs(ordered[0][1], existing_via)
+
+    def test_bounded_route_portfolio_reserves_via_to_via_pair(self):
+        import cec_fr
+
+        left_surface = [
+            (index * 10_000, 0, frozenset((0,)), None,
+             {"kind": "trk", "index": index})
+            for index in range(12)
+        ]
+        right_surface = [
+            (1_000_000 + index * 10_000, 0, frozenset((0,)), None,
+             {"kind": "trk", "index": index})
+            for index in range(12)
+        ]
+        left_via = (0, 500_000, frozenset((0, 2, 4, 31)), None,
+                    {"kind": "via"})
+        right_via = (1_000_000, 500_000, frozenset((0, 2, 4, 31)), None,
+                     {"kind": "via"})
+
+        ordered = cec_fr._bounded_route_aware_anchor_pairs(
+            left_surface + [left_via], right_surface + [right_via],
+            limit=4, max_mm=2.0)
+
+        self.assertTrue(any(
+            row[1] is left_via and row[2] is right_via
+            for row in ordered))
+        self.assertIs(ordered[0][1], left_via)
+        self.assertIs(ordered[0][2], right_via)
+
+    def test_fine_pad_to_large_rail_portfolio_samples_multiple_vias(self):
+        import cec_fr
+
+        fine_pad = (0, 0, frozenset((0,)), (200_000, 1_500_000),
+                    {"kind": "pad", "ref": "U1", "pad": "1"})
+        # These closer surface aliases all belong to one connected rail and
+        # expose the same layer/corridor.  They must not starve the fourth
+        # existing via when the fixed search budget is four candidates.
+        surface = [
+            (100_000 + index * 10_000, 0, frozenset((0,)), None,
+             {"kind": "trk", "index": index})
+            for index in range(12)
+        ]
+        vias = [
+            ((index + 1) * 500_000, 250_000,
+             frozenset((0, 2, 4, 31)), None,
+             {"kind": "via", "index": index})
+            for index in range(6)
+        ]
+
+        ordered = cec_fr._bounded_route_aware_anchor_pairs(
+            [fine_pad], surface + vias, limit=4, max_mm=5.0)
+
+        self.assertEqual(len(ordered), 4)
+        self.assertEqual(
+            [row[2][4]["index"] for row in ordered], [0, 1, 2, 3])
+        self.assertTrue(all(len(row[2][2]) > 1 for row in ordered))
+
+    def test_dogbone_lattice_samples_off_ray_fine_pitch_pocket(self):
+        import cec_fr
+
+        offsets = cec_fr._dogbone_lattice_offsets_mm(1.5)
+        self.assertIn((-0.375, -0.75), offsets)
+        self.assertEqual(offsets[0], (0.0, -0.125))
+        distances = [round(dx * dx + dy * dy, 9)
+                     for dx, dy in offsets]
+        self.assertEqual(distances, sorted(distances))
+
     def test_board_scale_maze_uses_coarse_grid_unless_explicitly_pinned(self):
         import cec_fr
 
@@ -264,6 +488,25 @@ class TestLastmile(unittest.TestCase):
         segs = [t for t in b.GetTracks() if t.GetClass() != "PCB_VIA"]
         self.assertTrue(segs, "a closure must lay real copper")
 
+    def test_project_clearance_can_replace_historical_global_floor(self):
+        import cec_fr
+
+        board = _board([(5, 5, "/A"), (7, 5, "/A")])
+        original = cec_fr._guarded_profiled_lastmile_legs
+        with mock.patch.object(
+                cec_fr, "_guarded_profiled_lastmile_legs",
+                wraps=original) as guarded:
+            result = cec_fr.synthesize_lastmile(
+                board, clearance=0.0,
+                netclass_resolver=lambda _net: {
+                    "track_width": 0.2, "clearance": 0.2})
+
+        self.assertEqual(result["closed"], 1, result)
+        self.assertTrue(guarded.call_args_list)
+        self.assertTrue(all(
+            call.args[5] == int(0.2e6)
+            for call in guarded.call_args_list))
+
     def test_completed_net_is_not_touched_by_lastmile(self):
         import cec_fr
 
@@ -405,6 +648,94 @@ class TestLastmile(unittest.TestCase):
             self.assertIn("memberOfGroup('CEC_LOCAL_ENDPOINT_NECKDOWN')",
                           rules)
 
+    def test_long_narrow_route_cannot_claim_endpoint_exception(self):
+        """A generated label must not exempt a board-scale skinny leg."""
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")], edge=(0, 0, 15, 10))
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.4, 0.4))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        narrow = pcbnew.PCB_TRACK(board)
+        narrow.SetStart(pcbnew.VECTOR2I_MM(5, 5))
+        narrow.SetEnd(pcbnew.VECTOR2I_MM(8, 5))
+        narrow.SetWidth(pcbnew.FromMM(0.2))
+        narrow.SetLayer(pcbnew.F_Cu); narrow.SetNet(net); board.Add(narrow)
+        trunk = pcbnew.PCB_TRACK(board)
+        trunk.SetStart(narrow.GetEnd())
+        trunk.SetEnd(pcbnew.VECTOR2I_MM(10, 5))
+        trunk.SetWidth(pcbnew.FromMM(0.5))
+        trunk.SetLayer(pcbnew.F_Cu); trunk.SetNet(net); board.Add(trunk)
+
+        report = cec_fr.group_endpoint_neckdowns(
+            board, [narrow], pcbnew.FromMM(0.5))
+
+        self.assertEqual(report["tracks"], 0, report)
+        self.assertEqual(report["rejected"][0]["reason"],
+                         "escape_budget_exceeded")
+        self.assertFalse(any(
+            group.GetName() == cec_fr.ENDPOINT_NECKDOWN_GROUP
+            for group in board.Groups()))
+
+    def test_elongated_pad_neckdown_uses_physical_flare_budget(self):
+        """Qualification mirrors the synthesizer's land-clearance budget."""
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")], edge=(0, 0, 15, 10))
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.4, 0.4))
+        pad.SetLocalClearance(pcbnew.FromMM(0.2))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        narrow = pcbnew.PCB_TRACK(board)
+        narrow.SetStart(pcbnew.VECTOR2I_MM(5, 5))
+        narrow.SetEnd(pcbnew.VECTOR2I_MM(6.1, 5))
+        narrow.SetWidth(pcbnew.FromMM(0.2))
+        narrow.SetLayer(pcbnew.F_Cu); narrow.SetNet(net); board.Add(narrow)
+        trunk = pcbnew.PCB_TRACK(board)
+        trunk.SetStart(narrow.GetEnd())
+        trunk.SetEnd(pcbnew.VECTOR2I_MM(8, 5))
+        trunk.SetWidth(pcbnew.FromMM(0.5))
+        trunk.SetLayer(pcbnew.F_Cu); trunk.SetNet(net); board.Add(trunk)
+
+        report = cec_fr.group_endpoint_neckdowns(
+            board, [narrow], pcbnew.FromMM(0.5))
+
+        self.assertEqual(report["tracks"], 1, report)
+        self.assertEqual(report["rejected"], [], report)
+
+    def test_hierarchical_patterns_become_exact_kicad_assignments(self):
+        import json
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/sheet/+3V3"),
+                        (8, 5, "/sheet/VBUS_F")])
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "candidate.kicad_pcb")
+            project = path.replace(".kicad_pcb", ".kicad_pro")
+            pcbnew.SaveBoard(path, board)
+            with open(project, "w", encoding="utf-8") as sink:
+                json.dump({"net_settings": {
+                    "classes": [
+                        {"name": "Default", "track_width": 0.2},
+                        {"name": "Power", "track_width": 0.5}],
+                    "netclass_patterns": [
+                        {"netclass": "Power", "pattern": "+3V3"}],
+                    "netclass_assignments": {},
+                }}, sink)
+
+            report = cec_fr.materialize_hierarchical_netclass_assignments(
+                path, current_nets=("/sheet/VBUS_F",))
+            with open(project, encoding="utf-8") as source:
+                assignments = json.load(source)["net_settings"][
+                    "netclass_assignments"]
+
+        self.assertTrue(report["written"], report)
+        self.assertEqual(assignments["/sheet/+3V3"], "Power")
+        self.assertEqual(assignments["/sheet/VBUS_F"], "Power")
+
     def test_split_endpoint_taper_recovers_group_membership(self):
         import pcbnew
         import cec_fr
@@ -478,6 +809,155 @@ class TestLastmile(unittest.TestCase):
         self.assertTrue(group.ContainsItem(outer))
         self.assertTrue(inner.IsLocked())
         self.assertTrue(outer.IsLocked())
+
+    def test_pad_limited_ground_dogbone_recovers_at_full_width_via(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")])
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(1.45, 0.30))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        group = pcbnew.PCB_GROUP(board)
+        group.SetName(cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        board.Add(group)
+        dogbone = pcbnew.PCB_TRACK(board)
+        dogbone.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        dogbone.SetEnd(pcbnew.VECTOR2I_MM(6.45, 5.0))
+        dogbone.SetWidth(pcbnew.FromMM(0.30))
+        dogbone.SetLayer(pcbnew.F_Cu)
+        dogbone.SetNet(net)
+        board.Add(dogbone)
+        via = pcbnew.PCB_VIA(board)
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetPosition(dogbone.GetEnd())
+        via.SetWidth(pcbnew.FromMM(0.90))
+        via.SetDrill(pcbnew.FromMM(0.50))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net)
+        board.Add(via)
+
+        report = cec_fr.reconcile_endpoint_neckdown_groups(
+            board, netclass_resolver=lambda _net: {"track_width": 0.5})
+
+        self.assertEqual(report["recovered"], 1, report)
+        self.assertEqual(
+            report["items"][0]["reason"], "fine_pad_to_full_width_via")
+        self.assertTrue(group.ContainsItem(dogbone))
+        self.assertTrue(dogbone.IsLocked())
+
+    def test_pofv_dogbone_recovers_only_with_opposite_layer_full_width(self):
+        """A profile-qualified small barrel can end a bounded power launch
+        only when it immediately becomes a real class-width route."""
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")])
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.30, 1.15))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        dogbone = pcbnew.PCB_TRACK(board)
+        dogbone.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        dogbone.SetEnd(pcbnew.VECTOR2I_MM(4.25, 5.0))
+        dogbone.SetWidth(pcbnew.FromMM(0.20))
+        dogbone.SetLayer(pcbnew.F_Cu); dogbone.SetNet(net)
+        board.Add(dogbone)
+        via = pcbnew.PCB_VIA(board)
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetPosition(dogbone.GetEnd())
+        via.SetWidth(pcbnew.FromMM(0.35))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net); board.Add(via)
+        trunk = pcbnew.PCB_TRACK(board)
+        trunk.SetStart(via.GetPosition())
+        trunk.SetEnd(pcbnew.VECTOR2I_MM(2.45, 5.0))
+        trunk.SetWidth(pcbnew.FromMM(0.50))
+        trunk.SetLayer(pcbnew.B_Cu); trunk.SetNet(net)
+        board.Add(trunk)
+        pofv_group = pcbnew.PCB_GROUP(board)
+        pofv_group.SetName(cec_fr.LOCAL_POFV_SIGNAL_VIA_GROUP)
+        board.Add(pofv_group); pofv_group.AddItem(via)
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name",
+                return_value="qualified"), mock.patch.object(
+                cec_fr._fab, "get_profile",
+                return_value={"pofv": {"enabled": True}}), \
+                mock.patch.object(
+                    cec_fr._fab, "pofv_dimensions",
+                    return_value=(True, "qualified")):
+            report = cec_fr.reconcile_endpoint_neckdown_groups(
+                board, netclass_resolver=lambda _net: {
+                    "track_width": 0.5})
+
+        self.assertEqual(report["recovered"], 1, report)
+        self.assertEqual(report["items"][0]["reason"],
+                         "fine_pad_to_profiled_via_throat")
+        endpoint_group = next(
+            group for group in board.Groups()
+            if group.GetName() == cec_fr.ENDPOINT_NECKDOWN_GROUP)
+        self.assertTrue(endpoint_group.ContainsItem(dogbone))
+        self.assertTrue(dogbone.IsLocked())
+
+    def test_pofv_dogbone_without_full_width_continuation_is_refused(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(5, 5, "/POWER")])
+        pad = next(iter(next(iter(board.GetFootprints())).Pads()))
+        pad.SetSize(pcbnew.VECTOR2I_MM(0.30, 1.15))
+        net = board.GetNetInfo().GetNetItem("/POWER")
+        dogbone = pcbnew.PCB_TRACK(board)
+        dogbone.SetStart(pcbnew.VECTOR2I_MM(5.0, 5.0))
+        dogbone.SetEnd(pcbnew.VECTOR2I_MM(4.25, 5.0))
+        dogbone.SetWidth(pcbnew.FromMM(0.20))
+        dogbone.SetLayer(pcbnew.F_Cu); dogbone.SetNet(net)
+        board.Add(dogbone)
+        via = pcbnew.PCB_VIA(board)
+        via.SetViaType(pcbnew.VIATYPE_THROUGH)
+        via.SetPosition(dogbone.GetEnd())
+        via.SetWidth(pcbnew.FromMM(0.35))
+        via.SetDrill(pcbnew.FromMM(0.25))
+        via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        via.SetNet(net); board.Add(via)
+        pofv_group = pcbnew.PCB_GROUP(board)
+        pofv_group.SetName(cec_fr.LOCAL_POFV_SIGNAL_VIA_GROUP)
+        board.Add(pofv_group); pofv_group.AddItem(via)
+
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name",
+                return_value="qualified"), mock.patch.object(
+                cec_fr._fab, "get_profile",
+                return_value={"pofv": {"enabled": True}}), \
+                mock.patch.object(
+                    cec_fr._fab, "pofv_dimensions",
+                    return_value=(True, "qualified")):
+            report = cec_fr.reconcile_endpoint_neckdown_groups(
+                board, netclass_resolver=lambda _net: {
+                    "track_width": 0.5})
+
+        self.assertEqual(report["recovered"], 0, report)
+        self.assertFalse(any(
+            group.GetName() == cec_fr.ENDPOINT_NECKDOWN_GROUP
+            for group in board.Groups()))
+
+    def test_nested_domain_neckdown_evidence_writes_scoped_rule(self):
+        import cec_fr
+
+        report = {"repair": {"domains": {"/VBUS": {
+            "endpoint_neckdown": {
+                "group": cec_fr.ENDPOINT_NECKDOWN_GROUP,
+                "tracks": 2,
+                "min_width_mm": 0.2,
+            }}}}}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "candidate.kicad_pcb")
+            rule = cec_fr.ensure_endpoint_neckdown_rule(path, report)
+            self.assertTrue(rule["applicable"], rule)
+            with open(rule["path"], encoding="utf-8") as handle:
+                text = handle.read()
+        self.assertIn("track_width (min 0.200mm)", text)
 
     def test_same_footprint_fine_pad_bridge_is_owned_without_trunk(self):
         import pcbnew
@@ -571,6 +1051,59 @@ class TestLastmile(unittest.TestCase):
             self.assertLess(min(angle, abs(45.0 - angle), abs(90.0 - angle)),
                             1e-6, "last-mile copper must be 0/45/90 degrees")
 
+    def test_lastmile_cannot_cross_future_frozen_power_corridor(self):
+        import json
+        import pcbnew
+        import cec_fr
+
+        board = _board([(1, 5, "/SIG"), (9, 5, "/SIG")],
+                       edge=(0, 0, 10, 10))
+        net = board.GetNetcodeFromNetname("/SIG")
+        state = {"corridors": [{
+            "net": "/POWER", "layer": "B.Cu",
+            "x0": 4.0, "y0": 0.0, "x1": 6.0, "y1": 10.0,
+        }]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "power-state.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(state, handle)
+            with mock.patch.dict(
+                    os.environ, {"CEC_POURFIRST_STATE": path}, clear=False):
+                legs = cec_fr._guarded_profiled_lastmile_legs(
+                    board, pcbnew.VECTOR2I_MM(1.0, 5.0),
+                    pcbnew.VECTOR2I_MM(9.0, 5.0),
+                    pcbnew.FromMM(0.5), pcbnew.B_Cu,
+                    pcbnew.FromMM(0.2), net,
+                    lambda start, end, half: cec_fr._edge_leg_clear(
+                        board, start, end, half),
+                    allow_maze=False)
+
+        self.assertIsNone(legs)
+
+    def test_through_via_cannot_pierce_future_frozen_power_corridor(self):
+        import json
+        import pcbnew
+        import cec_fr
+
+        board = _board([(2, 2, "/SIG")], edge=(0, 0, 10, 10))
+        net = board.GetNetcodeFromNetname("/SIG")
+        state = {"corridors": [{
+            "net": "/POWER", "layer": "B.Cu",
+            "x0": 4.0, "y0": 4.0, "x1": 6.0, "y1": 6.0,
+        }]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "power-state.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(state, handle)
+            with mock.patch.dict(
+                    os.environ, {"CEC_POURFIRST_STATE": path}, clear=False):
+                clear = cec_fr._via_spot_clear(
+                    board, pcbnew.VECTOR2I_MM(5.0, 5.0),
+                    pcbnew.FromMM(0.6), pcbnew.FromMM(0.2), {net},
+                    drill_nm=pcbnew.FromMM(0.3), net_code=net)
+
+        self.assertFalse(clear)
+
     def test_full_width_endpoints_can_use_bounded_maze(self):
         import pcbnew
         import cec_fr
@@ -660,6 +1193,12 @@ class TestLastmile(unittest.TestCase):
         import cec_fr
 
         board = _board([], edge=(0, 0, 8, 4))
+        # The fine-process profile cannot override the board's absolute floors.
+        # This positive fixture explicitly opts into native 0.35/0.25/0.05 mm.
+        settings = board.GetDesignSettings()
+        settings.m_ViasMinSize = pcbnew.FromMM(0.35)
+        settings.m_MinThroughDrill = pcbnew.FromMM(0.25)
+        settings.m_ViasMinAnnularWidth = pcbnew.FromMM(0.05)
         start = pcbnew.VECTOR2I_MM(1.0, 2.0)
         end = pcbnew.VECTOR2I_MM(7.0, 2.0)
         qualified = {(start.x, start.y), (end.x, end.y)}
@@ -697,7 +1236,7 @@ class TestLastmile(unittest.TestCase):
                          [(0.25, 0.35), (0.25, 0.35)])
         self.assertTrue(calls)
 
-    def test_bridge_does_not_use_pofv_geometry_at_bare_endpoint(self):
+    def test_bridge_reserves_pofv_geometry_for_proven_local_pad_escape(self):
         import pcbnew
         import cec_fr
 
@@ -738,6 +1277,10 @@ class TestLastmile(unittest.TestCase):
         vias = [op for op in operations if op[0] == "via"]
         self.assertEqual([(op[2], op[3]) for op in vias],
                          [(0.30, 0.50), (0.30, 0.50)])
+        # The bare endpoint is not a local pad-escape qualification, so both
+        # the origin candidate and every remote offset seat remain ordinary.
+        self.assertEqual(calls[0],
+                         (pcbnew.FromMM(0.50), pcbnew.FromMM(0.30)))
         self.assertNotIn(
             (pcbnew.FromMM(0.35), pcbnew.FromMM(0.25)), calls)
 
@@ -763,7 +1306,11 @@ class TestLastmile(unittest.TestCase):
                     and kwargs.get("drill_nm") == pcbnew.FromMM(0.30))
 
         with mock.patch.object(
-                cec_fr._fab, "board_profile_name", return_value=None), \
+                cec_fr._fab, "board_profile_name",
+                return_value="jlcpcb_6l_pofv_signal"), \
+                mock.patch.object(
+                    cec_fr._fab, "via_at_pad_conflicts",
+                    return_value=(None, [])), \
                 mock.patch.object(cec_fr, "_via_spot_clear",
                                   side_effect=via_clear), \
                 mock.patch.object(
@@ -824,6 +1371,73 @@ class TestLastmile(unittest.TestCase):
         vias = [op for op in operations if op[0] == "via"]
         self.assertEqual({(op[1].x, op[1].y) for op in vias}, qualified)
 
+    def test_bridge_seat_ladder_samples_eighth_millimetre_window(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 10, 6))
+        start = pcbnew.VECTOR2I_MM(1.0, 2.0)
+        end = pcbnew.VECTOR2I_MM(9.0, 2.0)
+        qualified = {
+            (start.x, start.y + pcbnew.FromMM(0.625)),
+            (end.x, end.y + pcbnew.FromMM(0.625)),
+        }
+        with mock.patch.object(
+                cec_fr._fab, "board_profile_name", return_value=None), \
+                mock.patch.object(
+                    cec_fr, "_via_spot_clear",
+                    side_effect=lambda _board, at, *_args, **_kwargs:
+                    (at.x, at.y) in qualified), \
+                mock.patch.object(
+                    cec_fr, "_guarded_profiled_lastmile_legs",
+                    side_effect=lambda _board, a, b, width, *_args,
+                    **_kwargs: [(a, b, width)]), \
+                mock.patch.object(
+                    cec_fr, "_guarded_lastmile_legs",
+                    side_effect=lambda _board, a, b, *_args, **_kwargs:
+                    [(a, b)]):
+            operations = cec_fr._lastmile_bridge(
+                board, (start.x, start.y), {pcbnew.F_Cu},
+                (end.x, end.y), {pcbnew.F_Cu},
+                pcbnew.FromMM(0.2), 1, [pcbnew.B_Cu],
+                pcbnew.FromMM(0.2), drill=0.3, dia=0.6,
+                leg_ok=lambda _a, _b, _half: True,
+                seat_limit=8, allow_maze=False)
+
+        self.assertIsNotNone(operations)
+        self.assertEqual(
+            {(op[1].x, op[1].y) for op in operations if op[0] == "via"},
+            qualified)
+
+    def test_endpoint_owned_plane_is_never_a_bridge_signal_layer(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([], edge=(0, 0, 10, 6))
+        board.SetLayerName(pcbnew.In1_Cu, "GND")
+        layers = cec_fr._endpoint_bridge_layers(
+            board, {pcbnew.F_Cu, pcbnew.In1_Cu}, {pcbnew.F_Cu},
+            [pcbnew.B_Cu])
+        self.assertEqual(layers, [])
+
+    def test_authoritative_netclass_width_beats_unrouted_fallback(self):
+        import cec_fr
+
+        board = _board([(2, 2, "/A"), (5, 2, "/A")])
+        result = cec_fr.synthesize_lastmile(
+            board, min_w=0.25,
+            netclass_resolver=lambda _net: {
+                "track_width": 0.2, "clearance": 0.2,
+                "via_diameter": 0.6, "via_drill": 0.3,
+            })
+
+        self.assertEqual(result["closed"], 1, result)
+        self.assertEqual(
+            {round(track.GetWidth() / 1e6, 3)
+             for track in board.GetTracks()
+             if track.GetClass() == "PCB_TRACK"},
+            {0.2})
+
     def test_canonical_path_helper_covers_octants(self):
         import cec_fr
         for end in ((3, 2), (-3, 2), (2, -3), (-2, -3), (3, 3), (0, 3)):
@@ -850,6 +1464,37 @@ class TestLastmile(unittest.TestCase):
         self.assertAlmostEqual(r["far_details"][0]["nearest_gap_mm"],
                                20.0, places=3)
         self.assertFalse(list(b.GetTracks()))
+
+    def test_aggregate_wall_timeout_is_structured_and_non_mutating(self):
+        import cec_fr
+
+        board = _board([(5, 5, "/A"), (9, 5, "/A")])
+        result = cec_fr.synthesize_lastmile(board, wall_timeout_s=0.0)
+
+        self.assertTrue(result["timed_out"], result)
+        self.assertEqual(result["timeout_s"], 0.0)
+        self.assertEqual(
+            result["timeout_detail"]["reason"],
+            "aggregate_wall_clock_budget_exhausted")
+        self.assertEqual(result["closed"], 0)
+        self.assertFalse(list(board.GetTracks()))
+
+    def test_per_net_timeout_skips_stubborn_net_without_starving_later_nets(self):
+        import cec_fr
+
+        board = _board([
+            (5, 5, "/A"), (9, 5, "/A"),
+            (5, 10, "/B"), (9, 10, "/B"),
+        ])
+        result = cec_fr.synthesize_lastmile(
+            board, wall_timeout_s=10.0, per_net_timeout_s=0.0)
+
+        self.assertFalse(result["timed_out"], result)
+        self.assertEqual(
+            {row["net"] for row in result["net_timeouts"]},
+            {"/A", "/B"})
+        self.assertEqual(result["closed"], 0)
+        self.assertFalse(list(board.GetTracks()))
 
     def test_blocked_straight_takes_bridge_or_L(self):
         # a foreign pad dead-center between the pair blocks the straight; the
@@ -970,10 +1615,13 @@ class TestLastmile(unittest.TestCase):
         with mock.patch.object(cec_fr, "_lastmile_bridge", return_value=None) as bridge:
             cec_fr.synthesize_lastmile(
                 b, netclass_resolver=lambda _net: {
-                    "via_diameter": 0.8, "via_drill": 0.4})
+                    "via_diameter": 0.8, "via_drill": 0.4},
+                wall_timeout_s=10.0)
         self.assertTrue(bridge.called)
         self.assertEqual(bridge.call_args.kwargs["dia"], 0.8)
         self.assertEqual(bridge.call_args.kwargs["drill"], 0.4)
+        self.assertIsNotNone(
+            bridge.call_args.kwargs["deadline_monotonic"])
 
     def test_local_power_bypass_links_only_power_class_and_locks(self):
         import cec_fr
@@ -1195,6 +1843,13 @@ class TestLastmile(unittest.TestCase):
         skipped = cec_fr.synthesize_missing_layer_junction_vias(
             tht_board, netclass_resolver=resolve)
         self.assertEqual((skipped["candidates"], skipped["added"]), (0, 0))
+        # A qualified complete upstream net may deliberately overlap on two
+        # layers while connecting elsewhere. Its importer is not its router.
+        protected = fixture()
+        untouched = cec_fr.synthesize_missing_layer_junction_vias(
+            protected, netclass_resolver=resolve, exclude_nets={'/PWR'})
+        self.assertEqual((untouched['candidates'], untouched['added']), (0, 0))
+        self.assertFalse(any(t.GetClass() == 'PCB_VIA' for t in protected.GetTracks()))
 
     def test_pipeline_power_zone_split_islands_get_guarded_bridge(self):
         import pcbnew
@@ -1290,6 +1945,10 @@ class TestLastmile(unittest.TestCase):
                 actual = cec_fr._snapshot_foreign_clear(
                     start, end, int(0.2e6), int(0.2e6), zones, copper)
                 self.assertEqual(actual, expected)
+                indexed = cec_fr._tap_foreign_clear(
+                    board, start, end, int(0.2e6), pcbnew.F_Cu,
+                    int(0.2e6), {code}, foreign_cache={})
+                self.assertEqual(indexed, expected)
 
     def test_maze_shape_snapshot_honors_stricter_zone_local_clearance(self):
         import pcbnew
@@ -1328,6 +1987,46 @@ class TestLastmile(unittest.TestCase):
             row.get("kind") == "zone"
             and row.get("contact") == "zone_clearance"
             for row in blockers))
+
+    def test_zone_broadphase_honors_route_clearance_larger_than_zone_rule(self):
+        import pcbnew
+        import cec_fr
+
+        board = _board([(2, 5, "/A"), (8, 5, "/A")], edge=(0, 0, 10, 10))
+        foreign = pcbnew.NETINFO_ITEM(board, "/BLOCK")
+        board.Add(foreign)
+        zone = pcbnew.ZONE(board)
+        zone.SetLayer(pcbnew.F_Cu)
+        zone.SetNet(foreign)
+        zone.SetZoneName("pourplan:/BLOCK")
+        zone.SetLocalClearance(pcbnew.FromMM(0.1))
+        zone.Outline().NewOutline()
+        for x, y in ((4, 5.35), (6, 5.35), (6, 8), (4, 8)):
+            zone.Outline().Append(pcbnew.FromMM(x), pcbnew.FromMM(y))
+        board.Add(zone)
+        start, end = pcbnew.VECTOR2I_MM(2, 5), pcbnew.VECTOR2I_MM(8, 5)
+        width, clearance = pcbnew.FromMM(0.2), pcbnew.FromMM(0.4)
+        self.assertTrue(zone.Outline().Collide(
+            pcbnew.SHAPE_SEGMENT(start, end, width), clearance))
+        code = board.GetNetcodeFromNetname('/A')
+        raw = cec_fr._layer_foreign_shapes(board, pcbnew.F_Cu, {code})
+        indexed = cec_fr._identified_foreign_shape_indexes(board, pcbnew.F_Cu, {code})
+        # The 0.25 mm actual edge gap fails the route's 0.40 mm requirement,
+        # even though it passes the zone's own 0.10 mm requirement.
+        for shapes in (raw, indexed):
+            self.assertFalse(cec_fr._snapshot_foreign_clear(start, end, width, clearance, *shapes))
+        self.assertTrue(any(row.get('kind') == 'zone' for row in
+            cec_fr._snapshot_foreign_blockers(start, end, width, clearance, *indexed)))
+        for cache in (None, {}):
+            self.assertFalse(cec_fr._tap_foreign_clear(
+                board, start, end, width, pcbnew.F_Cu, clearance, {code},
+                foreign_cache=cache))
+            self.assertFalse(cec_fr._via_spot_clear(
+                board, pcbnew.VECTOR2I_MM(5, 5), width, clearance, {code},
+                foreign_cache=cache))
+            self.assertTrue(cec_fr._tap_foreign_clear(
+                board, pcbnew.VECTOR2I_MM(2, 4.5), pcbnew.VECTOR2I_MM(8, 4.5),
+                width, pcbnew.F_Cu, clearance, {code}, foreign_cache=cache))
 
     def test_foreign_shape_index_is_reused_only_for_same_layer_and_exempt_net(self):
         import pcbnew

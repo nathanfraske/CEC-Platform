@@ -61,6 +61,19 @@ class TestPlaceFlip(unittest.TestCase):
         # the shunt case: rotated + flipped (a back-side rail chain's shunt)
         self._check("cec-Resistor_SMD:R_2512_6332Metric", 270)
 
+    def test_space_indented_footprint_retains_requested_position(self):
+        """Vendor/hand footprints need not use the emitter's tab indentation."""
+        import tempfile
+        import cec_pcb
+        fp = cec_pcb.place(
+            "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical",
+            "J_SIG1", 69.1475, 12.075, 0, {}, {})
+        path = tempfile.mkstemp(suffix=".kicad_pcb")[1]
+        open(path, "w").write(self._board_doc(fp))
+        placed = list(pcbnew.LoadBoard(path).GetFootprints())[0]
+        self.assertAlmostEqual(placed.GetPosition().x / 1e6, 69.1475, places=4)
+        self.assertAlmostEqual(placed.GetPosition().y / 1e6, 12.075, places=4)
+
 
 if __name__ == "__main__":
     unittest.main()

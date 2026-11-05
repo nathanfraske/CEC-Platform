@@ -12,12 +12,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_cascade as C  # noqa: E402
+from route_final_craft_fixtures import clean_quality
 
 
 class RouteAcceptanceTest(unittest.TestCase):
     def test_route_ok_requires_drc_and_connectivity(self):
         clean = {"kelvin_ok": True, "diffpair_ok": True,
-                 "drc": 0, "unconnected": 0}
+                 "drc": 0, "unconnected": 0, "route_quality": clean_quality()}
         self.assertTrue(C._route_ok(clean))
         self.assertFalse(C._route_ok({**clean, "drc": 1}))
         self.assertFalse(C._route_ok({**clean, "unconnected": 1}))
@@ -62,7 +63,7 @@ class RouteAcceptanceTest(unittest.TestCase):
             log = types.SimpleNamespace(final={"verdict": {"gates_pass": True}})
             metrics = types.SimpleNamespace(
                 gates_pass=True, drc=0, unconnected=0,
-                kelvin_ok=True, diffpair_ok=True)
+                kelvin_ok=True, diffpair_ok=True, detail={'route_quality': clean_quality()})
             with mock.patch.object(C.cec_router, "board_spec",
                                    return_value=(spec, "fixture")), \
                     mock.patch.object(C.cec_router, "route",

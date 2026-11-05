@@ -288,6 +288,30 @@ def compile_intents(board_path, intents, out_path, *, allow_at_mm=True):
             "failures": failures}
 
 
+def set_postroute_in_dsn(dsn_path, enabled, *, timeout_s=5., allowed_layers=None):
+    """Opt-in native route-only/optimization setting on a private DSN.
+
+    Never interpret ``-oit 0`` as an optimizer off switch. No implicit default
+    change: existing waves retain their settings unless their stage explicitly
+    requests this flag. Geometry and terminal exclusions remain byte-exact.
+    """
+    from cec_dsn_routing_settings import set_postroute
+    with open(dsn_path, encoding='utf-8', errors='strict', newline='') as handle:
+        text = handle.read()
+    transformed, manifest = set_postroute(text, enabled, timeout_s=timeout_s)
+    if allowed_layers is not None:
+        from cec_dsn_routing_settings import restrict_active_layers
+        transformed, layer_manifest=restrict_active_layers(
+            transformed,allowed_layers,timeout_s=timeout_s)
+        manifest['routing_layer_receiving']=layer_manifest
+        manifest['changed']=transformed!=text
+        import hashlib
+        manifest['output_sha256']=hashlib.sha256(transformed.encode()).hexdigest()
+    if manifest['changed']:
+        _atomic_replace_text(dsn_path, transformed)
+    return manifest
+
+
 def exclude_net_pins_in_dsn(dsn_path, nets):
     """Remove *nets* from Freerouting's routable set by truncating each net's DSN
     (pins ...) list to its FIRST pin -- a single-pin net has nothing to connect, so

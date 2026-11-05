@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "contracts": {
+    "TI-RUX0012A-courtyard-v1": {
+      "path": "lib/vendor-data/footprint-courtyards/TPS2121RUX-courtyard.json",
+      "sha256": "b6b1d914bc0fe2445257aedee286fb14e5951ae8ff74d3f92edc3637669f5950"
+    }
+  }
+}

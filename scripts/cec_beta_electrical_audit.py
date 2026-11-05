@@ -34,6 +34,7 @@ import cec_power_budget  # noqa: E402
 import cec_spice_sanity  # noqa: E402
 import cec_toolchain  # noqa: E402
 import cec_beta_manifest  # noqa: E402
+import cec_part_semantics  # noqa: E402
 from cec_normalize_verified_lcsc_parts import VERIFIED  # noqa: E402
 
 
@@ -269,6 +270,8 @@ def _implementation_digest() -> tuple[str, list[str]]:
         os.path.join(HERE, "cec_hub_holdup.py"),
         os.path.join(HERE, "cec_power_budget.py"),
         os.path.join(HERE, "cec_normalize_verified_lcsc_parts.py"),
+        os.path.join(HERE, "cec_part_semantics.py"),
+        os.path.join(HERE, "cec_xfcn_contract.py"),
     ]
     digest = hashlib.sha256()
     relative = []
@@ -293,7 +296,7 @@ def export_netlist(schematic: str) -> tuple[dict[str, str], dict[str, list[tuple
             [cli, "sch", "export", "netlist", "-o", path, schematic],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=10,
         )
         if run.returncode:
             detail = (run.stderr or run.stdout or "no diagnostic").strip()
@@ -1228,7 +1231,14 @@ def check_topology(board, root_sch, inventory, pins_by_ref):
     return findings
 
 
-def check_bom(board, inventory):
+def check_bom(board, inventory, *, fabricated_features=None):
+    if fabricated_features is None:
+        import cec_xfcn_contract
+        fabricated_features = (*cec_xfcn_contract.PARTS.values(),
+                               *cec_part_semantics.BARE_SOLDER_FIELDS)
+    # Accept an injected registry for other asset libraries without coupling
+    # the classifier to a board, reference designator or connector family.
+    fabricated_features = tuple(fabricated_features)
     findings = []
     selection_prefixes = ("U", "Q", "D", "J", "F", "L", "RS", "SW")
     datasheet_prefixes = ("U", "Q")
@@ -1247,11 +1257,8 @@ def check_bom(board, inventory):
                 ref))
         if not assembled:
             continue
-        description = props.get("Description", "")
-        fabricated_feature = (
-            "Daughterboard_Field" in rec["footprint"] or
-            "NOT a stocked/purchased part" in description
-        )
+        fabricated_feature = cec_part_semantics.is_fabricated_pcb_feature(
+            rec, fabricated_features)
         if not rec["footprint"]:
             findings.append(_finding(
                 board, "BLOCKER", "MISSING_FOOTPRINT", "assembled part has no footprint", ref))
@@ -1455,14 +1462,16 @@ def _check_hub_holdup(board, inventory, pins_by_ref):
             if not _same_net(actual.get(pin), net):
                 blocker(ref, f"pin {pin} is {actual.get(pin)!r}, expected {net!r}")
 
-    c1 = inventory.get("C1")
-    c1_props = (c1 or {}).get("props", {})
-    if (not fitted("C1") or capacitance_f((c1 or {}).get("value", "")) != 4700e-6 or
-            c1_props.get("LCSC") != "C487318" or
-            c1_props.get("MPN") != "VKMI2101C472MV" or
-            c1_props.get("Manufacturer") != "Ymin"):
-        blocker("C1", "requires fitted Ymin VKMI2101C472MV / C487318, 4700uF +/-20%")
-    require_pins("C1", {"1": "/+5V_HOLD", "2": "GND"})
+    from cec_reservoir_screen import check_bank
+    bank = check_bank(inventory, pins_by_ref, references=cec_hub_holdup.RESERVOIR_REFS,
+        positive_net="/+5V_HOLD", negative_net="GND",
+        capacitance=capacitance_f, same_net=_same_net,
+        expected_each_f=cec_hub_holdup.CAP_EACH_F,
+        expected_properties={"LCSC": cec_hub_holdup.RESERVOIR_LCSC,
+            "MPN": cec_hub_holdup.RESERVOIR_MPN, "Manufacturer": "Lelon"},
+        expected_footprint=cec_hub_holdup.RESERVOIR_FOOTPRINT)
+    for issue in bank["issues"]:
+        blocker(issue["ref"], issue["reason"])
 
     d1 = inventory.get("D1")
     d1_props = (d1 or {}).get("props", {})
@@ -1531,10 +1540,13 @@ def _check_hub_holdup(board, inventory, pins_by_ref):
             "ahead of the reviewed buck regulation floor"))
         findings.append(_finding(
             board, "INFO", "HOLDUP_SUDDEN_LOSS_BUDGET",
-            f"C1 minimum 3760uF, 4.15V conservative reservoir start, 3.45V "
+            f"C1+C37 minimum {calculation['cap_min_F']*1e6:.0f}uF fresh; "
+            f"{calculation['cap_aged_min_F']*1e6:.0f}uF at the specified endurance C envelope. "
+            f"4.15V conservative reservoir start, 3.45V "
             f"regulation floor, 85% conversion and {cec_hub_holdup.HUB_LOAD_A * 1e3:.3f}mA "
             f"load produce {calculation['sudden_loss_hold_ms']:.2f}ms; the 10ms "
-            f"trigger-to-durable-commit budget retains {calculation['sudden_loss_margin_ms']:.2f}ms"))
+            f"trigger-to-durable-commit budget retains {calculation['sudden_loss_margin_ms']:.2f}ms "
+            f"before ESR/leakage/latency. Aged ideal time {calculation['aged_ideal_hold_ms']:.2f}ms is not a bench qualification."))
         findings.append(_finding(
             board, "WARN", "HOLDUP_BENCH_OPEN",
             "topology and bounded paper model pass, but OQ-56 still must measure slow-brownout behavior, capacitor ESR/aging/temperature, source decay, load shed, and durable-commit latency"))
@@ -1821,8 +1833,82 @@ MEZZ_EXPECTED = {
 }
 
 
+def check_usb_ingress_capacitance(board, inventory, pins_by_ref):
+    """Screen sink Type-C USB2 ingress across passive series elements.
+
+    A bead/PTC/zero-ohm link is not a qualified hot-plug current limiter.
+    Stop at active devices (including mux INPUTS); their downstream soft-start
+    cannot protect capacitors already attached on their upstream input net.
+    This is a nominal-capacitance warning, not USB compliance certification:
+    exact effective capacitance, source role and current-vs-time remain needed.
+    """
+    graph = {}
+    for ref, rec in inventory.items():
+        if not _fitted(rec):
+            continue
+        kind, value = rec.get("lib_id", ""), rec.get("value", "")
+        bridge = ("FerriteBead" in kind or "Polyfuse" in kind or
+                  "PTC" in value.upper() or
+                  ("R_Small" in kind and value.strip() in ("0", "0R", "0Ω")))
+        nets = sorted({n for n in pins_by_ref.get(ref, {}).values() if not _nc(n)})
+        if bridge and len(nets) == 2 and not any(_gnd(n) for n in nets):
+            a, b = nets
+            graph.setdefault(a, []).append((b, ref))
+            graph.setdefault(b, []).append((a, ref))
+    capacitors = _rail_capacitors(inventory, pins_by_ref)
+    findings = []
+    for ref, rec in sorted(inventory.items()):
+        if not _fitted(rec) or "USB_C_Receptacle_USB2.0" not in rec.get("lib_id", ""):
+            continue
+        pins = pins_by_ref.get(ref, {})
+        # Only an actual sink with two Rd terminations is applicable. Hosts,
+        # DRP/controllers and unknown connector pinouts need their own model.
+        rd = []
+        for cc_pin in ("A5", "B5"):
+            cc = pins.get(cc_pin)
+            rd.append(bool(cc) and any(_fitted(r) and
+                r.get("value", "").replace(" ", "") in ("5.1kΩ", "5.1k", "5k1") and
+                cc in pins_by_ref.get(rr, {}).values() and
+                any(_gnd(n) for n in pins_by_ref.get(rr, {}).values())
+                for rr, r in inventory.items()))
+        if not all(rd):
+            continue
+        todo = [pins.get(p) for p in ("A4", "A9", "B4", "B9") if not _nc(pins.get(p))]
+        seen, bridges = set(), set()
+        while todo:
+            net = todo.pop()
+            if net in seen:
+                continue
+            seen.add(net)
+            for neighbor, bridge in graph.get(net, ()):
+                bridges.add(bridge)
+                if neighbor not in seen:
+                    todo.append(neighbor)
+        caps = [c for c in capacitors if c["rail"] in seen]
+        nominal = sum(c["farads"] for c in caps)
+        if nominal > 10e-6 + 1e-12:
+            finding = _finding(board, "WARN", "USB_INGRESS_CAPACITANCE",
+                "USB2 sink ingress exposes %.3f uF nominal (%s) through passive "
+                "links %s before active current limiting; exceeds the 10 uF "
+                "hard-attach screening budget. Qualify effective capacitance "
+                "and hot-plug inrush; downstream mux soft-start is not input-cap protection. "
+                "Source: TI SLVA129, https://www.ti.com/lit/pdf/slva129" % (
+                    nominal*1e6, ", ".join(c["ref"] for c in caps),
+                    ", ".join(sorted(bridges)) or "none"), ref)
+            finding["evidence"] = {"nominal_uf": nominal*1e6,
+                "capacitors": [{"ref": c["ref"], "rail": c["rail"],
+                                "nominal_uf": c["farads"]*1e6} for c in caps],
+                "passive_links": sorted(bridges), "qualified": False}
+            findings.append(finding)
+    return findings
+
+
 def check_mezzanine(all_boards):
     findings = []
+    # A board-scoped audit must not invent missing peers outside its scope.
+    # Auditing either member still requires its mating board for comparison.
+    if not {"atx-24pin-rev3", "hub-standard-rev2"}.intersection(all_boards):
+        return findings
     for board in ("atx-24pin-rev3", "hub-standard-rev2"):
         data = all_boards.get(board)
         if not data:
@@ -1863,7 +1949,7 @@ def check_mezzanine(all_boards):
                 f"{ref} uses pin-header footprints on both boards; an orderable header/socket pair and stack height are not selected",
                 ref,
             ))
-    if not any(f["code"] == "MEZZ_PINMAP" for f in findings):
+    if not any(f["severity"] == "BLOCKER" for f in findings):
         findings.append(_finding(
             "atx-24pin-rev3+hub-standard-rev2", "INFO", "MEZZ_MATCH",
             "segmented J6P/J6C/J6D pin roles match across both boards"))
@@ -1976,6 +2062,7 @@ def audit(beta_root: str, boards=None, *, scope_name="current-beta"):
         findings += check_topology(board, schematic, inventory, pins)
         findings += check_passives(board, inventory, pins)
         findings += check_board_specific(board, inventory, pins)
+        findings += check_usb_ingress_capacitance(board, inventory, pins)
 
     findings += check_mezzanine(all_boards)
     findings += check_lcsc_consistency(all_boards)

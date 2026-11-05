@@ -8,7 +8,7 @@ D1,1,PESD5V0S1BA,D_SOD-323,PESD5V0S1BA,HXY MOSFET,C5261083,,,https://www.lcsc.co
 D3,1,USBLC6-2SC6,SOT-23-6,USBLC6-2SC6,UMW,C2687116,,,https://datasheet.lcsc.com/lcsc/2206231215_UMW-Youtai-Semiconductor-Co---Ltd--USBLC6-2SC6_C2687116.pdf,,,Low-capacitance USB D+/D- ESD array with VBUS reference.
 F1,1,750mA/16V PTC,R_1206_3216Metric,1206L075/16WR,Littelfuse,C371166,,,https://www.lcsc.com/datasheet/C371166.pdf,,,"750mA hold, 1.5A trip, 16V resettable PTC on USB VBUS ingress."
 J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
-J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
+J5,1,USB-C 2.0,USB_C_Receptacle_GCT_USB4215-03-A,USB4215-03-A,GCT,C37616412,,,https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/6328/USB4215-03-A.pdf,,,
 J_IN1,1,C1 PSU,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
 J_IN2,1,C2 PSU,Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA,87427-0802,Molex,,,,https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/productspecificationpdf/874/87427/PS-87427-0001-001.pdf,,,
 "R1,R3,R4",3,2.2kΩ,R_0402_1005Metric,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,

@@ -2,26 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# KELVIN SENSE-TAP current exclusion in the 2.5D electro-thermal solver
-# (cec_thermal2d.solve_board_thermal + _kelvin_sense_drop_cells).
-#
-# THE BUG: the solver injects a current-carrying sense net's cable current across the ENTIRE
-# net's copper, including the high-impedance KELVIN SENSE-TAP copper (the INA current-sense
-# INPUT pads + the thin traces reaching them) that physically carries ZERO current. On a board
-# whose Kelvin sense is MIS-ROUTED as a thin 0.2 mm strip bridging the connector and the shunt,
-# the old solver drove the full cable current through that strip -> a fabricated ~1000 C hot
-# neck while the wide force POUR sat cool and unused. Bad routing masqueraded as a thermal fail.
-#
-# THE FIX: on a high-current sense net that carries a high-Z INA input AND has a force pour, the
-# current must flow ONLY along the force path (connector -> POUR -> shunt). Every routed-TRACK-
-# only conductor on the net (the Kelvin tap, a mis-routed sense strip, stray copper) is dropped
-# from the CURRENT graph; the filled ZONE and ALL PAD copper are kept. klat (heat conduction) is
-# untouched. The Kelvin mis-route itself stays a routing fault caught by kelvin_topology_faults.
-#
-# TEETH (container, needs pcbnew): a board with a filled HI force pour whose shunt SINK is reached
-# only through a thin mis-routed connector->shunt strip. WITH the fix the strip is no current
-# carrier, so max_T stays sane (~ambient); WITHOUT it the strip is driven with the full cable
-# current and max_T explodes to hundreds of C. Adding/removing the strip does not move max_T.
+# Physical mixed trace/pour current graphs must not suppress real conductors.
+# A high-Z INA pin does not make a physical force bridge high impedance. The
+# former blanket track exclusion could report a cool disconnected field and
+# even tests incorrectly accepted max_T alone. Check injected current, loss,
+# operation completion and actual open/closed topology instead.
 
 import os
 import sys
@@ -112,7 +97,7 @@ def _edge(b, x0, y0, x1, y1):
     b.Add(g)
 
 
-def _build(path, *, strip):
+def _build(path, *, strip, width=.20):
     """EPS-cable-shaped board with a FILLED HI force pour. The pour covers the connector
     (PTH at y=7) but ENDS at y=20, leaving the shunt HI pad (y=25) OUTSIDE the pour -- the
     real bug's pour<->shunt gap. strip=True adds a thin 0.20 mm mis-routed connector->shunt
@@ -139,7 +124,7 @@ def _build(path, *, strip):
     if strip:
         # THE BUG: a thin 0.20 mm sense strip bridges the pour edge to the shunt SINK -- the only
         # galvanic path connector->shunt, so the old solver funnels the whole cable current here.
-        _trk(b, hi, (25.0, 20.0), (25.0, 25.0))
+        _trk(b, hi, (25.0, 20.0), (25.0, 25.0),wmm=width)
     # ZONE_FILLER segfaults on a freshly-created board; save + reload (so design settings init)
     # then fill, the same way the production tooling does it.
     pcbnew.SaveBoard(path, b)
@@ -160,27 +145,36 @@ class ThermalSenseTap(unittest.TestCase):
 
     def _solve(self, path):
         return t2.solve_board_thermal(
-            path, net_currents={HI: 14.6}, grid_mm=0.4, ambient=AMB,
-            h_eff=15.0, verbose=False)
+            path, net_currents={HI: 2.0}, grid_mm=0.4, ambient=AMB,
+            src_sink_override={HI:dict(refs_src=['J_IN1'],refs_sink=['RS1'],
+                source_layers=['F.Cu'],sink_layers=['F.Cu'])},
+            h_eff=15.0, verbose=False,time_budget_s=10.)
 
-    def test_mis_routed_strip_does_not_fabricate_a_neck(self):
-        # THE TEETH: the full cable current must NOT be driven through the thin sense strip.
+    def test_real_thin_force_bridge_cannot_be_deleted_as_high_z_sense_copper(self):
         res = self._solve(_build(self._path("strip"), strip=True))
-        self.assertLess(res.max_T, AMB + 60.0,
-                        "a mis-routed Kelvin sense strip must not fabricate a hot neck "
-                        "(got max_T=%.1f C); current must stay on the force pour" % res.max_T)
+        self.assertTrue(res.meta['operation_complete'],res.meta)
+        self.assertFalse(res.nets_dropped,res.summary())
+        self.assertGreater(res.total_joule_W,0.)
+        self.assertIn(HI,res.per_net_maxJ)
+        self.assertFalse(res.meta['sense_copper_stripped'])
 
-    def test_thermal_independent_of_sense_strip(self):
-        # The board's thermal is the SAME whether or not the thin sense-tap strip exists.
-        t_with = self._solve(_build(self._path("with"), strip=True)).max_T
-        t_without = self._solve(_build(self._path("without"), strip=False)).max_T
-        self.assertAlmostEqual(
-            t_with, t_without, delta=2.0,
-            msg="max_T must not depend on the presence of the sense-tap strip "
-                "(with=%.1f without=%.1f)" % (t_with, t_without))
+    def test_cool_disconnected_board_is_not_a_completed_thermal_result(self):
+        connected=self._solve(_build(self._path('with'),strip=True))
+        open_board=self._solve(_build(self._path('without'),strip=False))
+        self.assertTrue(connected.meta['operation_complete'],connected.meta)
+        self.assertFalse(open_board.meta['operation_complete'])
+        self.assertIn(HI,open_board.nets_dropped)
+        self.assertFalse(open_board.meta.get('field_computed',True))
+
+    def test_wide_trace_and_local_pour_remain_a_real_lower_loss_force_path(self):
+        thin=self._solve(_build(self._path('thin'),strip=True))
+        wide=self._solve(_build(self._path('wide'),strip=True,width=3.5))
+        self.assertTrue(thin.meta['operation_complete'] and wide.meta['operation_complete'])
+        self.assertGreater(thin.total_joule_W,wide.total_joule_W)
+        self.assertGreater(thin.max_T,wide.max_T)
 
     def test_drop_keeps_zones_and_pads_drops_tracks(self):
-        # Unit-level: _kelvin_sense_drop_cells keeps pour + pad cells, drops only track-only cells.
+        # Legacy classification utility remains diagnostic, not graph authority.
         ny, nx = 6, 6
 
         class G:

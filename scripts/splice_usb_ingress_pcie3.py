@@ -70,7 +70,13 @@ BOM = {
                 Note="U4 IN2 (VBUS) bulk (additional to the existing C9 on the same node)."),
     "C45": dict(Manufacturer="Samsung", MPN="CL21A106KAYNNNE", LCSC="C15850",
                 Datasheet="https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
-                Note="U4 OUT (VCC_RJ45) local X5R bypass; place directly at OUT and GND."),
+                Note="U4 OUT (VCC_RJ45) 10uF X5R switchover reservoir."),
+    "C46": dict(Manufacturer="Samsung", MPN="CL05B104KO5NNNC", LCSC="C1525",
+                Datasheet="https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                Note="U4 IN1 (+5VSB) pin-adjacent high-frequency X7R bypass."),
+    "C47": dict(Manufacturer="Samsung", MPN="CL05B104KO5NNNC", LCSC="C1525",
+                Datasheet="https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                Note="U4 OUT (VCC_RJ45) pin-adjacent high-frequency X7R bypass."),
 }
 
 FP_R0402 = "cec-Resistor_SMD:R_0402_1005Metric"
@@ -197,6 +203,15 @@ if __name__ == "__main__":
                                      sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0805, props=BOM["C45"]))
     blob.append(sc.wire_and_global_label(c_pins, "C45", "1", CX_OUT, CY3, GLOBAL_VCC_RJ45))
     blob.append(sc.wire_and_power(c_pins, "C45", "2", CX_OUT, CY3, "GND", PROJECT, USB_PATH, "#PWR7113"))
+    CX_HF = sc.gsnap(210.0)
+    blob.append(cec_sch.emit_symbol("C46", "cec-vendor", "C_Small", "100nF", CX_HF, CY2,
+                                     sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0402, props=BOM["C46"]))
+    blob.append(sc.wire_and_power(c_pins, "C46", "1", CX_HF, CY2, "+5VSB", PROJECT, USB_PATH, "#PWR7116"))
+    blob.append(sc.wire_and_power(c_pins, "C46", "2", CX_HF, CY2, "GND", PROJECT, USB_PATH, "#PWR7114"))
+    blob.append(cec_sch.emit_symbol("C47", "cec-vendor", "C_Small", "100nF", CX_HF, CY3,
+                                     sorted(c_pins.keys()), PROJECT, USB_PATH, fp=FP_C0402, props=BOM["C47"]))
+    blob.append(sc.wire_and_global_label(c_pins, "C47", "1", CX_HF, CY3, GLOBAL_VCC_RJ45))
+    blob.append(sc.wire_and_power(c_pins, "C47", "2", CX_HF, CY3, "GND", PROJECT, USB_PATH, "#PWR7115"))
 
     # ---------- 8. PWR_FLAG drivers for VBUS and VCC_RJ45 (power_in typed IN1/IN2) ----------
     FX1, FY1 = sc.gsnap(250.0), sc.gsnap(120.0)

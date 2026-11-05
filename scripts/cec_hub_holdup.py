@@ -18,8 +18,14 @@ import cec_power_budget
 HUB_LOAD_A = cec_power_budget.budget("hub-standard-rev2")["required_mA"] / 1e3
 VOUT_V = 3.3
 EFFICIENCY_FLOOR = 0.85
-CAP_NOMINAL_F = 4700e-6
+RESERVOIR_REFS = ("C1", "C37")
+RESERVOIR_MPN = "VZH472M1CTR-1816"
+RESERVOIR_LCSC = "C249940"
+RESERVOIR_FOOTPRINT = "cec-Capacitor_SMD:CP_Elec_Lelon_VZH_18x16.5"
+CAP_EACH_F = 4700e-6
+CAP_NOMINAL_F = len(RESERVOIR_REFS) * CAP_EACH_F
 CAP_TOLERANCE = 0.20
+CAP_ENDURANCE_LOSS = 0.30  # of initial measured C, VZH endurance at restored 20C
 SELECTED_RAIL_MIN_V = 4.75
 SS14_VF_MAX_V = 0.55
 SOURCE_PATH_RESERVE_V = 0.05
@@ -84,6 +90,8 @@ def model() -> dict[str, float]:
     return {
         "load_with_20pct_margin_A": HUB_LOAD_A,
         "cap_min_F": c_min,
+        "cap_aged_min_F": c_min * (1 - CAP_ENDURANCE_LOSS),
+        "aged_ideal_hold_ms": hold_ms * (1 - CAP_ENDURANCE_LOSS),
         "reservoir_start_bound_V": start_v,
         "regulation_floor_bound_V": REGULATION_FLOOR_V,
         "sudden_loss_hold_ms": hold_ms,

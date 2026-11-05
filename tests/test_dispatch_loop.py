@@ -16,13 +16,14 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 import cec_dispatch as d  # noqa: E402
+from route_final_craft_fixtures import clean_quality
 
 
 def _cm(seed, **kw):
     base = dict(seed=seed, params={"passes": 8, "opt_time": 12, "threads": 1},
                 board=f"/tmp/cand_{seed}.kicad_pcb", drc=0, unconnected=0,
                 kelvin_ok=True, diffpair_ok=True, gates_pass=True, tracks=100, vias=10,
-                drc_types={}, drc_loci=[], unconn_nets=[])
+                drc_types={}, drc_loci=[], unconn_nets=[], route_quality=clean_quality())
     base.update(kw)
     return d.CandidateMetrics(**base)
 

@@ -50,7 +50,8 @@ def main():
     if removed and args.refill_zones:
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
     if removed:
         pcbnew.SaveBoard(os.path.abspath(args.board), board)
     payload = {

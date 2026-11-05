@@ -160,6 +160,34 @@ def edge_follow_positions(positions, nominal_outline, target_outline,
     }
 
 
+def bind_required_positions(positions, anchors):
+    """Overlay exact mechanical datums before evaluating displaced neighbors.
+
+    String-valued lock reasons do not specify a pose. Numeric declarations
+    must name an existing footprint and contain a finite complete pose; an
+    invalid datum is not silently dropped. Inputs are left untouched.
+    """
+    import math
+    result = dict(positions)
+    changed = {}
+    for ref, pose in (anchors or {}).items():
+        if isinstance(pose, str):
+            continue
+        if (not isinstance(pose, (tuple, list)) or len(pose) != 3
+                or ref not in result):
+            raise ValueError('required mechanical pose is invalid or missing: %s' % ref)
+        try:
+            target = tuple(float(value) for value in pose)
+        except (TypeError, ValueError) as exc:
+            raise ValueError('required mechanical pose must be numeric: %s' % ref) from exc
+        if not all(math.isfinite(value) for value in target):
+            raise ValueError('required mechanical pose must be finite: %s' % ref)
+        if tuple(result[ref]) != target:
+            changed[ref] = {'before': list(result[ref]), 'after': list(target)}
+        result[ref] = target
+    return result, {'schema': 1, 'changed': changed}
+
+
 def placement_key(row):
     """Legality and route evidence dominate minimum board area."""
     candidate, width, height = row[:3]

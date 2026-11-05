@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "scope": "reviewed nominal body envelope only; tolerance and stack qualification remain separate",
+  "contracts": [
+    {
+      "footprints": ["cec-RF_Module:ESP32-C6-MINI-1", "RF_Module:ESP32-C6-MINI-1"],
+      "template": "lib/vendor/RF_Module.pretty/ESP32-C6-MINI-1.kicad_mod",
+      "template_sha256": "d72bfb60cdce7b432f87eaee0175667b5b4f71c83380dec40b33c17f41bb75b3",
+      "nominal_body_mm": [13.2, 16.6],
+      "dimension_tolerance_mm": [0.2, 0.2],
+      "source": "https://documentation.espressif.com/esp32-c6-mini-1_mini-1u_datasheet_en.pdf",
+      "source_section": "v1.5 section 10.1 Figure 10-1, printed page 41; antenna substrate is physical body",
+      "repair_layers": ["F.CrtYd", "B.CrtYd", "F.SilkS", "B.SilkS"]
+    }
+  ]
+}

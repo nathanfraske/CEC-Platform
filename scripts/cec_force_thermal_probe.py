@@ -89,7 +89,8 @@ def phase_fill(args):
     board = pcbnew.LoadBoard(probe)
     for z in board.Zones():
         z.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     pcbnew.SaveBoard(probe, board)
     print("zones filled", flush=True)
 

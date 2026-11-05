@@ -43,7 +43,7 @@ class PlaneThtPolicyTest(unittest.TestCase):
 
         self.assertEqual(plane_tht_exclusion_nets(board), set())
 
-    def test_sparse_rail_excludes_only_the_tht_pin_in_real_inner_fill(self):
+    def test_sparse_rail_retains_one_port_and_excludes_only_duplicate_filled_pins(self):
         try:
             import pcbnew
         except ImportError:
@@ -55,7 +55,7 @@ class PlaneThtPolicyTest(unittest.TestCase):
         board.Add(net)
         footprint = pcbnew.FOOTPRINT(board)
         footprint.SetReference("J1")
-        for number, x in (("1", 5.0), ("2", 15.0)):
+        for number, x in (("1", 5.0), ("2", 15.0), ("3", 7.0)):
             pad = pcbnew.PAD(footprint)
             pad.SetNumber(number)
             pad.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
@@ -76,7 +76,7 @@ class PlaneThtPolicyTest(unittest.TestCase):
         board.Add(zone)
         pcbnew.ZONE_FILLER(board).Fill(board.Zones())
 
-        self.assertEqual(filled_tht_exclusion_pins(board), {"J1-1": "+5VSB"})
+        self.assertEqual(filled_tht_exclusion_pins(board), {"J1-3": "+5VSB"})
 
 
 if __name__ == "__main__":

@@ -83,7 +83,8 @@ class SearchPolicyTest(unittest.TestCase):
             "unconn_critical": ["/RESET", "/INTERLOCK"],
             "drc": 1, "unconnected": 20, "seed": 7,
         })
-        self.assertEqual(ranked[-5:], (2, 1, 20, 0, 7))
+        self.assertEqual(ranked[3:7], (2, 1, 20, 0))
+        self.assertEqual(ranked[-1], 7)
 
 
 if __name__ == "__main__":

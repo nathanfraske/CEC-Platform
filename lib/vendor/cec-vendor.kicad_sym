@@ -3903,6 +3903,21 @@
 		)
 		(embedded_fonts no)
 	)
+(symbol "C_Polarized_Small"
+  (pin_numbers (hide yes)) (pin_names (offset 0.254) (hide yes))
+  (exclude_from_sim no) (in_bom yes) (on_board yes)
+  (property "Reference" "C" (at 2.54 1.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "C_Polarized_Small" (at 2.54 -1.27 0) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+  (symbol "C_Polarized_Small_0_1"
+    (polyline (pts (xy -1.524 0.508) (xy 1.524 0.508)) (stroke (width 0.254) (type default)) (fill (type none)))
+    (rectangle (start -1.524 -0.381) (end 1.524 -0.889) (stroke (width 0.127) (type default)) (fill (type background)))
+    (polyline (pts (xy -2.54 1.27) (xy -1.27 1.27)) (stroke (width 0.127) (type default)) (fill (type none)))
+    (polyline (pts (xy -1.905 0.635) (xy -1.905 1.905)) (stroke (width 0.127) (type default)) (fill (type none))))
+  (symbol "C_Polarized_Small_1_1"
+    (pin passive line (at 0 2.54 270) (length 2.032) (name "+" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+    (pin passive line (at 0 -2.54 90) (length 1.651) (name "-" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))))
 	(symbol "C_Small"
 		(pin_numbers
 			(hide yes)
@@ -6638,6 +6653,7 @@
 		(embedded_fonts no)
 	)
 	(symbol "USBLC6-2SC6"
+		(jumper_pin_groups ("1" "6") ("3" "4"))
 		(pin_names
 			(hide yes)
 		)
@@ -8646,7 +8662,7 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin power_in line
 				(at 8.89 2.54 180)
 				(length 2.54)
 				(name "VS"
@@ -8865,7 +8881,7 @@
 					)
 				)
 			)
-			(pin unspecified line
+			(pin power_in line
 				(at 8.89 2.54 180)
 				(length 2.54)
 				(name "VCC"

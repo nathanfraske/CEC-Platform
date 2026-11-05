@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CEC board inspection</title><link rel="stylesheet" href="cec_suite_inspection.css"></head>
+<body>
+<header><div><h1>CEC · suite inspection</h1><div id="snapshot" class="subtle">Loading the exact review snapshot…</div></div>
+<div class="header-actions"><button id="overview-button" type="button">Suite breakdown</button><a class="button" href="inspection-report.zip" download>Portable laptop bundle</a><button id="export-notes" type="button">Export review notes</button></div></header>
+<div id="scope" class="scope" role="status"></div>
+<section id="suite-overview" hidden aria-label="Nine-board breakdown"><h2>Suite breakdown</h2><div id="suite-table"></div><p class="subtle">Counts are raw native findings, not qualified/filtered DRC. Electrical, current-capacity, thermal, fit and fabrication approval are separate.</p></section>
+<div class="workspace"><nav aria-label="Boards"><div class="nav-heading">Exact saved boards</div><div id="boards"></div><p class="nav-help">One board loaded at a time.<br>No live waves or auto-refresh.</p></nav>
+<main><div class="board-heading"><div><h2 id="board-name"></h2><p id="board-role" class="subtle"></p></div><label class="reviewed-label"><input id="board-reviewed" type="checkbox">Inspected locally</label></div>
+<div id="board-counts" class="metrics"></div>
+<div class="toolbar" aria-label="Board view controls">
+<label>Layer <select id="layer"></select></label><label>Compare <select id="compare"><option value="">None</option></select></label>
+<label>Guide <select id="guide"><option value="">None</option><option>F.Silkscreen</option><option>B.Silkscreen</option><option>F.Fab</option><option>B.Fab</option></select></label>
+<label class="compact"><input id="mirror" type="checkbox">Physical bottom</label><label class="compact"><input id="labels" type="checkbox">References</label>
+<button id="fit" type="button">Fit <kbd>F</kbd></button><button id="zoom-in" type="button" aria-label="Zoom in">+</button><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="expand" type="button">Expand view</button>
+</div>
+<div class="gesture-help"><span>Two-finger scroll = pan · pinch / Ctrl+scroll = zoom at pointer · click-drag = pan · double-click = zoom</span><label><input id="wheel-zoom" type="checkbox">Plain wheel zoom</label></div>
+<div class="viewer-shell"><div id="loading" role="status">Loading native layer…</div>
+<svg id="viewer" xmlns="http://www.w3.org/2000/svg" tabindex="0" role="img" aria-label="Native PCB layer inspection. Use arrow keys to pan, plus and minus to zoom, F to fit.">
+<title>Exact saved KiCad copper and review annotations</title><g id="model"><image id="copper" preserveAspectRatio="none"/><image id="comparison" preserveAspectRatio="none" opacity="0.35"/><image id="drawing-guide" preserveAspectRatio="none" opacity="0.75"/><g id="net-highlight"></g><g id="selection"></g><g id="issue-markers"></g></g><g id="reference-labels"></g></svg>
+</div>
+<div class="view-footer"><span id="coordinates">Native board coordinates (mm)</span><span id="view-state"></span><span class="legend"><i class="key selection-key"></i>Selection <i class="key field-key"></i>Coupling blocker <i class="key warning-key"></i>Native warning <i class="key craft-key"></i>Route/copper review</span><label><input id="warning-markers" type="checkbox">Warning markers</label><label><input id="craft-markers" type="checkbox">Route/copper markers</label></div>
+<div id="selection-detail" aria-live="polite">Select a component, net, or finding below. Selection outlines are annotations, not copper.</div>
+<div class="tabs" role="tablist" aria-label="Board analysis"><button role="tab" aria-selected="true" data-tab="details" type="button">Breakdown</button><button role="tab" aria-selected="false" data-tab="findings" type="button">Findings</button><button role="tab" aria-selected="false" data-tab="components" type="button">Components & pins</button><button role="tab" aria-selected="false" data-tab="nets" type="button">Nets</button><button role="tab" aria-selected="false" data-tab="notes" type="button">Review notes</button></div>
+<section id="details" class="analysis-panel" role="tabpanel"></section>
+<section id="findings" class="analysis-panel" role="tabpanel" hidden><div class="panel-controls"><label>Show <select id="finding-filter"><option value="all">All findings</option><option value="coupling">Electrical coupling</option><option value="craft">Route/copper review</option><option value="error">Native errors</option><option value="warning">Native warnings</option></select></label><label>Filter <input id="finding-search" type="search" placeholder="Net, reference, issue type…"></label></div><div id="finding-table"></div></section>
+<section id="components" class="analysis-panel" role="tabpanel" hidden><div class="panel-controls"><label>Find component <input id="component-search" type="search" placeholder="Reference, value, MPN, footprint…"></label></div><div id="component-table"></div><div id="pin-detail"></div></section>
+<section id="nets" class="analysis-panel" role="tabpanel" hidden><div class="panel-controls"><label>Find net <input id="net-search" type="search" placeholder="Net name or component…"></label></div><div id="net-table"></div><div id="net-detail"></div></section>
+<section id="notes" class="analysis-panel" role="tabpanel" hidden><p>Notes and inspection checkboxes stay in this browser, keyed to this exact PCB SHA. They do not approve fabrication or change CAD.</p><div id="checklist"></div><label class="note-label">Board review notes<textarea id="notes-text" rows="5" placeholder="Mechanical fit, routing cleanup, decouplers, questions…"></textarea></label><div id="note-status" class="subtle" aria-live="polite"></div></section>
+<footer id="identity"></footer>
+</main></div><div id="fatal" role="alert" hidden></div>
+<script src="report-data.js"></script><script src="cec_viewport.js"></script><script src="cec_suite_inspection.js"></script>
+</body></html>

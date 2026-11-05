@@ -101,8 +101,13 @@ def _build(path, *, bad, triple=True):
         _pad_smd(rs, "2", lo, 40.0, 23.0, 1.23, 3.35)         # LO terminal (y 21.3..24.7)
         _trk(b, hi, (40.0, 7.0),  (40.0, 16.5))               # force: connector -> shunt HI
         _trk(b, lo, (40.0, 33.0), (40.0, 23.0))               # force: connector -> shunt LO
-        _trk(b, hi, (40.0, 18.0), (37.0, 19.0))               # GOOD stub: shunt HI inner -> Vin+
-        _trk(b, lo, (40.0, 21.5), (37.0, 20.5))               # GOOD stub: shunt LO inner -> Vin-
+        # Topologically good fixtures must also satisfy the current global
+        # heading gate; the former raw diagonals made score() fail before
+        # this test could assert its intended cut-vertex result.
+        _trk(b, hi, (40.0, 18.0), (37.0, 18.0))
+        _trk(b, hi, (37.0, 18.0), (37.0, 19.0))
+        _trk(b, lo, (40.0, 21.5), (37.0, 21.5))
+        _trk(b, lo, (37.0, 21.5), (37.0, 20.5))
         # legit high-Z Vbus tap routed to the connector (must NOT be flagged)
         _trk(b, lo, (37.0, 22.0), (34.0, 22.0))
         _trk(b, lo, (34.0, 22.0), (34.0, 33.0))

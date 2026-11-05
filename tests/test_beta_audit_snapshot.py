@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prevent the Standard-main prose audit from drifting behind live source."""
 import json
+import hashlib
 import os
 import sys
 import unittest
@@ -13,8 +14,7 @@ import cec_beta_electrical_audit as audit  # noqa: E402
 import cec_beta_manifest as manifest  # noqa: E402
 
 
-SNAPSHOT = os.path.join(
-    ROOT, "docs", "current-beta-standard-main-board-component-audit-2026-08-12.json")
+PIN = os.path.join(ROOT,'docs','standard-main-source-audit-current.json')
 DOCUMENT = os.path.join(
     ROOT, "docs", "current-beta-standard-main-board-component-audit-2026-08-10.md")
 
@@ -22,7 +22,12 @@ DOCUMENT = os.path.join(
 class TestBetaAuditSnapshot(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with open(SNAPSHOT, encoding="utf-8") as handle:
+        with open(PIN,encoding='utf-8')as handle:pin=json.load(handle)
+        snapshot=os.path.join(ROOT,'docs',pin['report'])
+        with open(snapshot,'rb')as handle:
+            if hashlib.sha256(handle.read()).hexdigest()!=pin['sha256']:
+                raise AssertionError('current source audit pin changed')
+        with open(snapshot, encoding="utf-8") as handle:
             cls.snapshot = json.load(handle)
         with open(DOCUMENT, encoding="utf-8") as handle:
             cls.document = handle.read()

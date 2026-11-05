@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "board": "12vhpwr-standard",
+  "params": {
+    "respect_antenna_keepout": false,
+    "schematic_first_normalization": true,
+    "net_current_contracts": {
+      "/SENSEP": 9.2,
+      "+3V3": 0.5,
+      "+5VSB": 0.5,
+      "/01-input/FAN_RET": 1.0,
+      "/VCC_RAW": 1.0,
+      "/VCC_RJ45": 1.0
+    },
+    "auxiliary_attachment_requirements": [
+      {
+        "id": "fan-positive-diode-attachment",
+        "net": "/FAN_12V",
+        "attached_terminal": {
+          "ref": "D5",
+          "pin": "1",
+          "mpn": "SS34",
+          "footprint": "cec-Diode_SMD:D_SMA"
+        },
+        "tap_terminal": {
+          "ref": "J2",
+          "pin": "2",
+          "mpn": "B3B-PH-K-S(LF)(SN)",
+          "footprint": "cec-Connector_JST:JST_PH_B3B-PH-K-S_1x03_P2.00mm_Vertical"
+        },
+        "minimum_continuous_amps": 1.0,
+        "basis": "Direct owner authorization on 2026-10-26: auxiliary fan supply and return conductors shall support 1 A continuously with the existing routing margin. This declaration rates only the exact positive-rail D5.1-to-J2.2 attachment; it is not a fan load or component rating, a netwide allocation, assumed sharing, source-total budget, or startup/flyback qualification. Inherit the unchanged aggregate geometry margin once and retain the full 9.2 A GPU backbone requirement on /FAN_12V and every original conductor. The existing J2 supply spur, pads/barrels, aggregate power, current/thermal/Kelvin/factory and release qualification remain independently due."
+      }
+    ],
+    "net_current_contract_notes": [
+      "Per-pin sensing uses the connector's 9.2 A pin rating; six pins provide 55.2 A against the 50 A sustained 600 W requirement.",
+      "Owner approved 1 A continuous on each auxiliary fan supply and return conductor on 2026-10-26, retaining the existing 1.25 geometry margin. /01-input/FAN_RET is the distinct J2.1, AO3400A Q1 drain.3 and SS34 D5 anode.2 conductor; conservatively require every trace on this complete net to carry the whole 1 A with no sharing. This row enforces the switched-return trace requirement only. /FAN_12V also carries the GPU /SENSEP6_HI backbone and MUST retain its unchanged 9.2 A times 1.25 authority; the separate thermal 8.33 A row is not substituted. The fan-supply branch still needs exact additional conductor receiving and must not be assigned a whole-net 1 A override. These are conductor routing requirements, not a fan load/parts rating, source-total budget or qualification of contact/barrel ampacity, startup/flyback, faults, thermal performance, fabrication or release.",
+      "Owner approved 1 A continuous conductor design basis independently on /VCC_RAW and /VCC_RJ45 on 2026-10-24, retaining the existing 1.25 geometry margin on each complete net and assuming no input sharing. Canonical pins are Kinghelm KH-RJ45-58-8P8C J1.1 -> /VCC_RAW -> UNI-ROYAL 0805W8F0000T5E populated 0R FB2.2; FB2.1 -> /VCC_RJ45 -> TPS2121RUXR U5 IN1.7 plus the existing C6, OV1 and PR1 branches. This is an explicit routing requirement, not a changed load or part, borrowed EPS authority, source clamp, or qualification of jumper/contact/barrel ampacity, capacitor leakage, inrush, faults, transients, thermal performance or fabrication/release. The stale FB2.Note reverses actual pins and is not connectivity authority."
+    ],
+    "module_edge_attachment_required": true,
+    "antenna_max_inset_mm": 0.3,
+    "mount_holes": "4_corner",
+    "mount_holes_required": true,
+    "mount_fp": "cec-MountingHole:MountingHole_2.2mm_M2_Pad_Via_Slim_6mm_Hardware",
+    "mount_drill_mm": 2.2,
+    "mount_contact_diameter_mm": 4.4,
+    "mount_hole_type": "pth",
+    "mount_net": "GND",
+    "mount_reference_visible": false,
+    "mount_edge_inset_mm": 3.75,
+    "mount_hardware_diameter_mm": 6.0,
+    "mount_hardware_clearance_mm": 0.25,
+    "edge_override": {"J1": "right", "J5": "right"},
+    "edge_packing": {"right": {"alignment": "end"}},
+    "outline_compaction": {
+      "enabled": false,
+      "step_mm": 4.0,
+      "max_steps": 4,
+      "shrink_axes": ["height"],
+      "include_incremental": false,
+      "include_fresh_placement": true,
+      "probe_route_preflight": false,
+      "edge_follow": [{"edge": "bottom", "margin_mm": 10.0}]
+    },
+    "thermal_cooling_intent": {
+      "type": "downfiring_slim_fan",
+      "model": null,
+      "stand_off_mm": null,
+      "qualified": false,
+      "note": "Owner intends a fan. No airflow, cooling coefficient or package clearance is inferred until the installed geometry is specified."
+    }
+  },
+  "notes": [
+    "Owner 2026-09-12: retain the current board dimensions for now. Four M2 mounts retain their 2.2 mm plated bores, but use the platform 4.4 mm slim ground contact. The 6 mm hardware allowance and 0.25 mm margin remain reserved; 1.05 mm main-pad clearance excludes foreign copper from that envelope. This supersedes the September 9 full-width copper contact, not the grounded/solid-connection requirement.",
+    "Four total mandatory M2 corner clearance holes per owner 2026-09-07; 6 mm hardware envelope plus 0.25 mm component clearance is a reserved allowance, not qualification of a selected washer, screw length or fan stack. Owner corrected RJ-45 to face right in the lower area, with USB-C alongside it. The right-edge bank is end-aligned against actual mandatory mounting hardware; this is not an approved routed board.",
+    "Wired-only module. This is a mechanical compaction rule for the physical MCU module, not a wireless-use requirement or an RF keepout.",
+    "Keep the module's physical antenna end at an outward board edge. The 0.3 mm inset is a placement tolerance; pad containment and connector/body clearance remain independent gates. No board edge or coordinate is pinned."
+  ]
+}

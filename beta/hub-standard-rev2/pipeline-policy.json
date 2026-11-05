@@ -2,11 +2,33 @@
   "schema": 1,
   "board": "hub-standard-rev2",
   "params": {
+    "respect_antenna_keepout": false,
+    "assembly_envelope": {"role": "cover", "contract": "beta/assembly/hub-atx-stack.json", "pair": "docs/hub-atx-active-placement-pair.json"},
+    "schematic_first_normalization": true,
     "critical_route_nets": [
       "BLACKOUT_SENSE",
       "COMP_THRESH",
       "PWR_FAIL_INT"
     ],
+    "net_current_contracts": {
+      "+5VSB": 2.5,
+      "/5VSB_RAW": 2.5,
+      "/MAIN_5V": 2.5,
+      "/PSU_5V": 2.5,
+      "/+5V_HOLD": 0.5,
+      "/USB_VBUS": 0.5,
+      "/VCC_P": 0.5,
+      "+3V3": 1.76,
+      "GND": 2.5
+    },
+    "net_current_contract_notes": [
+      "The 2.5 A shared 5VSB source already includes per-port distribution; its muxed stages are not summed for GND.",
+      "The held reservoir feeds the reviewed logic rail; 0.5 A includes conversion and transient headroom.",
+      "The 3V3 basis is limited by the inductor thermal-current rating rather than the regulator headline rating."
+    ],
+    "source_sync_extra_pad_nets": {
+      "H1.1": "GND"
+    },
     "automatic_pin_escape_tier": true,
     "require_complete_current_injection": true,
     "pre_route_craft_admission": true,
@@ -45,10 +67,22 @@
     "placement_route_aware_iters": 3,
     "outline_compaction": {
       "enabled": true,
-      "step_mm": 2.0,
-      "max_steps": 4,
+      "step_mm": 4.0,
+      "max_steps": 2,
+      "shrink_axes": ["width", "height"],
+      "include_incremental": true,
+      "include_fresh_placement": false,
+      "repack_collisions": true,
+      "repack_max_variants": 1,
+      "repack_beam_width": 16,
+      "probe_route_preflight": false,
+      "edge_follow_exclude_refs": ["J6P", "J6C", "J6D", "H1", "SW_RESET", "SW_BOOT"],
+      "edge_follow": [
+        {"edge": "right", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5},
+        {"edge": "bottom", "margin_mm": 12.0, "mode": "contain", "clearance_mm": 0.5}
+      ],
       "minimum_edge_margin_mm": 0.5,
-      "fallback_steps_mm": [3.0, 6.0]
+      "fallback_steps_mm": []
     },
     "plateau_family_patience": 3
   }

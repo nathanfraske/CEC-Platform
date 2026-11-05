@@ -8,7 +8,7 @@
 "USBLC6-2SC6","D3","cec-Package_TO_SOT_SMD:SOT-23-6","C2687116"
 "750mA/16V PTC","F1","cec-Resistor_SMD:R_1206_3216Metric","C371166"
 "TO-HUB","J1","cec:RJ45_FTP_Shielded_Horizontal","C2683360"
-"USB-C 2.0","J5","cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11","C319148"
+"USB-C 2.0","J5","cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A","C37616412"
 "C1 PSU","J_IN1","cec-Connector_Molex:Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA",""
 "C2 PSU","J_IN2","cec-Connector_Molex:Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA",""
 "2.2kΩ","R1,R3,R4","cec-Resistor_SMD:R_0402_1005Metric","C25879"

@@ -33,6 +33,37 @@ sys.path.insert(0, HERE)
 MMNM = 1_000_000
 
 
+def _tier_progress_report(source, output, *, work, threads):
+    """Persist each completed/refused tier before a later tier can time out.
+
+    This small report survives disposable DSN/SES cleanup. A running snapshot
+    is explicitly incomplete and can never serve as route/fabrication signoff.
+    """
+    import hashlib
+    from pathlib import Path
+    from cec_placement_checkpoint import atomic_json
+    source = Path(source).resolve()
+    path = Path(output).with_suffix('.tier-progress.json')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    report = {'schema': 1, 'work': work, 'threads': int(threads),
+              'source': str(source),
+              'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+              'progress_only': True, 'release_accepted': False,
+              'status': 'running', 'active_tier': None}
+
+    def persist():
+        atomic_json(path, report)
+
+    class TierRows(list):
+        def append(self, row):
+            super().append(row)
+            persist()
+
+    report['tiers'] = TierRows()
+    persist()
+    return report, persist
+
+
 def _carve(text, start):
     """Balanced-paren block starting at text[start] == '('."""
     depth = 0
@@ -147,7 +178,7 @@ def _lock_nets_copper(board, nets):
     return n
 
 
-def fully_connected_nets(board, nets):
+def fully_connected_nets(board, nets, *, evidence=None):
     """Partition requested nets by exact pad ownership connectivity.
 
     A tier is allowed to leave partial copper for the residual router, but that
@@ -168,8 +199,17 @@ def fully_connected_nets(board, nets):
                 pads_by_net.setdefault(name, []).append(pad)
 
     complete, incomplete = set(), set()
-    for name in requested:
-        pads = pads_by_net.get(name, ())
+    for name in sorted(requested):
+        pads = sorted(pads_by_net.get(name, ()), key=lambda pad: (
+            pad.GetParentFootprint().GetReference(), str(pad.GetNumber()),
+            pad.m_Uuid.AsString()))
+        detail = None
+        if evidence is not None:
+            detail = {"complete": False, "physical_pad_count": len(pads),
+                      "copper_item_count": sum(
+                          item.GetNetname() == name for item in board.GetTracks()),
+                      "unreached_pads": [], "connectivity_error": None}
+            evidence[name] = detail
         if len(pads) < 2:
             # No route obligation exists for a one-pad pseudo-net, but it must
             # not become protected critical copper either.
@@ -189,9 +229,22 @@ def fully_connected_nets(board, nets):
                     continue
                 owner = item.GetParentFootprint()
                 reached.add((owner.GetReference(), str(item.GetNumber())))
-        except Exception:                              # noqa: BLE001
-            pass
-        (complete if expected.issubset(reached) else incomplete).add(name)
+        except Exception as exc:                       # noqa: BLE001
+            if detail is not None:
+                detail["connectivity_error"] = "%s: %s" % (type(exc).__name__, exc)
+        connected = expected.issubset(reached)
+        (complete if connected else incomplete).add(name)
+        if detail is not None:
+            detail["complete"] = connected
+            detail["seed_pad"] = {"ref": first.GetParentFootprint().GetReference(),
+                                  "pad": str(first.GetNumber())}
+            detail["unreached_pads"] = [
+                {"ref": pad.GetParentFootprint().GetReference(),
+                 "pad": str(pad.GetNumber()), "uuid": pad.m_Uuid.AsString(),
+                 "at_mm": [pad.GetPosition().x / 1e6, pad.GetPosition().y / 1e6]}
+                for pad in pads
+                if (pad.GetParentFootprint().GetReference(), str(pad.GetNumber()))
+                not in reached]
     return complete, incomplete
 
 
@@ -212,7 +265,135 @@ def parent_copper_nets_outside_tier(board, tier_nets):
     }
 
 
-def restore_protected_copper_prefix(source_path, candidate_path, nets):
+def _serialized_group_records(board_path):
+    """Read PCB_GROUP identity without retaining pcbnew SWIG proxies.
+
+    KiCad 10's legacy Python wrapper can return bare ``SwigPyObject`` values
+    when two group-bearing boards are loaded in one interpreter.  The group
+    records in a .kicad_pcb are small, stable S-expressions, so carry their
+    plain name/UUID/member identities across the transaction instead.
+    """
+    text = open(board_path, encoding="utf-8", errors="replace").read()
+    records = []
+    pattern = re.compile(
+        r'(?m)^(?P<indent>[ \t]*)(?P<open>\(group\s+"(?P<name>[^"]*)")')
+    for match in pattern.finditer(text):
+        start = match.start("open")
+        block, end = _carve(text, start)
+        uuid_match = re.search(r'\(uuid\s+"([^"]+)"\)', block)
+        members_match = re.search(r'\(members\s+([^)]*)\)', block, re.S)
+        if not uuid_match or not members_match:
+            continue
+        records.append({
+            "name": match.group("name"),
+            "uuid": uuid_match.group(1),
+            "members": re.findall(r'"([0-9a-fA-F-]{36})"',
+                                  members_match.group(1)),
+            "start": match.start(),
+            "end": end,
+            "indent": match.group("indent"),
+        })
+    return text, records
+
+
+def _group_block(name, uuid, members, indent="\t"):
+    escaped = str(name).replace("\\", "\\\\").replace('"', '\\"')
+    member_text = " ".join('"%s"' % member for member in sorted(members))
+    return (f'{indent}(group "{escaped}"\n'
+            f'{indent}\t(uuid "{uuid}")\n'
+            f'{indent}\t(members {member_text})\n'
+            f'{indent})')
+
+
+def _restore_serialized_group_memberships(
+        board_path, source_records, candidate_item_uuids):
+    """Merge source object-rule memberships into one saved candidate file."""
+    text, existing = _serialized_group_records(board_path)
+    by_name = {record["name"]: record for record in existing}
+    replacements = []
+    insertions = []
+    restored_memberships = 0
+    restored_groups = []
+    present = set(candidate_item_uuids or ())
+    for source in source_records:
+        wanted = set(source["members"]) & present
+        if not wanted:
+            continue
+        restored_groups.append(source["name"])
+        current = by_name.get(source["name"])
+        old_members = set(current["members"]) if current else set()
+        merged = old_members | wanted
+        restored_memberships += len(wanted - old_members)
+        if current:
+            if merged != old_members:
+                replacements.append((
+                    current["start"], current["end"],
+                    _group_block(current["name"], current["uuid"], merged,
+                                 current["indent"])))
+        else:
+            insertions.append(_group_block(
+                source["name"], source["uuid"], merged))
+    for start, end, replacement in sorted(replacements, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    if insertions:
+        marker = text.rfind("\n)")
+        if marker < 0:
+            raise RuntimeError("candidate board has no closing root expression")
+        text = text[:marker] + "\n" + "\n".join(insertions) + text[marker:]
+    if replacements or insertions:
+        with open(board_path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    return {"restored_group_memberships": restored_memberships,
+            "restored_groups": sorted(set(restored_groups))}
+
+
+def _unescape_sexpr_string(value):
+    return str(value).replace('\\"', '"').replace('\\\\', '\\')
+
+
+def _serialized_copper_records(board_path):
+    """Return root-level track/via records and net identity from a PCB file."""
+    text = open(board_path, encoding="utf-8", errors="replace").read()
+    net_names = {
+        int(match.group(1)): _unescape_sexpr_string(match.group(2))
+        for match in re.finditer(
+            r'(?m)^[ \t]+\(net\s+(\d+)\s+"((?:\\.|[^"])*)"\s*\)',
+            text)
+    }
+    bindings = {name: str(code) for code, name in net_names.items()}
+    for match in re.finditer(r'\(net\s+"((?:\\.|[^"])*)"\s*\)', text):
+        raw = match.group(1)
+        bindings[_unescape_sexpr_string(raw)] = '"' + raw + '"'
+    records = []
+    pattern = re.compile(
+        r'(?m)^(?P<indent>\t)(?P<open>\((?P<kind>segment|arc|via)\b)')
+    for match in pattern.finditer(text):
+        block, end = _carve(text, match.start("open"))
+        net_match = re.search(
+            r'\(net\s+(?:"((?:\\.|[^"])*)"|(\d+))\)', block)
+        uuid_match = re.search(r'\(uuid\s+"([^"]+)"\)', block)
+        if not net_match or not uuid_match:
+            continue
+        if net_match.group(1) is not None:
+            net_name = _unescape_sexpr_string(net_match.group(1))
+            token = '"' + net_match.group(1) + '"'
+        else:
+            token = net_match.group(2)
+            net_name = net_names.get(int(token), "")
+        records.append({
+            "kind": match.group("kind"),
+            "net_token": token,
+            "net_name": net_name,
+            "uuid": uuid_match.group(1),
+            "block": block,
+            "start": match.start(),
+            "end": end,
+        })
+    return text, bindings, records
+
+
+def restore_protected_copper_prefix(source_path, candidate_path, nets, *,
+                                   item_uuids=None):
     """Replace backend echoes of immutable nets with their exact source copper.
 
     Freerouting must see protected wires in the DSN so it can route around
@@ -224,46 +405,72 @@ def restore_protected_copper_prefix(source_path, candidate_path, nets):
     comparison.  New tier-net copper remains untouched and still faces the
     structural DRC and connectivity gates below.
     """
-    import pcbnew
-
     selected = {str(net) for net in (nets or ()) if str(net)}
-    if not selected:
+    wanted_items = (None if item_uuids is None else
+                    {str(item) for item in item_uuids if str(item)})
+    if not selected and not wanted_items:
         return {"nets": [], "removed": 0, "restored": 0}
-    # KiCad's SWIG wrapper owns a process-global current board: loading the
-    # candidate invalidates an already loaded source BOARD handle on real
-    # project files (small synthetic BOARDs do not reliably expose this).
-    # Detach the authoritative items while the source is still current, then
-    # release it before loading the candidate.  Keep the net name separately
-    # and rebind each duplicate to the candidate's own NETINFO_ITEM below.
-    source = pcbnew.LoadBoard(source_path)
-    restoration = []
-    for item in source.GetTracks():
-        if item.GetNetname() not in selected:
-            continue
-        duplicate = item.Duplicate()
-        # ``Duplicate`` deliberately allocates a fresh KIID.  Geometry-only
-        # comparison hid that identity churn, but downstream transactions use
-        # exact UUIDs to prove that priority vias and locked prefixes survived.
-        # Restore the source KIID as part of the delta transaction: every
-        # selected candidate item is removed below, so the identity is unique
-        # in the destination and safe to retain.
-        duplicate.m_Uuid.Clone(item.m_Uuid)
-        restoration.append((item.GetNetname(), duplicate))
-    del source
-    candidate = pcbnew.LoadBoard(candidate_path)
-    removed = 0
-    for item in list(candidate.GetTracks()):
-        if item.GetNetname() in selected:
-            candidate.Remove(item)
-            removed += 1
-    restored = 0
-    for net_name, item in restoration:
-        item.SetNet(candidate.FindNet(net_name))
-        candidate.Add(item)
-        restored += 1
-    pcbnew.SaveBoard(candidate_path, candidate)
-    return {"nets": sorted(selected), "removed": removed,
-            "restored": restored}
+    # Do this as a serialized delta, not by loading two BOARD objects. KiCad's
+    # legacy SWIG wrapper has a process-global current-board owner and returns
+    # unusable bare pointers on sufficiently complex group-bearing boards after
+    # the second LoadBoard. Root-level segment/arc/via records are already the
+    # exact fabrication identity we need to restore; only their local net code
+    # must be rebound to the candidate's net table.
+    _source_text, _source_nets, source_records = (
+        _serialized_copper_records(source_path))
+    if wanted_items is not None:
+        source_items = {record["uuid"] for record in source_records}
+        if wanted_items - source_items:
+            raise RuntimeError("requested protected copper identity is absent from source")
+        selected = {record["net_name"] for record in source_records
+                    if record["uuid"] in wanted_items}
+    candidate_text, candidate_nets, candidate_records = (
+        _serialized_copper_records(candidate_path))
+    candidate_bindings = dict(candidate_nets)
+    missing = sorted(name for name in selected if name not in candidate_bindings)
+    if missing:
+        raise RuntimeError("candidate lost selected net identity: %s" %
+                           ", ".join(missing))
+    # Item-scoped restoration is additive to a newly routed trunk on the same
+    # net. Never replace that entire net when restoring an owned local branch
+    # temporarily removed from the rated-current search view.
+    def owned(record):
+        return (record["uuid"] in wanted_items if wanted_items is not None
+                else record["net_name"] in selected)
+    restoration = [record for record in source_records if owned(record)]
+    doomed = [record for record in candidate_records if owned(record)]
+    for record in sorted(doomed, key=lambda row: row["start"], reverse=True):
+        candidate_text = (candidate_text[:record["start"]]
+                          + candidate_text[record["end"]:])
+    restored_blocks = []
+    for record in restoration:
+        token = candidate_bindings[record["net_name"]]
+        block = re.sub(
+            r'(\(net\s+)(?:"(?:\\.|[^"])*"|\d+)(\))',
+            lambda match: match.group(1) + token + match.group(2),
+            record["block"], count=1)
+        restored_blocks.append("\t" + block)
+    if restored_blocks:
+        markers = [candidate_text.find(token) for token in (
+            "\n\t(zone ", "\n\t(group ", "\n\t(embedded_fonts ")]
+        markers = [index + 1 for index in markers if index >= 0]
+        marker = min(markers) if markers else candidate_text.rfind("\n)") + 1
+        if marker <= 0:
+            raise RuntimeError("candidate board has no copper insertion point")
+        payload = "\n".join(restored_blocks) + "\n"
+        candidate_text = candidate_text[:marker] + payload + candidate_text[marker:]
+    with open(candidate_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(candidate_text)
+    _final_text, _final_nets, final_records = (
+        _serialized_copper_records(candidate_path))
+    candidate_track_uuids = {record["uuid"] for record in final_records}
+    _source_group_text, source_group_records = (
+        _serialized_group_records(source_path))
+    group_restore = _restore_serialized_group_memberships(
+        candidate_path, source_group_records, candidate_track_uuids)
+    return {"nets": sorted(selected), "removed": len(doomed),
+            "restored": len(restoration),
+            **group_restore}
 
 
 def _import_stage_worker(cur, ses, nxt, final, pours, skip_locked_taps):
@@ -295,6 +502,14 @@ def _lock_stage_worker(board_path, nets):
     return n
 
 
+def _refill_stage_worker(board_path):
+    """Refresh zone fills after exact parent copper/group restoration."""
+    import cec_fr
+    if not cec_fr.refill_zones(board_path):
+        raise RuntimeError("staged candidate zone refill failed")
+    return True
+
+
 def _route_quality_stage_worker(board_path, tier_nets, pre_track_ids):
     """Remove newly generated acute/backtracking copper before ownership.
 
@@ -318,6 +533,9 @@ def _route_quality_stage_worker(board_path, tier_nets, pre_track_ids):
         track_uuid_scope=generated)
     bad_nets = {
         row.get("net") for row in (report.get("issues") or ())
+        if row.get("severity") == "blocking" and row.get("net")}
+    bad_nets |= {
+        row.get("net") for row in (report.get("non_octilinear") or ())
         if row.get("severity") == "blocking" and row.get("net")}
     removed = 0
     if bad_nets:
@@ -350,6 +568,44 @@ def foreign_pour_admission(board_path):
                      + list(summary.get("vias") or ())}
 
 
+def foreign_pour_delta_admission(before, after):
+    """Reject only pour incursions introduced by the current transaction.
+
+    An intermediate tier is not the release authority for inherited copper.
+    In particular, derived future-pour envelopes can conservatively overlap a
+    protected prefix even when no laid pour does.  Requiring absolute cleanup
+    here makes every unrelated tier impossible: it cannot delete protected
+    parent copper and therefore re-refuses the same inherited identity.  Keep
+    the full absolute reports for provenance, but admit a tier only when it
+    introduces no new stable item identity.  Final board signoff remains an
+    absolute check against actual laid copper.
+    """
+    before = before if isinstance(before, dict) else {}
+    after = after if isinstance(after, dict) else {}
+
+    def identity(item):
+        return (
+            str(item.get("kind") or ""), str(item.get("uuid") or ""),
+            str(item.get("net") or ""), str(item.get("pour") or ""),
+            str(item.get("pour_net") or ""),
+        )
+
+    prior = {identity(item) for item in (before.get("items") or ())}
+    new_items = [item for item in (after.get("items") or ())
+                 if identity(item) not in prior]
+    status_ok = (before.get("status") != "error"
+                 and after.get("status") != "error")
+    return {
+        "ok": bool(status_ok and not new_items),
+        "status": "ok" if status_ok else "error",
+        "inherited_count": len(prior),
+        "new_count": len(new_items),
+        "new_items": new_items,
+        "before": before,
+        "after": after,
+    }
+
+
 def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=(),
                           include_locked_copper=None):
     """Compile every obstacle the staged router must see.
@@ -373,6 +629,12 @@ def compile_tier_keepouts(board_path, tier_nets, locked_nets, hints=(),
     if include_locked_copper:
         rows.extend(cec_fr.locked_copper_keepouts(
             board_path, only_nets=set(locked_nets or ()) - tier))
+    # Plane export is not an object's local-clearance contract. Actual frozen
+    # foreign fills must be visible even when their pins are excluded. Ground
+    # remains independently refillable; its antipads still need field/DRC
+    # receiving. No manufactured power polygon is enlarged or replaced here.
+    rows.extend(cec_fr.frozen_zone_keepouts(board_path,routed_nets=tier,
+        refillable_nets=('GND',)))
     rows.extend(list(hints or ()))
     # Every routing backend consumes the same routed-object ownership map.
     # The old tier adapter received only caller ``hints`` (the legacy broad
@@ -442,17 +704,10 @@ def default_tiers(board_path):
     """Tier-1 = the coupled/critical signal set FR handles worst when contended: diff
     pairs (_P/_N convention) + the CAN pair class. (Kelvin force/sense pins are already
     excluded from FR entirely by the production DSN policies; pours are post-route.)"""
-    import cec_score
-    rules = cec_score.Rules.from_board(board_path)
-    tier1 = set()
-    for a, b in getattr(rules, "diff_pairs", ()) or ():
-        tier1 |= {a, b}
-    import pcbnew
-    b = pcbnew.LoadBoard(board_path)
-    for n in {t.GetNetname() for t in b.GetTracks()} | \
-             {p.GetNetname() for fp in b.GetFootprints() for p in fp.Pads()}:
-        if n and ("CAN_H" in n or "CAN_L" in n):
-            tier1.add(n)
+    import cec_precision_route
+    tier1 = {pair[key] for pair in
+             cec_precision_route.derive_coupled_pairs(board_path)
+             for key in ("p", "n")}
     return [sorted(tier1)] if tier1 else []
 
 
@@ -462,7 +717,10 @@ def adaptive_retry_chunks(incomplete_nets):
     Successful nets are already promoted to immutable ownership by the caller.
     Retrying only the residual set preserves that work while giving failed
     nets a smaller simultaneous search problem.  The split is deliberately
-    bounded and board-agnostic; a singleton receives one solo retry.
+    bounded and board-agnostic; the default two-level ladder takes a four-net
+    collision group through pairs to singleton solves instead of declaring a
+    plateau merely because two adjacent escapes still contend.  A singleton
+    receives one solo retry.
     """
     names = sorted({str(net) for net in (incomplete_nets or ()) if net})
     if len(names) <= 1:
@@ -471,10 +729,99 @@ def adaptive_retry_chunks(incomplete_nets):
     return [names[:pivot], names[pivot:]]
 
 
+def adaptive_retry_warranted(incomplete_nets, completed_nets, retry_depth,
+                              max_depth):
+    """Retry only after the parent retained a real topology improvement.
+
+    Incomplete-net copper is transactionally removed before the next stage.
+    Therefore a tier that completed no net leaves the child with the exact same
+    board and obstacle field; bisecting or repeating it cannot expose new
+    routing room and merely recreates a plateau.  A parent that *did* complete
+    at least one net is different: that new immutable prefix can change the
+    residual search problem, so the bounded retry ladder remains useful.
+    """
+    return bool(
+        {str(net) for net in (incomplete_nets or ()) if net}
+        and {str(net) for net in (completed_nets or ()) if net}
+        and int(retry_depth) < max(0, int(max_depth)))
+
+
+def _tier_has_only_pair_members(tier, pairs):
+    members={str(pair[key]) for pair in pairs for key in ('p','n')}
+    return bool(tier) and set(tier) <= members
+
+
+def tier_pair_physics(summary, tier_nets, required_pairs):
+    """Scope independent physical evidence to every touched atomic pair.
+
+    A complete single wire must not become immutable while its mate has bad
+    coupling or transitions. Other, not-yet-routed tiers are not failures of
+    this transaction. Missing evidence for a declared pair fails closed.
+    """
+    touched = [pair for pair in required_pairs
+               if {pair['p'], pair['n']} & set(tier_nets)]
+    measured = {frozenset((row['p'], row['n'])): row
+                for row in summary.get('pairs', ())}
+    rows = []
+    for pair in touched:
+        row = measured.get(frozenset((pair['p'], pair['n'])))
+        reasons = (list(row['violations']) if row is not None and isinstance(row.get('violations'), list)
+                   else ['missing physical pair evidence'])
+        rows.append(dict(p=pair['p'], n=pair['n'], violations=reasons,
+                         ok=row is not None and not reasons and not summary.get('error')))
+    return dict(applicable=bool(touched), ok=all(row['ok'] for row in rows), pairs=rows)
+
+
+def _pair_physics_stage_worker(board_path, tier_nets, parent_path):
+    import pcbnew
+    import cec_fr
+    import cec_precision_route
+    import cec_constraints
+    pairs = cec_precision_route.derive_coupled_pairs(board_path)
+    touched = [pair for pair in pairs
+               if {pair['p'], pair['n']} & set(tier_nets)]
+    if not touched:
+        return {'applicable': False, 'ok': True, 'pairs': []}
+    summary = cec_constraints.high_speed_pair_summary(board_path)
+    report = tier_pair_physics(summary, tier_nets, touched)
+    # Preserve the existing legal transition/return repair opportunity BEFORE
+    # ownership. Unmatched transitions and non-coupled wires require rerouting,
+    # not a via patch. Finish only this tier's pairs, not later unfinished ones.
+    measured = [row for row in summary.get('pairs', ())
+                if {row['p'], row['n']} & set(tier_nets)]
+    repairable = any(row.get('missing_return_vias') or any(
+        spacing > 1.5 for spacing in row.get('transition_pair_spacing_mm', ()))
+        for row in measured)
+    if report['ok'] or not repairable:
+        return report
+    import cec_pair_return
+    parent = pcbnew.LoadBoard(parent_path)
+    prefix = cec_fr.copper_geometry_prefix_contract(parent_path,
+        {item.GetNetname() for item in parent.GetTracks() if item.IsLocked()})
+    with tempfile.TemporaryDirectory(prefix='pair-finish-',
+                                     dir=os.path.dirname(board_path)) as directory:
+        finished = os.path.join(directory, 'board.kicad_pcb')
+        repair = cec_pair_return.synthesize(board_path, finished, pair_nets=tier_nets)
+        report['return_repair'] = repair
+        if not repair.get('ok'):
+            return report
+        result = tier_pair_physics(
+            cec_constraints.high_speed_pair_summary(finished), tier_nets, touched)
+        result['return_repair'] = repair
+        result['protected_prefix'] = cec_fr.check_copper_geometry_prefix(finished, prefix)
+        result['ok'] = result['ok'] and result['protected_prefix']['ok']
+        if result['ok']:
+            shutil.copy2(finished, board_path)
+            cec_fr.copy_project_sidecars(finished, board_path)
+            result['changed'] = True
+        return result
+
+
 def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8,
                           opt=10, threads=1, seed=None, timeout=900, verbose=True,
                           pre_locked_nets=(), hints=(), skip_locked_taps=False,
-                          include_residual=True, adaptive_retry_depth=1):
+                          include_residual=True, adaptive_retry_depth=2,
+                          rated_current_policy=None):
     """The tiered ladder. tiers = list of net-name lists; a final residual pass over
     everything else is implicit. Returns a report dict (per-tier stats + total wall).
 
@@ -484,6 +831,13 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
     import pcbnew
     import cec_fr
     import cec_fr02
+    import cec_precision_route
+    rated_initial_job = None
+    if rated_current_policy:
+        import cec_rated_wave_context as rated_wave
+        if rated_wave.retaining_requested(rated_current_policy):
+            raise ValueError('source_retaining_import_not_supported_by_tiered_backend')
+        rated_initial_job = rated_wave.bind_job(placed_board, rated_current_policy)
     if tiers is None:
         tiers = default_tiers(placed_board)
     cur = os.path.join(work, "t0.kicad_pcb")
@@ -495,7 +849,8 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
     # project rules, pour plan, frozen polygons, and provenance stay together.
     cec_fr.copy_project_sidecars(placed_board, cur)
     locked_nets = set(pre_locked_nets)
-    report = {"tiers": [], "work": work, "threads": int(threads)}
+    report, persist_progress = _tier_progress_report(
+        placed_board, out_board, work=work, threads=threads)
     current_score = None
     t_all = time.monotonic()
     stages = [
@@ -513,10 +868,15 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         tier = stage["tier"]
         retry_depth = int(stage.get("retry_depth", 0))
         final = tier is None
+        report['active_tier'] = {'index': i,
+            'nets': sorted(tier) if tier is not None else 'RESIDUAL',
+            'retry_depth': retry_depth}
+        persist_progress()
         t0 = time.monotonic()
         before_board = pcbnew.LoadBoard(cur)
         before_track_ids = {
             track.m_Uuid.AsString() for track in before_board.GetTracks()}
+        parent_pour_admission = foreign_pour_admission(cur)
         parent_delta_restore_nets = (
             parent_copper_nets_outside_tier(before_board, tier)
             if not final else set())
@@ -524,6 +884,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         dsn = os.path.join(work, f"t{i}.dsn")
         ses = os.path.join(work, f"t{i}.ses")
         export_src = cur
+        zone_refill = None
         if not final:
             # BLINDNESS CURE (2026-07-14, convicted by the M4 ablation + the pre-tier
             # DRC jump 13 -> 219 structural): _dsn_restrict_to_nets strips foreign
@@ -559,7 +920,18 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 raise RuntimeError(
                     "staged tier obstacle compilation failed closed: %s: %s"
                     % (type(e).__name__, e)) from e
-        cec_fr.export_dsn(export_src, dsn)
+        rated_scope = None
+        if rated_current_policy:
+            import cec_rated_wave_context as rated_wave
+            rated_wave.validate_job(placed_board, rated_initial_job)
+            # cur is this admitted tier's saved authority, not the initial PCB.
+            rated_job = rated_wave.bind_job(cur, rated_current_policy)
+            rated_scope = rated_wave.prepare(cur, rated_job,
+                requested_nets=None if final else tier | locked_nets)
+            cec_fr.export_dsn(export_src, dsn,
+                rated_current_context=rated_scope['export_context'])
+        else:
+            cec_fr.export_dsn(export_src, dsn)
         if not final:
             # A precision-refused USB/CAN pair still needs an adjacent solid
             # reference when handed to FR.  The ordinary layer policy only
@@ -567,10 +939,8 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             # In3 (a PWR role), producing connected copper that the independent
             # pair-physics gate correctly rejected.  Restrict pair-only tiers
             # to profile-declared signal layers adjacent to dedicated GND.
-            pairish = all(
-                (name.endswith(("_P", "_N"))
-                 or "CAN_H" in name or "CAN_L" in name)
-                for name in tier)
+            pairish = _tier_has_only_pair_members(tier,
+                cec_precision_route.derive_coupled_pairs(cur,board=before_board))
             if pairish:
                 import cec_fab_profile
                 tier_board = pcbnew.LoadBoard(cur)
@@ -604,6 +974,10 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             kept = stripped = None
         if locked_nets:
             cec_fr02.force_protect_in_dsn(dsn, sorted(locked_nets))
+        if rated_scope is not None:
+            rated_wave.restrict_pending(dsn, rated_scope)
+            rated_wave.record(dsn, rated_scope)
+            report.setdefault('rated_current_waves', []).append(rated_scope)
         fr_wd = tempfile.mkdtemp(prefix="cec_staged_fr_", dir=work)
         try:
             cec_fr.run_freerouting(
@@ -642,8 +1016,10 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
         # pair or residual route crossed a corridor, was locked, and only then
         # appeared as a final-dashboard warning.
         pour_admission = foreign_pour_admission(nxt)
+        pour_delta_admission = foreign_pour_delta_admission(
+            parent_pour_admission, pour_admission)
         pour_evacuation = None
-        if not pour_admission.get("ok") and not final:
+        if not pour_delta_admission.get("ok") and not final:
             # Do not throw away every legal net in a multi-net tier because a
             # few newly generated primitives entered an immutable pour. Remove
             # only the exact convicted UUIDs in an isolated transaction,
@@ -659,26 +1035,31 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             if pour_evacuation.get("ok"):
                 nxt = evacuated
                 pour_admission = foreign_pour_admission(nxt)
+                pour_delta_admission = foreign_pour_delta_admission(
+                    parent_pour_admission, pour_admission)
                 if verbose:
                     print(
                         "[staged-fr] tier %d evacuated %d foreign pour "
                         "item(s); clean subset continues to ownership" % (
                             i, int(pour_evacuation.get(
                                 "removed_count", 0))), flush=True)
-        if not pour_admission.get("ok"):
+        if not pour_delta_admission.get("ok"):
             report["tiers"].append({
                 "tier": (sorted(tier) if tier else "RESIDUAL"),
                 "refused": True,
                 "reason": "foreign_on_high_current_pour",
                 "foreign_pour_admission": pour_admission,
+                "foreign_pour_delta_admission": pour_delta_admission,
                 "foreign_pour_evacuation": pour_evacuation,
                 "wall_s": round(time.monotonic() - t0, 1),
             })
             if verbose:
                 print(
                     "[staged-fr] tier %d REFUSED: foreign-on-pour "
-                    "%dt/%dv -- result dropped before ownership" % (
-                        i, pour_admission["tracks"],
+                    "%d new item(s) (%dt/%dv absolute) -- result dropped "
+                    "before ownership" % (
+                        i, pour_delta_admission["new_count"],
+                        pour_admission["tracks"],
                         pour_admission["vias"]), flush=True)
             continue
         if not final:
@@ -755,8 +1136,9 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                         f"[staged-fr] tier {i} REFUSED: imported copper "
                         "could not be made monotonic", flush=True)
                 continue
+            connectivity_before_restore = {}
             tier_complete, tier_incomplete = fully_connected_nets(
-                pcbnew.LoadBoard(nxt), tier)
+                pcbnew.LoadBoard(nxt), tier, evidence=connectivity_before_restore)
             refused_quality_nets = set(
                 route_quality.get("refused_nets") or ())
             tier_complete -= refused_quality_nets
@@ -787,6 +1169,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                         "actual": actual_incomplete,
                         "incomplete_prefix_restore":
                             incomplete_prefix_restore,
+                        "connectivity_before_restore": connectivity_before_restore,
                         "wall_s": round(time.monotonic() - t0, 1),
                     })
                     if verbose:
@@ -794,6 +1177,30 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                             f"[staged-fr] tier {i} REFUSED: incomplete-net "
                             "copper could not be restored", flush=True)
                     continue
+            # SES imports fill zones before the staged transaction restores
+            # exact parent/protected/incomplete copper.  Scoring that stale
+            # fill makes restored vias appear to short the surrounding plane
+            # and turns a clean parent into dozens of phantom clearances.
+            # Refill once, after every copper mutation and before DRC.  Keep
+            # this in an isolated pcbnew process for the same SWIG-lifetime
+            # reason as SES import and exact-prefix restoration.
+            try:
+                zone_refill = _spawn_apply(_refill_stage_worker, (nxt,))
+            except Exception as exc:                     # noqa: BLE001
+                report["tiers"].append({
+                    "tier": sorted(tier), "refused": True,
+                    "reason": "post_restore_zone_refill_failed",
+                    "error": "%s: %s" % (type(exc).__name__, exc),
+                    "parent_delta_restore": parent_delta_restore,
+                    "incomplete_prefix_restore": incomplete_prefix_restore,
+                    "connectivity_before_restore": connectivity_before_restore,
+                    "wall_s": round(time.monotonic() - t0, 1),
+                })
+                if verbose:
+                    print(
+                        f"[staged-fr] tier {i} REFUSED: post-restore zone "
+                        "refill failed", flush=True)
+                continue
         # The imported board must be scored under the same project/custom-rule
         # authority as its parent.  Copy sidecars before DRC, not only after a
         # candidate has already been admitted.
@@ -826,6 +1233,7 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 refused_row["incomplete_prefix_restore"] = (
                     incomplete_prefix_restore)
                 refused_row["parent_delta_restore"] = parent_delta_restore
+                refused_row["connectivity_before_restore"] = connectivity_before_restore
             report["tiers"].append(refused_row)
             if verbose:
                 print(
@@ -833,6 +1241,29 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                     % (i, stage_admission["decision"]), flush=True)
             continue                       # cur unchanged; tier nets stay unrouted
         if not final:
+            pair_physics = _spawn_apply(
+                _pair_physics_stage_worker, (nxt, tuple(sorted(tier)), cur))
+            if pair_physics.get('changed'):
+                candidate_score = _stage_score(nxt)
+                stage_admission = _tier_admission(current_score, candidate_score)
+                if not stage_admission['accepted']:
+                    pair_physics['ok'] = False
+                    pair_physics['post_finish_admission'] = stage_admission
+            if not pair_physics.get('ok'):
+                # Atomic rollback is cur unchanged, not deletion of selected
+                # wire fragments. No unqualified pair becomes future obstacles.
+                report['tiers'].append({
+                    'tier': sorted(tier), 'refused': True,
+                    'reason': 'tier_pair_physics_refused',
+                    'pair_physics': pair_physics,
+                    'route_quality': route_quality,
+                    'connectivity_before_restore': connectivity_before_restore,
+                    'incomplete_prefix_restore': incomplete_prefix_restore,
+                    'admission': stage_admission,
+                    'wall_s': round(time.monotonic() - t0, 1)})
+                if verbose:
+                    print(f'[staged-fr] tier {i} REFUSED: pair physics; parent retained', flush=True)
+                continue
             locked_nets |= tier_complete
             nlocked = _spawn_apply(
                 _lock_stage_worker,
@@ -867,9 +1298,13 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
             row["locked_segments"] = nlocked
             row["completed_nets"] = sorted(tier_complete)
             row["incomplete_nets"] = sorted(tier_incomplete)
+            row["connectivity_before_restore"] = connectivity_before_restore
             row["route_quality"] = route_quality
+            row["pair_physics"] = pair_physics
             row["import_sanitation"] = tier_import_sanitation
             row["foreign_pour_admission"] = pour_admission
+            row["foreign_pour_delta_admission"] = pour_delta_admission
+            row["post_restore_zone_refill"] = bool(zone_refill)
             if incomplete_prefix_restore is not None:
                 row["incomplete_prefix_restore"] = (
                     incomplete_prefix_restore)
@@ -881,8 +1316,9 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 row["parent_delta_restore"] = parent_delta_restore
             if tier_signal_layers is not None:
                 row["signal_layers"] = tier_signal_layers
-            if (tier_incomplete
-                    and retry_depth < max(0, int(adaptive_retry_depth))):
+            if adaptive_retry_warranted(
+                    tier_incomplete, tier_complete, retry_depth,
+                    adaptive_retry_depth):
                 chunks = adaptive_retry_chunks(tier_incomplete)
                 retry_rows = [
                     {"tier": set(chunk),
@@ -895,27 +1331,44 @@ def _route_tiered_in_work(placed_board, out_board, *, work, tiers=None, passes=8
                 stages[i + 1:i + 1] = retry_rows
                 row["adaptive_retry_children"] = [
                     sorted(child["tier"]) for child in retry_rows]
+            elif (tier_incomplete
+                  and retry_depth < max(0, int(adaptive_retry_depth))
+                  and not tier_complete):
+                row["adaptive_retry_stopped"] = (
+                    "no_retained_topology_change")
         report["tiers"].append(row)
         if verbose:
-            print(f"[staged-fr] pass {i}: {row}", flush=True)
+            summary = {key:row[key] for key in (
+                'tier','wall_s','completed_nets','incomplete_nets',
+                'generated_item_count','adaptive_retry_children') if key in row}
+            summary['admission'] = stage_admission.get('decision')
+            print(f"[staged-fr] pass {i}: {summary}", flush=True)
         cur = nxt
         current_score = candidate_score
     shutil.copy2(cur, out_board)
     cec_fr.copy_project_sidecars(cur, out_board)
     report["total_wall_s"] = round(time.monotonic() - t_all, 1)
+    report['tiers'] = list(report['tiers'])  # portable across worker processes
+    report.update(status='finished', active_tier=None)
+    persist_progress()
     return report
 
 
 def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10,
                  threads=1, seed=None,
                  timeout=900, verbose=True, pre_locked_nets=(), hints=(), skip_locked_taps=False,
-                 include_residual=True, adaptive_retry_depth=1):
+                 include_residual=True, adaptive_retry_depth=2,
+                 rated_current_policy=None):
     """Run the tiered ladder in disposable scratch storage.
 
     The output board and its project/rule files are copied out before cleanup. Set
     ``CEC_STAGED_FR_KEEP_INTERMEDIATES=1`` only when the tier DSN/SES files are needed
     for diagnosis; closure waves otherwise must not retain one work tree per probe.
     """
+    if rated_current_policy:
+        import cec_rated_wave_context as rated_wave
+        if rated_wave.retaining_requested(rated_current_policy):
+            raise ValueError('source_retaining_import_not_supported_by_tiered_backend')
     work = tempfile.mkdtemp(prefix="cec_staged_", dir=os.environ.get("TMPDIR") or None)
     keep = os.environ.get("CEC_STAGED_FR_KEEP_INTERMEDIATES", "0") == "1"
     try:
@@ -927,6 +1380,7 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10,
             skip_locked_taps=skip_locked_taps,
             include_residual=include_residual,
             adaptive_retry_depth=adaptive_retry_depth,
+            rated_current_policy=rated_current_policy,
         )
         if not keep:
             report["work"] = None

@@ -35,6 +35,7 @@ import cec_router
 import cec_constraints
 import cec_synth_pipeline as synth
 import cec_toolchain as toolchain
+import cec_route_quality
 
 
 # ----------------------------------------------------------------- PLACE tier
@@ -138,7 +139,8 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
             added = cec_fr.add_via_field(b, fields)
             for z in b.Zones():                          # re-fill: form the pours + GND antipads the vias
                 z.UnFill()
-            pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+            import cec_zone_fill
+            cec_zone_fill.fill(b)
             pcbnew.SaveBoard(final, b)
             if verbose:
                 print(f"[cascade:ROUTE] +B.Cu mirror pour ({len(bpours)}) + via field "
@@ -159,8 +161,15 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
             reasons = []
             if not m.gates_pass:
                 reasons = cec_score.gate(m, cec_score.Rules.from_board(final))[1]
-            verdict = {"gates_pass": m.gates_pass, "drc": m.drc, "unconnected": m.unconnected,
-                       "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok, "reasons": reasons}
+            quality = getattr(m, 'detail', {}).get('route_quality')
+            craft = cec_route_quality.final_craft_terms(quality)
+            reasons = list(reasons) + ['saved-board route craft failed or unverified: ' + key
+                                      for key, ok in craft.items() if not ok]
+            verdict = {"gates_pass": m.gates_pass is True and all(craft.values()),
+                       "electrical_gates_pass": m.gates_pass,
+                       "drc": m.drc, "unconnected": m.unconnected,
+                       "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok, "reasons": reasons,
+                       "route_quality": quality, "route_craft_terms": craft}
             if post_route_error is not None:
                 verdict["gates_pass"] = False
                 verdict["reasons"] = list(verdict["reasons"]) + [
@@ -293,11 +302,13 @@ def default_overseer(board, trail, fem, *, reason):
 
 # ----------------------------------------------------------------- the bidirectional cascade
 def _route_ok(rv):
-    """Require the complete saved-board route verdict, including DRC and ratlines."""
+    """Require electrical completion AND current whole-board craft evidence."""
     if "gates_pass" in rv:
-        return bool(rv.get("gates_pass"))
-    return bool(rv.get("kelvin_ok") and rv.get("diffpair_ok")
-                and rv.get("drc") == 0 and rv.get("unconnected") == 0)
+        electrical = rv.get("gates_pass") is True
+    else:
+        electrical = rv.get("kelvin_ok") is True and rv.get("diffpair_ok") is True
+    return bool(electrical and rv.get("drc") == 0 and rv.get("unconnected") == 0
+                and all(cec_route_quality.final_craft_terms(rv.get('route_quality')).values()))
 
 
 def _classify_failure(rv):

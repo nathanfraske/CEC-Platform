@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "measured_at_utc": "2026-11-05T06:37:07.574607+00:00",
+  "scope": "agent-directed pipeline integration; not manufacturing release",
+  "verified_index_tree": "9f36ecbef8df92f7b538aec1ad97643f75ad1b0d",
+  "code_identity_sha256": "5de4671549fc2ff0d1d219b1014141547718fdbc606aa6306d289bb54fc20a13",
+  "clean_checkout_without_ignored_build": true,
+  "test_slices": [
+    {
+      "artifact": "clean-tree-active.xml",
+      "sha256": "2ad2aa48c1fec9bd366ec35b2c17629b5a8785660dbd3a20b377083d53d919bf",
+      "counts": {
+        "tests": 224,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "artifact": "clean-tree-backends.xml",
+      "sha256": "2f71afac777ccf89af5524c12d3fc39cb055ce4aad3ac808999721242dbdda97",
+      "counts": {
+        "tests": 652,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "receiver_run_receipt_sha256": "3459412f616f26f53c14f4c3ce3cd34fb950d1609b3e0ce81f577a704721288a",
+  "portable_checkpoint": {
+    "pin": "checkpoints/current.json",
+    "sha256": "7e8176832051a4df6e7517c46496df46e742df304e9dd2c6abf4d1e41add2904",
+    "boards": 9,
+    "opens": 0,
+    "errors": 0,
+    "exclusions": 0,
+    "warnings": 283,
+    "unresolved_EPS_coupling_blockers": 5
+  },
+  "legacy_sweep": {
+    "complete": false,
+    "modules_completed": 526,
+    "tests_observed": 14593,
+    "failures": 150,
+    "errors": 58,
+    "skipped": 6,
+    "stop_reason": "single legacy module exceeded 2GiB owned-process limit; code epoch also changed",
+    "paired_failure_node_replay": {
+      "nodes": 208,
+      "pre_overhaul_failures": 147,
+      "pre_overhaul_passes": 61,
+      "before_neighbor_recovery_current_failures": 146,
+      "before_neighbor_recovery_current_errors": 58,
+      "before_neighbor_recovery_current_passes": 4,
+      "recovered_neighbor_module_tests": 94,
+      "recovered_neighbor_module_failures": 0,
+      "remaining_paired_historical_failure_nodes": 145,
+      "full_suite_pass": false
+    }
+  },
+  "artifact_directory": "CEC-Board-Reviews/overhaul-20261104 (external raw diagnostic evidence)",
+  "release_authority": false
+}

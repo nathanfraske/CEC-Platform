@@ -478,6 +478,18 @@ class PinAwareOrientationTest(unittest.TestCase):
         self.assertIn("D1", changed)
         self.assertIn(placements["D1"][2], (0.0, 180.0))
 
+    def test_flow_station_recognition_and_rotation_accept_dp_dm_and_plus_minus(self):
+        for p, n in (("/sheet/USB_DP", "/sheet/USB_DM"),
+                     ("/other/LINK_D+", "/other/LINK_D-")):
+            nl, comps, placements, local = self._flow_through_fixture()
+            nl.nets = {p:nl.nets["/USB_D_P"], n:nl.nets["/USB_D_N"]}
+            self.assertEqual([r["station_ref"] for r in CSP._flow_through_pair_topologies(nl)], ["D1"])
+            with mock.patch.object(cec_pcb, "local_pads", side_effect=lambda comp:local[next(
+                    ref for ref,value in comps.items() if value is comp)]), mock.patch.object(
+                        CSP, "_courtyard_info", return_value=(0.0,0.0,1.5,0.8)):
+                changed=CSP._flow_through_pair_orientations(nl,comps,placements,100,100)
+            self.assertIn("D1",changed)
+
     def test_flow_protector_aligns_lane_to_longer_harder_leg(self):
         nl, comps, placements, local = self._flow_through_fixture()
         placements.update({
@@ -863,6 +875,24 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertGreaterEqual(report["pairs"][0]["reference_coverage_pct"], 95.0)
             self.assertGreaterEqual(report["pairs"][0]["coupled_coverage_pct"], 80.0)
 
+    def test_pair_evidence_is_not_polluted_by_unrelated_route_counts_or_wall_time(self):
+        import cec_route_quality
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory)
+            board = pcbnew.LoadBoard(path)
+            before = C.high_speed_pair_summary(path, board=board)
+            net = pcbnew.NETINFO_ITEM(board, '/UNRELATED_CONTROL'); board.Add(net)
+            for end in ((5.0, 4.0), (8.0, 4.0)):
+                track = pcbnew.PCB_TRACK(board); track.SetNet(net)
+                track.SetStart(pcbnew.VECTOR2I_MM(4.0, 4.0))
+                track.SetEnd(pcbnew.VECTOR2I_MM(*end)); track.SetWidth(200000)
+                track.SetLayer(pcbnew.F_Cu); board.Add(track)
+            after = C.high_speed_pair_summary(path, board=board)
+            self.assertEqual(before, after)
+            # Scoping pair identity never waives the separate whole-board
+            # craft gate: the unrelated deliberately bad join still fails it.
+            self.assertFalse(cec_route_quality.analyze_board(board)['craft_ok'])
+
     def test_asymmetric_signal_via_and_missing_return_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = self._board(directory)
@@ -1010,7 +1040,10 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
 
     def test_ses_geometry_is_raised_to_assigned_netclass(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = self._board(directory)
+            # Positive growth requires physical clearance. The former 0.33 mm
+            # pitch left only 0.08 mm after widening, and wrongly depended on
+            # the foreign-copper guard ignoring the opposite item's rule.
+            path = self._board(directory, p_y=9.5, n_y=10.5)
             pro = path[:-len(".kicad_pcb")] + ".kicad_pro"
             with open(pro, "r", encoding="utf-8") as handle:
                 project = json.load(handle)
@@ -1042,6 +1075,22 @@ class HighSpeedPhysicalGateTest(unittest.TestCase):
             self.assertEqual(widths, [0.25, 0.25])
             self.assertAlmostEqual(via.GetWidth(via.TopLayer()) / 1e6, 0.60)
             self.assertAlmostEqual(via.GetDrillValue() / 1e6, 0.30)
+
+    def test_ses_growth_cannot_undercut_opposite_member_clearance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._board(directory)
+            pro = path[:-len('.kicad_pcb')] + '.kicad_pro'
+            with open(pro) as handle: project = json.load(handle)
+            project['net_settings'] = {
+                'classes': [{'name':'Default','track_width':.25,'clearance':.20}],
+                'netclass_patterns': [], 'netclass_assignments': {}}
+            with open(pro,'w') as handle: json.dump(project,handle)
+            board = pcbnew.LoadBoard(path)
+            result = cec_fr.normalize_netclass_geometry(board,path)
+            self.assertEqual(result['tracks'],0)
+            self.assertEqual(len(result['refused_growth']),2)
+            self.assertTrue(all(t.GetWidth()==pcbnew.FromMM(.2)
+                                for t in board.GetTracks() if t.GetClass()=='PCB_TRACK'))
 
     def test_precision_owned_pair_geometry_is_not_renormalized(self):
         with tempfile.TemporaryDirectory() as directory:

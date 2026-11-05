@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "purpose": "Placement envelope authority. Supplier bounds and design acceptance allocations are distinguished. NOT a physical release certificate.",
+  "transform": [
+    -1,
+    0,
+    0,
+    1,
+    86,
+    9.8
+  ],
+  "gap_mm": [
+    21.5,
+    22.5
+  ],
+  "gap_basis": "22 +/- 0.1 mm ASB-2022E plus reserved +/-0.4 mm local seating/bow; incoming/assembled local-gap acceptance required",
+  "xy_allowance_each_mm": 0.15,
+  "body_clearance_mm": 0.5,
+  "hardware": [
+    {
+      "anchor_pair": [
+        "H1",
+        "H1"
+      ],
+      "mpn": "ASB-2022E",
+      "diameter_max_mm": 5.0,
+      "af_nominal_mm": 4.0,
+      "length_mm": 22.0,
+      "length_tolerance_mm": 0.1,
+      "screw_mpn": "SSCF-M2-5-A2",
+      "head_diameter_mm": 3.8,
+      "head_height_mm": 2.0,
+      "screw_length_mm": 5.0,
+      "thread_diameter_mm": 2.0
+    }
+  ],
+  "vertical": {
+    "gap": [
+      21.5,
+      22.5
+    ],
+    "cap_height": [
+      16,
+      17
+    ],
+    "cap_seating": [
+      0,
+      0.2
+    ],
+    "vent_min": 3,
+    "header_reach": [
+      17.9848,
+      18.5912
+    ],
+    "socket_height": [
+      8.409,
+      8.609
+    ],
+    "header_seating": [
+      0,
+      0.1
+    ],
+    "socket_seating": [
+      0,
+      0.1
+    ],
+    "insertion_limits": [
+      3.68,
+      6.35
+    ]
+  },
+  "mating_pairs": [
+    [
+      "J6P",
+      "J6P"
+    ],
+    [
+      "J6C",
+      "J6C"
+    ],
+    [
+      "J6D",
+      "J6D"
+    ]
+  ],
+  "envelope_groups": [
+    {
+      "footprints": [
+        "SOT-23-6_TI_DBV0006A"
+      ],
+      "height_max_mm": 3.0,
+      "basis": "design_allocation",
+      "evidence": "Same installed-height allocation as SOT-23-6: manufacturer DBV0006A land-pattern alternative for the unchanged INA181 DBV body, TI drawing 4214840/G 08/2024. Native updated courtyard remains the planar bound. Not a supplier-height or physical-release certificate."
+    },
+    {
+      "footprints": [
+        "C_0402_1005Metric",
+        "C_0603_1608Metric",
+        "C_0805_2012Metric",
+        "R_0402_1005Metric",
+        "R_0805_2012Metric",
+        "R_1206_3216Metric",
+        "R_2512_6332Metric",
+        "NTC_0402_1005Metric",
+        "D_SOD-323",
+        "RUX0012A",
+        "SOT-23",
+        "SOT-23-5",
+        "SOT-23-6",
+        "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR",
+        "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL",
+        "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
+        "VSSOP-10_3x3mm_P0.5mm",
+        "WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm",
+        "SOIC-8_3.9x4.9mm_P1.27mm",
+        "VLS252010HBX-2R2M-1",
+        "D_SMA",
+        "TS-1088-AR02016",
+        "LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount"
+      ],
+      "height_max_mm": 3.0,
+      "basis": "design_allocation",
+      "evidence": "Conservative 3 mm installed-height placement budget for explicitly enumerated low-profile packages. BOM substitutions exceeding this budget must rerun stack check; not a supplier tolerance claim."
+    },
+    {
+      "footprints": [
+        "ESP32-C6-MINI-1",
+        "ESP32-S3-WROOM-1_NoAntKeepout"
+      ],
+      "height_max_mm": 4.0,
+      "basis": "design_allocation",
+      "evidence": "4 mm installed-height allocation for shielded Espressif modules, including seating; verify final BOM/package during first article."
+    },
+    {
+      "footprints": [
+        "USB_C_Receptacle_XKB_U262-16XN-4BVC11"
+      ],
+      "height_max_mm": 4.0,
+      "basis": "design_allocation",
+      "evidence": "4 mm installed receptacle envelope; external cable overmould/tool approach not claimed by this body model."
+    },
+    {
+      "footprints": [
+        "JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
+      ],
+      "height_max_mm": 7.0,
+      "basis": "design_allocation",
+      "evidence": "JST XH side-entry drawing p3 uses 6.1 mm REF body dimension perpendicular to PCB. 7 mm installed allocation, not top-entry 9.8 mm mated height."
+    },
+    {
+      "footprints": [
+        "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal"
+      ],
+      "height_max_mm": 6.0,
+      "basis": "design_allocation",
+      "evidence": "6 mm installed-body allocation; cable bend and latch operated from outside the lower edge."
+    },
+    {
+      "footprints": [
+        "Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+      ],
+      "height_max_mm": 16.0,
+      "basis": "design_allocation",
+      "evidence": "16 mm body allocation in exposed ATX input band, subject to actual planar access gate; no cover overlap permitted."
+    },
+    {
+      "footprints": [
+        "XFCN_T34069_THT_M3_40A",
+        "XFCN_TTR32100127-0600_THT_M3_60A"
+      ],
+      "height_max_mm": 10.0,
+      "basis": "design_allocation",
+      "evidence": "10 mm allocation in exposed output band, includes stack hardware reserve; separate daughterboard qualification remains in force."
+    },
+    {
+      "footprints": [
+        "Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"
+      ],
+      "height_max_mm": 8.71,
+      "basis": "design_allocation",
+      "evidence": "Separate J_SIG1 long-tail socket retained. 8.51 REF +0.1 body +0.1 seating; exposed recess access checked separately."
+    },
+    {
+      "footprints": [
+        "PinHeader_2x02_P2.54mm_Vertical",
+        "PinHeader_2x03_P2.54mm_Vertical",
+        "PinHeader_2x04_P2.54mm_Vertical"
+      ],
+      "height_max_mm": 18.6912,
+      "kind": "mating_header",
+      "housing_max_mm": 2.74,
+      "post_width_max_mm": 0.7,
+      "basis": "design_allocation",
+      "evidence": "Samtec TSW-17: 18.288 nominal seat-to-tip, +/-0.3032 combined post/housing allowance +0.1 seating; socket mate exempt only with verified numbered contact registration."
+    },
+    {
+      "footprints": [
+        "PinSocket_2x02_P2.54mm_Vertical",
+        "PinSocket_2x03_P2.54mm_Vertical",
+        "PinSocket_2x04_P2.54mm_Vertical"
+      ],
+      "height_max_mm": 8.709,
+      "courtyard_expansion_mm": 0.15,
+      "kind": "mating_socket",
+      "basis": "design_allocation",
+      "evidence": "SSQ-01 short-tail, 8.509 REF housing +0.1 body +0.1 seating. Expanded native courtyard covers maximum-cut-end allowance. 2.64 mm outward tails, not inward bodies."
+    },
+    {
+      "footprints": [
+        "CP_Elec_Lelon_VZH_18x16.5"
+      ],
+      "height_max_mm": 17.2,
+      "diameter_max_mm": 18.5,
+      "vent_min_mm": 3.0,
+      "kind": "reservoir",
+      "basis": "design_allocation",
+      "evidence": "Lelon 2026 VZH 18x16.5: max 17 mm body +0.2 installed seating allocation. D18+0.5. 3 mm vent-space design minimum retained from Lelon 2017 guide; final VZH approval/first article required."
+    },
+    {
+      "footprints": [
+        "CP_Elec_6.3x7.7"
+      ],
+      "height_max_mm": 8.5,
+      "basis": "design_allocation",
+      "evidence": "8.5 mm installed input-bulk capacitor allocation; part change must recheck."
+    },
+    {
+      "footprints": [
+        "RJ45_FTP_Shielded_Horizontal"
+      ],
+      "height_max_mm": 13.7,
+      "basis": "design_allocation",
+      "evidence": "Kinghelm KH-RJ45-58-8P8C: larger drawing-revision max 13.5 mm +0.2 seating. Native courtyard used conservatively. Mating plug outside laminate outline."
+    },
+    {
+      "footprints": [
+        "MountingHole_2.2mm_M2_Pad_Via_Slim_6mm_Hardware",
+        "Fiducial_1mm_Mask2mm",
+        "CEC_Logo_Copper"
+      ],
+      "height_max_mm": 0,
+      "basis": "native_planar",
+      "evidence": "Native planar feature; conductive M2 support and heads are modeled separately, not omitted from the assembly."
+    },
+    {
+      "footprints": [
+        "USB_C_Receptacle_GCT_USB4215-03-A"
+      ],
+      "height_max_mm": 4.0,
+      "basis": "design_allocation",
+      "evidence": "PRIVATE PLACEMENT STUDY ONLY. Separate USB4215-03-A RevA manufacturer drawing 26/04/24 nominal3.16mm body; root-reviewed +/-0.10 body allocation plus0.74mm seating/bow/design reserve. Also exceeds conservative3.41mm under general +/-0.25 reading plus0.59mm reserve. Full new native courtyard includes all copper/slot lands with >=.25 margin and conservative maximum body. No genuineSTEP or physical sample/1.6mm PiP/solder retention/plug overmould qualification claimed; not a supplier maximum-height or release certificate."
+    }
+  ]
+}

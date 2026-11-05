@@ -12,7 +12,8 @@ import cec_stage_admission as admission
 
 def metric(*, drc=0, unconnected=0, nets=(), faults=(), kelvin=True,
            diffpair=True, endpoint_hash="", kelvin_topology=(),
-           route_topology_nets=()):
+           route_topology_nets=(), foreign_pour=0,
+           foreign_pour_identities=()):
     violations = []
     for kind, uuids in faults:
         violations.append({
@@ -22,6 +23,8 @@ def metric(*, drc=0, unconnected=0, nets=(), faults=(), kelvin=True,
     return SimpleNamespace(
         drc=drc, unconnected=unconnected,
         kelvin_ok=kelvin, diffpair_ok=diffpair,
+        foreign_on_laid_pour=foreign_pour,
+        foreign_on_laid_pour_identities=list(foreign_pour_identities),
         detail={
             "unconn_nets": list(nets),
             "structural_violations": violations,
@@ -121,6 +124,20 @@ class StageAdmissionTests(unittest.TestCase):
         self.assertFalse(result["accepted"])
         self.assertIn("new_kelvin_topology_fault", result["reasons"])
         self.assertIn("new_route_topology_fault_nets", result["reasons"])
+
+    def test_rejects_open_net_closure_that_pierces_laid_pour(self):
+        before = metric(unconnected=1, nets=("GND",))
+        after = metric(
+            unconnected=0, foreign_pour=1,
+            foreign_pour_identities=(
+                '["via","moved-via","/I2C_SDA","/SENSE1_HI","B.Cu"]',))
+
+        result = admission.evaluate(before, after, require_strict=True)
+
+        self.assertFalse(result["accepted"])
+        self.assertEqual(result["decision"],
+                         "foreign_on_laid_pour_regressed")
+        self.assertTrue(result["new_foreign_on_laid_pour_identities"])
 
     def test_legacy_mapping_and_reason_precedence_remain_compatible(self):
         identity = json.dumps(

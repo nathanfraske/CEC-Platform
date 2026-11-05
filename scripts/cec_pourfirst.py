@@ -80,7 +80,8 @@ def sparse_pour_state(board_path, out_dir, *, manifolds=False, v4=False):
     cec_fr.add_power_pours(board, list(lanes) + patches, fill=False)
     for z in board.Zones():
         z.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
 
     base = os.path.splitext(os.path.basename(board_path))[0]
     while base.startswith("POURFIRST-"):

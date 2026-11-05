@@ -4,6 +4,7 @@
 import os
 import sys
 import unittest
+from unittest.mock import patch, MagicMock
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,6 +14,16 @@ import cec_precision_route as precision
 
 
 class TestPairSchedule(unittest.TestCase):
+    def test_unknown_scope_fails_before_any_copper_is_authored(self):
+        for scope in (['USB'], [], 'USB', ['actual', 'misspelled']):
+            board=MagicMock()
+            with patch.object(precision,'derive_coupled_pairs',return_value=[{'name':'actual'}]), \
+                 patch.object(precision.cec_fr,'synthesize_kelvin_taps') as kelvin:
+                with self.assertRaises(ValueError):
+                    precision.precision_route_board(board,board_path='synthetic',include_pair_names=scope)
+                kelvin.assert_not_called()
+                board.GetTracks.assert_not_called()
+
     def test_leg_span_uses_paired_centrelines(self):
         leg = ((0.0, -0.2), (3.0, -0.2),
                (0.0, 0.2), (3.0, 0.2))

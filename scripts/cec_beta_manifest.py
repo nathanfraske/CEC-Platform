@@ -16,6 +16,9 @@ PROJECTS = (
         "directory": "12vhpwr-standard",
         "project": "12vhpwr-standard-module",
         "schematic": "12vhpwr-standard-module.kicad_sch",
+        # Staging geometry only. Board-local schematic_first_normalization
+        # refreshes a working copy from the hierarchy before replacement;
+        # candidate/ is also stale and must not become a source fallback.
         "pcb": "12vhpwr-standard-module.kicad_pcb",
         "wave": True,
     },

@@ -3,7 +3,7 @@
 # Copyright 2026 Nathan M. Fraske
 #
 # ============================================================================
-#  gen_24pin_sense_cell -- the 24-pin per-rail SENSE-CELL blueprint (v0)
+#  gen_24pin_sense_cell -- the 24-pin per-rail SENSE-CELL blueprint (v1)
 #  (owner ask 2026-07-19: "it needs to stamp out the INA238 and INA181
 #   blueprint -- has it called that rung yet?" -- answer was NEVER; this
 #   builds the missing template).
@@ -12,19 +12,20 @@
 # INA181A2 (SOT-23-6) + TLV7011 (SOT-23-5), netlist-verified identical across
 # the four rails (12V / 5V / 3V3 / 5VSB). The 5V rail is the ROLE rail.
 #
-# DOCTRINE LAYOUT (the v3-keystone answer baked into the cell): parts pack
-# PERPENDICULAR to the shunt's pad axis (all below, local -y), leaving BOTH
-# pad-axis approaches free -- that is exactly where the force-rail plan lands
-# its face stubs + via arrays (the measured 0/4 refusal cause was cell parts
-# seated on those sites). Kelvin copper itself is the precision tap pass's
-# job at board time; the ONE internal net (INA181 out -> TLV7011 in, DETAMP)
-# gets ideal-synthesized routing at stamp (ideal_internal=True).
+# DOCTRINE LAYOUT: the four-part cell is selected by bounded real-footprint
+# geometry search.  It preserves both shunt approaches, clears every courtyard
+# by 0.30 mm, and keeps the INA238/INA181 sense legs inside their route-quality
+# limits.  Kelvin copper is owned by the critical precision-tap pass.  The
+# lower-priority INA181-to-TLV7011 DETAMP link is deliberately *not* pre-locked:
+# doing so fenced the INA181 Kelvin input on every rail.  The board policy uses
+# ideal_internal=False and lets ordinary residual routing complete DETAMP only
+# after the precision connections have first-route authority.
 #
-# v0 scope: the 4 silicon parts only -- bypass/threshold passives keep their
+# v1 scope: the 4 silicon parts only -- bypass/threshold passives keep their
 # auto_cluster ownership (they cluster to these ICs' stamped positions).
 #
 # Run IN the routing container:
-#   python3 scripts/gen_24pin_sense_cell.py [--out beta/atx-24pin-rev3/blueprints/sense-rail-v0.json]
+#   python3 scripts/gen_24pin_sense_cell.py [--out beta/atx-24pin-rev3/blueprints/sense-rail-v1.json]
 # Verifies: nets exist for every rail, footprints resolve, courtyards clear.
 import argparse
 import json
@@ -35,18 +36,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 ROOT = os.path.dirname(HERE)
 
-# role parts (the 5V rail) -> doctrine offsets in the template local frame
-# (shunt horizontal at origin, pads +-x; everything else BELOW).
+# Role parts (the 5V rail) -> doctrine offsets in the template local frame.
+# The current dynamic-Kelvin layout was selected by a bounded geometry search:
+# all courtyards clear by 0.30 mm, both shunt-to-INA181 legs are <= 9.0 mm,
+# and INA181-to-TLV7011 is <= 8.0 mm.  The previous authored-tap layout locked
+# 11.08 mm Kelvin legs and a 12.7 mm detector link into every stamped rail;
+# no whole-board placement wave could repair an immutable cell.
 ROLE_PARTS = {
     "RS2":   {"offset_mm": (0.0, 0.0),   "rot_delta": 0.0},
-    "U11":   {"offset_mm": (0.0, -4.6),  "rot_delta": 0.0},    # INA238 hard against the inner edge
-    # INA181 ROTATED 180 (tap-ability redesign, 2026-07-19: with the inputs on
-    # its shunt-facing row, LO could not reach IN- without crossing HI copper
-    # or a rail-stub corridor -- every entry measured walled by the v0..v3
-    # generator asserts. Rotated, BOTH inputs face the under-lane and each
-    # polarity approaches from its own below-lane.)
-    "U65V1": {"offset_mm": (-5.6, -4.4), "rot_delta": 180.0},
-    "U75V1": {"offset_mm": (-5.6, -8.2), "rot_delta": 0.0},    # authored-taps variant deepens to -8.5
+    "U11":   {"offset_mm": (1.0, -4.0),  "rot_delta": 180.0},
+    "U65V1": {"offset_mm": (0.0, 4.0),   "rot_delta": 0.0},
+    "U75V1": {"offset_mm": (-5.0, 4.0),  "rot_delta": 180.0},
 }
 ROLE_RAIL = "5V"
 
@@ -363,48 +363,61 @@ def author_kelvin_taps(fp_of, pose, nl, role, cec_pcb, side=-1):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(
-        ROOT, "modules", "atx-24pin-rev3", "blueprints", "sense-rail-v0.json"))
+        ROOT, "beta", "atx-24pin-rev3", "blueprints", "sense-rail-v1.json"))
+    ap.add_argument(
+        "--author-taps", action="store_true",
+        help="also attempt an authored-tap sibling; current v1 leaves Kelvin "
+             "copper to the board-context precision router")
     args = ap.parse_args()
 
     import cec_synth_pipeline as csp
-    import cec_fresh_wave as W
     import cec_pcb
 
-    s, _p = W._build_session("atx-24pin-rev3", 70.0, 55.0, "plain", "compact", 0, None)
-    nl = csp.View(s.cfg).nl
+    # Blueprint generation depends on schematic/netlist authority only.  Do
+    # not construct a placement session here: the current board policy may
+    # already reference the blueprint being generated, creating a circular
+    # bootstrap failure on a clean checkout.
+    cfg = csp.Config.load("atx-24pin-rev3")
+    nl = csp.View(cfg).nl
     fp_of = csp._fp_of(nl)
+
+    def resolve_net(name):
+        if name in nl.nets:
+            return name
+        matches = [candidate for candidate in nl.nets
+                   if candidate.endswith(name)]
+        assert len(matches) == 1, \
+            "net %s: expected one hierarchy-qualified match, got %s" % (
+                name, matches)
+        return matches[0]
 
     # ---- verify every rail's refs + nets exist --------------------------------
     for rail, m in RAILS.items():
         for k in ("rs", "ina238", "ina181", "tlv"):
             assert m[k] in fp_of, "%s: ref %s missing" % (rail, m[k])
         for k in ("CELL_HI", "CELL_LO", "CELL_DET", "CELL_DETAMP"):
-            assert m[k] in nl.nets, "%s: net %s missing from the netlist" % (rail, m[k])
-    for n in SHARED_NETS:
-        assert n in nl.nets, "shared net %s missing" % n
-
-    role = RAILS[ROLE_RAIL]
+            resolve_net(m[k])
+    role = dict(RAILS[ROLE_RAIL])
+    for key in ("CELL_HI", "CELL_LO", "CELL_DET", "CELL_DETAMP"):
+        role[key] = resolve_net(role[key])
+    role["_shared"] = {name: resolve_net(name) for name in SHARED_NETS}
     return _emit_variants(args, nl, fp_of, role, csp, cec_pcb)
 
 
 def _emit_variants(args, nl, fp_of, role, csp, cec_pcb):
-    """Write BOTH handedness variants: the base file (bank at template -y =
-    board-RIGHT of the column at the 270 seats) and the *-left sibling (bank
-    mirrored to +y = board-LEFT). Per-rail handedness is the wave wiring's
-    choice -- the J1/J6 wedge (2026-07-19): the rightmost rail's bank must
-    not reach J6, the leftmost's must not reach J1, and one handedness for
-    all four cannot satisfy both."""
+    """Write the selected base cell and, on request, its tap-authoring probe.
+
+    Board-time critical routing owns production Kelvin copper.  ``--author-taps``
+    remains an explicit generator diagnostic; it never silently changes the
+    production template or the board's route-priority policy.
+    """
     rc = 0
-    # THREE artifacts (the 2026-07-19 wedge arithmetic: the authored-tap
-    # cell's extra ~0.35mm of bank reach re-wedges every four-column
-    # handedness assignment at pitch 12 on W=70, so the STAMPED template is
-    # parts-only tonight):
-    #   v0.json       parts-only, bank right -- what all four stamps use
-    #   v0-left.json  parts-only, bank left  -- kept for per-rail handedness
-    #   v0-taps.json  the authored Kelvin-90 cell -- next pass's artifact
-    #                 (needs the TLV-beside redesign to shave its reach)
-    for suffix, side, taps_on in (("", -1, False), ("-left", +1, False),
-                                  ("-taps", -1, True)):
+    # The production artifact is parts-only.  The optional ``-taps`` sibling
+    # exists solely to exercise the parametric authored-tap checker.
+    variants = [("", -1, False)]
+    if args.author_taps:
+        variants.append(("-taps", -1, True))
+    for suffix, side, taps_on in variants:
         out = args.out if not suffix else args.out[:-len(".json")] + suffix + ".json"
         _emit_one(out, nl, fp_of, role, csp, cec_pcb, side=side, author_taps=taps_on)
     return rc
@@ -417,20 +430,6 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
     pose = {}
     for r, sp in ROLE_PARTS.items():
         ox, oy, rot = sp["offset_mm"][0], sp["offset_mm"][1], sp["rot_delta"]
-        if r == "U75V1" and author_taps and side < 0:
-            # TLV BESIDE the sink corridor, not below the 181 (owner render
-            # report 2026-07-19 evening: the deep TLV column cost +0.35mm of
-            # bank reach, which kept the authored-90 cell un-stampable and
-            # left the route-time diagonal/wraparound fallback taps on the
-            # boards). At (9.4, -4.4) it sits board-(col-4.4, row+9.4) --
-            # measured clear of the sink stub corridor (x_t 3..6.2) and the
-            # LO outer drop; the cell's deep reach drops ~9.75 -> ~7.9 and
-            # fits the 11.9 pitch with ~1.6mm spare. y -4.4 -> -5.0 (measured
-            # s2a: at -4.4 the TLV pads sat 0.3mm inside the rail's own sink
-            # descent corridor, board col+3.45 vs the 3.75 radius).
-            ox, oy = 9.4, -5.0
-        if r == "U65V1" and not author_taps:
-            rot = 0.0          # the 181's rot-180 exists FOR the authored taps
         if side > 0:           # (inputs facing the under-lane); parts-only
             oy = -oy           # cells keep the original facing -- rot 180
         pose[r] = (ox, oy, rot)  # moved the ideal-DETAMP path onto +3V3
@@ -452,8 +451,8 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
 
     # ---- role mapping: net -> role key ---------------------------------------
     lit2role = {role[k]: k for k in ("CELL_HI", "CELL_LO", "CELL_DET", "CELL_DETAMP")}
-    for n in SHARED_NETS:
-        lit2role[n] = n                                   # shared nets are their own role
+    for role_name, actual_net in role.get("_shared", {}).items():
+        lit2role[actual_net] = role_name
 
     # ---- collect pads per role net -------------------------------------------
     pads_by_role = {}
@@ -480,7 +479,7 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
                     "value": nl.comps[r].value or ""}
 
     template = {
-        "meta": {"board": "atx-24pin-rev3", "generator": "gen_24pin_sense_cell v0",
+        "meta": {"board": "atx-24pin-rev3", "generator": "gen_24pin_sense_cell v1",
                  "role_rail": ROLE_RAIL, "bank_side": ("left" if side > 0 else "right"),
                  "doctrine": "parts pack perpendicular to the pad axis; both "
                              "pad-axis approaches stay free for the force-rail "
@@ -490,7 +489,7 @@ def _emit_one(out_path, nl, fp_of, role, csp, cec_pcb, *, side=-1, author_taps=T
         "parts": parts,
         "net_roles": {k: role[k] for k in ("CELL_HI", "CELL_LO", "CELL_DET",
                                            "CELL_DETAMP")} |
-                     {n: n for n in SHARED_NETS},
+                     {n: role.get("_shared", {}).get(n, n) for n in SHARED_NETS},
         "ports": {k: {"net": (role[k] if k in role else k), "pads": v}
                   for k, v in pads_by_role.items()},
         "internal_pads": internal,

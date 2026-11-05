@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -68,6 +70,7 @@ PARTS = {
         "mpn": "",
         "lcsc": "",
         "in_bom": False,
+        "procurement_kind": "fabricated_pcb_feature",
         "datasheet": ROOT / "lib/datasheets/XFCN_T34069_C481452.pdf",
     },
     TTR: {
@@ -88,6 +91,7 @@ PARTS = {
         "mpn": "",
         "lcsc": "",
         "in_bom": False,
+        "procurement_kind": "fabricated_pcb_feature",
         "datasheet": ROOT / "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf",
     },
     ATX_SIGNAL_DB: {
@@ -185,6 +189,8 @@ PROJECTS = {
     },
     "atx-db": {
         "kind": "daughterboard",
+        "mating_datum_authority": "parent_rows",
+        "allow_lateral_outline_growth": True,
         "contact_interface": CONTACT_INTERFACE,
         "root_schematic": "beta/output-daughterboards/atx24-out-db/atx24-out-db-board.kicad_sch",
         "leaf_schematic": "beta/output-daughterboards/atx24-out-db/atx24-out-db-board.kicad_sch",
@@ -241,26 +247,44 @@ PROJECTS = {
         "preserved_moves_mm": {"J1": (4.10, 3.10, 0)},
         "routes_mm": [
             {"net": "/-12V", "layer": "F.Cu", "width": 0.20,
+             "point_anchors": {3: {"edge": "right", "offset_mm": .8, "axes": ["x"]},
+                               4: {"edge": "right", "offset_mm": .8, "axes": ["x"]}},
              "points": [(8.30, 8.60), (10.40, 6.50), (10.40, 0.65),
-                        (53.20, 0.65), (53.20, 14.00), (48.00, 14.00),
-                        (48.00, 15.90), (49.50, 17.40)]},
+                        (53.20, 0.65), (53.20, 14.00)],
+             "target_pad": ("J20", "1")},
             {"net": "/PS_ON#", "layer": "B.Cu", "width": 0.20,
+             "point_anchors": {3: {"edge": "right", "offset_mm": 1.2, "axes": ["x"]},
+                               4: {"edge": "right", "offset_mm": 1.2, "axes": ["x"]}},
              "points": [(16.70, 8.60), (18.80, 6.50), (18.80, 0.65),
-                        (52.80, 0.65), (52.80, 14.00), (47.80, 14.00),
-                        (47.80, 19.94), (49.50, 19.94)]},
+                        (52.80, 0.65), (52.80, 14.00)],
+             "target_pad": ("J20", "2")},
             # PWR_OK is a low-speed status line.  Keeping its route at the
             # extreme top/right edge of In2 makes only an edge notch in the
             # +12V plane; it no longer cuts any power pour across its flow.
             {"net": "/PWR_OK", "layer": "In2.Cu", "width": 0.20,
+             "point_anchors": {2: {"edge": "right", "offset_mm": 1.2, "axes": ["x"]},
+                               3: {"edge": "right", "offset_mm": 1.2, "axes": ["x"]}},
              "points": [(33.50, 3.10), (35.60, 0.65), (52.80, 0.65),
-                        (52.80, 15.80), (52.04, 17.40)]},
+                        (52.80, 15.80)], "target_pad": ("J20", "3")},
+            # Explicit signal return: two islands of one GND zone are NOT
+            # necessarily electrically connected. Use actual plated pads and
+            # let the same guarded tail solver choose a legal common layer.
+            {"net": "GND", "width": 0.50, "points": [],
+             "source_pad": ("J19", "1"), "target_pad": ("J20", "4"),
+             "layer": "B.Cu", "layer_candidates": ("B.Cu", "F.Cu", "In1.Cu", "In2.Cu"),
+             "additive": True},
             {"net": "+5VSB", "layer": "F.Cu", "width": 0.90,
              "points": [(37.70, 3.10), (39.80, 5.40), (39.80, 10.30)]},
             {"net": "+5VSB", "layer": "In1.Cu", "width": 1.00,
+             "point_anchors": {2: {"footprint": "J15", "axes": ["x"]}},
              "points": [(39.80, 10.30), (39.80, 11.20), (35.80, 11.20)]},
             {"net": "+5VSB", "layer": "In1.Cu", "width": 2.00,
+             "point_anchors": {0: {"footprint": "J15", "axes": ["x"]},
+                               1: {"footprint": "J15", "axes": ["x"]}},
              "points": [(35.80, 11.20), (35.00, 13.50)]},
             {"net": "+5VSB", "layer": "B.Cu", "width": 2.00,
+             "point_anchors": {0: {"footprint": "J15", "axes": ["x"]},
+                               1: {"footprint": "J15", "axes": ["x"]}},
              "points": [(35.00, 13.50), (35.00, 16.20)]},
             # Join the F.Cu east limb to the B.Cu main pour and carry the
             # isolated right-edge +3V3 field pin around the +5VSB corridor.
@@ -271,6 +295,7 @@ PROJECTS = {
             {"net": "+5VSB", "at": (39.80, 10.30),
              "diameter": 1.00, "drill": 0.50},
             {"net": "+5VSB", "at": (35.00, 13.50),
+             "at_anchor": {"footprint": "J15", "axes": ["x"]},
              "diameter": 1.00, "drill": 0.50},
             # Join the legacy +3V3 front/back pours in their shared clear
             # region.  A via-only tie is intentional here; both filled zones
@@ -318,6 +343,8 @@ PROJECTS = {
     },
     "eps-db": {
         "kind": "daughterboard",
+        "mating_datum_authority": "parent_rows",
+        "allow_lateral_outline_growth": True,
         "contact_interface": CONTACT_INTERFACE,
         "root_schematic": "beta/output-daughterboards/eps-out-db/eps-out-db-board.kicad_sch",
         "leaf_schematic": "beta/output-daughterboards/eps-out-db/eps-out-db-board.kicad_sch",
@@ -359,7 +386,7 @@ PROJECTS = {
         "terminal_inter_pair_pitch_mm": 15.0,
         "terminal_groups": [
             {"force_ref": "TB11", "return_ref": "TB13",
-             "shunt_ref": "RS1", "return_side": -1},
+             "shunt_ref": "RS1", "return_side": 1},
             {"force_ref": "TB21", "return_ref": "TB23",
              "shunt_ref": "RS2", "return_side": 1},
         ],
@@ -452,11 +479,408 @@ PROJECTS = {
 }
 
 
+# One declared logical mapping per output port. Viewed along increasing X in
+# the authored main footprint row; the final mated/viewing transform remains
+# a sample gate. Algorithms consume this data without exact-ref branching.
+OUTPUT_MOUNT_PORTS = {
+    'atx-main': [('atx-db', ('TB6', 'TB4', 'TB2', 'TB1', 'TB5', 'TB9'),
+                 ('J16', 'J13', 'J11', 'J10', 'J15', 'J19'))],
+    'eps-main': [('eps-db', ('TB13', 'TB11', 'TB12', 'TB14'),
+                 ('J10', 'J13', 'J14', 'J11')),
+                ('eps-db', ('TB23', 'TB21', 'TB22', 'TB24'),
+                 ('J10', 'J13', 'J14', 'J11'))],
+    'pcie2-main': [('pcie-db', ('TB11', 'TB13'), ('J10', 'J13')),
+                   ('pcie-db', ('TB21', 'TB23'), ('J10', 'J13'))],
+    'pcie3-main': [('pcie-db', ('TB11', 'TB13'), ('J10', 'J13')),
+                   ('pcie-db', ('TB21', 'TB23'), ('J10', 'J13')),
+                   ('pcie-db', ('TB31', 'TB33'), ('J10', 'J13'))],
+}
+
+
+# Nominal lateral column alignment only. Both vendor footprints put column
+# 1/2 at local X=0 and 3/4 at X=2.54. The right-angle fold changes Y/Z, not X.
+# Do not infer engagement depth or sample-qualified screw-axis Z from this.
+OUTPUT_MOUNT_COMPANIONS = {
+    'atx-main': [('J_SIG1', 'TB6', 'atx-db', 'J20', 'J16')],
+}
+
+
+# Body widths/tolerances from the dimensioned XFCN drawings, in the installed
+# lateral orientation. +/-0.10 center placement is a SCREENING allowance,
+# not a vendor/process capability claim. Unknown screw Z remains unqualified.
+OUTPUT_MOUNT_BODY_SCREEN = {
+    T340: {'width_mm': 6.3, 'width_tolerance_mm': 0.3},
+    TTR: {'width_mm': 10.0, 'width_tolerance_mm': 0.3},
+}
+OUTPUT_MOUNT_GAP_POLICY = {'position_error_mm': 0.10, 'minimum_gap_mm': 0.20}
+# Max last-hole datum respects the existing contact/signal copper envelopes:
+# ATX: signal X49.50 - pad radius0.85 - clearance0.25 - land half-width4.50.
+# Other rows already have sufficient nominal width and keep their extents.
+OUTPUT_MOUNT_LAST_DATUM_LIMIT_MM = {'atx-db': 43.90, 'eps-db': 24.50, 'pcie-db': 19.25}
+# Existing daughterboard copper-to-edge design rule, not a reduced search gap.
+OUTPUT_MOUNT_EDGE_CLEARANCE_MM = 0.50
+# Native footprint courtyard offsets, screened against the 54 mm outline and
+# >=0.5 mm signal copper edge margin. Do not widen the board to seat the header.
+OUTPUT_MOUNT_COMPANION_ENVELOPES = {
+    'atx-db': {'ref': 'J20', 'after': 'J19', 'contact_right_mm': 4.75,
+               'companion_left_mm': -1.52, 'gap_mm': 0.10, 'max_x_mm': 50.11,
+               # Nominal routing corridor only. This 0.75 mm seating-depth
+               # adjustment MUST be included in the still-open mated-fit gate.
+               'edge_channel': {'copper_extent': 2.54 + 0.85,
+                                'edge_clearance': 0.50, 'route_width': 0.50,
+                                'copper_clearance': 0.25, 'margin': 0.01,
+                                'maximum_shift': 0.80}},
+}
+
+
+def _installed_copper_interval(part_key, angle):
+    """Conservative installed copper projection, preserving repeated lands.
+
+    Read the footprint on this compilation, rather than using cached body
+    widths. Unsupported/custom lands refuse compilation; they never become
+    zero-width contacts. Pad rotation and footprint rotation are independent.
+    """
+    import cec_pcb
+    nick, name = PARTS[part_key]['footprint'].split(':')
+    source = Path(cec_pcb.fp_path(nick, name)).read_text(encoding='utf-8')
+    values = []
+    for match in re.finditer(r'\(pad ', source):
+        block = cec_pcb.carve(source, match.start())
+        head = re.match(r'\(pad "([^\"]*)"\s+(\w+)\s+(\w+)', block)
+        if not head:
+            raise ValueError('unreadable interface land')
+        if head[2] == 'np_thru_hole':
+            continue
+        if head[2] not in ('smd', 'thru_hole') or head[3] not in ('rect', 'roundrect', 'oval', 'circle'):
+            raise ValueError('unsupported interface land envelope')
+        at = re.search(r'\(at\s+([^()]+)\)', block)
+        size = re.search(r'\(size\s+([^()]+)\)', block)
+        if not at or not size:
+            raise ValueError('incomplete interface land geometry')
+        pos, dims = list(map(float, at[1].split())), list(map(float, size[1].split()))
+        if (len(pos) not in (2, 3) or len(dims) != 2 or min(dims) <= 0 or
+                not all(math.isfinite(v) for v in pos + dims + [angle])):
+            raise ValueError('invalid interface land geometry')
+        cx = cec_pcb._rot(pos[0], pos[1], angle)[0]
+        a = math.radians(angle + (pos[2] if len(pos) == 3 else 0))
+        half = (abs(math.cos(a))*dims[0] + abs(math.sin(a))*dims[1])/2
+        values.extend((cx-half, cx+half))
+    if not values:
+        raise ValueError('interface footprint has no copper envelope')
+    return (min(values), max(values))
+
+
+def require_mating_compilation(plan):
+    """No producer may emit one half of a refused paired-row compilation."""
+    import cec_mating_rows
+    receipt = plan.get('mating_row_compilation')
+    if receipt is not None and receipt.get('ok') is not True:
+        raise cec_mating_rows.MatingRowConflict(receipt)
+
+
+def _daughter_outline_budget(plan, refs, datums, companion=None):
+    """Report real edge slack for the entire contact row and signal companion.
+
+    A first/last contact limit alone hides the companion's contribution and
+    can incorrectly suggest that translating a refused row will make it fit.
+    All widths come from installed library lands, not package body widths.
+    """
+    import cec_mating_rows
+    xs = list(datums)
+    intervals = [_installed_copper_interval(plan['refs'][r]['part'],
+                 plan['placements_mm'][r][2]) for r in refs]
+    members = list(refs)
+    if companion:
+        ref = companion['ref']
+        xs.append(max(plan['placements_mm'][ref][0], xs[refs.index(companion['after'])]
+                      + companion['contact_right_mm'] - companion['companion_left_mm']
+                      + companion['gap_mm']))
+        intervals.append(_installed_copper_interval(project_refs(plan)[ref]['part'],
+                         plan['placements_mm'][ref][2]))
+        members.append(ref)
+    rectangle = plan['outline_rect_mm']
+    return dict(cec_mating_rows.rigid_row_outline_fit(xs, intervals,
+                outline_interval_mm=(rectangle[0], rectangle[2]),
+                edge_clearance_mm=OUTPUT_MOUNT_EDGE_CLEARANCE_MM),
+                members=members, datums_mm=xs, copper_intervals_mm=intervals)
+
+
+def _compile_daughter_body_clearance():
+    import cec_mating_rows
+    seen = set()
+    for main, ports in OUTPUT_MOUNT_PORTS.items():
+        for mate, refs, db_refs in ports:
+            if mate in seen:
+                continue
+            seen.add(mate)
+            plan = PROJECTS[mate]
+            plan['interface_frame_seed_mm'] = dict(plan['placements_mm'])
+            # Every parent using this daughter participates in the same solve.
+            linked = [(parent, main_refs, daughter_refs)
+                      for parent, rows in OUTPUT_MOUNT_PORTS.items()
+                      for child, main_refs, daughter_refs in rows if child == mate]
+            envelopes = []
+            rectangle = tuple(plan['outline_rect_mm'])
+            companion = OUTPUT_MOUNT_COMPANION_ENVELOPES.get(mate)
+            limit = OUTPUT_MOUNT_LAST_DATUM_LIMIT_MM[mate]
+            try:
+                for parent, main_refs, daughter_refs in linked:
+                    if tuple(daughter_refs) != tuple(db_refs):
+                        raise ValueError('shared daughter contact order differs')
+                    spec = PROJECTS[parent]
+                    bodies = [OUTPUT_MOUNT_BODY_SCREEN[spec['refs'][r]['part']] for r in main_refs]
+                    half = [(b['width_mm'] + b['width_tolerance_mm'])/2 +
+                            OUTPUT_MOUNT_GAP_POLICY['position_error_mm'] for b in bodies]
+                    envelopes.append(dict(domain=parent + ':body', intervals=[(-v, v) for v in half],
+                                          gap_mm=OUTPUT_MOUNT_GAP_POLICY['minimum_gap_mm']))
+                    for side, row_refs, side_plan in ((parent, main_refs, spec), (mate, daughter_refs, plan)):
+                        envelopes.append(dict(domain=side + ':copper',
+                            intervals=[_installed_copper_interval(side_plan['refs'][r]['part'],
+                                       side_plan['placements_mm'][r][2]) for r in row_refs],
+                            # Existing explicit screening gap, not a substitute
+                            # for either board's native electrical rules.
+                            gap_mm=OUTPUT_MOUNT_GAP_POLICY['minimum_gap_mm']))
+                xs = [plan['placements_mm'][r][0] for r in db_refs]
+                parent_authority = plan.get('mating_datum_authority') == 'parent_rows'
+                if parent_authority:
+                    xs = cec_mating_rows.shared_row_datums(
+                        [[PROJECTS[parent]['placements_mm'][r][0] for r in row]
+                         for parent, row, _ in linked], first_datum_mm=xs[0])
+                    limit = xs[-1]
+                receipt = cec_mating_rows.compile_paired_row(xs, envelopes, maximum_last_mm=limit)
+                # A parent-owned interface may be checked, never repacked to
+                # satisfy its daughter. Invalid parent geometry needs an ECO.
+                if parent_authority and receipt.get('changed'):
+                    receipt = dict(receipt, ok=False, changed=False,
+                                   reason='parent_pattern_requires_geometry_revision', proposed_datums_mm=None)
+                receipt['fixed_outline_budget'] = _daughter_outline_budget(
+                    plan, db_refs, xs if parent_authority else receipt['minimum_datums_mm'], companion)
+                if receipt['ok'] and parent_authority:
+                    budget = receipt['fixed_outline_budget']
+                    shift_min, shift_max = budget['translation_window_mm']
+                    if shift_min > 1e-6:
+                        raise ValueError('parent row violates fixed daughter left edge')
+                    if shift_max < -1e-6:
+                        if plan.get('allow_lateral_outline_growth') is not True:
+                            raise ValueError('daughter outline growth is not authorized')
+                        # Keep left/top/bottom datums; round outward to a 0.05
+                        # mm layout grid. This is authorized width, not a
+                        # relaxed copper or body clearance.
+                        right = math.ceil((rectangle[2]-shift_max-1e-9)*20)/20
+                        rectangle = (*rectangle[:2], right, rectangle[3])
+                    receipt['outline_resize'] = dict(before_mm=plan['outline_rect_mm'],
+                        after_mm=rectangle, authorized=plan.get('allow_lateral_outline_growth') is True)
+            except (ValueError, OSError, KeyError) as exc:
+                receipt = dict(ok=False, changed=False, reason='paired_envelope_evidence_unavailable',
+                               detail=str(exc), proposed_datums_mm=None, admission_ok=False)
+            updated = dict(plan['placements_mm'])
+            if receipt['ok']:
+                try:
+                    xs = receipt['proposed_datums_mm']
+                    for parent, main_refs, _ in linked:
+                        cec_mating_rows.align_row(PROJECTS[parent]['placements_mm'], main_refs, xs)
+                    for r, x in zip(db_refs, xs):
+                        _x, y, angle = updated[r]
+                        updated[r] = (x, y, angle)
+                    if companion:
+                        r = companion['ref']
+                        x, y, angle = updated[r]
+                        x = max(x, updated[companion['after']][0]
+                                + companion['contact_right_mm'] - companion['companion_left_mm']
+                                + companion['gap_mm'])
+                        copper_right = _installed_copper_interval(
+                            project_refs(plan)[r]['part'], angle)[1]
+                        max_x = rectangle[2] - OUTPUT_MOUNT_EDGE_CLEARANCE_MM - copper_right
+                        if x > max_x + 1e-6:
+                            raise ValueError('companion cannot fit fixed copper-edge envelope')
+                        if companion.get('edge_channel'):
+                            y = cec_mating_rows.edge_channel_origin(
+                                y, edge=plan['outline_rect_mm'][3], **companion['edge_channel'])
+                        updated[r] = (round(x, 6), y, angle)
+                except (ValueError, KeyError) as exc:
+                    receipt = dict(receipt, ok=False, changed=False,
+                                   reason='paired_frame_or_companion_conflict', detail=str(exc),
+                                   proposed_datums_mm=None)
+            receipt = dict(receipt, mate=mate, parent_projects=sorted({p for p, _, _ in linked}))
+            plan['mating_row_compilation'] = receipt
+            for parent, _, _ in linked:
+                PROJECTS[parent]['mating_row_compilation'] = receipt
+            if not receipt['ok']:
+                # Leave *both* authored maps intact. A refusing compiler must
+                # not publish the body's narrower (electrically shorted) row.
+                continue
+            plan['placements_mm'] = updated
+            plan['outline_rect_mm'] = rectangle
+            OUTPUT_MOUNT_LAST_DATUM_LIMIT_MM[mate] = limit
+            if companion:
+                companion['max_x_mm'] = max_x
+            receipt['fixed_outline_budget'] = _daughter_outline_budget(plan, db_refs,
+                receipt['proposed_datums_mm'], companion)
+            receipt['source_datums_mm'] = [plan['interface_frame_seed_mm'][r][0] for r in db_refs]
+            receipt['changed'] = updated != plan['interface_frame_seed_mm']
+            resize = receipt.get('outline_resize')
+            receipt['dimensions_changed'] = bool(resize and tuple(resize['before_mm']) != tuple(resize['after_mm']))
+            receipt['dimension_scope'] = 'daughterboard_outline'
+
+
+_compile_daughter_body_clearance()
+
+
+def daughter_mating_targets(name, poses):
+    """Rigidly transport compiled local contact changes to a current DB frame."""
+    plan = PROJECTS[name]
+    require_mating_compilation(plan)
+    seed = plan['interface_frame_seed_mm']
+    anchor = min(plan['refs'], key=lambda r: seed[r][0])
+    delta = (poses[anchor][2] - seed[anchor][2] + 180) % 360 - 180
+    a = math.radians(delta)
+    ca, sa = math.cos(a), math.sin(a)
+    result = {}
+    for ref in project_refs(plan):
+        old, new = seed[ref], plan['placements_mm'][ref]
+        dx, dy = old[0] - seed[anchor][0], old[1] - seed[anchor][1]
+        expected = (poses[anchor][0] + ca*dx + sa*dy,
+                    poses[anchor][1] - sa*dx + ca*dy)
+        # Accept either original or already-compiled geometry, not an
+        # unrelated arbitrary placement disguised as this source frame.
+        nx, ny = new[0] - seed[anchor][0], new[1] - seed[anchor][1]
+        target = (round(poses[anchor][0] + ca*nx + sa*ny, 6),
+                  round(poses[anchor][1] - sa*nx + ca*ny, 6), poses[ref][2])
+        prior_lateral = (round(poses[anchor][0] + ca*nx + sa*dy, 6),
+                         round(poses[anchor][1] - sa*nx + ca*dy, 6))
+        if min(math.dist(poses[ref][:2], expected),
+               math.dist(poses[ref][:2], prior_lateral),
+               math.dist(poses[ref][:2], target[:2])) > 0.01:
+            raise ValueError('daughterboard contact frame drift')
+        result[ref] = target
+    return result
+
+
+def mating_row_targets(name, poses):
+    """Derive main nominal pitches from one daughterboard authority.
+
+    The current main row supplies only the frame and available span. Thus a
+    translated/rotated campaign cannot jump back to an old source origin.
+    Mixed-part origin offsets remain provisional, as reported by fit audit.
+    """
+    import cec_mating_rows
+    plan = PROJECTS[name]
+    require_mating_compilation(plan)
+    result, frames = {}, {}
+    for mate, main_refs, db_refs in OUTPUT_MOUNT_PORTS.get(name, []):
+        first = main_refs[0]
+        nominal = plan.get('interface_frame_seed_mm', plan['placements_mm'])
+        delta = (poses[first][2] - nominal[first][2] + 180) % 360 - 180
+        if any(abs((poses[r][2] - nominal[r][2] - delta + 180) % 360 - 180)
+               > 0.01 for r in main_refs):
+            raise ValueError('inconsistent rotations within mating row')
+        result.update(cec_mating_rows.align_row(
+            poses, main_refs, [PROJECTS[mate]['placements_mm'][r][0] for r in db_refs],
+            axis_angle_deg=delta,
+            maximum_span_mm=(max(nominal[r][0] for r in main_refs)-min(nominal[r][0] for r in main_refs)
+                if PROJECTS[mate].get('mating_datum_authority') == 'parent_rows' else None)))
+        frames.update({r: delta for r in main_refs})
+    for ref, anchor, mate, mate_ref, mate_anchor in OUTPUT_MOUNT_COMPANIONS.get(name, []):
+        db = PROJECTS[mate]['placements_mm']
+        result[ref] = cec_mating_rows.companion_on_axis(
+            poses[ref], result[anchor], db[mate_ref][0] - db[mate_anchor][0],
+            axis_angle_deg=frames[anchor])
+    return result
+
+
+# The historical coordinates now declare macro frames, NOT independent mating
+# pitches. Every fresh synthesis/materialization consumes the compiled map.
+for _name in OUTPUT_MOUNT_PORTS:
+    _plan = PROJECTS[_name]
+    _plan['interface_frame_seed_mm'] = dict(_plan['placements_mm'])
+    if _plan.get('mating_row_compilation', {}).get('ok') is True:
+        _plan['placements_mm'] = {**_plan['placements_mm'],
+                                  **mating_row_targets(_name, _plan['placements_mm'])}
+
+
 def power_path_anchor_placements(plan):
     """One synthesis anchor map for the whole header-to-terminal current cell."""
+    require_mating_compilation(plan)
     return {
         **plan.get("fixed_power_path_placements_mm", {}),
         **plan.get("placements_mm", {}),
+    }
+
+
+def centered_interface_anchor_placements(plan, outline_width_mm, *,
+                                         terminal_edge_y_mm, edge="top",
+                                         anchor_scope="power_path"):
+    """Translate a qualified interface macro into a fresh board frame.
+
+    Contract placements are often authored in an existing PCB coordinate
+    frame.  Their relative terminal spacing, auxiliary-header offset, and
+    rotations are mechanical authority; the absolute origin is not.  Center
+    the complete macro on the requested outline and place the minimum rotated
+    *pad-copper* edge of the primary terminal row at the declared edge datum
+    without rescaling or repacking any member.  Footprint origins are not
+    mechanical edge datums: a rotated terminal can extend several millimetres
+    past its origin even when the origin itself appears to be on the board.
+
+    ``mating_interface`` binds only the declared terminal/companion macro.
+    Upstream input headers and shunts are independent current-path anchors,
+    not mating members, and must not follow an output-edge translation.
+    The historical whole-``power_path`` scope remains explicit and compatible.
+    """
+    if anchor_scope == "power_path":
+        placements = power_path_anchor_placements(plan)
+    elif anchor_scope == "mating_interface":
+        require_mating_compilation(plan)
+        placements = dict(plan.get("placements_mm", {}))
+        missing = sorted((set(plan.get("refs", {}))
+                          | set(plan.get("aux_refs", {}))) - set(placements))
+        if missing:
+            raise ValueError("incomplete mating interface placements: %s"
+                             % ", ".join(missing))
+    else:
+        raise ValueError("interface anchor scope must be power_path or mating_interface")
+    if not placements:
+        return {}
+    primary = [ref for ref in plan.get("refs", {}) if ref in placements]
+    if not primary:
+        raise ValueError("qualified interface macro has no primary terminals")
+    try:
+        width = float(outline_width_mm)
+        edge_y = float(terminal_edge_y_mm)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("interface target frame must be numeric") from exc
+    if not math.isfinite(width) or width <= 0.0 or not math.isfinite(edge_y):
+        raise ValueError("interface target frame must be finite and positive")
+    if edge not in ("top", "bottom"):
+        raise ValueError("interface edge must be top or bottom")
+    extremum = min if edge == "top" else max
+    xs = [float(row[0]) for row in placements.values()]
+    # Bind the board-edge datum to real electrical copper.  This is computed
+    # from the same qualified footprint geometry used by synthesis; per-part
+    # magic offsets would become stale as soon as a footprint were revised.
+    import cec_pcb
+
+    primary_copper_y = []
+    for ref in primary:
+        part_key = plan["refs"][ref]["part"]
+        footprint = PARTS[part_key]["footprint"]
+        rotation = float(placements[ref][2])
+        boxes = cec_pcb.local_pad_boxes(footprint)
+        if not boxes:
+            raise ValueError(
+                "qualified interface terminal %s has no electrical pad copper"
+                % ref)
+        rotated_y = []
+        for x0, y0, x1, y1 in boxes:
+            for lx, ly in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+                _dx, dy_pad = cec_pcb._rot(lx, ly, rotation)
+                rotated_y.append(float(dy_pad))
+        primary_copper_y.append(
+            float(placements[ref][1]) + extremum(rotated_y))
+    dx = width / 2.0 - (min(xs) + max(xs)) / 2.0
+    dy = edge_y - extremum(primary_copper_y)
+    return {
+        ref: (float(row[0]) + dx, float(row[1]) + dy, float(row[2]))
+        for ref, row in placements.items()
     }
 
 
@@ -469,12 +893,54 @@ REQUIRED_GATES = (
     "representative_coupon_electrical_test",
     "fastener_and_torque_release",
     "contact_interface_finish_release",
+    "output_mount_interoperability",
     "jlc_tht_process_confirmation",
 )
 
 
 def project_path(project, key):
     return ROOT / PROJECTS[project][key]
+
+
+def mating_compilation_gate(schematic_path):
+    """Cheap pre-dispatch check of declared paired geometry, not board signoff.
+
+    Resolve by the authoritative root schematic, never the candidate filename
+    or board-specific dispatch logic. Re-evaluate the current receipt on every
+    call, so a repaired contract is not trapped in a persistent failure cache.
+    """
+    import copy
+    matches = [name for name in PROJECTS if
+               project_path(name, 'root_schematic').resolve() == Path(schematic_path).resolve()]
+    base = dict(schema=1, applicable=bool(matches), release_authority=False,
+                projects=matches)
+    if not matches:
+        return dict(base, ok=True, reason='no_declared_paired_row')
+    receipts = {name: copy.deepcopy(PROJECTS[name].get('mating_row_compilation'))
+                for name in matches}
+    ok = len(matches) == 1 and all(isinstance(r, dict) and r.get('ok') is True
+                                 for r in receipts.values())
+    return dict(base, ok=ok, reason=('paired_row_compiled' if ok else 'mating_geometry_conflict'),
+                retryable_without_geometry_change=False if not ok else None,
+                retry_requires=[] if ok else ['mating_contract_or_installed_envelope_change'],
+                compilations=receipts)
+
+
+def hardware_release_requirements(board_path, schematic_path):
+    """Declare existing sample/fit gates for the actual manufacturing candidate."""
+    def verify():
+        import cec_output_mount_audit
+        matches = [name for name in PROJECTS if
+                   project_path(name, 'root_schematic').resolve() == Path(schematic_path).resolve()]
+        if len(matches) != 1:
+            return {'ok': False, 'reason': 'fitted terminal interface has no unique current source contract'}
+        result = cec_output_mount_audit.audit(overrides={matches[0]: board_path})
+        return {'ok': result['admission_gate'], 'findings': result['findings']}
+    return [{'id': 'standard-terminal-interface',
+             'footprints': [part['footprint'].split(':')[-1] for part in PARTS.values()],
+             'status_path': QUALIFICATION_STATUS,
+             'candidate_dependencies': [project_path(name, 'pcb') for name in PROJECTS],
+             'required_gates': REQUIRED_GATES, 'verify_candidate': verify}]
 
 
 def expected_source_refs():
@@ -546,6 +1012,12 @@ def audit_release_gate():
     if status.get("release_status") == "QUALIFIED" and not all(
             gates.get(gate, {}).get("passed") is True for gate in REQUIRED_GATES):
         findings.append("release marked QUALIFIED without every mandatory gate passing")
+    if gates.get('output_mount_interoperability', {}).get('passed') is True:
+        # A hand-edited qualification boolean cannot waive current geometry.
+        import cec_output_mount_audit
+        result = cec_output_mount_audit.audit()
+        if result.get('admission_gate') is not True:
+            findings.append('output mount qualification contradicts current interface audit')
     return findings
 
 

@@ -21,11 +21,18 @@ were datasheet-verified the same day (C6/INA228/INA181/TLV7011/TPS2121/LP5907/TJ
 import sys, os, importlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-gm = importlib.import_module("gen-modules")
-import cec_sch
+import argparse
+from cec_legacy_output_guard import require_safe_destination
 
 ROOT = os.path.dirname(HERE)
-OUT = f"{ROOT}/beta/atx-24pin-rev3/24pin-module.kicad_sch"
+_parser = argparse.ArgumentParser(description=__doc__)
+_parser.add_argument("--output", default=f"{ROOT}/beta/atx-24pin-rev3/24pin-module.kicad_sch",
+                     help="Explicit archived/scratch bootstrap output; current manifest sources refuse")
+_args = _parser.parse_args()
+OUT = str(require_safe_destination(_args.output, root=ROOT))
+# Guard before loading the historical generator or performing any output.
+gm = importlib.import_module("gen-modules")
+import cec_sch
 BASE = "24pin-module"
 
 parts, nets = gm.build("atx-24pin")          # C6 base + 4x INA228 + flash + CAN + LDO + RJ-45 + poke-ack

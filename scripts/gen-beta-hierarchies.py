@@ -31,6 +31,9 @@ import cec_spice_sanity  # noqa: E402
 LIBS = {
     "cec": open(os.path.join(ROOT, "lib", "cec.kicad_sym"), encoding="utf-8").read(),
     "cec-vendor": open(os.path.join(ROOT, "lib", "vendor", "cec-vendor.kicad_sym"), encoding="utf-8").read(),
+    "cec-Connector_Screw": open(
+        os.path.join(ROOT, "lib", "vendor", "Connector_Screw.kicad_sym"),
+        encoding="utf-8").read(),
     "power": open(os.path.join(ROOT, "lib", "vendor", "cec-power.kicad_sym"), encoding="utf-8").read(),
 }
 POWER_PORTS = {name: name for name in ("GND", "+3V3", "+5VSB", "+5V_SYS", "+5V_MAIN")}
@@ -89,7 +92,19 @@ CONFIG = {
                 "Description": "Populated 0-ohm link from the post-diode +5V hold-up reservoir to the complete TLV62569 3.3V buck stage."}},
         },
         "synthetic_parts": {
-            f"C{29 + index}": {
+            "C35": {
+                "leaf": "04-can-module-ports", "lib_id": "cec-vendor:C_Small",
+                "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                "nets": {"1": "+3V3", "2": "+5VSB"},
+                "props": {
+                    "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                    "LCSC": "C1525",
+                    "Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                    "Note": ("Dedicated 100nF EMC bypass from TJA1051T/3 VIO "
+                             "pin 5 to VCC pin 3; place directly across both pins.")
+                }
+            },
+            **{f"C{29 + index}": {
                 "leaf": "06-status-leds", "lib_id": "cec-vendor:C_Small",
                 "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
                 "nets": {"1": "+5VSB", "2": "GND"},
@@ -100,7 +115,7 @@ CONFIG = {
                     "Note": f"Dedicated 100nF local bypass for DL{led}; place directly at VDD/VSS."
                 }
             }
-            for index, led in enumerate((1, 2, 3, 4, 5, 7))
+            for index, led in enumerate((1, 2, 3, 4, 5, 7))},
         },
         "leaves": [
             ("01-power-input-selection", "POWER INPUT + SOURCE SELECTION",
@@ -117,7 +132,7 @@ CONFIG = {
             ("04-can-module-ports", "CAN + FOUR MODULE PORTS + STACK",
              "One shared CAN segment, four fused module feeds, DETECT protection/filtering and the structural stack interface.",
              rows("U2 J2 J3 J4 J5 J6C J6D J6P", "F1 F2 F3 F4 D2 D3 D4 D5",
-                  "C5 C7 C18 C19 C20 C21 R3 R4 R5 R6 R7 R8")),
+                  "C5 C35 C7 C18 C19 C20 C21 R3 R4 R5 R6 R7 R8")),
             ("05-kvm-aux-sensors", "KVM AUXILIARY + RAIL SENSING",
              "Fused KVM feed, UART, rail dividers and hub temperature sensing.",
              rows("J_KVM F5 D7 TH1", "C16 R15 R16 R19 R20 R21 R22 R23 R24 R25")),
@@ -269,23 +284,44 @@ CONFIG = {
                     "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL21A106KAYNNN.do",
                               "Manufacturer": "Samsung", "MPN": "CL21A106KAYNNNE",
                               "LCSC": "C15850", "Note": "TPS2121 U6 IN1 local 10uF bulk."}},
+            "C26": {"leaf": "02-power-usb", "lib_id": "cec-vendor:C_Small",
+                    "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                    "nets": {"1": "+5V_SYS", "2": "GND"},
+                    "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                              "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                              "LCSC": "C1525",
+                              "Note": "Dedicated TPS2121 U5 OUT local high-frequency bypass; place at OUT/GND."}},
+            "C27": {"leaf": "02-power-usb", "lib_id": "cec-vendor:C_Small",
+                    "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                    "nets": {"1": "5VSB_MUX", "2": "GND"},
+                    "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                              "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                              "LCSC": "C1525",
+                              "Note": "Dedicated TPS2121 U6 OUT local high-frequency bypass; do not share the U5 IN2 placement role."}},
+            "C28": {"leaf": "04-hub-can-stack", "lib_id": "cec-vendor:C_Small",
+                    "value": "100nF", "footprint": "cec-Capacitor_SMD:C_0402_1005Metric",
+                    "nets": {"1": "+3V3", "2": "+5V_SYS"},
+                    "props": {"Datasheet": "https://product.samsungsem.com/mlcc/CL05B104KO5NNN.do",
+                              "Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC",
+                              "LCSC": "C1525",
+                              "Note": "TJA1051 VIO-to-VCC local high-frequency capacitor; place directly between U2 pins 5 and 3."}},
         },
         "flags": {"01-atx-power-control": ["GND", "+5VSB", "+5V_MAIN"],
                   "02-power-usb": ["+5V_SYS", "5VSB_MUX", "VBUS"]},
         "leaves": [
             ("01-atx-power-control", "ATX INTERPOSER + CONTROL SIGNALS",
              "ATX connector, four shunts, output blade terminals, PS_ON#/PWR_OK conditioning and -12V scaling.",
-             rows("J3 RS1 RS2 RS3 RS4", "TB1 TB2 TB3 TB4 TB5 TB6 TB7 TB8 TB9 TB10",
+             rows("J3 RS1 RS2 RS3 RS4", "TB1 TB2 TB4 TB5 TB6 TB9",
                   "J_SIG1 Q1 U4 U8 D3 D4 D5", "C22 C23 C64 R70 R71 R72 R73 R74 R75 R76")),
             ("02-power-usb", "5V SOURCE MUX + USB SERVICE INGRESS",
              "Cascaded TPS2121 source selection and protected USB-C service power/data ingress.",
-             rows("U5 U6 J5 D7 D_USB1 F1 FB1", "C1 C4 C6 C9 C18 C19 C20 C21 C24 C25 C50 C51 C52 C53 C54 C55",
+             rows("U5 U6 J5 D7 D_USB1 F1 FB1", "C1 C4 C6 C9 C18 C19 C20 C21 C24 C25 C26 C27 C50 C51 C52 C53 C54 C55",
                   "R50 R51 R52 R53 R54 R55 R56 R57 R58 R59 R69 R8 R9")),
             ("03-regulator-mcu", "3V3 REGULATOR + MCU", "Thermal-pad TLV75533 rail, ESP32-C6 control and local boot/reset support.",
              rows("U3 U1", "C2 C3 C5 C7 C8 C10 C11 C12 C13 C14 R2 R10 R3 R4 SW1 SW2")),
             ("04-hub-can-stack", "HUB LINK + CAN + STACK",
              "Mezzanine stack interface, optional CAN common-mode choke position and 5V feed bridge.",
-             rows("J2 J6C J6D J6P U2", "D1 FB2 FL1 R1 R7 R_BYP_H1 R_BYP_L1")),
+             rows("J2 J6C J6D J6P U2", "C28 D1 FB2 FL1 R1 R7 R_BYP_H1 R_BYP_L1")),
             ("05-rail-sensing", "FOUR-RAIL PRECISION + FAST SENSING",
              "Four INA238 measurement channels plus INA181/TLV7011 transient channels and shared threshold conditioning.",
              rows("R60 C60 R61 C61", "U10 U612V1 U712V1 C15 C612V1 C712V1",

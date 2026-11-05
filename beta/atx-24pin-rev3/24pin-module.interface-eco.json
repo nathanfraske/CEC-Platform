@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "input": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/3/24pin-module.kicad_pcb",
+  "input_sha256": "2e45ff7fc4402a63074253cd65d3f584e8311dbb5b8ae285b9a370d6dc0e280c",
+  "output": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_pcb",
+  "moved": {
+    "TB6": {
+      "before": [
+        192.9,
+        74.39,
+        0.0
+      ],
+      "after": [
+        190.0,
+        74.39,
+        0.0
+      ]
+    },
+    "TB4": {
+      "before": [
+        201.75,
+        74.39,
+        90.0
+      ],
+      "after": [
+        200.5,
+        74.39,
+        90.0
+      ]
+    },
+    "TB2": {
+      "before": [
+        208.75,
+        74.39,
+        90.0
+      ],
+      "after": [
+        208.5,
+        74.39,
+        90.0
+      ]
+    },
+    "TB1": {
+      "before": [
+        215.75,
+        74.39,
+        90.0
+      ],
+      "after": [
+        216.5,
+        74.39,
+        90.0
+      ]
+    },
+    "TB5": {
+      "before": [
+        222.75,
+        74.39,
+        90.0
+      ],
+      "after": [
+        224.5,
+        74.39,
+        90.0
+      ]
+    },
+    "TB9": {
+      "before": [
+        231.6,
+        74.39,
+        0.0
+      ],
+      "after": [
+        234.5,
+        74.39,
+        0.0
+      ]
+    },
+    "J_SIG1": {
+      "before": [
+        237.97,
+        81.565,
+        0.0
+      ],
+      "after": [
+        240.87,
+        81.565,
+        0.0
+      ]
+    }
+  },
+  "outline_unchanged": true,
+  "outline_change": null,
+  "unrelated_footprints_unchanged": true,
+  "copper_unchanged": true,
+  "affected_nets": [
+    "+5V_MAIN",
+    "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+    "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PSON",
+    "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+    "/SENSE12V_LO",
+    "/SENSE3V3_LO",
+    "/SENSE5VSB_LO",
+    "GND"
+  ],
+  "stale_copper": [
+    {
+      "uuid": "07b30321-5c20-4cb9-bb14-18c14aa185fa",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "30abc2de-72a2-403c-8696-7520e37e8fd1",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "3da59be5-d6d1-435a-b91d-c98fd64fde94",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "5c6e8371-c22f-471f-8f51-174af7ea9452",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "6b50b027-3b76-4e44-a437-fa28110ebdc0",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "a1491d94-72d5-46a8-989e-9d3a0ce176ba",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "a378ee08-054a-418c-abf3-4fd41e6e2a7b",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "b5489871-f03c-4a1e-b0f8-9f7f825acc17",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "c0708ee4-13ab-4050-a31c-a1e37aab53f6",
+      "net": "+5V_MAIN",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "0ac2aab0-27c9-41c8-92ef-0645147bcb20",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "4762de07-e5ba-48de-a480-d2819803ded8",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "9001bb2a-5df4-483d-8a4e-713489e26cde",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "abcd5b17-faa0-48b2-8eff-870139be8843",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "b9ad6842-dcbe-41bf-9d45-8462e241940a",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "bd9c3c12-e675-4056-af39-461d4b2d5442",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    },
+    {
+      "uuid": "c06f170f-77e5-46a5-b189-b1518b1a1e75",
+      "net": "/SENSE12V_LO",
+      "kind": "PCB_TRACK"
+    }
+  ],
+  "route_authority_invalidated": true,
+  "inherited_route_invalidation": true,
+  "admission_ok": false,
+  "release_authority": false,
+  "required_next_stages": [
+    "mechanical_clearance",
+    "placement_admission",
+    "power_corridor_rebuild",
+    "routing",
+    "full_drc"
+  ],
+  "note": "Nominal mating ECO preview, not a routed/admitted board.",
+  "design_rule_hashes": {
+    ".kicad_pro": "b6e328699a32aae0893180473cabd70c88d39a21e8d2dfdd0459accaa0429709"
+  },
+  "output_sha256": "47c64d38c4c0c6f8ec7171e44b6a76d9693fae1101c1f0936f3d6f81572f303d",
+  "publication_group": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/publication.json"
+}

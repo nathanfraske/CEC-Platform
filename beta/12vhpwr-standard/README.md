@@ -1,5 +1,193 @@
 # 12VHPWR Standard module
 
+## Current-source warning (2026-09-06)
+
+The current design authority is the hierarchical
+`12vhpwr-standard-module.kicad_sch` and its numbered child sheets, selected by
+`scripts/cec_beta_manifest.py`. The root PCB is a **stale staging layout**, and
+`candidate/candidate.json` also declares its older routed reference stale.
+Neither is a current schematic/netlist authority. The canonical replacement
+pipeline now synchronizes a separate working copy from the live hierarchy
+before intake and placement; it does not overwrite either historical PCB.
+
+The present schematic uses **U16 TLV75533PDRVR**, U5 TPS2121 and six INA240
+channels. FL1 remains DNP, with its manufacturer land and explicit CEC-to-TDK
+pin mapping assigned. Initial September 6 placements are diagnostic only, not
+routed or fabrication-approved boards. See
+`../../docs/hub-and-12vhpwr-placement-slices-2026-09-06.md` for provenance,
+measured results and remaining work.
+
+## Fan header population (2026-09-07)
+
+J2 is **populated**, not DNP, per the current owner request. It was already in
+the hierarchy and PCB geometry; the historical DNP assembly flag was the
+discrepancy. The source and both BOMs now agree on JST B3B-PH-K-S(LF)(SN),
+LCSC C131339. Its pinout remains switched return / pre-shunt 12 V / tach.
+No fan model, mounting standoff or cooling performance is qualified by fitting
+the header. See `../../docs/current-beta-fan-header-contact-search-2026-09-07.md`
+for fresh remote-source verification and the latest placement results.
+
+## Latest supply-search / group-ranking diagnostic — not promoted (2026-09-09)
+
+A fresh source-synchronized 58 × 72 mm run now constructs and commits **16/16
+local supply/return cells**, without the former all-cell rollback. Two generic
+repairs make this possible: rejecting an overlong bridge advances its search,
+and native-feasible whole supply groups outrank geometrically cheaper blocked
+groups. No named-part repair or fabrication-rule relaxation is used.
+
+The local connections reduce opens **222 → 170**, with structural DRC unchanged
+at 41. Placement decoupling findings improve **12 → 11**. The saved cell audit
+still accepts only 14/16 because two ground-pin distances exceed the unchanged
+limit; nine additional proximity findings remain in placement review. **This is
+local routing only, not a routed/fab-ready board.** The outline, MCU/interface
+positions, mounting holes and wide-power widths are preserved.
+
+See `../../docs/generic-supply-search-ranking-2026-09-09.md` and
+`../../build/12vhpwr-supply-escape-fresh-20260909/closeout.json` for exact evidence
+and visibly labelled no-body renders. The fresh single-outline stage took
+261.9 seconds; 808 tests passed, and the immutable PCIe score/blockers remain
+unchanged. Next is complete-loop proximity optimization under the same native
+and power-preservation gates, not another blind routing wave.
+
+## Prior ground-access / power-copper diagnostic — not promoted (2026-09-07)
+
+The generic copper constructor now reserves qualified future ground-via sites
+and detours only its own power tracks at unchanged width. The fixed-seat replay
+improves qualified local-cell proposals **7/16 → 13/16** at 68/72/76 mm and
+**7/16 → 12/16** at 80 mm. A separate admission fix prevents rejected narrow
+ground links from being counted as successful; both baselines use that fix.
+
+Footprint positions, current hierarchical identity, all six power lanes, wide
+track widths, native terminal connectivity and structural DRC locations are
+unchanged. **The full cell transaction still rolls back; these are not routed
+or fab-admitted boards.** Three local cells remain blocked on the 72 mm review
+diagnostic. Changed power paths also need fresh thermal qualification.
+
+See `../../docs/generic-ground-portal-copper-slices-2026-09-07.md` and
+`../../build/12vhpwr-ground-portal-final-20260907/closeout.json` for before/after
+measurements and exact renders. This was a bounded constructor replay, not a
+new full placement wave. The next repair is package-level supply/ground escape
+qualification of the complete IC/cap group before placement commitment.
+
+## Prior power-aware orientation diagnostic — not promoted (2026-09-07)
+
+Late orientation proposals now need native proof that required authored copper
+can still be constructed. The bounded generic transaction rejects only unsafe
+changes and retains passing rotations; it contains no named-part repair.
+The fresh four-size cohort retains complete wide-power inventory on **4/4**
+candidates, up from **2/4**. The formerly failing 72/76 mm candidates recover
+their sixth power lane automatically, with every component centre unchanged.
+
+All four preserve six sensing cells / 444 locked segments, current source
+identity, mandatory mounts and lower-right I/O. All 16 supply distances remain
+unchanged. **Twelve decoupling findings still remain; no candidate is routing-
+or fabrication-admitted.** The 58 x 72 mm diagnostic is shown for review, not
+promoted over the canonical board. The 68 mm candidate remains available.
+
+See `../../docs/generic-power-aware-orientation-2026-09-07.md` and
+`../../build/12vhpwr-power-aware-full-placement-20260907/power-aware-closeout.json`.
+The placement stage took 840.0 seconds; this correctness slice adds about 6.4%
+over the previous run, not a speed improvement. PCIe control score/blockers and
+all protected source/archive hashes remain unchanged. The next causal repair
+is coordinated ground-via access and power-copper planning.
+
+## Prior critical-supply pre-lock diagnostic — not promoted (2026-09-07)
+
+The critical placer now reserves a selected IC with its entire required supply
+group before locking. On the same 58 x 68 mm outline, the CAN supply distances
+improve from 5.17/6.65 mm to 1.80/1.84 mm; LDO gains and the complete wide-power
+inventory are retained. Native construction improves from 5/16 to 8/16 proposals
+(seven also meet the source distance limits), but the transaction still rolls
+back and aggregate decoupling findings remain 12. This is not routing-admitted.
+
+The 72/76 mm trials expose a required power-lane collision and are excluded.
+The generic producer/admission gap is repaired: missing or refused power-lane
+construction must now be retained in the sidecar and fail placement admission.
+No named-part relocation was used. The 68/80 mm trials preserve that inventory.
+
+See `../../docs/generic-critical-supply-prelock-2026-09-07.md` and
+`../../build/12vhpwr-critical-supply-prelock-20260907/critical-supply-closeout.json`.
+The four-size stage took 789.4 seconds, about 14% slower than its predecessor;
+the old single-cap grid remains a measured runtime bottleneck. Historical
+schematic/PCB authority and the PCIe control remain unchanged.
+
+## Prior joint-supply diagnostic — not promoted (2026-09-07)
+
+The generic all-or-nothing multi-supply constructor now places the LDO and
+mux with their required capacitors. On the same 58 x 68 mm outline, LDO input
+and output distances improve from 9.29/23.08 mm to 1.30/1.30 mm, with native
+supply/ground construction possible for both. Six sensing cells / 444 locked
+segments and the wide power inventory remain intact.
+
+This is **not a replacement/fab candidate**: the already-fixed CAN group's
+capacitors regress, aggregate decoupling findings remain 12, and native
+complete-cell construction remains 5/16. The construction transaction rolls
+back. Reserve critical devices with their whole supply/ground cell before
+locking; do not work around this by moving named caps after placement.
+
+See `../../docs/generic-joint-supply-placement-2026-09-07.md` and
+`../../build/12vhpwr-joint-supply-contact-20260907/joint-supply-closeout.json`.
+The previous review below remains retained; neither study is routing-admitted.
+
+## Prior supply-group and compaction review (2026-09-07)
+
+Latest bounded cohort:
+`build/12vhpwr-supply-copper-guard-compact-20260907`.
+The aggressive 58 x 68 mm review is 15% smaller than the retained 58 x 80 mm
+placement, keeps four M2 holes, the fan, right-facing lower RJ-45/USB-C,
+all six sensing cells / 444 locked internal segments, and the wide power
+width inventory. The pipeline ranks 58 x 72 mm first for continuation.
+
+Generic repairs cover explicit local bulk ownership, essential supply-group
+reservation/lock handoff, layer-aware component obstacles, and shared local
+pad-to-reserved-copper clearance. C7's MCU supply distance improves from
+21.989 to 3.064 mm; C3 remains 1.56 mm. **Decoupling is not closed:** twelve
+findings remain, including regulator/mux placement and ground-return access.
+These are placement-only candidates, not routing-admitted or fab-approved.
+The 64 mm-height trial is recorded as connector-bank infeasible under the
+current constraints, not as proof no smaller board is possible.
+
+See `../../docs/generic-supply-group-compaction-2026-09-07.md` and the cohort's
+`supply-compaction-closeout.json` for exact boards, independent checks,
+573 passing tests / 14 skips, unchanged PCIe control and remaining work.
+
+## Earlier right-facing lower I/O review (2026-09-07)
+
+The owner corrected RJ-45 to **face right in the lower area**, with USB-C down
+alongside it. `pipeline-policy.json` now declares an end-aligned right-edge
+bank. The generic placer preserves that bank against later individual-jack
+re-seating, accounts for actual mandatory hardware and removes phantom bank
+slots from internally pinned connectors. Four mandatory M2 corner holes remain.
+
+The earlier bounded trial is
+`build/12vhpwr-right-lower-io-compact-bank-20260907`; its native review and
+closeout report are authoritative for this slice. **Placement review only**:
+MCU bulk/bypass locality and other electrical-placement gates remain open.
+See `../../docs/current-beta-12vhpwr-right-lower-io-2026-09-07.md`.
+
+## Earlier four-mount mechanical experiment (superseded interface direction)
+
+The new pipeline policy requires four total M2 corner holes with 2.2 mm NPTH
+and both-face hardware/copper clearances. A 58 x 76 mm placement-review option
+fits them and moves the RJ-45 to the bottom, reducing area 5%. **It is not
+routing-admitted:** the compact owner's solo fallback stranded its MCU bypasses;
+12 decoupling findings remain versus nine in the earlier baseline. Do not
+promote this mechanical experiment as an electrical improvement.
+
+Fresh source audit confirms current power/USB/fan work and 15 recognized local
+supply assignments, but newly flags 20.1 uF nominal USB ingress capacitance
+before active limiting. Effective-capacitance, inrush and OVP dynamic margin
+remain open. See
+`../../docs/current-beta-12vhpwr-four-mount-electrical-review-2026-09-07.md`
+for exact provenance, generic fixes, measured results and the next root-cause
+repair. Old staging and candidate PCBs remain untouched.
+
+## Historical notes below — not current placement or electrical authority
+
+The following notes predate the current hierarchical source and contain
+superseded MCU, regulator, layer-count and routing claims. They are retained
+for history only; do not use their June layouts as pipeline inputs.
+
 Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe CEM
 5.x, 600 W GPU) connector. BOM target **$49** (100-qty). See spec
 [§6.1](../../CEC-Platform-Ground-Truth-Spec.md).

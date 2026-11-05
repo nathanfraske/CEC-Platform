@@ -253,7 +253,8 @@ def phase_fill(args):
     board = pcbnew.LoadBoard(stamped_path)
     for z in board.Zones():
         z.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     pcbnew.SaveBoard(stamped_path, board)
     # consolidated report
     cleared = json.load(open(os.path.join(args.out, "clear-report.json")))

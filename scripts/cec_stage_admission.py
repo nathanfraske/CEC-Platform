@@ -1,16 +1,8 @@
-#!/usr/bin/env python3
-# SPDX-License-Identifier: Apache-2.0
-"""One monotonic admission contract for every physical-design mutation.
+"""Shared mutation admission AND analysis-status projection.
 
-Count-only gates are unsafe for an iterative PCB pipeline.  A pass can remove
-one old clearance, create a different short, and still look numerically better.
-This module compares the identities behind those counts so every caller makes
-the same decision and emits the same forensic evidence.
-
-The contract deliberately uses the affected-net set for ratlines instead of
-KiCad's selected endpoint pair.  KiCad may select a different representative
-endpoint for an unchanged disconnected island after a save; net identity plus
-ratline count is stable across that harmless re-selection.
+Mutation gates compare violation identities as well as counts. The separate
+tri-state reporting helpers below must coexist with that API: completing an
+analysis is not permission to mutate or advance a board.
 """
 from __future__ import annotations
 
@@ -49,6 +41,48 @@ def _canonical_identity(violation):
         identity = [kind, "fallback",
                     str(violation.get("description") or ""), fallback]
     return json.dumps(identity, sort_keys=True, separators=(",", ":"))
+
+
+def native_geometry_nonregression(before,after):
+    """Reject a new saved native geometry fault before a placement can advance.
+
+    Callers must first obtain complete uncapped native reports. Only three
+    explicit lettering fault types can be deferred to the separate readable
+    field stage. An unknown type, courtyard overlap, new copper/hole fault,
+    replacement violation or increased opens never inherits that deferral.
+    Existing failures remain failures; this grants no fabrication authority.
+    """
+    deferred={'silk_overlap','silk_over_copper','silk_edge_clearance'}
+    result=dict(schema=1,scope='saved_native_geometry_delta_only',ok=False,
+        complete=False,errors=[],inherited_faults_qualified=False,
+        deferred_ink_is_fab_ready=False,release_authority=False)
+    try:
+        for report in (before,after):
+            if (not isinstance(report,Mapping)
+                    or type(report.get('violations')) is not list
+                    or type(report.get('unconnected_items')) is not list
+                    or max(len(report['violations']),len(report['unconnected_items']))>32768
+                    or any(not isinstance(row,Mapping) or type(row.get('type')) is not str
+                        or not row['type'] or type(row.get('items')) is not list
+                        or any(not isinstance(item,Mapping) for item in row['items'])
+                        for row in report['violations'])):
+                raise ValueError('complete_bounded_saved_native_fault_reports_required')
+        old={_canonical_identity(v) for v in before['violations']}
+        new=[v for v in after['violations'] if _canonical_identity(v) not in old]
+        physical=[v for v in new if v['type'] not in deferred]
+        ink=[v for v in new if v['type'] in deferred]
+        increased=len(after['unconnected_items'])>len(before['unconnected_items'])
+        result.update(complete=True,ok=not physical and not increased,
+            source_opens=len(before['unconnected_items']),candidate_opens=len(after['unconnected_items']),
+            new_physical_fault_ids=sorted({_canonical_identity(v) for v in physical}),
+            new_physical_fault_types=sorted({v['type'] for v in physical}),
+            deferred_ink_fault_ids=sorted({_canonical_identity(v) for v in ink}),
+            readable_fields_still_required=bool(ink))
+        if physical:result['errors'].append('new_native_nonlettering_geometry_fault')
+        if increased:result['errors'].append('saved_native_opens_increased')
+    except (ValueError,TypeError,KeyError) as exc:
+        result['errors'].append(type(exc).__name__+':'+str(exc))
+    return result
 
 
 def structural_drc_identities(metrics):
@@ -98,6 +132,12 @@ def snapshot(metrics):
             for row in kelvin_topology}),
         "route_topology_fault_nets": sorted({
             str(net) for net in route_topology_nets if net}),
+        "foreign_on_laid_pour": int(
+            _value(metrics, "foreign_on_laid_pour", 0) or 0),
+        "foreign_on_laid_pour_identities": sorted({
+            str(identity) for identity in (
+                _value(metrics, "foreign_on_laid_pour_identities", ())
+                or ())}),
         "unconn_signature_sha256": str(
             _value(metrics, "unconn_signature_sha256", None)
             or detail.get("unconn_signature_sha256") or ""),
@@ -134,6 +174,9 @@ def evaluate(before, after, *, require_strict=False,
     new_route_topology_nets = sorted(
         set(new["route_topology_fault_nets"])
         - set(old["route_topology_fault_nets"]))
+    new_foreign_pour_identities = sorted(
+        set(new["foreign_on_laid_pour_identities"])
+        - set(old["foreign_on_laid_pour_identities"]))
     allowed_nets = {str(net) for net in allowed_new_unconnected_nets if net}
     allowed_drc = {str(kind) for kind in allowed_new_drc_types if kind}
     all_new_unconnected_nets = sorted(new_nets - old_nets)
@@ -158,6 +201,10 @@ def evaluate(before, after, *, require_strict=False,
         reasons.append("new_kelvin_topology_fault")
     if new_route_topology_nets:
         reasons.append("new_route_topology_fault_nets")
+    if new["foreign_on_laid_pour"] > old["foreign_on_laid_pour"]:
+        reasons.append("foreign_on_laid_pour_regressed")
+    if new_foreign_pour_identities:
+        reasons.append("new_foreign_on_laid_pour_identity")
     if (new["unconnected"] > old["unconnected"]
             and not allow_unconnected_growth):
         reasons.append("unconnected_regressed")
@@ -172,8 +219,10 @@ def evaluate(before, after, *, require_strict=False,
     if new_drc_identities:
         reasons.append("new_structural_drc_identity")
     if (require_strict and not reasons
-            and (new["unconnected"], new["drc"])
-            >= (old["unconnected"], old["drc"])):
+            and (new["unconnected"], new["drc"],
+                 new["foreign_on_laid_pour"])
+            >= (old["unconnected"], old["drc"],
+                old["foreign_on_laid_pour"])):
         reasons.append("no_structural_improvement")
 
     decision = (reasons[0] if reasons else
@@ -194,6 +243,8 @@ def evaluate(before, after, *, require_strict=False,
             set(all_new_drc_identities) - set(new_drc_identities)),
         "new_kelvin_topology_faults": new_kelvin_topology,
         "new_route_topology_fault_nets": new_route_topology_nets,
+        "new_foreign_on_laid_pour_identities":
+            new_foreign_pour_identities,
         # Endpoint hashes remain useful forensic evidence even though they are
         # intentionally not a hard gate (see module docstring).
         "unconn_endpoint_signature_changed": bool(
@@ -211,3 +262,30 @@ def accepts(before, after, *, require_strict=False,
         before, after, require_strict=require_strict,
         preserve_unconnected=preserve_unconnected, **kwargs)
     return bool(result["accepted"]), str(result["decision"])
+
+
+
+def admission_ok(result):
+    """Return a strict tri-state outcome without interpreting missing evidence.
+
+    Some analyses produce trustworthy evidence (ok=True) that explicitly
+    refuses the next operation (admission_gate=False). A reporting projection
+    must not invert that refusal. Malformed or missing outcomes stay unknown;
+    this function never creates a waiver for an actual pipeline gate.
+    """
+    if not isinstance(result, dict):
+        return None
+    execution = result.get("ok")
+    explicit = result.get("admission_gate")
+    if execution is False or explicit is False:
+        return False
+    if execution is not True:
+        return None
+    if "admission_gate" in result and explicit is not True:
+        return None
+    return True
+
+
+def label(result):
+    value = admission_ok(result)
+    return "PASS" if value is True else "BLOCK" if value is False else "UNKNOWN"

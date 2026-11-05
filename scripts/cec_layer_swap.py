@@ -925,7 +925,8 @@ print(f"R2 clip pass: runs_cleared_nets={sorted(r2_cleared)} blocked_nets={sorte
 b.BuildConnectivity()
 for z in b.Zones():
     z.UnFill()
-pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+import cec_zone_fill
+cec_zone_fill.fill(b)
 print("zones_refilled")
 
 pcbnew.SaveBoard(OUT, b)

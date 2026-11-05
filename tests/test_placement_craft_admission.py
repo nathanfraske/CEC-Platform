@@ -1,11 +1,14 @@
 """General physical-placement and destructive-reconcile admission contracts."""
 
 import copy
+import json
 import math
 import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
+from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest import mock
 
@@ -19,6 +22,415 @@ import pcbnew  # noqa: E402
 
 
 class PlacementCraftAdmissionTests(unittest.TestCase):
+    def test_declared_blueprint_refs_are_rigid_search_members(self):
+        cfg = SimpleNamespace(params={"blueprint_cells": [
+            {"ref_map": {"TEMPLATE_A": "U1", "TEMPLATE_B": "R1"},
+             "template": {"parts": {"TEMPLATE_A": {}, "TEMPLATE_B": {}}},
+             "ideal_internal": False},
+            {"ref_map": {"TEMPLATE_C": "U2", "ALIAS": "U1"},
+             "template": {"parts": {"TEMPLATE_C": {}, "ALIAS": {}}},
+             "ideal_internal": False},
+        ]})
+
+        self.assertEqual(
+            synth._declared_blueprint_refs(cfg), {"U1", "R1", "U2"})
+        self.assertEqual(
+            synth._declared_blueprint_refs(
+                SimpleNamespace(params={})), set())
+
+    def test_declared_slide_cannot_override_absolute_immutability(self):
+        self.assertTrue(synth._placement_move_violates_authority(
+            {"CELL_MEMBER"}, absolute_immovable={"CELL_MEMBER"},
+            constrained={"CELL_MEMBER"}, declared_slides={"CELL_MEMBER"}))
+        self.assertFalse(synth._placement_move_violates_authority(
+            {"EDGE_CONNECTOR"}, absolute_immovable=set(),
+            constrained={"EDGE_CONNECTOR"},
+            declared_slides={"EDGE_CONNECTOR"}))
+        self.assertTrue(synth._placement_move_violates_authority(
+            {"FIXED_ANCHOR"}, absolute_immovable=set(),
+            constrained={"FIXED_ANCHOR"}, declared_slides=set()))
+
+    def test_unchanged_immutable_owner_may_accompany_atomic_follower_move(self):
+        current = {"U1": (10.0, 20.0, 0.0),
+                   "C1": (11.0, 20.0, 90.0)}
+        proposal = {"U1": (10.0, 20.0, 360.0),
+                    "C1": (12.0, 20.0, 90.0)}
+        self.assertFalse(synth._placement_move_violates_authority(
+            proposal, absolute_immovable={"U1"},
+            current_positions=current))
+        moved_owner = dict(proposal, U1=(10.1, 20.0, 360.0))
+        self.assertTrue(synth._placement_move_violates_authority(
+            moved_owner, absolute_immovable={"U1"},
+            current_positions=current))
+        self.assertEqual(
+            synth._placement_changed_refs(proposal, current), {"C1"})
+        self.assertEqual(
+            synth._placement_changed_refs(moved_owner, current),
+            {"U1", "C1"})
+
+    def test_declared_blueprint_stamp_rehydrates_from_live_anchor_pose(self):
+        template = {"parts": {}, "net_roles": {}}
+        cfg = SimpleNamespace(params={"blueprint_cells": [{
+            "template": template, "anchor_ref": "RS1",
+            "ideal_internal": False,
+            "ref_map": {"RS2": "RS1"},
+            "net_map": {"CELL_HI": "+12V"},
+        }]})
+
+        stamps = synth._declared_blueprint_stamps(
+            cfg, {"RS1": (12.5, 7.25, 90.0)})
+
+        self.assertEqual(len(stamps), 1)
+        self.assertEqual(stamps[0]["at_mm"], [12.5, 7.25])
+        self.assertEqual(stamps[0]["rot"], 90.0)
+        self.assertEqual(stamps[0]["ref_map"], {"RS2": "RS1"})
+
+    def test_blueprint_cell_report_is_a_fail_closed_craft_term(self):
+        cfg = SimpleNamespace(
+            params={"blueprint_cells": [{"name": "cell-a"}]},
+            pins={}, net=None, sch=None)
+        with tempfile.TemporaryDirectory() as directory:
+            board = os.path.join(directory, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("board")
+            report = synth._blueprint_cell_report_path(board)
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump({
+                    "schema": 1, "board": "board.kicad_pcb",
+                    "total": 1, "laid": 0,
+                    "refused": [{"index": 0, "reason": "foreign pad"}],
+                }, handle)
+
+            evidence = synth._blueprint_cell_craft_evidence(board, cfg)
+            key = synth.placement_craft_key({
+                "errors": [], "blueprint_cell": evidence})
+            clean_key = synth.placement_craft_key({
+                "errors": [], "blueprint_cell": {
+                    "ok": True, "total": 1, "laid": 1,
+                    "refused": []}})
+            certificate = synth.placement_craft_blocker_certificate({
+                "errors": [], "blueprint_cell": evidence})
+
+        self.assertFalse(evidence["ok"])
+        self.assertLess(clean_key, key)
+        self.assertIn("blueprint_cell_placement",
+                      certificate["required_stages"])
+        self.assertTrue(certificate["upstream_action_required"])
+
+    def test_blueprint_cell_report_participates_in_craft_cache_identity(self):
+        cfg = SimpleNamespace(
+            params={"blueprint_cells": [{"name": "cell-a"}]},
+            pins={}, net=None, sch=None)
+        with tempfile.TemporaryDirectory() as directory:
+            board = os.path.join(directory, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("board")
+            report = synth._blueprint_cell_report_path(board)
+            with open(report, "w", encoding="utf-8") as handle:
+                handle.write("first")
+            first = synth._placement_craft_cache_key(board, cfg)
+            with open(report, "w", encoding="utf-8") as handle:
+                handle.write("second")
+            second = synth._placement_craft_cache_key(board, cfg)
+
+        self.assertNotEqual(first, second)
+
+    def test_force_rail_report_is_a_fail_closed_craft_term(self):
+        cfg = SimpleNamespace(
+            params={"force_rails": True}, pins={}, net=None, sch=None)
+        construction = {'RS2': {'constructed': False, 'blocked_segments': [
+            {'kind': 'pad', 'ref': 'ANY_PART', 'net': '/ANY_CURRENT',
+             'layer': 'F.Cu', 'segment_mm': [1., 2., 3., 4., 1.5],
+             'clearance_mm': .25}]}}
+        with tempfile.TemporaryDirectory() as directory:
+            board = os.path.join(directory, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("board")
+            report = os.path.join(directory, "board.railreport.json")
+            with open(report, "w", encoding="utf-8") as handle:
+                json.dump({
+                    "schema": 1, "board": "board.kicad_pcb",
+                    "total": 4, "laid": 3,
+                    "refused": {"RS2": "foreign pad"},
+                    "construction_evidence": construction,
+                }, handle)
+
+            evidence = synth._force_rail_craft_evidence(board, cfg)
+            key = synth.placement_craft_key({
+                "errors": [], "force_rail": evidence})
+            clean_key = synth.placement_craft_key({
+                "errors": [], "force_rail": {
+                    "ok": True, "total": 4, "laid": 4,
+                    "refused": {}}})
+            certificate = synth.placement_craft_blocker_certificate({
+                "errors": [], "force_rail": evidence})
+
+        self.assertFalse(evidence["ok"])
+        self.assertEqual(evidence['construction_evidence'], construction)
+        self.assertLess(clean_key, key)
+        self.assertIn("force_rail_placement",
+                      certificate["required_stages"])
+        self.assertTrue(certificate["upstream_action_required"])
+
+    def test_compact_switch_cell_follows_owner_translation_and_rotation(self):
+        candidate = SimpleNamespace(P={
+            "U1": (10.0, 10.0, 0.0),
+            "L1": (12.0, 10.0, 90.0),
+            "C1": (13.0, 11.0, 180.0),
+        })
+        move = {
+            "kind": "decoupler_owner_cell_reseat",
+            "ref": "U1", "owner_ref": "U1",
+            "position": (20.0, 30.0, 90.0),
+        }
+        expanded = synth._expand_topology_coupled_move(
+            move, candidate, {"U1": ("L1", "C1")})
+
+        self.assertEqual(expanded["placements"]["U1"],
+                         (20.0, 30.0, 90.0))
+        self.assertEqual(expanded["placements"]["L1"],
+                         (20.0, 28.0, 180.0))
+        self.assertEqual(expanded["placements"]["C1"],
+                         (21.0, 27.0, 270.0))
+        self.assertEqual(expanded["topology_coupled_refs"], ["C1", "L1"])
+
+    def test_hub_buck_dependency_is_resolved_from_net_topology(self):
+        cfg = synth.Config.load("hub-standard-rev2")
+        dependencies = synth._compact_switch_cell_dependencies(
+            synth.View(cfg).nl)
+        self.assertEqual(dependencies["U3"], ("L1", "C3"))
+
+    def test_switch_cell_failure_is_a_hard_craft_term(self):
+        failed = {
+            "errors": [],
+            "switch_cell": {
+                "ok": False,
+                "violations": [{"detail": "U1->L1 too long",
+                                "distance_mm": 21.0}],
+            },
+        }
+        clean = {
+            "errors": [],
+            "switch_cell": {"ok": True, "violations": []},
+        }
+
+        self.assertLess(synth.placement_craft_key(clean),
+                        synth.placement_craft_key(failed))
+        self.assertFalse(synth.placement_craft_admission(
+            failed, allow_route_access_repair=True)["ok"])
+        certificate = synth.placement_craft_blocker_certificate(failed)
+        self.assertIn("switch_cell_placement",
+                      certificate["required_stages"])
+        self.assertTrue(certificate["upstream_action_required"])
+
+    def test_critical_control_follower_is_measured_from_topology_and_pads(self):
+        root = os.path.dirname(os.path.dirname(__file__))
+        board = os.path.join(
+            root, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        cfg = synth.Config.load("hub-standard-rev2")
+        candidate = synth.placement_candidate_from_board(
+            cfg, board, allow_routed=True)
+        candidate.P["R28"] = (1.0, 1.0, 0.0)
+        nl = synth.View(cfg).nl
+        comps = synth._extend_footprint_map_from_board(
+            synth._fp_of(nl), board, refs=candidate.P)
+
+        evidence = synth._critical_control_follower_evidence_from_topology(
+            nl, comps, candidate.P,
+            cfg.params["critical_route_nets"],
+            role_overrides=cfg.params.get("anchor_roles"), limit_mm=5.0)
+
+        native_records = {ref: tuple(pose[:3]) + (2.0, 3.0)
+                          for ref, pose in candidate.P.items()}
+        self.assertEqual(evidence, synth._critical_control_follower_evidence_from_topology(
+            nl, comps, native_records, cfg.params["critical_route_nets"],
+            role_overrides=cfg.params.get("anchor_roles"), limit_mm=5.0))
+
+        self.assertFalse(evidence["ok"])
+        violation = next(row for row in evidence["violations"]
+                         if row["ref"] == "R28")
+        self.assertEqual(violation["owner_ref"], "U8")
+        self.assertEqual(violation["net"], "/PWR_FAIL_INT")
+        self.assertGreater(violation["distance_mm"], 5.0)
+
+        clean = copy.deepcopy(evidence)
+        clean.update({"ok": True, "violations": []})
+        self.assertLess(
+            synth.placement_craft_key({
+                "errors": [], "critical_control_follower": clean}),
+            synth.placement_craft_key({
+                "errors": [], "critical_control_follower": evidence}))
+        certificate = synth.placement_craft_blocker_certificate({
+            "errors": [], "critical_control_follower": evidence})
+        self.assertIn("critical_control_follower_placement",
+                      certificate["required_stages"])
+
+    def test_critical_control_follower_moves_cover_bounded_pin_neighborhood(self):
+        root = os.path.dirname(os.path.dirname(__file__))
+        board = os.path.join(
+            root, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        cfg = synth.Config.load("hub-standard-rev2")
+        candidate = synth.placement_candidate_from_board(
+            cfg, board, allow_routed=True)
+        candidate.P["R28"] = (1.0, 1.0, 0.0)
+        nl = synth.View(cfg).nl
+        comps = synth._extend_footprint_map_from_board(
+            synth._fp_of(nl), board, refs=candidate.P)
+        evidence = synth._critical_control_follower_evidence_from_topology(
+            nl, comps, candidate.P,
+            cfg.params["critical_route_nets"],
+            role_overrides=cfg.params.get("anchor_roles"), limit_mm=5.0)
+
+        moves = synth._critical_control_follower_move_specs(
+            candidate, evidence["violations"], comps,
+            max_specs_per_ref=64)
+
+        self.assertTrue(moves)
+        self.assertTrue(all(
+            move["kind"] == "critical_control_follower_reseat"
+            and move["ref"] == "R28"
+            and move["predicted_distance_mm"] <= 5.0
+            for move in moves))
+        self.assertGreater(len({move["rotation_index"] for move in moves}), 1)
+        self.assertGreater(len({move["direction_index"] for move in moves}), 3)
+
+    def test_hub_switch_cell_has_generic_exact_reseat_proposals(self):
+        root = os.path.dirname(os.path.dirname(__file__))
+        board = os.path.join(
+            root, "beta", "hub-standard-rev2", "candidate",
+            "hub-standard-rev2-candidate.kicad_pcb")
+        cfg = synth.Config.load("hub-standard-rev2")
+        candidate = synth.placement_candidate_from_board(
+            cfg, board, allow_routed=True)
+        comps = synth._extend_footprint_map_from_board(
+            synth._fp_of(synth.View(cfg).nl), board,
+            refs=candidate.P)
+
+        moves = synth._compact_switch_cell_move_specs(
+            cfg, candidate, comps, max_specs=16)
+
+        self.assertTrue(moves)
+        self.assertTrue(all(
+            move["kind"] == "compact_switch_cell_reseat"
+            and set(move["placements"]) == {"L1", "C3"}
+            and move["switch_cell_rank"][2] <= 3.0
+            and move["switch_cell_rank"][3] <= 3.5
+            for move in moves))
+        self.assertGreater(
+            len({tuple(move.get("external_blockers") or ())
+                 for move in moves}), 1)
+
+    def test_stranded_identity_prefers_refs_over_aggregate_count(self):
+        evidence = {
+            "stranded": {
+                "details": [{"ref": "C_NEW", "distance_mm": 28.0}],
+                "violations": [["C_OLD", 25.0],
+                               {"ref": "R_NEW", "distance_mm": 24.0}],
+            },
+        }
+
+        self.assertEqual(
+            synth._placement_stranded_refs(evidence),
+            frozenset({"C_NEW", "C_OLD", "R_NEW"}))
+
+    def test_dual_via_in_pad_decoupler_uses_complete_loop_proximity(self):
+        tangent = {"best_loop": {
+            "supply_mm": 0.55, "ground_mm": 2.912,
+            "loop_proxy_mm": 3.462,
+        }}
+        ordinary = synth._decoupler_proximity_gate(
+            "GND", 1.334, 2.261, tangent, {},
+            supply_excess_max_mm=0.25, loop_excess_max_mm=0.25)
+        via_in_pad = synth._decoupler_proximity_gate(
+            "GND", 1.334, 2.261, tangent, {
+                "ground_return": {"status": "via-in-pad"},
+                "owner_ground_return": {"status": "via-in-pad"},
+            }, supply_excess_max_mm=0.25,
+            loop_excess_max_mm=0.25)
+
+        self.assertTrue(ordinary["bad"])
+        self.assertEqual(ordinary["mode"], "isolated_tangent_supply")
+        self.assertFalse(via_in_pad["bad"])
+        self.assertEqual(via_in_pad["mode"],
+                         "dual_via_in_pad_complete_loop")
+        self.assertAlmostEqual(via_in_pad["excess_mm"], 0.133, places=6)
+
+    def test_decoupler_craft_evidence_binds_board_profile_authority(self):
+        cfg = SimpleNamespace(params={
+            "thermal_board_hint": "generic-current-profile",
+            "stackup_profile": "generic-six-layer",
+            "pourfirst_state": "/tmp/future-power.json",
+        })
+        observed = {}
+
+        def checker(path, cfg=None):
+            observed.update({
+                "path": path,
+                "cfg": cfg,
+                "board_hint": os.environ.get("CEC_THERMAL_BOARD_HINT"),
+                "fab_profile": os.environ.get("CEC_FAB_PROFILE"),
+                "future_power": os.environ.get("CEC_POURFIRST_STATE"),
+            })
+            return {"ok": True}
+
+        with mock.patch.object(
+                synth, "_oracle_decoupler_adjacency",
+                side_effect=checker), mock.patch(
+                    'cec_fr._pourfirst_state', return_value={'placement_scope': 'anchors'}), mock.patch.dict(os.environ, {},
+                                                       clear=False):
+            old_hint = os.environ.pop("CEC_THERMAL_BOARD_HINT", None)
+            old_fab = os.environ.pop("CEC_FAB_PROFILE", None)
+            old_state = os.environ.get("CEC_POURFIRST_STATE")
+            os.environ["CEC_POURFIRST_STATE"] = "outer-future-power.json"
+            try:
+                result = synth._decoupler_craft_evidence(
+                    "derived.kicad_pcb", cfg=cfg)
+                self.assertIsNone(os.environ.get("CEC_THERMAL_BOARD_HINT"))
+                self.assertIsNone(os.environ.get("CEC_FAB_PROFILE"))
+                self.assertEqual(
+                    os.environ.get("CEC_POURFIRST_STATE"),
+                    "outer-future-power.json")
+            finally:
+                if old_hint is not None:
+                    os.environ["CEC_THERMAL_BOARD_HINT"] = old_hint
+                if old_fab is not None:
+                    os.environ["CEC_FAB_PROFILE"] = old_fab
+                if old_state is None:
+                    os.environ.pop("CEC_POURFIRST_STATE", None)
+                else:
+                    os.environ["CEC_POURFIRST_STATE"] = old_state
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(observed["path"], "derived.kicad_pcb")
+        self.assertIs(observed["cfg"], cfg)
+        self.assertEqual(
+            observed["board_hint"], "generic-current-profile")
+        self.assertEqual(observed["fab_profile"], "generic-six-layer")
+        self.assertIsNone(observed["future_power"])
+
+    def test_mandatory_local_pi_precedes_speculative_access_by_default(self):
+        cfg = SimpleNamespace(params={"automatic_pin_escape_tier": True})
+        self.assertFalse(synth._access_before_local_pi_enabled(cfg, True))
+
+    def test_access_first_local_pi_schedule_requires_explicit_opt_in(self):
+        cfg = SimpleNamespace(params={
+            "automatic_pin_escape_tier": True,
+            "signal_access_before_local_pi": True,
+        })
+        self.assertTrue(synth._access_before_local_pi_enabled(cfg, True))
+        self.assertFalse(synth._access_before_local_pi_enabled(cfg, False))
+
+    def test_local_pi_owns_copper_before_precision_by_default(self):
+        cfg = SimpleNamespace(params={"decoupler_cell_pre_route": True})
+        self.assertTrue(synth._local_pi_before_precision_enabled(
+            cfg, craft_gates=True, signal_access_precedes=False))
+        self.assertFalse(synth._local_pi_before_precision_enabled(
+            cfg, craft_gates=True, signal_access_precedes=True))
+        self.assertFalse(synth._local_pi_before_precision_enabled(
+            cfg, craft_gates=False, signal_access_precedes=False))
+
     def test_route_monotonicity_accepts_boolean_gate_improvements_only(self):
         baseline = SimpleNamespace(
             drc=10, unconnected=20, kelvin_ok=False, diffpair_ok=False)
@@ -54,6 +466,101 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         decision = synth._route_score_admission(baseline, swapped)
         self.assertEqual(decision["decision"],
                          "new_structural_drc_identity")
+
+    def test_declared_control_lastmile_uses_outline_bounded_exact_contract(self):
+        bounds = mock.Mock()
+        bounds.GetWidth.return_value = 30_000_000
+        bounds.GetHeight.return_value = 40_000_000
+        pad = mock.Mock()
+        pad.GetNetname.return_value = "/CTRL"
+        footprint = mock.Mock()
+        footprint.Pads.return_value = [pad]
+        board = mock.Mock()
+        board.GetBoardEdgesBoundingBox.return_value = bounds
+        board.GetFootprints.return_value = [footprint]
+        cfg = SimpleNamespace(params={
+            "critical_control_lastmile_attempts": 12,
+            "critical_control_lastmile_timeout_s": 30,
+        })
+        repair = {"closed": 1, "refused": 0, "refused_details": []}
+        with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(pcbnew, "SaveBoard") as save, \
+                mock.patch("cec_zone_fill.fill", return_value=True) as fill, \
+                mock.patch.object(
+                    cec_fr, "_project_netclass_resolver",
+                    return_value="resolver") as resolver, \
+                mock.patch.object(
+                    cec_fr, "synthesize_lastmile",
+                    return_value=repair) as lastmile, \
+                mock.patch.object(
+                    cec_fr, "net_connectivity_component_count",
+                    return_value=1):
+            board.GetNetcodeFromNetname.return_value = 1
+            report = synth._repair_declared_control_lastmile(
+                "candidate.kicad_pcb", ["/CTRL"], cfg=cfg)
+
+        self.assertTrue(report["applicable"])
+        self.assertEqual(report["nets"], ["/CTRL"])
+        self.assertEqual(report["outline_diagonal_mm"], 50.0)
+        self.assertEqual(report["max_mm"], 50.0)
+        self.assertEqual(report["attempts_per_pair"], 12)
+        self.assertTrue(report["post_route_zone_refill"])
+        self.assertEqual(lastmile.call_args.kwargs["include_nets"],
+                         ("/CTRL",))
+        self.assertTrue(lastmile.call_args.kwargs["lock"])
+        self.assertEqual(lastmile.call_args.kwargs["clearance"], 0.0)
+        self.assertEqual(lastmile.call_args.kwargs["wall_timeout_s"], 30.0)
+        self.assertEqual(lastmile.call_args.kwargs["per_net_timeout_s"], 30.0)
+        resolver.assert_called_once_with("candidate.kicad_pcb")
+        fill.assert_called_once_with(board)
+        save.assert_called_once_with("candidate.kicad_pcb", board)
+
+    def test_declared_control_lastmile_retries_only_live_stragglers(self):
+        bounds = mock.Mock()
+        bounds.GetWidth.return_value = 30_000_000
+        bounds.GetHeight.return_value = 40_000_000
+        pad = mock.Mock()
+        pad.GetNetname.return_value = "/CTRL"
+        footprint = mock.Mock()
+        footprint.Pads.return_value = [pad]
+        board = mock.Mock()
+        board.GetBoardEdgesBoundingBox.return_value = bounds
+        board.GetFootprints.return_value = [footprint]
+        board.GetNetcodeFromNetname.return_value = 1
+        cfg = SimpleNamespace(params={
+            "critical_control_lastmile_attempts": 12,
+            "critical_control_lastmile_timeout_s": 30,
+            "critical_control_lastmile_maze_margin_mm": 6,
+        })
+        first = {"closed": 0, "legs": 0, "refused": 1,
+                 "closed_details": []}
+        retry = {"closed": 1, "legs": 3, "refused": 0,
+                 "closed_details": [{"net": "/CTRL"}]}
+
+        with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
+                mock.patch.object(pcbnew, "SaveBoard"), \
+                mock.patch("cec_zone_fill.fill", return_value=True), \
+                mock.patch.object(
+                    cec_fr, "_project_netclass_resolver",
+                    return_value="resolver"), \
+                mock.patch.object(
+                    cec_fr, "synthesize_lastmile",
+                    side_effect=(first, retry)) as lastmile, \
+                mock.patch.object(
+                    cec_fr, "net_connectivity_component_count",
+                    side_effect=(2, 1)):
+            report = synth._repair_declared_control_lastmile(
+                "candidate.kicad_pcb", ["/CTRL"], cfg=cfg)
+
+        self.assertEqual(lastmile.call_count, 2)
+        second = lastmile.call_args_list[1].kwargs
+        self.assertEqual(second["include_nets"], ("/CTRL",))
+        self.assertEqual(second["attempts_per_pair"], 24)
+        self.assertEqual(second["maze_margin_mm"], 12.0)
+        self.assertEqual(report["closed"], 1)
+        self.assertEqual(report["refused_initial"], 1)
+        self.assertEqual(report["refused"], 0)
+        self.assertEqual(report["remaining_nets"], [])
 
     def test_tier_completion_partition_aggregates_adaptive_children(self):
         report = {"tiers": [
@@ -1728,7 +2235,9 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                 second = synth.placement_craft_evidence(board, cfg=cfg)
 
             self.assertEqual(compute.call_count, 1)
-            self.assertEqual(second, {"ok": True, "details": []})
+            self.assertEqual(second['details'], [])
+            self.assertTrue(second['ok'])
+            self.assertEqual(second['input_identity'], first['input_identity'])
             self.assertEqual(synth.placement_craft_cache_stats()["hits"], 1)
 
     def test_placement_craft_cache_invalidates_on_policy_change(self):
@@ -1873,6 +2382,219 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             for move in reoriented),
             "the cell solver must be able to repack caps without rotating IC")
 
+        frozen_owner_moves = synth._decoupler_owner_move_specs(
+            candidate, rows, immovable={"OWNER"})
+        frozen_reoriented = [move for move in frozen_owner_moves
+                             if move["kind"] == "decoupler_cell_reorient"]
+        self.assertTrue(frozen_reoriented)
+        self.assertTrue(all(move["delta_deg"] == 0.0
+                            for move in frozen_reoriented))
+        self.assertTrue(all(
+            move["placements"]["OWNER"] == candidate.P["OWNER"]
+            for move in frozen_reoriented))
+        self.assertTrue(any(
+            move["placements"]["CAP"] != candidate.P["CAP"]
+            for move in frozen_reoriented))
+
+    def test_owner_cell_solver_consumes_complete_tangent_pose_menu(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (10.0, 10.0, 0.0),
+            "CAP": (14.0, 10.0, 0.0),
+        })
+        rows = [{
+            "owner_ref": "OWNER", "cap_ref": "CAP",
+            "actionable": True, "supply_access_ok": True,
+            "owner_position_mm": [10.0, 10.0],
+            "owner_supply_position_mm": [11.0, 10.0],
+            "owner_ground_position_mm": [9.0, 10.0],
+            "owner_ground_positions_mm": [
+                {"pin": "G", "position": [9.0, 10.0]}],
+            "cap_position_mm": [14.0, 10.0],
+            "cap_supply_position_mm": [13.5, 10.0],
+            "cap_ground_position_mm": [14.5, 10.0],
+            "return_gate_mode": "absolute_ground_distance",
+            "return_limit_mm": 2.5,
+            "supply_excess_limit_mm": 0.25,
+            "tangent_target": {
+                "best_loop": {
+                    "position_mm": [8.0, 10.0],
+                    "orientation_deg": 90.0,
+                    "supply_mm": 1.0, "ground_mm": 1.2,
+                    "loop_proxy_mm": 2.2,
+                },
+                "best_supply": {
+                    "position_mm": [10.0, 8.0],
+                    "orientation_deg": 0.0,
+                    "supply_mm": 0.9, "ground_mm": 2.0,
+                    "loop_proxy_mm": 2.9,
+                },
+                "candidates": [{
+                    "position_mm": [8.0, 10.0],
+                    "orientation_deg": 90.0,
+                    "supply_mm": 1.0, "ground_mm": 1.2,
+                    "loop_proxy_mm": 2.2,
+                }, {
+                    "position_mm": [10.0, 8.0],
+                    "orientation_deg": 0.0,
+                    "supply_mm": 0.9, "ground_mm": 2.0,
+                    "loop_proxy_mm": 2.9,
+                }],
+            },
+        }]
+
+        moves = synth._decoupler_owner_move_specs(candidate, rows)
+        repacked = [move for move in moves
+                    if move["kind"] == "decoupler_cell_reorient"
+                    and move["delta_deg"] == 0.0]
+
+        self.assertTrue(repacked)
+        self.assertIn((8.0, 10.0, 90.0), {
+            tuple(move["placements"]["CAP"]) for move in repacked})
+
+    def test_actionable_decoupler_leads_with_oracle_best_loop_pose(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (10.0, 10.0, 0.0),
+            "CAP": (14.0, 10.0, 0.0),
+        })
+        evidence = {
+            "decoupler": {"details": [{
+                "owner_ref": "OWNER", "cap_ref": "CAP",
+                "actionable": True, "status": "assigned",
+                "owner_position_mm": [10.0, 10.0],
+                "owner_supply_position_mm": [11.0, 10.0],
+                "owner_ground_position_mm": [9.0, 10.0],
+                "owner_ground_positions_mm": [
+                    {"pin": "G", "position": [9.0, 10.0]}],
+                "cap_position_mm": [14.0, 10.0],
+                "cap_supply_position_mm": [13.5, 10.0],
+                "cap_ground_position_mm": [14.5, 10.0],
+                "tangent_target": {"best_loop": {
+                    "position_mm": [8.0, 10.0],
+                    "orientation_deg": 90.0,
+                    "supply_mm": 1.0, "ground_mm": 1.2,
+                    "loop_proxy_mm": 2.2,
+                }},
+            }]},
+            "stranded": {"details": []},
+        }
+
+        moves = synth._placement_craft_move_specs(candidate, evidence)
+
+        self.assertEqual(moves[0]["kind"],
+                         "decoupler_tangent_best_loop")
+        self.assertEqual(moves[0]["position"], (8.0, 10.0, 90.0))
+
+    def test_large_owner_multicap_lattice_is_supply_pad_relative(self):
+        """A large package edge pin must not inherit a centre-local grid."""
+        import cec_pcb
+
+        candidate = SimpleNamespace(P={
+            "MODULE": (49.07, 8.0, 0.0),
+            "BULK": (38.54, 2.716375, 90.0),
+            "HF": (38.36, 5.03018, 180.0),
+        }, W=78.0, H=66.0, back_refs=())
+        ground_positions = [{"pin": "G", "position": [40.32, 2.74]}]
+        rows = [{
+            "owner_ref": "MODULE", "cap_ref": "BULK",
+            "status": "assigned", "actionable": False,
+            "owner_position_mm": [49.07, 8.0],
+            "owner_supply_position_mm": [40.32, 4.01],
+            "owner_ground_position_mm": [40.32, 2.74],
+            "owner_ground_positions_mm": ground_positions,
+            "cap_position_mm": [38.54, 2.716375],
+            "cap_supply_position_mm": [38.54, 3.491375],
+            "cap_ground_position_mm": [38.54, 1.941375],
+            "cap_orientation_deg": 90.0,
+            "absolute_min_supply_distance_mm": 1.895,
+            "ideal_supply_distance_mm": 1.92,
+            "supply_excess_limit_mm": 0.25,
+            "return_limit_mm": 2.5,
+            "return_gate_mode": "absolute_ground_distance",
+            "pin_proximity_mode": "dual_via_in_pad_complete_loop",
+            "pin_proximity_excess_limit_mm": 0.25,
+            "tangent_target": {"best_loop": {
+                "position_mm": [38.4, 3.235],
+                "orientation_deg": 90.0, "supply_mm": 1.92,
+                "ground_mm": 1.94, "loop_proxy_mm": 3.86,
+            }},
+        }, {
+            "owner_ref": "MODULE", "cap_ref": "HF",
+            "status": "assigned", "actionable": True,
+            "owner_position_mm": [49.07, 8.0],
+            "owner_supply_position_mm": [40.32, 4.01],
+            "owner_ground_position_mm": [40.32, 2.74],
+            "owner_ground_positions_mm": ground_positions,
+            "cap_position_mm": [38.36, 5.03018],
+            "cap_supply_position_mm": [38.84, 5.03018],
+            "cap_ground_position_mm": [37.88, 5.03018],
+            "cap_orientation_deg": 180.0,
+            "absolute_min_supply_distance_mm": 1.62,
+            "ideal_supply_distance_mm": 1.65,
+            "supply_excess_limit_mm": 0.25,
+            "return_limit_mm": 2.5,
+            "return_gate_mode": "absolute_ground_distance",
+            "tangent_target": {"best_loop": {
+                "position_mm": [38.67, 3.53],
+                "orientation_deg": 90.0, "supply_mm": 1.65,
+                "ground_mm": 1.679, "loop_proxy_mm": 3.329,
+            }},
+        }]
+        comps = {
+            "MODULE": "cec-RF_Module:ESP32-S3-WROOM-1_NoAntKeepout",
+            "BULK": "cec-Capacitor_SMD:C_0603_1608Metric",
+            "HF": "cec-Capacitor_SMD:C_0402_1005Metric",
+        }
+
+        moves = synth._decoupler_owner_move_specs(
+            candidate, rows, comps=comps, drop_antenna=True)
+        joint = [move for move in moves
+                 if move["kind"] == "decoupler_cell_reorient"
+                 and move.get("delta_deg") == 0.0]
+
+        def pad_position(row, position, key):
+            old_center = row["cap_position_mm"]
+            old_rotation = float(row["cap_orientation_deg"])
+            old_pad = row[key]
+            local = cec_pcb._rot(
+                old_pad[0] - old_center[0],
+                old_pad[1] - old_center[1], -old_rotation)
+            rotated = cec_pcb._rot(*local, position[2])
+            return position[0] + rotated[0], position[1] + rotated[1]
+
+        clean = []
+        for move in joint:
+            admitted = True
+            for row in rows:
+                position = move["placements"][row["cap_ref"]]
+                supply = pad_position(row, position,
+                                      "cap_supply_position_mm")
+                ground = pad_position(row, position,
+                                      "cap_ground_position_mm")
+                supply_distance = math.dist(
+                    supply, row["owner_supply_position_mm"])
+                ground_distance = min(math.dist(
+                    ground, item["position"])
+                    for item in row["owner_ground_positions_mm"])
+                admitted &= (
+                    supply_distance <= row["ideal_supply_distance_mm"]
+                    + row["supply_excess_limit_mm"] + 1e-9
+                    and ground_distance <= row["return_limit_mm"] + 1e-9)
+                if (row.get("pin_proximity_mode") ==
+                        "dual_via_in_pad_complete_loop"):
+                    admitted &= (
+                        supply_distance + ground_distance <=
+                        row["tangent_target"]["best_loop"][
+                            "loop_proxy_mm"]
+                        + row["pin_proximity_excess_limit_mm"] + 1e-9)
+            if admitted:
+                clean.append(move)
+
+        self.assertTrue(clean)
+        self.assertTrue(all(
+            move["placements"]["BULK"][0] < 45.0
+            and move["placements"]["HF"][0] < 45.0
+            for move in clean))
+
     def test_blocked_cell_can_translate_owner_then_reseat_cap(self):
         candidate = SimpleNamespace(P={
             "OWNER": (10.0, 10.0, 0.0),
@@ -1908,6 +2630,47 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             move["placements"]["OWNER"] != candidate.P["OWNER"]
             and move["placements"]["CAP"] != candidate.P["CAP"]
             for move in translated))
+
+    def test_owner_translation_moves_absolute_tangent_pose_frame(self):
+        detail = {
+            "owner_position_mm": [10.0, 10.0],
+            "owner_supply_position_mm": [11.0, 10.0],
+            "owner_ground_position_mm": [9.0, 10.0],
+            "owner_ground_positions_mm": [
+                {"pin": "G", "position": [9.0, 10.0]}],
+            "cap_position_mm": [14.0, 10.0],
+            "cap_supply_position_mm": [13.52, 10.0],
+            "cap_ground_position_mm": [14.48, 10.0],
+            "tangent_target": {
+                "best_loop": {
+                    "position_mm": [14.0, 10.0],
+                },
+                "best_supply": {
+                    "position_mm": [12.0, 8.0],
+                },
+                "candidates": [{
+                    "position_mm": [13.0, 9.0],
+                }],
+            },
+        }
+
+        shifted = synth._translated_decoupler_owner_detail(
+            detail, 0.5, -1.0)
+
+        self.assertEqual(shifted["owner_position_mm"], [10.5, 9.0])
+        self.assertEqual(shifted["owner_supply_position_mm"], [11.5, 9.0])
+        self.assertEqual(shifted["owner_ground_positions_mm"][0][
+            "position"], [9.5, 9.0])
+        self.assertEqual(shifted["tangent_target"]["best_loop"][
+            "position_mm"], [14.5, 9.0])
+        self.assertEqual(shifted["tangent_target"]["best_supply"][
+            "position_mm"], [12.5, 7.0])
+        self.assertEqual(shifted["tangent_target"]["candidates"][0][
+            "position_mm"], [13.5, 8.0])
+        self.assertEqual(shifted["cap_position_mm"], [14.0, 10.0])
+        self.assertEqual(detail["tangent_target"]["best_loop"][
+            "position_mm"], [14.0, 10.0],
+            "translation must not mutate cached baseline evidence")
 
     def test_joint_cell_legalizer_mixes_cap_ranks_to_avoid_collision(self):
         candidate = SimpleNamespace(P={
@@ -1977,6 +2740,57 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                          ["LOCAL_PASSIVE"])
         self.assertTrue(any(not row["external_blockers"]
                             for row in variants))
+
+    def test_joint_cell_legalizer_bounded_multi_blocker_macro(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (0.0, 0.0, 0.0),
+            "CAP": (3.0, 0.0, 0.0),
+            "R_A": (2.0, 0.0, 0.0),
+            "R_B": (2.2, 0.0, 0.0),
+        }, back_refs=())
+        options = {"CAP": [((0.1, 0.2), (2.1, 0.0, 0.0))]}
+
+        def bbox(_ref, position):
+            x, y, _rotation = position
+            return (x - 0.4, x + 0.4, y - 0.4, y + 0.4)
+
+        refused = synth._select_local_cell_placements(
+            candidate, "OWNER", candidate.P["OWNER"], options, {},
+            bbox_fn=bbox)
+        admitted = synth._select_local_cell_placements(
+            candidate, "OWNER", candidate.P["OWNER"], options, {},
+            bbox_fn=bbox, max_external_blockers=2)
+
+        self.assertEqual(refused, [])
+        self.assertTrue(admitted)
+        self.assertEqual(admitted[0]["external_blockers"], ["R_A", "R_B"])
+
+    def test_joint_cell_legalizer_caches_candidate_geometry(self):
+        candidate = SimpleNamespace(P={
+            "OWNER": (0.0, 0.0, 0.0),
+            "CAP_A": (10.0, 0.0, 0.0),
+            "CAP_B": (10.0, 2.0, 0.0),
+        }, back_refs=())
+        options = {
+            cap: [((float(index), float(index)),
+                   (10.0 + index, y, 0.0))
+                  for index in range(30)]
+            for cap, y in (("CAP_A", 0.0), ("CAP_B", 2.0))
+        }
+        calls = []
+
+        def bbox(ref, position):
+            calls.append((ref, position))
+            x, y, _rotation = position
+            return (x - 0.4, x + 0.4, y - 0.4, y + 0.4)
+
+        variants = synth._select_local_cell_placements(
+            candidate, "OWNER", candidate.P["OWNER"], options, {},
+            bbox_fn=bbox, beam_width=64, max_candidates_per_cap=30)
+
+        self.assertTrue(variants)
+        self.assertEqual(len(calls), 61,
+                         "each immutable candidate box should be built once")
 
     def test_owner_cooptimization_round_robins_failed_cells(self):
         candidate = SimpleNamespace(P={
@@ -2164,15 +2978,22 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             }),
         ]
         with mock.patch.object(
-                synth, "repair_placement_craft", side_effect=reports):
+                synth, "repair_placement_craft",
+                side_effect=reports) as repair:
             result, report = synth.repair_placement_craft_epochs(
-                cfg, first, max_trials=8, rounds=2, epochs=4)
+                cfg, first, max_trials=8, rounds=2, epochs=4,
+                initial_evidence={"certificate": "incumbent"})
         self.assertIs(result, clean)
         self.assertTrue(report["ok"])
         self.assertEqual(report["stop_reason"], "gate_clean")
         self.assertEqual(report["accepted_count"], 2)
         self.assertEqual([row["round"] for row in report["rounds"]], [1, 2])
         self.assertEqual([row["epoch"] for row in report["rounds"]], [1, 2])
+        self.assertEqual(
+            repair.call_args_list[0].kwargs["initial_evidence"],
+            {"certificate": "incumbent"})
+        self.assertIsNone(
+            repair.call_args_list[1].kwargs["initial_evidence"])
 
     def test_craft_epochs_emit_plateau_certificate(self):
         cfg = SimpleNamespace(params={})
@@ -2249,6 +3070,34 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             "trial.kicad_pcb", cfg=payload["cfg"],
             relief_diagnostics=False)
 
+    def test_craft_trial_can_return_full_selection_and_physical_evidence(self):
+        payload = {
+            "candidate": object(), "cfg": SimpleNamespace(params={}),
+            "path": "finalist.kicad_pcb",
+            "relief_diagnostics": True,
+            "physical_evidence": True,
+        }
+        with mock.patch.object(synth, "materialize"), \
+                mock.patch.object(
+                    synth, "placement_craft_evidence",
+                    return_value={"ok": True}) as evidence, \
+                mock.patch.object(
+                    synth, "_oracle_pads_in_bounds",
+                    return_value={"ok": True}) as pads, \
+                mock.patch.object(
+                    synth, "_oracle_courtyard_overlaps",
+                    return_value={"ok": True}) as courtyards:
+            result = synth._placement_craft_trial_worker(payload)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["pads"]["ok"])
+        self.assertTrue(result["courtyards"]["ok"])
+        evidence.assert_called_once_with(
+            "finalist.kicad_pcb", cfg=payload["cfg"],
+            relief_diagnostics=True)
+        pads.assert_called_once_with("finalist.kicad_pcb")
+        courtyards.assert_called_once_with("finalist.kicad_pcb")
+
     def test_craft_trial_pool_has_hard_worker_and_recycle_caps(self):
         captured = []
 
@@ -2262,8 +3111,13 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
             def __exit__(self, *_args):
                 return False
 
-            def map(self, fn, jobs):
-                return [fn(job) for job in jobs]
+            def submit(self, fn, job):
+                future = Future()
+                future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
 
         cfg = SimpleNamespace(params={
             "placement_craft_eval_workers": 999,
@@ -2271,6 +3125,9 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         })
         jobs = [{"sequence": index} for index in range(40)]
         with mock.patch.object(synth, "ProcessPoolExecutor", FakePool), \
+                mock.patch.object(
+                    synth, "_placement_craft_memory_budget",
+                    return_value={"worker_limit": 16}), \
                 mock.patch.object(synth.os, "cpu_count", return_value=32), \
                 mock.patch.object(
                     synth, "_placement_craft_trial_worker",
@@ -2286,7 +3143,117 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertEqual(runtime["jobs_per_generation"], 64)
         self.assertEqual(runtime["worker_generations"], 1)
         self.assertTrue(runtime["isolated"])
+        self.assertEqual(runtime["timed_out_jobs"], 0)
         self.assertEqual([row["evidence"] for row in results], list(range(40)))
+
+    def test_craft_trial_pool_obeys_live_memory_worker_limit(self):
+        class FakePool:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+            def submit(self, fn, job):
+                future = Future()
+                future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
+
+        budget = {
+            "worker_limit": 3, "available_gib": 12.0,
+            "reserve_gib": 6.0, "per_worker_gib": 2.0,
+        }
+        cfg = SimpleNamespace(params={"placement_craft_eval_workers": 16})
+        with mock.patch.object(synth, "ProcessPoolExecutor", FakePool), \
+                mock.patch.object(
+                    synth, "_placement_craft_memory_budget",
+                    return_value=budget), \
+                mock.patch.object(
+                    synth, "_placement_craft_trial_worker",
+                    side_effect=lambda job: {"ok": True, "evidence": job}):
+            _results, runtime = synth._evaluate_placement_craft_trials(
+                cfg, [{"sequence": index} for index in range(5)])
+        self.assertEqual(runtime["workers"], 3)
+        self.assertEqual(runtime["memory_budget"], budget)
+
+    def test_craft_trial_pool_can_stop_after_first_clean_generation(self):
+        submitted = []
+
+        class FakePool:
+            def __init__(self, **_kwargs):
+                pass
+
+            def submit(self, fn, job):
+                submitted.append(job["sequence"])
+                future = Future()
+                future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
+
+        cfg = SimpleNamespace(params={
+            "placement_craft_eval_workers": 2,
+            # Early-stop searches deliberately reduce this configured batch
+            # to one task per worker generation so a clean first cohort does
+            # not wait behind unnecessary multi-minute exact solves.
+            "placement_craft_tasks_per_child": 4,
+        })
+        jobs = [{"sequence": index} for index in range(7)]
+        observed = []
+        with mock.patch.object(synth, "ProcessPoolExecutor", FakePool), \
+                mock.patch.object(
+                    synth, "_placement_craft_trial_worker",
+                    side_effect=lambda job: {
+                        "ok": True, "evidence": job["sequence"]}):
+            results, runtime = synth._evaluate_placement_craft_trials(
+                cfg, jobs,
+                stop_after_generation=lambda offset, rows: (
+                    observed.append((offset, [row["evidence"]
+                                              for row in rows])) or True))
+
+        self.assertEqual(submitted, [0, 1])
+        self.assertEqual([row["evidence"] for row in results], [0, 1])
+        self.assertEqual(observed, [(0, [0, 1])])
+        self.assertEqual(runtime["worker_generations"], 1)
+        self.assertEqual(runtime["tasks_per_worker_generation"], 1)
+        self.assertTrue(runtime["early_stopped"])
+        self.assertEqual(runtime["requested_jobs"], 7)
+        self.assertEqual(runtime["unevaluated_jobs"], 5)
+
+    def test_craft_trial_generation_timeout_is_ordered_hard_rejection(self):
+        class FakePool:
+            def __init__(self, **_kwargs):
+                self._calls = 0
+
+            def submit(self, fn, job):
+                self._calls += 1
+                future = Future()
+                if self._calls == 1:
+                    future.set_result(fn(job))
+                return future
+
+            def shutdown(self, **_kwargs):
+                return None
+
+        cfg = SimpleNamespace(params={
+            "placement_craft_eval_workers": 2,
+            "placement_craft_generation_timeout_s": 0.01,
+        })
+        jobs = [{"sequence": 0}, {"sequence": 1}]
+        with mock.patch.object(synth, "ProcessPoolExecutor", FakePool), \
+                mock.patch.object(
+                    synth, "_placement_craft_trial_worker",
+                    side_effect=lambda job: {
+                        "ok": True, "evidence": job["sequence"]}):
+            results, runtime = synth._evaluate_placement_craft_trials(
+                cfg, jobs)
+
+        self.assertEqual(results[0]["evidence"], 0)
+        self.assertFalse(results[1]["ok"])
+        self.assertTrue(results[1]["timed_out"])
+        self.assertEqual(runtime["timed_out_jobs"], 1)
+        self.assertEqual(runtime["timed_out_indices"], [1])
 
     def test_real_craft_trials_run_in_recyclable_spawn_workers(self):
         cfg = synth.Config.load("pcie-out-db")
@@ -2335,6 +3302,128 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
 
         self.assertEqual(repaired_refs, source_refs)
         self.assertAlmostEqual(moved.GetPosition().x / 1e6, old_x + 0.25)
+
+    def test_out_of_range_bypass_keeps_exact_tangent_repair_menu(self):
+        """Missing assignment is a gate state, not missing geometry.
+
+        Every compatible physical capacitor named by the oracle must carry
+        the same package-derived legal target menu as an already-assigned
+        capacitor.  Otherwise the generic repair loop silently degrades to a
+        coarse radial search precisely when a part is farthest out of place.
+        """
+        cfg = synth.Config.load("pcie-8pin-2port")
+        if not os.path.isfile(cfg.pcb):
+            self.skipTest("current-beta placement fixture unavailable")
+
+        result = synth._oracle_decoupler_adjacency(cfg.pcb, cfg)
+        rows = [
+            row for row in result.get("details") or ()
+            if row.get("status") == "missing"
+            and row.get("nearest_compatible_ref")]
+
+        self.assertTrue(rows, result)
+        for row in rows:
+            tangent = row.get("tangent_target") or {}
+            self.assertTrue(tangent.get("candidates"), row)
+            self.assertIsNotNone(row.get("return_gate_mode"), row)
+            self.assertIsNotNone(row.get("supply_excess_limit_mm"), row)
+
+    def test_routed_rehydration_does_not_authorize_unowned_copper_removal(self):
+        cfg = synth.Config.load("pcie-8pin-2port")
+        with tempfile.TemporaryDirectory() as directory:
+            # Build the routed input from the current authoritative candidate
+            # instead of pinning this contract to an obsolete wave whose
+            # component set can lag a schematic update.
+            routed = os.path.join(directory, "routed.kicad_pcb")
+            board = pcbnew.LoadBoard(cfg.pcb)
+            pad = next(
+                pad for footprint in board.GetFootprints()
+                for pad in footprint.Pads()
+                if pad.GetNetCode() > 0 and pad.IsOnLayer(pcbnew.F_Cu))
+            stub = pcbnew.PCB_TRACK(board)
+            stub.SetStart(pad.GetPosition())
+            stub.SetEnd(pcbnew.VECTOR2I(
+                pad.GetPosition().x + pcbnew.FromMM(0.20),
+                pad.GetPosition().y))
+            stub.SetWidth(pcbnew.FromMM(0.20))
+            stub.SetLayer(pcbnew.F_Cu)
+            stub.SetNetCode(pad.GetNetCode())
+            board.Add(stub)
+            pcbnew.SaveBoard(routed, board)
+
+            with self.assertRaisesRegex(ValueError,
+                                        "refuses routed copper"):
+                synth.placement_candidate_from_board(cfg, routed)
+
+            candidate = synth.placement_candidate_from_board(
+                cfg, routed, allow_routed=True)
+            self.assertTrue(candidate.source_had_routed_copper)
+            self.assertGreater(len(candidate.P), 0)
+            replacement = os.path.join(directory, "replacement.kicad_pcb")
+            original_bytes = Path(routed).read_bytes()
+            with self.assertRaisesRegex(ValueError, "routed_copper_requires_owned_transaction"):
+                synth.materialize(candidate, cfg, replacement)
+            self.assertFalse(os.path.exists(replacement))
+            self.assertEqual(Path(routed).read_bytes(), original_bytes)
+
+            # Inspection permission and even an in-place target cannot turn
+            # placement reconstruction into implicit ordinary-route rip-up.
+            in_place_routed = synth.placement_candidate_from_board(
+                cfg, routed, allow_routed=True)
+            with self.assertRaisesRegex(ValueError, "routed_copper_requires_owned_transaction"):
+                synth.materialize(in_place_routed, cfg, routed)
+            self.assertEqual(Path(routed).read_bytes(), original_bytes)
+
+            # A genuinely copper-free placement can still be rewritten.
+            board = pcbnew.LoadBoard(cfg.pcb)
+            self.assertEqual(len(list(board.GetTracks())), 0)
+            pcbnew.SaveBoard(replacement, board)
+
+            # Incremental repair owns the same artifact in place.  Rewriting
+            # its poses must not attempt to copy project sidecars onto
+            # themselves.
+            in_place = synth.placement_candidate_from_board(cfg, replacement)
+            synth.materialize(in_place, cfg, replacement)
+            self.assertTrue(os.path.isfile(replacement))
+
+            # Resume authority does not authorize destruction of a locked
+            # current trunk, even on a board with no force-lane recipe.
+            board = pcbnew.LoadBoard(replacement)
+            # This positive fixture must first own a schematic-compatible
+            # interface. An arbitrary first pad can select a net touching
+            # a legitimately changed package; that is correctly refused by
+            # the production frozen-topology guard and is not a positive
+            # preservation example. Derive a stable valid net afresh rather
+            # than naming a board/refdes/net exception or relaxing the guard.
+            import cec_frozen_copper as frozen
+            import cec_sch_gates as schematic
+            import cec_sync_pcb_from_schematic as sync
+            pad_nets, _ = sync._schematic_pad_nets(cfg.sch)
+            inventory = schematic.inventory(cfg.sch)
+            candidates = sorted(
+                (p for f in board.GetFootprints() for p in f.Pads()
+                 if p.GetNetCode() > 0),
+                key=lambda p: (str(p.GetNetname()),
+                    p.GetParentFootprint().GetReference(), p.GetNumber()))
+            pad = next(p for p in candidates if not frozen.topology_changes(
+                board, pad_nets, inventory, {str(p.GetNetname())}))
+            self.assertFalse(frozen.topology_changes(
+                board, pad_nets, inventory, {str(pad.GetNetname())}))
+            trunk = pcbnew.PCB_TRACK(board)
+            trunk.SetStart(pcbnew.VECTOR2I_MM(10, 10))
+            trunk.SetEnd(pcbnew.VECTOR2I_MM(20, 10))
+            trunk.SetWidth(pcbnew.FromMM(2))
+            trunk.SetNetCode(pad.GetNetCode())
+            trunk.SetLayer(pcbnew.F_Cu)
+            trunk.SetLocked(True)
+            board.Add(trunk)
+            pcbnew.SaveBoard(replacement, board)
+            protected = synth.placement_candidate_from_board(
+                cfg, replacement, allow_routed=True)
+            self.assertGreater(protected.protected_power_prefix["items"], 0)
+            retained = os.path.join(directory, "retained.kicad_pcb")
+            synth.materialize(protected, cfg, retained)
+            self.assertTrue(synth._admit_materialized_power_prefix(protected, retained)["ok"])
 
     def test_pair_launch_blocker_gets_topology_directed_reseat(self):
         candidate = SimpleNamespace(P={
@@ -2718,6 +3807,57 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertTrue(pair)
         self.assertEqual({move["kind"] for move in pair},
                          {"pair_launch_reseat"})
+
+    def test_stranded_rejoin_leads_with_measured_gate_closing_move(self):
+        candidate = SimpleNamespace(P={
+            "BULK": (0.0, 10.0, 0.0),
+            "LOAD": (45.0, 10.0, 0.0),
+        })
+        evidence = {
+            "pair_launch": {"violations": []},
+            "decoupler": {"details": []},
+            "stranded": {"details": [{
+                "ref": "BULK", "nearest_ref": "LOAD",
+                "distance_mm": 41.0, "limit_mm": 22.0,
+            }]},
+        }
+
+        moves = synth._placement_craft_move_specs(
+            candidate, evidence, required_stages=["component_locality"])
+
+        self.assertTrue(moves)
+        self.assertEqual(moves[0]["kind"], "stranded_rejoin")
+        self.assertLessEqual(moves[0]["predicted_gap_mm"], 20.0)
+        self.assertGreater(moves[0]["measured_fraction"], 0.40)
+
+    def test_stranded_rejoin_is_bidirectional_and_can_contract_pair(self):
+        candidate = SimpleNamespace(P={
+            "BULK": (0.0, 10.0, 0.0),
+            "LOAD": (45.0, 10.0, 90.0),
+        })
+        evidence = {
+            "pair_launch": {"violations": []},
+            "decoupler": {"details": []},
+            "stranded": {"details": [{
+                "ref": "BULK", "nearest_ref": "LOAD",
+                "distance_mm": 41.0, "limit_mm": 22.0,
+            }]},
+        }
+
+        moves = synth._placement_craft_move_specs(
+            candidate, evidence, required_stages=["component_locality"])
+
+        endpoints = {move.get("moved_endpoint") for move in moves[:3]}
+        self.assertEqual(endpoints, {"reported", "nearest", "both"})
+        nearest = next(move for move in moves
+                       if move.get("moved_endpoint") == "nearest")
+        both = next(move for move in moves
+                    if move.get("moved_endpoint") == "both")
+        self.assertEqual(nearest["ref"], "LOAD")
+        self.assertLess(nearest["position"][0], 45.0)
+        self.assertEqual(set(both["placements"]), {"BULK", "LOAD"})
+        self.assertGreater(both["placements"]["BULK"][0], 0.0)
+        self.assertLess(both["placements"]["LOAD"][0], 45.0)
 
     def test_power_territory_reseat_preserves_assigned_local_cell(self):
         candidate = SimpleNamespace(P={
@@ -4011,7 +5151,7 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                 "blocking_refs": [{"ref": "U2", "hits": 4}],
                 "rejection_counts": {"not_monotonic": 10},
             })
-        self.assertTrue(certificate["neighborhood_exhausted"])
+        self.assertFalse(certificate["neighborhood_exhausted"])
         self.assertTrue(certificate["upstream_action_required"])
         self.assertEqual(certificate["active_decoupler_count"], 3)
         self.assertEqual(certificate["required_stages"], [
@@ -4075,8 +5215,9 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                                                "distance_mm": 25.0}]}):
             evidence = synth.placement_craft_evidence("placed.kicad_pcb")
         self.assertFalse(evidence["ok"])
-        self.assertEqual(synth.placement_craft_key(evidence)[:8],
-                         (0, 0, 0, 0, 0, 0, 0, 1))
+        key = synth.placement_craft_key(evidence)
+        self.assertEqual(key[:8], (0, 0, 0, 0, 0, 0, 0, 0))
+        self.assertEqual(key[8], 1)
 
     def test_locked_reconcile_rolls_back_non_monotonic_result(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -4104,8 +5245,11 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         """pcbnew save may reselect a ratline endpoint without changing topology."""
         with tempfile.TemporaryDirectory() as directory:
             board = os.path.join(directory, "board.kicad_pcb")
-            with open(board, "w", encoding="utf-8") as handle:
-                handle.write("original")
+            # Cosmetic finishing now performs native contour checks. A plain
+            # text placeholder is not a loadable PCB and cannot exercise the
+            # endpoint-representative contract of a native saved board.
+            import cec_field_coupling
+            cec_field_coupling._save_field_snapshot(pcbnew.BOARD(), board)
             common = dict(unconnected=2, drc=0, kelvin_ok=True,
                           diffpair_ok=True)
             before = SimpleNamespace(
@@ -4161,6 +5305,38 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
         self.assertFalse(report["rolled_back"], report)
         self.assertEqual(report["removed_count"], 1)
         self.assertIs(final_score, after)
+
+    def test_dangling_cleanup_preserves_exact_upstream_via_owner(self):
+        violation = {
+            "type": "via_dangling",
+            "description": "Via is connected on one layer only",
+            "items": [{"uuid": "priority-return-via"}],
+        }
+        score = SimpleNamespace(
+            unconnected=2, drc=1, kelvin_ok=True, diffpair_ok=True,
+            detail={"unconn_nets": ["GND"],
+                    "structural_violations": [violation]})
+        with tempfile.TemporaryDirectory() as directory:
+            board = os.path.join(directory, "board.kicad_pcb")
+            with open(board, "w", encoding="utf-8") as handle:
+                handle.write("original")
+            with mock.patch.object(
+                    synth, "_remove_structural_dangling_uuids_isolated",
+                    return_value={"removed": [], "removed_count": 0}) as remove, \
+                    mock.patch.object(synth.cec_score, "score",
+                                      return_value=score):
+                report, final_score = (
+                    synth._prune_structural_dangling_transactionally(
+                        board, preserve_uuids=("priority-return-via",)))
+        self.assertTrue(report["rolled_back"])
+        self.assertEqual(report["removed_count"], 0)
+        self.assertEqual(report["locked_refused"], [{
+            "uuid": "priority-return-via",
+            "kind": "via_dangling",
+            "reason": "explicit_uuid_owner",
+        }])
+        remove.assert_called_once_with(board, [])
+        self.assertIs(final_score, score)
 
     def test_edge_guard_has_no_implicit_connector_body_window(self):
         board = pcbnew.CreateEmptyBoard()
@@ -4226,6 +5402,48 @@ class PlacementCraftAdmissionTests(unittest.TestCase):
                              for row in selected), 1)
         self.assertEqual(sum(row["ref"] == "U_LARGE"
                              for row in selected), 9)
+
+    def test_bounded_move_selection_reserves_atomic_evidence_priority(self):
+        moves = [
+            {"ref": "C1", "kind": "decoupler_pin_reseat", "ordinal": 0},
+            {"ref": "U1", "kind": "decoupler_owner_rotate", "ordinal": 1},
+            {"ref": "U1", "kind": "decoupler_cell_reorient", "ordinal": 2,
+             "placements": {"U1": (1.0, 1.0, 0.0),
+                            "C1": (2.0, 1.0, 0.0)},
+             "budget_priority": 0},
+        ]
+
+        selected = synth._bounded_diverse_move_specs(moves, 1)
+
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["kind"], "decoupler_cell_reorient")
+        self.assertEqual(selected[0]["ordinal"], 2)
+
+    def test_decoupler_owner_moves_drop_complete_geometric_noop(self):
+        candidate = SimpleNamespace(P={
+            "U1": (10.0, 10.0, -90.0),
+            "C1": (12.0, 10.0, 0.0),
+        })
+        rows = [{
+            "owner_ref": "U1", "cap_ref": "C1", "actionable": True,
+            "owner_supply_position_mm": [11.0, 10.0],
+            "owner_ground_positions_mm": [
+                {"pin": "2", "position": [9.0, 10.0]}],
+            "cap_position_mm": [12.0, 10.0],
+            "cap_supply_position_mm": [11.0, 10.0],
+            "cap_ground_position_mm": [13.0, 10.0],
+            "supply_access_ok": False,
+        }]
+
+        moves = synth._decoupler_owner_move_specs(candidate, rows)
+
+        self.assertFalse(any(all(
+            abs(float(position[0]) - candidate.P[ref][0]) <= 1e-6
+            and abs(float(position[1]) - candidate.P[ref][1]) <= 1e-6
+            and abs(((float(position[2]) - candidate.P[ref][2] + 180.0)
+                     % 360.0) - 180.0) <= 1e-6
+            for ref, position in (move.get("placements") or {}).items())
+            for move in moves))
 
     def test_assigned_ground_return_can_defer_to_mandatory_route_stage(self):
         evidence = {

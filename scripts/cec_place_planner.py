@@ -639,7 +639,8 @@ def finish_gnd_plane(board, *, berth_mm=0.6, edge_margin_mm=0.3, refill=True):
         for z in board.Zones():
             z.UnFill()
         try:
-            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            import cec_zone_fill
+            cec_zone_fill.fill(board)
         except Exception:                                      # noqa: BLE001 -- geometry is already set; fill is a bonus
             pass
     return nz, nb, ns

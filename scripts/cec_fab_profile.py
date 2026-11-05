@@ -21,6 +21,7 @@ import math
 import os
 
 MM = 1_000_000
+LOCAL_POFV_REACH_MM = 1.50
 OZ_COPPER_MM = 0.0348
 COPPER_LAYERS = ("F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu", "B.Cu")
 COPPER_LAYER_IDS = {
@@ -245,7 +246,12 @@ def routing_layers(board, *, hint=None, include_power=True):
         return tuple(layer for layer in COPPER_LAYERS
                      if layer in enabled
                      and roles[layer] != "GND"
-                     and (include_power or "PWR" not in roles[layer]))
+                     # SIG/PWR outer layers remain valid signal layers when a
+                     # caller excludes the dedicated power-routing role.  The
+                     # historical substring test removed F.Cu and B.Cu along
+                     # with pure PWR, leaving a six-layer signal search only
+                     # one inner layer to work with.
+                     and (include_power or roles[layer] != "PWR"))
     # Historical four-layer policy: In1 is the uninterrupted ground plane;
     # every other enabled copper layer may route.
     return tuple(layer for layer in COPPER_LAYERS
@@ -285,6 +291,9 @@ def pofv_dimensions(profile, diameter_mm, drill_mm):
     """Pure dimension verdict: (allowed, reason)."""
     if not profile or not profile.get("pofv"):
         return False, "board has no declared POFV profile"
+    if (not all(math.isfinite(float(value)) and float(value) > 0
+                for value in (diameter_mm, drill_mm))):
+        return False, "POFV diameter and drill must be finite and positive"
     if drill_mm < profile["pofv_drill_min_mm"] - 1e-9:
         return False, "drill %.3fmm is below POFV minimum %.3fmm" % (
             drill_mm, profile["pofv_drill_min_mm"])
@@ -315,11 +324,51 @@ def preferred_pofv_geometry(profile):
         drills = (float(profile["pofv_drill_min_mm"]),)
     annular = float(profile["pofv_annular_min_mm"])
     for drill in sorted(drills):
-        diameter = drill + 2.0 * annular
+        diameter = (round(drill*MM)+2*round(annular*MM))/MM
         ok, _why = pofv_dimensions(profile, diameter, drill)
         if ok:
             return diameter, drill
     return None
+
+
+def local_pofv_geometry_candidates(profile, *, minimum_web_nm=0, board=None):
+    """Bounded endpoint-only alternatives, preferred first then process floor.
+
+    This does not change ordinary via rules or the preferred process choice.
+    Every consumer must still prove full same-net pad containment, spacing,
+    and local topology before using the existing filled/capped exception.
+    When constructing on a native board, its absolute drill/land/ring floors
+    remain hard even for a locally qualified process. Custom rules cannot
+    make a smaller barrel legal below those native absolute constraints.
+    Omitting ``board`` preserves the pure fabrication-menu query, not creation
+    authority for its dimensions on an arbitrary project.
+    """
+    if type(minimum_web_nm) is not int or not 0<=minimum_web_nm<=2000000:
+        raise ValueError('bounded_integer_local_via_conductor_requirement_required')
+    preferred = preferred_pofv_geometry(profile)
+    if not preferred:
+        return ()
+    drill = float(profile['pofv_drill_min_mm'])
+    minimum = ((round(drill*MM)+2*round(float(profile['pofv_annular_min_mm'])*MM))/MM, drill)
+    rows = []
+    for geometry in (preferred, minimum):
+        diameter,drill=geometry
+        # An exact cut receiver may require the diameter-minus-drill web to
+        # retain a displaced conductor width. It is not an ampacity claim.
+        # Enlarge this LOCAL land only, never shrink its process drill or
+        # substitute local rules for remote through-via minima.
+        if minimum_web_nm:
+            diameter=max(round(diameter*MM),round(drill*MM)+minimum_web_nm)/MM
+        if board is not None:
+            diameter,drill,_limits=board_legal_through_via_geometry(board,diameter,drill)
+            # Clamping may enlarge the drill too. Reconstruct the required
+            # conductor web AFTER that change; never reuse the old difference.
+            if minimum_web_nm:
+                diameter=max(round(diameter*MM),round(drill*MM)+minimum_web_nm)/MM
+        proposal=(diameter,drill)
+        if proposal not in rows and pofv_dimensions(profile, *proposal)[0]:
+            rows.append(proposal)
+    return tuple(rows)
 
 
 def board_legal_through_via_geometry(board, diameter_mm, drill_mm):
@@ -331,24 +380,74 @@ def board_legal_through_via_geometry(board, diameter_mm, drill_mm):
     returns, and later route cells cannot silently disagree about the legal
     drill or annular ring.
     """
-    settings = board.GetDesignSettings()
-
-    def setting_mm(name, default_mm):
-        raw = getattr(settings, name, int(round(float(default_mm) * MM)))
-        return float(raw) / MM
-
-    minimum_diameter = setting_mm("m_ViasMinSize", 0.50)
-    minimum_drill = setting_mm("m_MinThroughDrill", 0.20)
-    minimum_annular = setting_mm("m_ViasMinAnnularWidth", 0.10)
-    drill = max(float(drill_mm), minimum_drill)
-    diameter = max(
-        float(diameter_mm), minimum_diameter,
-        drill + 2.0 * minimum_annular)
+    import cec_route_dimensions as dimensions
+    limits = dimensions.board_limits(board)
+    diameter, drill = dimensions.ordinary_via_geometry(
+        {}, limits, requested=(diameter_mm, drill_mm))
     return diameter, drill, {
-        "board_min_diameter_mm": round(minimum_diameter, 3),
-        "board_min_drill_mm": round(minimum_drill, 3),
-        "board_min_annular_mm": round(minimum_annular, 3),
+        "board_min_diameter_mm": round(limits["via_diameter"], 3),
+        "board_min_drill_mm": round(limits["via_drill"], 3),
+        "board_min_annular_mm": round(limits["annular"], 3),
     }
+
+
+def pair_return_via_geometry_candidates(board, diameter_mm, drill_mm):
+    """Preferred reference-return land, then the project floor at SAME drill.
+
+    This bounded menu is only for NEW paired-signal reference returns, not
+    signal barrels, existing vias or rated-current transfer arrays. A smaller
+    land is not an ampacity qualification or a POFV process exception. Every
+    candidate still needs native copper/hole/edge clearance, per-member reach
+    and reference-plane contact, followed by saved-board refill/receiving.
+    """
+    if (not math.isfinite(float(diameter_mm)) or float(diameter_mm) <= 0
+            or not math.isfinite(float(drill_mm)) or float(drill_mm) <= 0):
+        raise ValueError("positive_finite_pair_return_geometry_required")
+    preferred_diameter, drill, limits = board_legal_through_via_geometry(
+        board, diameter_mm, drill_mm)
+    minimum_diameter, minimum_drill, _ = board_legal_through_via_geometry(
+        board, 0.0, drill)
+    if minimum_drill != drill or minimum_diameter > preferred_diameter:
+        raise ValueError("pair_return_land_menu_changed_drill_or_enlarged_floor")
+    geometries = [(preferred_diameter, drill, "preferred")]
+    if minimum_diameter < preferred_diameter:
+        geometries.append((minimum_diameter, drill, "board-minimum-land-same-drill"))
+    return tuple(dict(diameter_mm=diameter, drill_mm=hole, selection=selection,
+                      board_limits=limits)
+                 for diameter, hole, selection in geometries)
+
+
+def precision_signal_via_geometry(board, diameter_mm, drill_mm):
+    """Choose a compact, explicitly qualified precision-signal via.
+
+    A netclass via size is an ordinary interactive-routing default, not a
+    project DRC minimum.  Dense paired escapes can lose their only legal
+    portal when that default is larger than the board's qualified process.
+    Only a board carrying an explicit POFV fabrication profile may use the
+    profile's preferred drill here; all other boards retain the requested
+    ordinary geometry.  The final choice is always clamped to the board's
+    drill, land, and annular-ring minima.
+    """
+    requested_diameter, requested_drill, limits = (
+        board_legal_through_via_geometry(board, diameter_mm, drill_mm))
+    profile_name = board_profile_name(board)
+    profile = get_profile(profile_name) if profile_name else None
+    preferred = preferred_pofv_geometry(profile) if profile else None
+    selection = "requested-netclass"
+    diameter, drill = requested_diameter, requested_drill
+    if preferred is not None:
+        compact_diameter, compact_drill, _compact_limits = (
+            board_legal_through_via_geometry(board, *preferred))
+        if (compact_diameter <= requested_diameter + 1e-9
+                and compact_drill <= requested_drill + 1e-9):
+            diameter, drill = compact_diameter, compact_drill
+            selection = "qualified-compact-signal"
+    return diameter, drill, dict(limits, **{
+        "requested_diameter_mm": round(float(diameter_mm), 3),
+        "requested_drill_mm": round(float(drill_mm), 3),
+        "fabrication_profile": profile_name,
+        "selection": selection,
+    })
 
 
 def _pad_contains_circle(pad, at, radius_nm, tolerance_nm=1_000):
@@ -424,7 +523,64 @@ def via_pad_decision(board, pad, at, diameter_nm, drill_nm, net_code):
     return True, "%s POFV accepted" % profile["vendor_stackup"]
 
 
-def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
+def _via_pad_candidates(board, at, diameter_nm, cache=None):
+    """Return nearby ``(footprint, pad)`` rows for a via collision probe.
+
+    Last-mile bridge search can evaluate tens of thousands of candidate via
+    seats while footprints and pads remain fixed.  Rewalking every footprint
+    for every seat made the exact POFV guard dominate completion time.  Build
+    a conservative 2 mm spatial index from each pad's KiCad bounding box and
+    query every bucket touched by the proposed via land.  Exact ``Collide``
+    tests still decide admission, so this is only a candidate accelerator and
+    cannot turn a collision into a pass.
+
+    The cache is caller-owned because a PCB is mutable.  Route synthesis keeps
+    it only for one net search and discards it before another board or a pad
+    mutation can reuse stale geometry.
+    """
+    key = "__cec_via_pad_spatial_index_v1__"
+    cell_nm = int(2.0 * MM)
+    index = None if cache is None else cache.get(key)
+    if index is None:
+        buckets = {}
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if not pad.GetLayerSet().CuStack():
+                    continue
+                try:
+                    box = pad.GetBoundingBox()
+                    x0, x1 = sorted((int(box.GetLeft()), int(box.GetRight())))
+                    y0, y1 = sorted((int(box.GetTop()), int(box.GetBottom())))
+                except Exception:  # noqa: BLE001
+                    # A shape without a trustworthy box stays in an always-
+                    # checked fallback list, preserving fail-closed behavior.
+                    buckets.setdefault(None, []).append((fp, pad))
+                    continue
+                for gx in range(x0 // cell_nm, x1 // cell_nm + 1):
+                    for gy in range(y0 // cell_nm, y1 // cell_nm + 1):
+                        buckets.setdefault((gx, gy), []).append((fp, pad))
+        index = {"cell_nm": cell_nm, "buckets": buckets}
+        if cache is not None:
+            cache[key] = index
+
+    radius = max(0, int(diameter_nm) // 2)
+    x0, x1 = int(at.x) - radius, int(at.x) + radius
+    y0, y1 = int(at.y) - radius, int(at.y) + radius
+    rows = list(index["buckets"].get(None, ()))
+    seen = {id(pad) for _fp, pad in rows}
+    for gx in range(x0 // index["cell_nm"], x1 // index["cell_nm"] + 1):
+        for gy in range(y0 // index["cell_nm"], y1 // index["cell_nm"] + 1):
+            for fp, pad in index["buckets"].get((gx, gy), ()):
+                identity = id(pad)
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                rows.append((fp, pad))
+    return rows
+
+
+def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code, *,
+                         pad_cache=None):
     """Return (blocking_pad, allowed_records) for an intended through via.
 
     Any different-net overlap blocks. A same-net overlap blocks unless every
@@ -435,36 +591,252 @@ def via_at_pad_conflicts(board, at, diameter_nm, drill_nm, net_code):
     except ImportError:
         return None, []
     allowed = []
-    for fp in board.GetFootprints():
-        for pad in fp.Pads():
-            stack = pad.GetLayerSet().CuStack()
-            if not stack:
-                continue
-            try:
-                # Use the same point+radius overload as the post-route
-                # via-on-pad gate. SHAPE::Collide(other_shape) is not
-                # symmetric for every KiCad pad primitive: on the Hub U2.3
-                # oval it returned false for a 0.8 mm circle whose centre was
-                # only 0.55 mm from the pad centre, while the reverse query
-                # (and the physical copper) overlapped.
-                hit = pad.GetEffectiveShape(stack[0]).Collide(
-                    at, int(diameter_nm) // 2)
-            except Exception:  # noqa: BLE001
-                hit = False
-            if not hit:
-                continue
-            ok, why = via_pad_decision(
-                board, pad, at, diameter_nm, drill_nm, net_code)
-            rec = {
-                "ref": fp.GetReference(),
-                "pad": pad.GetPadName(),
-                "net": pad.GetNetname(),
-                "reason": why,
-            }
-            if not ok:
-                return pad, allowed + [rec]
-            allowed.append(rec)
+    for fp, pad in _via_pad_candidates(
+            board, at, diameter_nm, cache=pad_cache):
+        stack = pad.GetLayerSet().CuStack()
+        if not stack:
+            continue
+        try:
+            # Use the same point+radius overload as the post-route
+            # via-on-pad gate. SHAPE::Collide(other_shape) is not
+            # symmetric for every KiCad pad primitive: on the Hub U2.3
+            # oval it returned false for a 0.8 mm circle whose centre was
+            # only 0.55 mm from the pad centre, while the reverse query
+            # (and the physical copper) overlapped.
+            hit = pad.GetEffectiveShape(stack[0]).Collide(
+                at, int(diameter_nm) // 2)
+        except Exception:  # noqa: BLE001
+            hit = False
+        if not hit:
+            continue
+        ok, why = via_pad_decision(
+            board, pad, at, diameter_nm, drill_nm, net_code)
+        rec = {
+            "ref": fp.GetReference(),
+            "pad": pad.GetPadName(),
+            "net": pad.GetNetname(),
+            "reason": why,
+        }
+        if not ok:
+            return pad, allowed + [rec]
+        allowed.append(rec)
     return None, allowed
+
+
+def local_pofv_dogbone_matches(pad, start, end, layer, net_code, *,
+                               reach_mm=LOCAL_POFV_REACH_MM):
+    """Shared live/proposed proof of a direct, bounded SMD-owned dogbone.
+
+    This is only the ownership predicate. Process dimensions, complete land
+    containment/overlap, foreign copper, holes and edge clearance still need
+    their independent checks. No proximity-only or multi-leg owner is inferred.
+    """
+    import pcbnew
+    if not math.isfinite(reach_mm) or reach_mm <= 0:
+        raise ValueError("local POFV reach must be finite and positive")
+    if (int(net_code) <= 0 or int(pad.GetNetCode()) != int(net_code)
+            or int(pad.GetAttribute()) != int(pcbnew.PAD_ATTRIB_SMD)
+            or not pad.IsOnLayer(layer)):
+        return False
+    def distance(a, b):
+        return math.hypot(a.x-b.x, a.y-b.y) / MM
+    return bool(distance(start, end) <= reach_mm + 1e-6
+                and distance(pad.GetPosition(), end) <= reach_mm + 1e-6
+                and pad.HitTest(start))
+
+
+def local_pofv_body_contact_matches(pad, track, via, *, reach_mm=LOCAL_POFV_REACH_MM):
+    """Prove a direct bounded source-track subinterval to a real via contact.
+
+    A track need not be artificially split at the barrel axis to own the
+    same local SMD return. Both the actual via/body contact and an exact
+    interior lattice projection are required. Only a source endpoint already
+    inside the same-net, same-face SMD may own the short subinterval. No
+    proximity-only, arbitrary nearest pad, multi-leg, width, ampacity, process
+    or clearance exception is introduced here.
+    """
+    from fractions import Fraction
+    import pcbnew
+    if not math.isfinite(reach_mm) or reach_mm <= 0:
+        raise ValueError('local POFV reach must be finite and positive')
+    if (track.GetClass()!='PCB_TRACK' or via.GetClass()!='PCB_VIA'
+            or track.GetNetCode()<=0 or track.GetNetCode()!=via.GetNetCode()
+            or pad.GetNetCode()!=track.GetNetCode() or pad.GetAttribute()!=pcbnew.PAD_ATTRIB_SMD
+            or not pad.IsOnLayer(track.GetLayer()) or not via.IsOnLayer(track.GetLayer())
+            or track.GetWidth()<=0):
+        return False
+    a,b,p=track.GetStart(),track.GetEnd(),via.GetPosition()
+    dx,dy=int(b.x-a.x),int(b.y-a.y)
+    if not (dx or dy) or not (dx==0 or dy==0 or abs(dx)==abs(dy)):
+        return False
+    length2=dx*dx+dy*dy
+    px,py=int(p.x-a.x),int(p.y-a.y);along=px*dx+py*dy;cross=px*dy-py*dx
+    # An exact analytic reject precedes expensive native queries. The centre
+    # itself must be inside the straight source body, not merely a nearby
+    # annulus overlapping a distant wire. Native contact remains mandatory.
+    if not 0<along<length2 or 4*cross*cross>track.GetWidth()**2*length2:return False
+    at=Fraction(along,length2)
+    projection=[Fraction(int(a.x))+at*dx,Fraction(int(a.y))+at*dy]
+    if any(value.denominator!=1 for value in projection):return False
+    projected=pcbnew.VECTOR2I(*(int(value) for value in projection))
+    layer=track.GetLayer();shape=via.GetEffectiveShape(layer)
+    if (not shape.Collide(track.GetEffectiveShape(layer),0)
+            or not shape.Collide(projected,0)):
+        return False
+    return any(local_pofv_dogbone_matches(pad,start,projected,layer,via.GetNetCode(),reach_mm=reach_mm)
+               for start in (a,b))
+
+
+def local_pofv_polyline_matches(pad, points, layer, net_code, *, reach_mm=LOCAL_POFV_REACH_MM):
+    """One bounded two-leg SMD dogbone, not arbitrary connected-net credit.
+
+    The first literal point must lie in the actual surface land. Both legs
+    are nonzero exact 0/45 strokes, with no reversal and at most a right-angle
+    turn. The complete path AND pad-centre-to-barrel reach retain the original
+    process bound. This is topology only: dimensions, clearance, real copper,
+    existing rule membership and all current/fabrication gates are separate.
+    """
+    import pcbnew
+    if not math.isfinite(reach_mm) or not 0 < reach_mm <= LOCAL_POFV_REACH_MM:
+        raise ValueError('bounded_local_POFV_polyline_reach_required')
+    if (type(points) not in (list, tuple) or len(points) != 3
+            or any(not isinstance(p, pcbnew.VECTOR2I) for p in points)
+            or type(layer) is not int or type(net_code) is not int
+            or net_code <= 0 or pad.GetNetCode() != net_code
+            or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+            or pad.GetParentFootprint().IsDNP()
+            or tuple(map(int, pad.GetLayerSet().CuStack())) != (layer,)
+            or layer not in (pcbnew.F_Cu, pcbnew.B_Cu)
+            or not pad.HitTest(points[0])):
+        return False
+    vectors = [(int(z.x-a.x), int(z.y-a.y)) for a, z in zip(points, points[1:])]
+    if any(not (x or y) or not (x == 0 or y == 0 or abs(x) == abs(y)) for x, y in vectors):
+        return False
+    (x, y), (u, v) = vectors
+    if x*v-y*u == 0 or x*u+y*v < 0:
+        return False
+    length = sum(math.hypot(x, y) for x, y in vectors) / MM
+    centre = pad.GetPosition()
+    distance = math.hypot(points[-1].x-centre.x, points[-1].y-centre.y) / MM
+    return bool(length <= reach_mm + 1e-6 and distance <= reach_mm + 1e-6)
+
+
+def local_pofv_two_leg_contact_matches(pad, first, last, via, *, reach_mm=LOCAL_POFV_REACH_MM):
+    """Independent live two-track/one-barrel replay of the bounded dogbone."""
+    if (first is last or first.m_Uuid == last.m_Uuid
+            or first.GetClass() != 'PCB_TRACK' or last.GetClass() != 'PCB_TRACK'
+            or via.GetClass() != 'PCB_VIA' or first.GetLayer() != last.GetLayer()
+            or first.GetNetCode() != last.GetNetCode() or last.GetNetCode() != via.GetNetCode()
+            or first.GetWidth() <= 0 or last.GetWidth() <= 0):
+        return False
+    at = via.GetPosition()
+    if last.GetStart() == at:
+        joint = last.GetEnd()
+    elif last.GetEnd() == at:
+        joint = last.GetStart()
+    else:
+        return False
+    if first.GetStart() == joint:
+        entry = first.GetEnd()
+    elif first.GetEnd() == joint:
+        entry = first.GetStart()
+    else:
+        return False
+    layer = int(first.GetLayer())
+    return bool(local_pofv_polyline_matches(pad, [entry, joint, at], layer,
+        int(via.GetNetCode()), reach_mm=reach_mm)
+        and first.GetEffectiveShape(layer).Collide(last.GetEffectiveShape(layer), 0)
+        and last.GetEffectiveShape(layer).Collide(via.GetEffectiveShape(layer), 0))
+
+
+def local_pofv_via_decision(board, via, *, reach_mm=LOCAL_POFV_REACH_MM,
+                            endpoint_tol_mm=0.005, cache=None,allow_source_track_body=False):
+    """Re-prove a local filled/capped via from live pad and copper geometry.
+
+    Profile dimensions alone do not establish local ownership. The barrel
+    must either be fully contained in its SMD land or join a short same-net
+    one-/two-leg dogbone or exact source-track subinterval on that land's copper layer.
+    Partial pad overlaps are forbidden
+    even when a track supplies a plausible dogbone. A cache belongs to one
+    immutable board inspection only; discard it after changing pads/tracks.
+    """
+    import math
+    import pcbnew
+
+    if type(allow_source_track_body) is not bool:
+        raise ValueError('explicit_native_source_track_body_owner_policy_required')
+
+    profile = PROFILES.get(board_profile_name(board))
+    if not profile or not profile.get("pofv"):
+        return False, "board has no declared POFV profile"
+    if (via.GetClass() != "PCB_VIA"
+            or int(via.GetViaType()) != int(pcbnew.VIATYPE_THROUGH)
+            or int(via.GetNetCode()) <= 0):
+        return False, "local POFV requires an assigned-net through via"
+    diameter = int(via.GetWidth(via.TopLayer()))
+    drill = int(via.GetDrillValue())
+    valid, reason = pofv_dimensions(profile, diameter / MM, drill / MM)
+    if not valid:
+        return False, reason
+    blocked, overlaps = via_at_pad_conflicts(
+        board, via.GetPosition(), diameter, drill, via.GetNetCode(),
+        pad_cache=cache)
+    if blocked is not None:
+        return False, overlaps[-1]["reason"]
+    if overlaps:
+        return True, "fully contained same-net SMD POFV"
+
+    key = "__cec_local_pofv_topology_v1__"
+    index = None if cache is None else cache.get(key)
+    if index is None:
+        pads, tracks = {}, {}
+        for footprint in board.GetFootprints():
+            for pad in footprint.Pads():
+                if (int(pad.GetNetCode()) > 0
+                        and int(pad.GetAttribute()) == int(pcbnew.PAD_ATTRIB_SMD)):
+                    pads.setdefault(int(pad.GetNetCode()), []).append(pad)
+        for track in board.GetTracks():
+            if track.GetClass() == "PCB_TRACK" and track.GetNetCode() > 0:
+                tracks.setdefault(int(track.GetNetCode()), []).append(track)
+        index = pads, tracks
+        if cache is not None:
+            cache[key] = index
+    pads, tracks = index
+    position = via.GetPosition()
+
+    def distance(a, b):
+        return math.hypot(a.x - b.x, a.y - b.y) / MM
+
+    nearby = [pad for pad in pads.get(int(via.GetNetCode()), ())
+              if distance(position, pad.GetPosition()) <= reach_mm + 1e-6]
+    for track in tracks.get(int(via.GetNetCode()), ()):
+        if distance(track.GetStart(), position) <= endpoint_tol_mm:
+            other = track.GetEnd()
+        elif distance(track.GetEnd(), position) <= endpoint_tol_mm:
+            other = track.GetStart()
+        else:
+            continue
+        if distance(position, other) > reach_mm + 1e-6:
+            continue
+        for pad in nearby:
+            if local_pofv_dogbone_matches(
+                    pad, other, position, track.GetLayer(), via.GetNetCode(),
+                    reach_mm=reach_mm):
+                return True, "bounded same-layer SMD dogbone"
+        # A second exact native limb can be a purposeful 45-degree escape
+        # around a neighbouring pin. No nearest-net graph, endpoint snap,
+        # arbitrary chain or new numerical process allowance is used.
+        for first in tracks.get(int(via.GetNetCode()), ()):
+            for pad in nearby:
+                if local_pofv_two_leg_contact_matches(pad, first, track, via,
+                        reach_mm=min(reach_mm, LOCAL_POFV_REACH_MM)):
+                    return True, 'bounded same-layer two-leg SMD dogbone'
+    if allow_source_track_body:
+        for track in tracks.get(int(via.GetNetCode()), ()):
+            for pad in nearby:
+                if local_pofv_body_contact_matches(pad,track,via,reach_mm=reach_mm):
+                    return True, "bounded same-layer SMD source-track body contact"
+    return False, "via has no bounded live SMD copper owner"
 
 
 def layers_text(profile_name=None):

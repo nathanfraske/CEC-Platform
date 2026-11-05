@@ -210,6 +210,7 @@ class ThermalResult:
     layer_current_density: dict = field(default_factory=dict)  # std layer -> J [A/mm^2]
     net_layer_current_density: dict = field(default_factory=dict)  # net -> std layer -> J
     copper_joule_density: Optional[np.ndarray] = None  # areal copper loss [W/m^2]
+    component_heat_density: Optional[np.ndarray] = None  # lumped-source heat [W/m^2]
     current_bottlenecks: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)
 
@@ -511,10 +512,16 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
     L = sp.csr_matrix((vals + list(diag), (rows + list(range(N)), cols + list(range(N)))),
                       shape=(N, N))
 
-    src_nodes = [node_of[k] for k in src_cells if k in node_of]
-    sink_nodes = [node_of[k] for k in sink_cells if k in node_of]
+    # Several physical pads may rasterize to the same cell. Duplicate advanced
+    # numpy indices do not accumulate; deduplicate before normalizing current.
+    src_nodes = sorted({node_of[k] for k in src_cells if k in node_of})
+    sink_nodes = sorted({node_of[k] for k in sink_cells if k in node_of})
     if not src_nodes or not sink_nodes:
         return None
+    if (len({k for k in src_cells if k in node_of}) != len(set(src_cells)) or
+            len({k for k in sink_cells if k in node_of}) != len(set(sink_cells)) or
+            set(src_nodes) & set(sink_nodes)):
+        return None  # missing or unresolved coincident injection contacts
 
     from scipy.sparse.csgraph import connected_components
     _, comp = connected_components(L, directed=False)
@@ -522,6 +529,8 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
     if not valid:
         return None
     keep = np.isin(comp, list(valid))
+    if not np.all(keep[src_nodes]) or not np.all(keep[sink_nodes]):
+        return None  # never silently assign a disconnected terminal's current elsewhere
     src_nodes = [s for s in src_nodes if keep[s]]
     sink_nodes = [s for s in sink_nodes if keep[s]]
     if not src_nodes or not sink_nodes:
@@ -539,7 +548,15 @@ def _solve_net_electrical(layer_masks, vertical_at_cell, src_cells, sink_cells, 
     V = np.zeros(N)
     V[free] = Vf
     V[ref] = 0.0
-    return dict(V=V, links=links, nodes=nodes, node_of=node_of, sheetR=sheetR)
+    residual = L @ V - b
+    accounting = dict(requested_A=float(I), source_nodes=len(src_nodes),
+        sink_nodes=len(sink_nodes), represented_source_A=float(b[b > 0].sum()),
+        represented_sink_A=float(-b[b < 0].sum()), omitted_terminal_nodes=0,
+        signed_balance_A=float(b.sum()), terminal_work_W=float(b @ V),
+        kirchhoff_relative_residual=float(np.linalg.norm(residual[keep]) /
+            max(float(np.linalg.norm(b[keep])), 1e-30)))
+    return dict(V=V, links=links, nodes=nodes, node_of=node_of, sheetR=sheetR,
+                accounting=accounting)
 
 
 def _resid_ok(Aspmat, rhs, x, tol=1e-6):
@@ -784,7 +801,10 @@ def _joule_from_solution(sol, grid: Grid, width_frac=None, oz_by_layer=None):
         for nd in (a, b):
             l2, c = nodes[nd]
             iy, ix = divmod(c, grid.nx)
-            q.setdefault(l2, np.zeros((grid.ny, grid.nx)))
+            # setdefault evaluates its default on every endpoint, even when the
+            # layer exists. Allocate once without changing edge/addition order.
+            if l2 not in q:
+                q[l2] = np.zeros((grid.ny, grid.nx))
             q[l2][iy, ix] += 0.5 * P / grid.cell_area_m2
         if lid is not None:                   # in-plane sheet link -> K, J
             K = abs(I_link) / grid.cell_m     # A/m
@@ -871,7 +891,10 @@ def _current_field_from_solution(sol, grid: Grid, width_frac=None,
         area_mm2 = max(width_mm * thickness_mm, 1e-12)
         J = abs_current / area_mm2
         std = STD_CU_LAYERS.get(lid, str(lid))
-        field = maps.setdefault(std, np.zeros((grid.ny, grid.nx)))
+        field = maps.get(std)
+        if field is None:
+            field = np.zeros((grid.ny, grid.nx))
+            maps[std] = field
         field[ya, xa] = max(field[ya, xa], J)
         field[yb, xb] = max(field[yb, xb], J)
         records.append({
@@ -929,7 +952,7 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
                    backend="auto", max_picard=60, tol=1e-3, verbose=False,
                    mount_cells=None, g_mount_W_per_K=0.0, t_chassis=None,
                    extra_sink_cells=None, g_extra_W_per_K=0.0,
-                   board_mask=None):
+                   board_mask=None, additional_h_W_m2K=0.0):
     """Steady screened-Poisson with NONLINEAR vertical loss:
         -div(klat grad T) + q_loss(T) = Qareal
     Linear face: kface dT.  Vertical loss per cell (area A):
@@ -945,6 +968,9 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
     convective/radiative loss (kills phantom-bbox loss on non-rectangular boards).
     Returns T grid [C]."""
     ny, nx = grid.ny, grid.nx
+    extra_h = np.broadcast_to(np.asarray(additional_h_W_m2K, dtype=float), (ny, nx)).ravel()
+    if not np.all(np.isfinite(extra_h)) or np.any(extra_h < 0):
+        raise ValueError("additional cooling coefficient must be finite and nonnegative")
     N = nx * ny
     A = grid.cell_area_m2
     L_lat = _build_lateral(klat, grid)
@@ -981,6 +1007,7 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
             loss = conv + rad
             g = np.where(dT > 1e-6, loss / np.maximum(dT, 1e-6),
                          c_nat * 1e-3 + 4 * eps_rad * SIGMA_SB * TaK ** 3)
+        g = g + extra_h
         if loss_mask is not None:
             g = g * loss_mask
         return g
@@ -1040,17 +1067,18 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
 
 
 def _total_loss_W(T, grid: Grid, ambient, h_eff=15.0, nonlinear=True,
-                  c_nat=C_NAT, eps_rad=EPS_RAD):
+                  c_nat=C_NAT, eps_rad=EPS_RAD, additional_h_W_m2K=0.0):
     """Integrate the true (nonlinear) vertical loss over the board [W]."""
     dT = np.maximum(T - ambient, 0.0)
     A = grid.cell_area_m2
+    extra = np.asarray(additional_h_W_m2K) * dT
     if not nonlinear:
-        return float((h_eff * dT * A).sum())
+        return float(((h_eff * dT + extra) * A).sum())
     TK = T + 273.15
     TaK = ambient + 273.15
     conv = c_nat * np.power(dT, 1.25)
     rad = eps_rad * SIGMA_SB * (np.power(TK, 4) - TaK ** 4)
-    return float(((conv + rad) * A).sum())
+    return float(((conv + rad + extra) * A).sum())
 
 
 # ============================ top-level board solve =========================
@@ -1061,7 +1089,13 @@ def _board_geometry(board):
 
 
 def _zone_polys(board, grid_layer_for_phys):
-    """dict (net, std_layer) -> list[shapely Polygon] from FILLED zones."""
+    """dict (net, std_layer) -> actual FILLED polygons, including void rings.
+
+    Saved KiCad fills often use fractured outer contours, but the native API
+    can also provide explicit interior holes. Both representations are real
+    copper; dropping Hole() rings silently creates thermal/electrical metal
+    inside antipads. Never substitute the authored zone perimeter or bbox.
+    """
     from shapely.geometry import Polygon
     out = {}
     for z in board.Zones():
@@ -1076,7 +1110,13 @@ def _zone_polys(board, grid_layer_for_phys):
                 pts = [(ol.CPoint(k).x / 1e6, ol.CPoint(k).y / 1e6)
                        for k in range(ol.PointCount())]
                 if len(pts) >= 3:
-                    out.setdefault((net, std), []).append(Polygon(pts))
+                    holes = []
+                    for hi in range(sp_poly.HoleCount(oi)):
+                        ring = sp_poly.Hole(oi, hi)
+                        holes.append([(ring.CPoint(k).x / 1e6,
+                                       ring.CPoint(k).y / 1e6)
+                                      for k in range(ring.PointCount())])
+                    out.setdefault((net, std), []).append(Polygon(pts, holes))
     return out
 
 
@@ -1326,7 +1366,7 @@ def _refs_pad_cells(board, grid: Grid, refs):
     return cells
 
 
-def _component_heat_cells(board, grid: Grid, component_power):
+def _component_heat_cells(board, grid: Grid, component_power, *, evidence=None):
     """Map a {ref: power_W} dict to areal heat sources spread over each part's pad
     cells. Returns dict cell_id -> watts (to add into Q). Used for the ESP32 fixed
     dissipation and any explicit lumped part."""
@@ -1334,23 +1374,35 @@ def _component_heat_cells(board, grid: Grid, component_power):
         return {}
     from shapely.geometry import Polygon
     out = {}
-    want = {k.upper(): v for k, v in component_power.items()}
+    want = {str(k).upper(): float(v) for k, v in component_power.items()}
+    if len(want) != len(component_power) or any(
+            not math.isfinite(v) or v < 0 for v in want.values()):
+        raise ValueError("invalid or duplicate component heat reference")
+    applied, cells_by_ref = {}, {}
     for fp in board.GetFootprints():
         ref = (fp.GetReference() or "").upper()
-        P = None
-        for k, v in want.items():
-            if ref == k or ref.startswith(k):
-                P = v; break
+        P = want.get(ref)  # exact reference; U1 must never also heat U10/U11
         if P is None or P <= 0:
             continue
+        if ref in applied:
+            raise ValueError("duplicate board reference in heat injection: " + ref)
         cells = set()
         for p in fp.Pads():
             cells |= _pad_cell_set(p, grid)
         if not cells:
             continue
         per = P / len(cells)
+        applied[ref] = P
+        cells_by_ref[ref] = sorted(cells)
         for c in cells:
             out[c] = out.get(c, 0.0) + per
+    missing = sorted(ref for ref, watts in want.items() if watts > 0 and ref not in applied)
+    if evidence is not None:
+        evidence.update(requested_W=sum(want.values()), applied_W=sum(applied.values()),
+                        applied_by_ref_W=applied, missing_refs=missing,
+                        pad_cells_by_ref=cells_by_ref)
+    if missing:
+        raise ValueError("component heat has no physical pad cells: " + ", ".join(missing))
     return out
 
 
@@ -1487,7 +1539,7 @@ def _contact_heat(board, grid: Grid, r_contact_mohm, net_currents):
     return out, total
 
 
-def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True):
+def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True, nets=None):
     """dict net -> dict ref+padname -> list[(std_layer, cell_global_id)] for pads.
 
     area=True (default): rasterize each pad's REAL footprint (effective polygon /
@@ -1504,7 +1556,7 @@ def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True):
         pidx = 0
         for p in fp.Pads():
             net = p.GetNetname()
-            if not net:
+            if not net or (nets is not None and net not in nets):
                 continue
             stds = set()
             for lid in p.GetLayerSet().Seq():
@@ -1552,6 +1604,29 @@ def _terminal_cells_for_refs(pad_map, net, refs, allowed_layers=None):
         for (std, cell) in pad_map.get(net, {}).get(ref, [])
         if allowed is None or std in allowed
     ]
+
+
+def _terminal_cells_for_pad_uuids(board, grid, layer_names_by_id, net, refs,
+                                 pad_uuids, allowed_layers=None, area=True, deadline=None):
+    """Inject only on the explicitly selected native contact(s), without edits.
+
+    Use the SAME real pad rasterizer as ordinary bank injection. Missing,
+    wrong-net/ref/face or duplicated selectors refuse; no nearest-cell/ref
+    fallback broadens a failed single-contact worst-case into shared current.
+    """
+    from cec_thermal_terminal_selection import pads as select_pads
+    if pad_uuids is None:raise ValueError('thermal_terminal_empty_explicit_pad_scope')
+    rows=select_pads(board,net,refs,layer_names_by_id,
+        pad_uuids=pad_uuids,allowed_layers=allowed_layers,deadline=deadline)
+    result=[]
+    for row in rows:
+        if area:cells=sorted(_pad_cell_set(row['native'],grid))
+        else:
+            at=row['native'].GetPosition();xy=grid.cell_of_xy(at.x/1e6,at.y/1e6)
+            cells=[grid.idx(*xy)] if xy else []
+        if not cells:raise ValueError('thermal_terminal_selected_pad_has_no_raster_cells')
+        result.extend((layer,c) for layer in row['layers'] for c in cells)
+    return result
 
 
 def _default_src_sink(net, pad_map):
@@ -1643,6 +1718,8 @@ def _kelvin_sense_drop_cells(phys_masks, zone_phys_masks, pad_phys_masks, grid: 
     board's thermal independent of whether, or how, the sense tap is routed. The Kelvin
     mis-route is a routing fault, caught separately by cec_score.kelvin_topology_faults.
 
+    Legacy diagnostic classification ONLY; never current-exclusion authority.
+
     KEEP: filled ZONE (pour) cells and ALL PAD cells (connector/shunt force terminals
     AND the high-Z INA input pads -- pad copper carries ~0 current on its own once the
     sense traces are gone, and keeping it preserves the legitimate pour<->pad contact so
@@ -1664,6 +1741,159 @@ def _kelvin_sense_drop_cells(phys_masks, zone_phys_masks, pad_phys_masks, grid: 
         for iy, ix in zip(ys.tolist(), xs.tolist()):
             drop.add((phys, grid.idx(ix, iy)))
     return drop
+
+
+def _unpack_copper_mask(packed, grid):
+    """Lossless occupancy storage only; never an alternate rasterizer."""
+    return np.unpackbits(packed, count=grid.n).astype(bool).reshape(grid.ny, grid.nx)
+
+
+def _stream_copper_rasters(board, grid, grid_layer_for_phys, stackup_oz,
+                           electrical_nets, include_traces=True, area_injection=True):
+    """Keep dense electrical arrays only for requested-current nets.
+
+    Every native copper item still contributes to heat conduction and overlays.
+    Preserve the original zone -> track -> pad accumulation order, including
+    floating-point addition order. Inactive occupancy is packed losslessly
+    between phases; no inactive width field survives its thermal contribution.
+    A single inactive net's layer masks are unpacked while adding its pads.
+    """
+    active = set(electrical_nets)
+    net_layer_mask, net_zone_mask, net_width_frac, net_pad_mask = {}, {}, {}, {}
+    inactive_packed, net_order = {}, {}
+    copper_any = np.zeros((grid.ny, grid.nx), dtype=bool)
+    klat = np.full((grid.ny, grid.nx), K_FR4 * T_BOARD)
+    _deadline_check()
+    polys = _zone_polys(board, grid_layer_for_phys)
+    for (net, std), plist in polys.items():
+        _deadline_check()
+        m = _rasterize_polys(plist, grid)
+        if not m.any():
+            continue
+        net_order.setdefault(net, None)
+        wfrac = np.where(m, 1.0, 0.0)
+        copper_any |= m
+        klat[m] += K_CU * stackup_oz.get(std, 0.0) * OZ_M * wfrac[m]
+        if net in active:
+            net_layer_mask.setdefault(net, {})[std] = m
+            net_zone_mask.setdefault(net, {})[std] = m
+            net_width_frac.setdefault(net, {})[std] = wfrac
+        else:
+            inactive_packed.setdefault(net, {})[std] = np.packbits(m)
+
+    if include_traces:
+        for (net, std), segs in _track_segs(board, grid_layer_for_phys).items():
+            _deadline_check()
+            tmask, twf = _rasterize_tracks(segs, grid)
+            if not tmask.any():
+                continue
+            net_order.setdefault(net, None)
+            if net in active:
+                prev_m = net_layer_mask.get(net, {}).get(std)
+                prev_w = net_width_frac.get(net, {}).get(std)
+            else:
+                packed = inactive_packed.get(net, {}).get(std)
+                prev_m = None if packed is None else _unpack_copper_mask(packed, grid)
+                prev_w = None  # inactive prior copper is zone-only in this phase
+            if prev_m is None:
+                merged_m, merged_w, klat_add = tmask, twf, twf
+            else:
+                merged_m = prev_m | tmask
+                klat_add = np.where(tmask & ~prev_m, twf, 0.0)
+                merged_w = (np.maximum(prev_w, klat_add) if net in active else None)
+            copper_any |= merged_m
+            klat += K_CU * stackup_oz.get(std, 0.0) * OZ_M * klat_add
+            if net in active:
+                net_layer_mask.setdefault(net, {})[std] = merged_m
+                net_width_frac.setdefault(net, {})[std] = merged_w
+            else:
+                inactive_packed.setdefault(net, {})[std] = np.packbits(merged_m)
+
+    pad_map = _pad_cells(board, grid, grid_layer_for_phys, area=area_injection)
+    peak_inactive_layers = 0
+    for net, refs in pad_map.items():
+        _deadline_check()
+        # At most one net's enabled layer masks, not all inactive-net masks.
+        inactive_masks = {}
+        for cl in refs.get('__pads__', {}).values():
+            for cell_index, (std, c) in enumerate(cl):
+                if cell_index % 2048 == 0:
+                    _deadline_check()
+                iy, ix = divmod(c, grid.nx)
+                net_order.setdefault(net, None)
+                if net in active:
+                    pm = net_pad_mask.setdefault(net, {}).get(std)
+                    if pm is None:
+                        pm = np.zeros((grid.ny, grid.nx), dtype=bool)
+                        net_pad_mask[net][std] = pm
+                    pm[iy, ix] = True
+                    m = net_layer_mask.setdefault(net, {}).get(std)
+                    if m is None:
+                        m = np.zeros((grid.ny, grid.nx), dtype=bool)
+                        net_layer_mask[net][std] = m
+                        net_width_frac.setdefault(net, {})[std] = np.zeros((grid.ny, grid.nx))
+                else:
+                    m = inactive_masks.get(std)
+                    if m is None:
+                        packed = inactive_packed.get(net, {}).get(std)
+                        m = (np.zeros((grid.ny, grid.nx), dtype=bool) if packed is None
+                             else _unpack_copper_mask(packed, grid))
+                        inactive_masks[std] = m
+                if not m[iy, ix]:
+                    m[iy, ix] = True
+                    # Width is zero outside the zone/track union by construction.
+                    # Thus an inactive new pad cell has exactly the old full-width
+                    # contribution, without retaining a dense inactive width map.
+                    if net in active:
+                        wf = net_width_frac[net][std]
+                        if wf[iy, ix] <= 0:
+                            wf[iy, ix] = 1.0
+                            klat[iy, ix] += K_CU * stackup_oz.get(std, 0.0) * OZ_M
+                    else:
+                        klat[iy, ix] += K_CU * stackup_oz.get(std, 0.0) * OZ_M
+                    copper_any[iy, ix] = True
+        peak_inactive_layers = max(peak_inactive_layers, len(inactive_masks))
+        for std, m in inactive_masks.items():
+            inactive_packed.setdefault(net, {})[std] = np.packbits(m)
+
+    _deadline_check()
+    layer_copper_mask = {}
+    for net in net_order:
+        _deadline_check()
+        by_layer = (net_layer_mask.get(net, {}) if net in active
+                    else inactive_packed.get(net, {}))
+        for std, stored in by_layer.items():
+            m = stored if net in active else _unpack_copper_mask(stored, grid)
+            if std not in layer_copper_mask:
+                layer_copper_mask[std] = m.copy()
+            else:
+                layer_copper_mask[std] |= m
+    return dict(net_layer_mask=net_layer_mask, net_zone_mask=net_zone_mask,
+        net_width_frac=net_width_frac, net_pad_mask=net_pad_mask, pad_map=pad_map,
+        inactive_packed=inactive_packed, net_order=net_order, klat=klat,
+        copper_any=copper_any, layer_copper_mask=layer_copper_mask,
+        retention=dict(all_copper_thermal_contribution_preserved=True,
+            inactive_occupancy_encoding='numpy_packbits_lossless',
+            dense_electrical_pairs=sum(map(len, net_layer_mask.values())),
+            inactive_packed_pairs=sum(map(len, inactive_packed.values())),
+            inactive_packed_bytes=sum(a.nbytes for lm in inactive_packed.values()
+                                      for a in lm.values()),
+            peak_inactive_unpacked_layers=peak_inactive_layers,
+            thermal_accumulation_order='zones_then_tracks_then_pads_unchanged'))
+
+
+def _stream_per_net_max_temperature(T, rasters, grid):
+    """Preserve inactive-net temperature reporting without dense retention."""
+    out = {}
+    for net in rasters['net_order']:
+        anymask = np.zeros((grid.ny, grid.nx), dtype=bool)
+        for m in rasters['net_layer_mask'].get(net, {}).values():
+            anymask |= m
+        for packed in rasters['inactive_packed'].get(net, {}).values():
+            anymask |= _unpack_copper_mask(packed, grid)
+        if anymask.any():
+            out[net] = float(T[anymask].max())
+    return out
 
 
 def solve_board_thermal(board_path,
@@ -1690,12 +1920,14 @@ def solve_board_thermal(board_path,
                         shunt_R_ohm=None,
                         r_contact_mohm=0.0,
                         component_power=None,
+                        additional_h_W_m2K=0.0,
                         g_mount_W_per_K=0.0,
                         t_chassis=None,
                         chassis_refs=None,
                         g_chassis_W_per_K=0.0,
                         board_mask_enable=False,
-                        time_budget_s=None):
+                        time_budget_s=None,
+                        raster_topology_limits=None):
     """2.5D electro-thermal solve on a real board.
 
     stackup_oz:   dict std-layer -> oz-equivalent copper thickness (default
@@ -1732,13 +1964,30 @@ def solve_board_thermal(board_path,
         element of its _HI/_LO net. Default None (off).
     r_contact_mohm:  per-pin connector contact resistance [mOhm] -> I_pin^2*R at each
         J_IN*/J_OUT* power pad. Default 0 (off).
-    component_power: dict ref->watts for fixed dissipators (e.g. {'U(ESP)':0.4}).
+    component_power: dict exact ref->watts for fixed dissipators. Reference
+        prefixes never match other devices. Missing positive sources fail closed.
+    additional_h_W_m2K: nonnegative scalar or grid-shaped array of incremental
+        effective convection. Added once per board cell to the existing boundary
+        model and loss accounting; this is not an airflow/package-temperature solve.
     g_mount_W_per_K: chassis heat-sink conductance per mounting hole [W/K]. Default 0
         (OFF -> byte-identical to legacy; the deployed-board correction is opt-in so
         existing goldens don't move silently).
     t_chassis:       chassis temperature for the mount sink (default = ambient).
     board_mask_enable: zero convective loss outside the board outline (non-rect boards).
+    raster_topology_limits: optional tighter work bounds for the automatic native
+        terminal/raster preflight. Refinement changes only mesh pitch, never
+        copper, currents or boundary conditions; it does not certify convergence.
     """
+    _t_start = time.monotonic()
+    from cec_operation_budget import available_timeout
+    has_parent_lease = any(key in os.environ for key in
+        ('CEC_OPERATION_DEADLINE_EPOCH', 'CEC_JOB_DEADLINE_EPOCH'))
+    if time_budget_s is not None or has_parent_lease:
+        time_budget_s = available_timeout(
+            float(time_budget_s) if time_budget_s is not None else 86400.0,
+            os.environ, reserve_s=0)
+    global _SOLVE_DEADLINE
+    _SOLVE_DEADLINE = (None if time_budget_s is None else _t_start + time_budget_s)
     import pcbnew
     if stackup_oz is None:
         stackup_oz = {"F.Cu": 1.0, "In1.Cu": 0.5, "In2.Cu": 0.5, "B.Cu": 1.0}
@@ -1748,100 +1997,73 @@ def solve_board_thermal(board_path,
     z_centers = _layer_z_centers(stackup_oz, dielectric_mm)
     board = pcbnew.LoadBoard(board_path)
 
+    # Use exactly the same native identity/candidate-bank proof as routing.
+    # Do this before allocating a field: ambiguous or missing configured heat
+    # must never become a cooler, apparently qualified partial solve.
+    from cec_current_binding import resolve as resolve_current_bindings
+    net_currents, src_sink_override, current_binding = resolve_current_bindings(
+        board, net_currents, src_sink_override)
+
+    from cec_thermal_raster_topology import select_grid
+    topology = select_grid(board, sys.modules[__name__], currents=net_currents,
+        overrides=src_sink_override, stackup=stackup_oz, grid_mm=grid_mm,
+        include_traces=include_traces, area_injection=area_injection,
+        ideal_pad_faces=ideal_pad_faces, deadline=_SOLVE_DEADLINE,
+        limits=raster_topology_limits)
+    if (topology['complete'] and topology['selected_pitch_mm'] != grid_mm
+            and (np.ndim(additional_h_W_m2K) != 0 or
+                 (t_chassis is not None and np.ndim(t_chassis) != 0))):
+        topology.update(complete=False, status='unknown',
+                        refusal='grid_shaped_boundary_requires_explicit_reprojection')
+    if not topology['complete']:
+        reason = topology.get('refusal', 'native_raster_topology_unknown')
+        requested = {n: i for n, i in net_currents.items() if i > 0}
+        exhausted = 'deadline' in reason
+        # Deliberately no computed field: the one-cell placeholder cannot be a
+        # cool pass, since completion is false and every requested heat is dropped.
+        return ThermalResult(T=np.full((1, 1), ambient), max_T=float(ambient),
+            ambient=ambient, grid_mm=grid_mm, extent_mm=_board_geometry(board),
+            nets_requested=requested, nets_dropped={n: reason for n in requested},
+            meta=dict(operation_complete=False, budget_exhausted=exhausted,
+                budget_phase='raster_topology', thermal_iterations_completed=0,
+                operation_refusal=reason, field_computed=False,
+                numerical_qualification=False, raster_topology=topology,
+                current_binding=current_binding, stackup_oz=stackup_oz))
+    grid_mm = topology['selected_pitch_mm']
+
     grid_layer_for_phys = dict(STD_CU_LAYERS)
     xmin, ymin, xmax, ymax = _board_geometry(board)
     grid = Grid(xmin, ymin, xmax, ymax, grid_mm)
+    component_injection = {}
+    selected_terminal_cache = {}
+    fixed_component_cells = _component_heat_cells(
+        board, grid, component_power, evidence=component_injection)
 
-    polys = _zone_polys(board, grid_layer_for_phys)
     std_to_phys = {v: k for k, v in grid_layer_for_phys.items()}
-    net_layer_mask = {}
-    # per-net per-layer ZONE-ONLY mask (filled pours, no routed tracks); used to keep
-    # the high-current FORCE pour as a wall when dropping Kelvin sense-tap copper.
-    net_zone_mask = {}
-    # per-net per-layer effective copper-width fraction (1.0 for plane/zone cells,
-    # <1 for sub-grid trace cells); used to scale sheet conductance + lateral k.
-    net_width_frac = {}
-    copper_any = np.zeros((grid.ny, grid.nx), dtype=bool)
-    klat = np.full((grid.ny, grid.nx), K_FR4 * T_BOARD)
-
-    def _add_layer_klat(net, std, mask, wfrac):
-        oz = stackup_oz.get(std, 0.0)
-        # lateral copper conductance, scaled by the cell's effective width fraction
-        klat[mask] += K_CU * oz * OZ_M * wfrac[mask]
-
-    # filled zones (full-width cells)
-    for (net, std), plist in polys.items():
-        m = _rasterize_polys(plist, grid)
-        if not m.any():
-            continue
-        wfrac = np.where(m, 1.0, 0.0)
-        net_layer_mask.setdefault(net, {})[std] = m
-        net_zone_mask.setdefault(net, {})[std] = m
-        net_width_frac.setdefault(net, {})[std] = wfrac
-        copper_any |= m
-        _add_layer_klat(net, std, m, wfrac)
-
-    # routed tracks (effective-width cells), UNIONed with the zones per (net,layer)
-    if include_traces:
-        tsegs = _track_segs(board, grid_layer_for_phys)
-        for (net, std), segs in tsegs.items():
-            tmask, twf = _rasterize_tracks(segs, grid)
-            if not tmask.any():
-                continue
-            prev_m = net_layer_mask.get(net, {}).get(std)
-            prev_w = net_width_frac.get(net, {}).get(std)
-            if prev_m is None:
-                merged_m = tmask
-                merged_w = twf
-                klat_add = twf                       # new copper -> add k
-            else:
-                merged_m = prev_m | tmask
-                # a cell that is BOTH zone and trace is full-width (zone wins);
-                # a trace-only cell gets the trace width fraction.
-                merged_w = np.maximum(prev_w, np.where(tmask & ~prev_m, twf, 0.0))
-                # only the NEW (trace-only) cells add lateral copper k
-                klat_add = np.where(tmask & ~prev_m, twf, 0.0)
-            net_layer_mask.setdefault(net, {})[std] = merged_m
-            net_width_frac.setdefault(net, {})[std] = merged_w
-            copper_any |= merged_m
-            oz = stackup_oz.get(std, 0.0)
-            klat += K_CU * oz * OZ_M * klat_add
-
-    pad_map = _pad_cells(board, grid, grid_layer_for_phys, area=area_injection)
-    # per-net per-layer PAD-cell mask -- pad copper is a valid current terminal and is
-    # never stripped as a sense tap (the Kelvin tap is the routed TRACE, not the pads).
-    net_pad_mask = {}
-    # add each pad's OWN copper to its net's layer mask (full-width) so the pad is a
-    # valid src/sink contact patch AND a thin trace ties into the pad copper. Without
-    # this a track that stops at a pad centre leaves the pad cells off the mask and
-    # the terminal gets filtered out (no current flows).
-    for net, refs in pad_map.items():
-        groups = refs.get("__pads__", {})
-        for _key, cl in groups.items():
-            for (std, c) in cl:
-                iy, ix = divmod(c, grid.nx)
-                pm = net_pad_mask.setdefault(net, {}).get(std)
-                if pm is None:
-                    pm = np.zeros((grid.ny, grid.nx), dtype=bool)
-                    net_pad_mask[net][std] = pm
-                pm[iy, ix] = True
-                m = net_layer_mask.setdefault(net, {}).get(std)
-                if m is None:
-                    m = np.zeros((grid.ny, grid.nx), dtype=bool)
-                    net_layer_mask[net][std] = m
-                    net_width_frac.setdefault(net, {})[std] = np.zeros((grid.ny, grid.nx))
-                if not m[iy, ix]:
-                    m[iy, ix] = True
-                    wf = net_width_frac[net][std]
-                    if wf[iy, ix] <= 0:
-                        wf[iy, ix] = 1.0            # pad copper is full-width
-                        oz = stackup_oz.get(std, 0.0)
-                        klat[iy, ix] += K_CU * oz * OZ_M
-                    copper_any[iy, ix] = True
+    try:
+        rasters = _stream_copper_rasters(board, grid, grid_layer_for_phys,
+            stackup_oz, {n for n, amps in net_currents.items() if amps > 0},
+            include_traces=include_traces, area_injection=area_injection)
+    except TimeBudgetExceeded:
+        reason = 'copper_raster_deadline'
+        requested = {n: i for n, i in net_currents.items() if i > 0}
+        return ThermalResult(T=np.full((1, 1), ambient), max_T=float(ambient),
+            ambient=ambient, grid_mm=grid_mm, extent_mm=_board_geometry(board),
+            nets_requested=requested, nets_dropped={n: reason for n in requested},
+            meta=dict(operation_complete=False, budget_exhausted=True,
+                budget_phase='copper_raster', thermal_iterations_completed=0,
+                operation_refusal=reason, field_computed=False,
+                numerical_qualification=False, raster_topology=topology,
+                current_binding=current_binding, stackup_oz=stackup_oz))
+    net_layer_mask = rasters['net_layer_mask']
+    net_zone_mask = rasters['net_zone_mask']
+    net_width_frac = rasters['net_width_frac']
+    net_pad_mask = rasters['net_pad_mask']
+    pad_map = rasters['pad_map']
+    copper_any, klat = rasters['copper_any'], rasters['klat']
     vertical_by_net = _collect_vertical_connectors(board, grid, grid_layer_for_phys)
     # high-Z INA sense-INPUT pad copper (carries ~0 current): used to strip mis-routed
     # Kelvin sense-tap copper from each net's current graph (shared id with cec_score).
-    ina_input_cells = _ina_highz_pad_cells(board, grid, grid_layer_for_phys)
     n_vias = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
     n_pth = sum(1 for fp in board.GetFootprints() for p in fp.Pads()
                 if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH)
@@ -1878,16 +2100,13 @@ def solve_board_thermal(board_path,
     # (I>0) net that injects nothing is RECORDED, never silently omitted -- on a board
     # with open rail circuits the omission made dT read COOLER the LESS complete the
     # board was (measured: 24-pin chain s125/s145 "dT~10.9 PASS" vs s112's 61.8, same
-    # recipe, +5V_MAIN/+5VSB still open). nets_absent (no copper at all = not on this
-    # board) stays ADVISORY -- the documented contract that a configured-but-absent
-    # net (e.g. /FAN_12V on alpha 12vhpwr) is ignored. nets_dropped (present on the
-    # board but no current path) is the gate-relevant set.
+    # recipe, +5V_MAIN/+5VSB still open). Native name/endpoint identity is now
+    # checked before rasterization. nets_absent records a bound net with no
+    # represented copper; both absent and dropped currents prevent qualification.
     net_drop_reasons = {}                 # net (present on board) -> why nothing injected
-    nets_absent = {}                      # net -> "no copper/pads on this board" (advisory)
-    _t_start = time.monotonic()           # time_budget_s reference (per-net loop bail)
-    global _SOLVE_DEADLINE                # in-solve abort (a single CG can outlast the
-    _SOLVE_DEADLINE = ((_t_start + float(time_budget_s))    # whole budget); re-init
-                       if time_budget_s else None)          # every call = self-healing
+    nets_absent = {}                      # net -> no represented copper/pads
+    # The lease starts before load/binding/topology/rasterization, not here.
+    # Mesh retries and preprocessing must never renew the enclosing deadline.
 
     # ---- ELECTRICAL with optional rho(T) outer Picard ----------------------
     # We solve all nets, build Q, run the thermal solve, then (rho_T) feed the
@@ -1895,8 +2114,9 @@ def solve_board_thermal(board_path,
     T = np.full((grid.ny, grid.nx), ambient + 1.0)
     n_outer = 5 if rho_T else 1
     prev_maxT = None
-    sense_drop_by_net = {}                # net -> high-Z Kelvin sense-tap cells (computed once)
     _budget_hit = False
+    _budget_phase = None
+    _thermal_iterations_completed = 0
     for outer in range(n_outer):
         if outer > 0 and _budget_hit:
             # budget latched last pass: further Picard passes would re-run the
@@ -1918,6 +2138,8 @@ def solve_board_thermal(board_path,
         per_net_maxK, per_net_maxJ = {}, {}
         net_layer_current_density = {}
         current_bottlenecks = []
+        electrical_accounting = {}
+        net_copper_joule_W = {}
         total_joule = 0.0
         for net, I in net_currents.items():
             # WALL-CLOCK BUDGET (2026-07-23, the dashboard-analyzer pathology:
@@ -1937,6 +2159,7 @@ def solve_board_thermal(board_path,
                       f"after {len(per_net_maxK)} net(s); {len(_left)} net(s) "
                       "skipped (field PARTIAL)", file=sys.stderr)
                 _budget_hit = True
+                _budget_phase = "electrical"
                 break
             if I <= 0:
                 continue
@@ -1960,12 +2183,22 @@ def solve_board_thermal(board_path,
             if src_sink_override and net in src_sink_override:
                 ov = src_sink_override[net]
                 if isinstance(ov, dict):
-                    src_std = _terminal_cells_for_refs(
-                        pad_map, net, ov.get("refs_src", []),
-                        ov.get("source_layers"))
-                    sink_std = _terminal_cells_for_refs(
-                        pad_map, net, ov.get("refs_sink", []),
-                        ov.get("sink_layers"))
+                    terminals=[]
+                    for side,selector_key,layer_key in (
+                            ('src','source_pad_uuids','source_layers'),
+                            ('sink','sink_pad_uuids','sink_layers')):
+                        if selector_key in ov:
+                            key=(net,side)
+                            if key not in selected_terminal_cache:
+                                selected_terminal_cache[key]=_terminal_cells_for_pad_uuids(
+                                    board,grid,grid_layer_for_phys,net,ov.get('refs_'+side,[]),
+                                    ov[selector_key],ov.get(layer_key),area=area_injection,
+                                    deadline=_SOLVE_DEADLINE)
+                            terminals.append(selected_terminal_cache[key])
+                        else:
+                            terminals.append(_terminal_cells_for_refs(
+                                pad_map,net,ov.get('refs_'+side,[]),ov.get(layer_key)))
+                    src_std,sink_std=terminals
                     src = [(std_to_phys[s], c) for (s, c) in src_std]
                     sink = [(std_to_phys[s], c) for (s, c) in sink_std]
                 else:
@@ -1979,9 +2212,14 @@ def solve_board_thermal(board_path,
                 phys, c = t
                 iy, ix = divmod(c, grid.nx)
                 return phys in masks and masks[phys][iy, ix]
+            explicit_pads=(isinstance((src_sink_override or {}).get(net),dict) and any(
+                key in src_sink_override[net] for key in ('source_pad_uuids','sink_pad_uuids')))
+            if explicit_pads and any(not valid(t) for t in src+sink):
+                net_drop_reasons[net]='explicit_native_terminal_cells_missing_from_copper'
+                continue
             src = [t for t in src if valid(t)]
             sink = [t for t in sink if valid(t)]
-            if not src or not sink:
+            if (not src or not sink) and not explicit_pads:
                 src, sink = _snap_terminals(src, sink, masks, grid)
             if not src or not sink:
                 net_drop_reasons[net] = "no src/sink terminals on copper"
@@ -1999,45 +2237,13 @@ def solve_board_thermal(board_path,
 
             vat = vertical_by_net.get(net, {})
 
-            # ---- drop high-Z KELVIN SENSE-TAP copper from the current graph --------
-            # A mis-routed thin sense tap that bridges the connector and the shunt would
-            # otherwise be driven with the full cable current -> a fabricated ~1000 C hot
-            # neck while the wide force pour sits unused. Strip the routed sense-tap copper
-            # (and the high-Z INA input pads) so current can only flow along the force path
-            # (connector -> pour -> shunt). Gated to nets that HAVE a pour: a trace-force
-            # board (no zone) keeps all of its copper. NEVER touches zones or force pads.
-            if net not in sense_drop_by_net:
-                has_ina = bool(ina_input_cells.get(net))
-                drop = set()
-                if has_ina:
-                    zmasks = {}
-                    has_zone = False
-                    for std, zm in net_zone_mask.get(net, {}).items():
-                        ph = std_to_phys.get(std)
-                        if ph in masks and zm.any():
-                            zmasks[ph] = zm
-                            has_zone = True
-                    if has_zone:                          # force = pour; strip the sense tap
-                        pmasks = {std_to_phys[std]: pm
-                                  for std, pm in net_pad_mask.get(net, {}).items()
-                                  if std in std_to_phys and std_to_phys[std] in masks}
-                        drop = _kelvin_sense_drop_cells(masks, zmasks, pmasks, grid)
-                sense_drop_by_net[net] = drop
-            drop = sense_drop_by_net[net]
-            if drop:
-                masks = {ph: m.copy() for ph, m in masks.items()}
-                for (ph, c) in drop:
-                    if ph in masks:
-                        iy, ix = divmod(c, grid.nx)
-                        masks[ph][iy, ix] = False
-                src = [t for t in src if valid(t)]
-                sink = [t for t in sink if valid(t)]
-                if not src or not sink:
-                    net_drop_reasons[net] = "force terminals lost after sense-tap strip"
-                    if verbose and outer == 0:
-                        print(f"  [skip] net {net}: force terminals lost after "
-                              f"sense-tap strip")
-                    continue
+            # Solve ALL real same-net copper. A high-impedance IC input does
+            # not make a physical connector-to-shunt bypass high impedance.
+            # Dead-end Kelvin copper naturally carries ~zero current; a real
+            # thin force bridge must contribute its actual resistance/loss.
+            # Removing every track-only cell when a pour is present hid valid
+            # mixed trace/pour collectors and actual dangerous necks alike.
+            # Kelvin isolation is checked separately on unchanged native CAD.
 
             try:
                 sol = _solve_net_electrical(
@@ -2056,6 +2262,7 @@ def solve_board_thermal(board_path,
                       f"INSIDE net {net}; {len(_left2)} net(s) skipped "
                       "(field PARTIAL)", file=sys.stderr)
                 _budget_hit = True
+                _budget_phase = "electrical"
                 break
             if via_R is not None:            # back-compat overlap stitch (deprecated)
                 sol = _augment_overlap_stitch(sol, masks, grid, via_R, I, src, sink,
@@ -2066,10 +2273,23 @@ def solve_board_thermal(board_path,
                 continue
             q, maxK, maxJ, tW = _joule_from_solution(
                 sol, grid, width_frac=wfrac_by_layer, oz_by_layer=oz_by_layer)
+            accounting = dict(sol.get('accounting') or {})
+            terminal_W = accounting.get('terminal_work_W', math.nan)
+            residual_W = abs(tW - terminal_W)
+            energy_ok = (math.isfinite(terminal_W) and
+                residual_W <= max(1e-12, abs(terminal_W) * 1e-6) and
+                accounting.get('kirchhoff_relative_residual', math.inf) <= 1e-6)
+            accounting.update(joule_W=float(tW), energy_residual_W=float(residual_W),
+                              energy_conserved=energy_ok)
+            electrical_accounting[net] = accounting
+            if not energy_ok:
+                net_drop_reasons[net] = 'electrical current/energy conservation unproved'
+                continue
             jmaps, jrecords = _current_field_from_solution(
                 sol, grid, width_frac=wfrac_by_layer, oz_by_layer=oz_by_layer,
                 total_current_A=I, net=net)
             total_joule += tW
+            net_copper_joule_W[net] = float(tW)
             per_net_maxK[net] = maxK
             per_net_maxJ[net] = maxJ
             net_layer_current_density[net] = jmaps
@@ -2096,7 +2316,7 @@ def solve_board_thermal(board_path,
                 comp_cell_W[c] = comp_cell_W.get(c, 0.0) + w
             component_W += cw
         if component_power:
-            cp = _component_heat_cells(board, grid, component_power)
+            cp = fixed_component_cells
             for c, w in cp.items():
                 comp_cell_W[c] = comp_cell_W.get(c, 0.0) + w
                 component_W += w
@@ -2111,7 +2331,8 @@ def solve_board_thermal(board_path,
                                mount_cells=mount_cells,
                                g_mount_W_per_K=g_mount_W_per_K, t_chassis=t_chassis,
                                extra_sink_cells=chassis_cells,
-                               g_extra_W_per_K=g_chassis_W_per_K)
+                               g_extra_W_per_K=g_chassis_W_per_K,
+                               additional_h_W_m2K=additional_h_W_m2K)
         except TimeBudgetExceeded:
             # keep the previous pass's field (ambient on pass 0); the result is
             # honestly partial via the stamped drop reasons
@@ -2119,7 +2340,9 @@ def solve_board_thermal(board_path,
                   "temperature solve -- keeping the previous field (PARTIAL)",
                   file=sys.stderr)
             _budget_hit = True
+            _budget_phase = "temperature"
             break
+        _thermal_iterations_completed += 1
         mt = float(T.max())
         if verbose and rho_T:
             print(f"  rho(T) outer it{outer}: max_T={mt:.2f}")
@@ -2128,26 +2351,14 @@ def solve_board_thermal(board_path,
             break
         prev_maxT = mt
 
-    per_net_maxT = {}
-    for net, lm in net_layer_mask.items():
-        anymask = np.zeros((grid.ny, grid.nx), dtype=bool)
-        for std, m in lm.items():
-            anymask |= m
-        if anymask.any():
-            per_net_maxT[net] = float(T[anymask].max())
+    per_net_maxT = _stream_per_net_max_temperature(T, rasters, grid)
 
     loss_W = _total_loss_W(T, grid, ambient, h_eff=h_eff, nonlinear=nonlinear,
-                           c_nat=c_nat, eps_rad=eps_rad)
+                           c_nat=c_nat, eps_rad=eps_rad,
+                           additional_h_W_m2K=additional_h_W_m2K)
 
     # per std-layer copper masks (zones + traces + pads) for the dashboard overlay
-    layer_copper_mask = {}
-    for net, lm in net_layer_mask.items():
-        for std, m in lm.items():
-            acc = layer_copper_mask.get(std)
-            if acc is None:
-                layer_copper_mask[std] = m.copy()
-            else:
-                acc |= m
+    layer_copper_mask = rasters['layer_copper_mask']
 
     layer_current_density = {}
     for _net, by_layer in net_layer_current_density.items():
@@ -2182,8 +2393,33 @@ def solve_board_thermal(board_path,
         layer_current_density=layer_current_density,
         net_layer_current_density=net_layer_current_density,
         copper_joule_density=copper_joule_Q,
+        component_heat_density=Q - copper_joule_Q,
         current_bottlenecks=current_bottlenecks,
         meta={"stackup_oz": stackup_oz, "dielectric_mm": dielectric_mm,
+              "native_copper_graph_policy": "all_actual_same_net_copper_no_value_based_suppression",
+              "sense_copper_stripped": False,
+              # A previous Picard field is useful diagnostic evidence, NOT a
+              # completed solve. In particular a temperature deadline need not
+              # drop any electrical net, so nets_dropped alone cannot prove this.
+              "operation_complete": (not _budget_hit and
+                                     _thermal_iterations_completed > 0),
+              "budget_exhausted": _budget_hit,
+              "budget_phase": _budget_phase,
+              "thermal_iterations_completed": _thermal_iterations_completed,
+              "raster_topology": topology,
+              "copper_raster_retention": rasters['retention'],
+              "numerical_qualification": False,
+              "grid_convergence_verified": False,
+              "electrical_accounting": electrical_accounting,
+              "net_copper_joule_W": net_copper_joule_W,
+              "spatial_heat_evidence": {
+                  "grid_mm": grid_mm,
+                  "copper_integral_W": float(copper_joule_Q.sum() * grid.cell_area_m2),
+                  "component_integral_W": float((Q-copper_joule_Q).sum() * grid.cell_area_m2),
+                  "temperature_max_cell": int(np.argmax(T)),
+                  "copper_W_at_temperature_max_cell": float(copper_joule_Q.ravel()[int(np.argmax(T))] * grid.cell_area_m2),
+                  "component_W_at_temperature_max_cell": float((Q-copper_joule_Q).ravel()[int(np.argmax(T))] * grid.cell_area_m2),
+                  "package_or_contact_temperature_qualified": False},
               "h_eff": h_eff,
               "gnd_inner_layers": list(gnd_inner_layers),
               "inner_3v3_layer": inner_3v3_layer,
@@ -2191,10 +2427,15 @@ def solve_board_thermal(board_path,
               "c_nat": c_nat, "eps_rad": eps_rad, "backend": backend,
               "n_vias": n_vias, "n_pth": n_pth, "n_tracks": n_trk,
               "copper_joule_W": total_joule, "component_W": component_W,
+              "component_injection": component_injection,
+              "component_board_temperature_C": {ref: float(T.ravel()[cells].max())
+                  for ref, cells in component_injection.get("pad_cells_by_ref", {}).items()},
+              "additional_h_W_m2K_range": [float(np.min(additional_h_W_m2K)), float(np.max(additional_h_W_m2K))],
                "include_traces": include_traces, "area_injection": area_injection,
                "ideal_pad_faces": ideal_pad_faces,
               "rho_T": rho_T, "g_mount_W_per_K": g_mount_W_per_K,
-              "net_currents": net_currents})
+              "net_currents": net_currents,
+              "current_binding": current_binding})
     return res
 
 

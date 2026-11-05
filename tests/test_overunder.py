@@ -770,6 +770,31 @@ class TestRectRealization(unittest.TestCase):
 
         self.assertEqual(field.call_args.kwargs["n_needed"], 3)
 
+    def test_rect_realization_uses_zone_clearance_for_pad_screen(self):
+        import cec_slab_pour
+        from cec_slab_pour import realize_overunder_rects
+
+        g = _G(12, 8)
+        bridge = (4, 5, "In2.Cu", "B.Cu", 1.0, 0.0)
+        masks = {"In2.Cu": np.ones((g.ny, g.nx), bool),
+                 "B.Cu": np.ones((g.ny, g.nx), bool)}
+        seat = ((5 + 0.5) * g.cell, (4 + 0.5) * g.cell)
+        with mock.patch.object(
+                cec_slab_pour, "field_via_line",
+                return_value=([seat], 0)) as field:
+            details = []
+            realize_overunder_rects(
+                [[(4, 5, "In2.Cu"), (4, 5, "B.Cu")]], [bridge],
+                {"In2.Cu": 1.6, "B.Cu": 1.6}, g,
+                free_masks=masks, pad_clearance_mm=0.3,
+                via_details_out=details, strict_bridges=True)
+
+        self.assertAlmostEqual(field.call_args.kwargs["pad_halo_mm"], 0.8)
+        self.assertEqual(details[0]["field_index"], 0)
+        self.assertEqual(details[0]["field_kind"], "layer_transition")
+        self.assertEqual(details[0]["from_layer"], "In2.Cu")
+        self.assertEqual(details[0]["to_layer"], "B.Cu")
+
     def test_partial_current_rated_field_is_reseated_as_one_atomic_unit(self):
         import cec_slab_pour
         from cec_slab_pour import realize_overunder_rects

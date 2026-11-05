@@ -10,15 +10,15 @@
 #
 # The discipline under test (all inside cec_fr.synthesize_kelvin_taps, so EVERY caller
 # inherits it -- precision, import_ses, direct):
-#   1. COVERED-LEG SKIP: an IC input pad already contacted by LOCKED same-net copper
-#      (endpoint HitTest at the track's half-width) is the stamped cell's authored tap;
-#      the leg is skipped and reported under 'covered' -- never double-laid.
+#   1. COVERED-LEG SKIP: native transitive contact must reach the matching shunt
+#      from the typed input. An orphan locked stub is not covered; a complete
+#      unlocked leg is. Contact evidence never substitutes for Kelvin isolation.
 #   2. ENDPOINT TOLERANCE: _locked_pad_contact catches an authored tap whose endpoint
 #      sits ON the pad edge (within half a track width), not only dead-center.
 #   3. CANONICAL-OR-REFUSE on locked-copper pairs: no straight-diagonal, no dogleg, no
 #      vbus bridge -- the textbook orthogonal shape or a LOUD named refusal.
-#   4. LEGACY LADDER PRESERVED where the pair's nets carry no locked copper (the eps
-#      golden path): the straight-diagonal fallback and the vbus bridge still lay.
+#   4. Unlocked fallback and Vbus bridges obey the same octilinear and full
+#      foreign-copper checks; no ownership-dependent geometric waiver exists.
 #
 # Container-only (pcbnew).
 import math
@@ -26,6 +26,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
@@ -136,12 +137,36 @@ class _Board:
         r99 = _fp(self.b, "R99", "GND-blocker")
         _pad_smd(r99, "1", self.gnd, 11.68, 6.6, 0.4, 0.4)
 
+    def gnd_canonical_wall(self):
+        """Block every legal package-normal HI run while naming one obstacle."""
+        r99 = _fp(self.b, "R99", "GND-canonical-wall")
+        _pad_smd(r99, "1", self.gnd, 12.0, 8.0, 4.0, 0.4)
+
     def synth(self):
         return cec_fr.synthesize_kelvin_taps(self.b, kelvin_pairs=PAIR)
 
 
 @unittest.skipUnless(HAVE, "needs pcbnew (run in the routing container)")
 class CoveredSkip(unittest.TestCase):
+    def test_different_sense_pad_requires_full_route_clearance(self):
+        """A different sense net is not ordinary foreign copper, but it still
+        must meet the board clearance; overlap-only checking is insufficient."""
+        w = _Board()
+        near_hi = _fp(w.b, "U98", "sense-neighbor")
+        _pad_smd(near_hi, "1", w.hi, 15.0, 10.0, 1.0, 1.0)
+        start = VECTOR2I(MM(13.0), MM(10.70))
+        end = VECTOR2I(MM(17.0), MM(10.70))
+
+        self.assertTrue(cec_fr._tap_pair_overlap_clear(
+            w.b, start, end, MM(0.20), pcbnew.F_Cu,
+            w.lo.GetNetCode(), {w.hi.GetNetCode(), w.lo.GetNetCode()}),
+            "the legacy overlap-only probe sees the 0.10 mm gap")
+        self.assertFalse(cec_fr._tap_pair_overlap_clear(
+            w.b, start, end, MM(0.20), pcbnew.F_Cu,
+            w.lo.GetNetCode(), {w.hi.GetNetCode(), w.lo.GetNetCode()},
+            clearance_nm=MM(0.20)),
+            "precision routing must reject the same sub-rule gap")
+
     def test_known_out_of_range_input_is_named_placement_refusal(self):
         """A router-excluded INA input may never disappear behind a distance filter."""
         w = _Board()
@@ -163,6 +188,13 @@ class CoveredSkip(unittest.TestCase):
                    if row["target_ref"] == "U99"}
         self.assertGreater(details["10"]["required_closer_mm"], 0.0)
         self.assertGreater(details["9"]["required_closer_mm"], 0.0)
+        for row in details.values():
+            self.assertEqual(row['canonical_min_inward_mm'], 0.3)
+            self.assertEqual(len(row['inward_vector']), 2)
+            self.assertEqual(len(row['tap_start_position_mm']), 2)
+            actual = sum((row['target_position_mm'][i]-row['tap_start_position_mm'][i])
+                         * row['inward_vector'][i] for i in (0, 1))
+            self.assertAlmostEqual(row['target_inward_mm'], actual, places=5)
 
     def test_pending_foreign_tap_crossing_is_detected_before_lay(self):
         w = _Board()
@@ -207,8 +239,10 @@ class CoveredSkip(unittest.TestCase):
         """Authored (locked, pad-contacting) taps on both legs -> nothing laid, both
         legs reported covered -- the s464 double-lay class is dead."""
         w = _Board()
-        _trk(w.b, w.hi, (11.68, 6.0), (13.0, 6.0), locked=True)     # ends ON pad 10
-        _trk(w.b, w.lo, (14.32, 13.5), (13.0, 13.5), locked=True)   # ends ON pad 9
+        for a,b in [((10.,10.),(11.68,10.)),((11.68,10.),(11.68,6.)),((11.68,6.),(13.,6.))]:
+            _trk(w.b,w.hi,a,b,locked=True)
+        for a,b in [((16.,10.),(14.32,10.)),((14.32,10.),(14.32,13.5)),((14.32,13.5),(13.,13.5))]:
+            _trk(w.b,w.lo,a,b,locked=True)
         before = _snap(w.b)
         rep = w.synth()
         self.assertEqual(rep["taps"], 0, rep)
@@ -221,7 +255,8 @@ class CoveredSkip(unittest.TestCase):
         """Per-LEG grain: HI covered, LO not -> only the LO leg is laid (canonical --
         the pair is in locked mode via the covering track itself)."""
         w = _Board()
-        _trk(w.b, w.hi, (11.68, 6.0), (13.0, 6.0), locked=True)     # HI covered
+        for a,b in [((10.,10.),(11.68,10.)),((11.68,10.),(11.68,6.)),((11.68,6.),(13.,6.))]:
+            _trk(w.b,w.hi,a,b,locked=True)
         before = _snap(w.b)
         rep = w.synth()
         new = _snap(w.b) - before
@@ -240,6 +275,8 @@ class EndpointTolerance(unittest.TestCase):
         OFF the pad -- inside the half-width (0.2) tolerance -> covered."""
         w = _Board()
         t = _trk(w.b, w.hi, (13.0, 9.0), (13.0, 6.55), wmm=0.4, locked=True)
+        _trk(w.b,w.hi,(10.,10.),(13.,10.),wmm=.4,locked=True)
+        _trk(w.b,w.hi,(13.,10.),(13.,9.),wmm=.4,locked=True)
         self.assertTrue(cec_fr._locked_pad_contact(w.b, w.p10))
         rep = w.synth()
         self.assertTrue(rep.get("covered", {}).get(HI),
@@ -252,6 +289,42 @@ class EndpointTolerance(unittest.TestCase):
         w = _Board()
         _trk(w.b, w.hi, (11.68, 6.0), (13.0, 6.0), locked=False)
         self.assertFalse(cec_fr._locked_pad_contact(w.b, w.p10))
+
+    def test_orphan_locked_input_stub_is_not_completed_shunt_coverage(self):
+        w=_Board()
+        _trk(w.b,w.hi,(11.68,6.),(13.,6.),locked=True)
+        self.assertTrue(cec_fr._locked_pad_contact(w.b,w.p10))
+        rep=w.synth()
+        self.assertFalse(rep.get('covered',{}).get(HI),rep)
+        row=next(r for r in rep['native_coverage'] if r['net']==HI)
+        self.assertTrue(row['locked_input_stub_present'])
+        self.assertFalse(row['connected'])
+        self.assertFalse(row['kelvin_isolation_qualified'])
+
+    def test_unlocked_complete_native_leg_does_not_get_duplicate_tap(self):
+        w=_Board()
+        for a,b in [((10.,10.),(11.68,10.)),((11.68,10.),(11.68,6.)),((11.68,6.),(13.,6.))]:
+            _trk(w.b,w.hi,a,b,locked=False)
+        before=_snap(w.b);rep=w.synth()
+        self.assertTrue(rep.get('covered',{}).get(HI),rep)
+        self.assertFalse(any(s[4]==HI for s in _snap(w.b)-before))
+
+    def test_blocked_early_route_does_not_starve_later_source_coverage(self):
+        w=_Board();w.locked_trunk()
+        for a,b in [((16.,10.),(14.32,10.)),((14.32,10.),(14.32,13.5)),((14.32,13.5),(13.,13.5))]:
+            _trk(w.b,w.lo,a,b,locked=True)
+        clock=[0.]
+        def blocked(*args,**kwargs):
+            clock[0]=20.  # The first route has spent more than the contact budget.
+            return False
+        with patch.object(cec_fr.time,'monotonic',side_effect=lambda:clock[0]), \
+                patch.object(cec_fr,'_tap_candidate_clear',side_effect=blocked):
+            rep=w.synth()
+        self.assertTrue(rep.get('covered',{}).get(LO),rep)
+        self.assertTrue(rep['refused'].get(HI),rep)
+        self.assertTrue(all(r['connected'] is not None for r in rep['native_coverage']),rep)
+        self.assertFalse(any('NATIVE-COVERAGE-UNKNOWN' in detail
+            for values in rep['refused'].values() for detail in values),rep)
 
 
 @unittest.skipUnless(HAVE, "needs pcbnew (run in the routing container)")
@@ -270,6 +343,69 @@ class CanonicalOrRefuse(unittest.TestCase):
         labels = [x for v in rep["by_net"].values() for x in v]
         self.assertTrue(all("(canonical)" in x for x in labels), labels)
 
+    def test_locked_mode_tries_bounded_canonical_run_variants(self):
+        """A blocked 0.9 mm lane may use another package-normal run length.
+
+        This remains the same three-leg textbook topology; it is not permission
+        to use the unrestricted dogleg/diagonal fallback on stamped cells.
+        """
+        w = _Board()
+        w.locked_trunk()
+        w.gnd_blocker()
+        before = _snap(w.b)
+        rep = w.synth()
+        new = _snap(w.b) - before
+        hi = [segment for segment in new if segment[4] == HI]
+        self.assertTrue(hi, rep)
+        self.assertTrue(all(_is_ortho(segment) for segment in hi), hi)
+        self.assertFalse(rep["refused"].get(HI), rep)
+
+    def test_edge_input_uses_guarded_interrow_package_channel(self):
+        """An edge input may escape between pad rows instead of crossing GND.
+
+        Compact current-sense amplifiers can put the desired input beside a
+        foreign ground land.  Walking straight across the input row is
+        impossible even though a legal orthogonal channel exists between the
+        two pad rows.  The channel is derived from real package copper and is
+        still qualified by the ordinary exact-collision guards.
+        """
+        b = pcbnew.CreateEmptyBoard()
+        lo = pcbnew.NETINFO_ITEM(b, LO, 1)
+        b.Add(lo)
+        hi = pcbnew.NETINFO_ITEM(b, HI, 2)
+        b.Add(hi)
+        gnd = pcbnew.NETINFO_ITEM(b, "GND", 3)
+        b.Add(gnd)
+        vcc = pcbnew.NETINFO_ITEM(b, "+3V3", 4)
+        b.Add(vcc)
+        ina = _fp(b, "U30", "INA181")
+        ina.SetPosition(VECTOR2I(MM(14.0), MM(13.0)))
+        target = _pad_smd(ina, "4", lo, 14.95, 11.8625,
+                          0.6, 1.325)
+        _pad_smd(ina, "5", gnd, 14.0, 11.8625, 0.6, 1.325)
+        _pad_smd(ina, "6", vcc, 13.05, 11.8625, 0.6, 1.325)
+        _pad_smd(ina, "3", hi, 14.95, 14.1375, 0.6, 1.325)
+        _pad_smd(ina, "2", gnd, 14.0, 14.1375, 0.6, 1.325)
+        _pad_smd(ina, "1", vcc, 13.05, 14.1375, 0.6, 1.325)
+        start = VECTOR2I(MM(10.0), MM(10.53))
+        paths = cec_fr._canonical_pad_escape_tap_paths(
+            start, target.GetPosition(), 0.0, 1.0, target, ina,
+            width_mm=0.25, clearance_mm=0.2, gap_mm=2.0)
+        clear = [path for path in paths
+                 if all(cec_fr._tap_foreign_clear(
+                     b, a, z, MM(0.25), pcbnew.F_Cu, MM(0.2),
+                     {lo.GetNetCode(), hi.GetNetCode()})
+                     for a, z in zip(path, path[1:]))]
+
+        self.assertTrue(clear, "the measured inter-row portal must be usable")
+        self.assertTrue(all(_is_ortho((
+            a.x / 1e6, a.y / 1e6, z.x / 1e6, z.y / 1e6, LO))
+                            for path in clear
+                            for a, z in zip(path, path[1:])))
+        self.assertTrue(any(any(abs(point.y / 1e6 - 13.0) < 1e-6
+                                    for point in path)
+                            for path in clear), clear)
+
     def test_locked_mode_suppresses_vbus_bridge(self):
         w = _Board()
         w.locked_trunk()
@@ -287,7 +423,7 @@ class CanonicalOrRefuse(unittest.TestCase):
         REFUSES with the blocker NAMED and lays nothing on that net."""
         w = _Board()
         w.locked_trunk()
-        w.gnd_blocker()
+        w.gnd_canonical_wall()
         before = _snap(w.b)
         rep = w.synth()
         new = _snap(w.b) - before
@@ -310,20 +446,20 @@ class CanonicalOrRefuse(unittest.TestCase):
         self.assertEqual(blocker["path_kind"], "canonical")
         self.assertEqual(len(blocker["leg_start_mm"]), 2)
 
-    def test_legacy_board_keeps_the_fallback_ladder(self):
-        """Same blocked-canonical geometry WITHOUT locked copper (the eps golden
-        path): the straight-diagonal fallback still lays and the vbus bridge still
-        lays -- golden behavior preserved by the locked-copper gate."""
+    def test_unlocked_board_prefers_package_escape_and_retains_vbus_bridge(self):
+        """Track ownership must not exclude a legal orthogonal package approach.
+
+        The legacy bridge is retained, but a diagonal is no longer required
+        when the same guarded package escape available to locked cells fits.
+        """
         w = _Board()
         w.gnd_blocker()
         before = _snap(w.b)
         rep = w.synth()
         new = _snap(w.b) - before
-        diag_hi = [s for s in new if s[4] == HI and not _is_ortho(s)]
-        self.assertTrue(diag_hi, "legacy mode must still lay the straight fallback "
-                                 "(diagonal): %s" % sorted(new))
-        self.assertAlmostEqual(_angle_deg(diag_hi[0]) % 90.0,
-                               _angle_deg(diag_hi[0]) % 90.0)  # smoke: angle computes
+        hi = [s for s in new if s[4] == HI]
+        self.assertTrue(hi, rep)
+        self.assertTrue(all(_is_ortho(s) for s in hi), hi)
         on_p8 = [s for s in new
                  if w.p8.HitTest(VECTOR2I(MM(s[0]), MM(s[1])))
                  or w.p8.HitTest(VECTOR2I(MM(s[2]), MM(s[3])))]

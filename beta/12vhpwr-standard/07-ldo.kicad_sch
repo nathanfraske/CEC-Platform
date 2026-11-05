@@ -680,6 +680,7 @@
 		(property "MPN" "CL10A106MA8NRNC" (at 121.92 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C96446" (at 121.92 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "LDO input capacitor, 10uF X5R 25V" (at 121.92 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U16.6" (at 121.92 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "fcff7144-a6e0-4fc0-8ad8-c5513f122bc9"))
 		(pin "2" (uuid "f1ae981d-3af8-49e0-b3ff-79a672a99ca7"))
 		(instances
@@ -706,6 +707,7 @@
 		(property "MPN" "CL10B105KA8NNNC" (at 185.42 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C29936" (at 185.42 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "LDO local output capacitor, 1uF X7R 25V" (at 185.42 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U16.1" (at 185.42 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "9834f7e7-0599-44b3-aea6-2bade9573a29"))
 		(pin "2" (uuid "b3e968ad-45ab-48a5-b1a3-0cb8f39eaaad"))
 		(instances

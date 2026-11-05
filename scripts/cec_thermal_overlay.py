@@ -150,15 +150,14 @@ def board_thermal_config(board_path, board_hint=None):
     (out, not J_IN/J_OUT), and a 2oz-outer / 1oz-dual-inner-GND stackup (owner, 2026-06-20). Current = the
     balanced 600W connector case: 50A / 6 pins = 8.33 A/pin, 50A GND return.
 
-    `cooling` (or None) is the PRODUCTION case-cooling model the owner validated 2026-06-20: the dashboard's
-    default still-air + adiabatic-edge boundary gave a misleadingly hot dT99/maxT149 for 12VHPWR; with the
-    real production enclosure -- a full metal case, TIM from the RS1-6 shunts to the case, and the M3 mounts
-    coupled to the case -- the solver lands at dT~24 / maxT~74 = PASS (same PASS regime as the owner's
-    ~14C/64C hand calc, both well under the 30C gate; the 2.5D solver runs ~9C hotter on dT than that
-    lumped estimate -- not an exact match). cooling = {shunt_prefix, g_chassis_W_per_K (per-shunt TIM), g_mount_W_per_K (per M3 mount), label}.
-    Conservative-TIM / mount-only / still-air bounds are reachable via the CEC_THERMAL_* env knobs in
-    render_per_layer. Scoped to 12VHPWR only -- the EPS/PCIe cable boards keep still-air pending owner
-    sign-off on whether they share the same enclosure model (FOLLOWUPS)."""
+    `cooling` retains a historical metal-case/TIM assumption for explicit
+    sensitivity experiments only. _solve_thermal does NOT apply it by default:
+    enclosure geometry and measured contact conductance have not been qualified
+    against the current artifact. Earlier cool-copper results without the full
+    component inventory are not component-temperature qualification evidence.
+    The returned keys describe shunt/mount conductances in W/K, not fan airflow.
+    These topology/current tables remain legacy configuration, not a general
+    load-derivation engine."""
     # CEC_THERMAL_BOARD_HINT (2026-07-19, closes the FOLLOWUPS 2026-07-11 keying gap):
     # wave variants (plain-dataflow-s1.kicad_pcb) and renamed dashboard archives never
     # carry the board name in their basename, so this config silently missed and the
@@ -206,6 +205,23 @@ def board_thermal_config(board_path, board_hint=None):
         }
         return nc, {"F.Cu": 2.0, "In1.Cu": 1.0,
                     "In2.Cu": 1.0, "B.Cu": 2.0}, ov, None
+    if "pcie-8pin-2port" in name or "pcie-8pin-3port" in name:
+        # The current beta PCIe modules share one service-USB power cell:
+        # reversible USB-C bank -> 750 mA PTC -> ferrite -> TPS2121 IN2.
+        # These are explicit source/sink contracts, not a net-name guess.  A
+        # stale pre-mux board is consequently incomplete and cannot be waved
+        # into a fabrication candidate simply because its ratlines close.
+        board_nets = _board_net_names(board_path)
+        vbus_j5 = _resolve_hierarchical_net("/VBUS_J5", board_nets)
+        vbus_f = _resolve_hierarchical_net("/VBUS_F", board_nets)
+        vbus = _resolve_hierarchical_net("/VBUS", board_nets)
+        nc = {vbus_j5: 0.75, vbus_f: 0.75, vbus: 0.75}
+        ov = {
+            vbus_j5: {"refs_src": ["J5"], "refs_sink": ["F1"]},
+            vbus_f: {"refs_src": ["F1"], "refs_sink": ["FB1"]},
+            vbus: {"refs_src": ["FB1"], "refs_sink": ["U4"]},
+        }
+        return nc, profile_stackup, ov, None
     if "12vhpwr" in name or "12v2x6" in name:
         nc, ov = {}, {}
         # The current BETA sheet renamed lane 6's pre-shunt node to /FAN_12V
@@ -218,10 +234,23 @@ def board_thermal_config(board_path, board_hint=None):
             hi = "/FAN_12V" if n == 6 and "/FAN_12V" in board_nets else "/SENSEP%d_HI" % n
             nc[hi] = 8.33
             nc["/SENSEP%d_LO" % n] = 8.33
-            ov[hi] = {"refs_src": ["J3"], "refs_sink": ["RS%d" % n]}
+            ov[hi] = {"refs_src": ["J3"], "refs_sink": ["RS%d" % n],
+                      "design_current_net": "/SENSEP%d_HI" % n}
             ov["/SENSEP%d_LO" % n] = {"refs_src": ["RS%d" % n], "refs_sink": ["J4"]}
         nc["GND"] = 50.0
         ov["GND"] = {"refs_src": ["J4"], "refs_sink": ["J3"]}
+        # Same fused service-USB cell as the PCIe modules, with the board's
+        # own refdes and raw-net names.  Keep it inside this board authority so
+        # high-current lane and auxiliary-power proofs are evaluated together.
+        vbus_raw = _resolve_hierarchical_net("/VBUS_RAW", board_nets)
+        vbus_f = _resolve_hierarchical_net("/VBUS_F", board_nets)
+        vbus = _resolve_hierarchical_net("/VBUS", board_nets)
+        nc.update({vbus_raw: 0.75, vbus_f: 0.75, vbus: 0.75})
+        ov.update({
+            vbus_raw: {"refs_src": ["J5"], "refs_sink": ["F1"]},
+            vbus_f: {"refs_src": ["F1"], "refs_sink": ["FB1"]},
+            vbus: {"refs_src": ["FB1"], "refs_sink": ["U5"]},
+        })
         cooling = {"shunt_prefix": "RS", "g_chassis_W_per_K": 0.3, "g_mount_W_per_K": 0.5,
                    "label": "production: metal case (TIM on RS shunts + M3 mounts)"}
         return nc, profile_stackup, ov, cooling
@@ -245,7 +274,8 @@ def board_thermal_config(board_path, board_hint=None):
         # Sink = the WHOLE TB blade row, not TB1 (2026-07-22, found by the injection
         # accounting): the wave's straight-through pass chooses the TB net order PER
         # CANDIDATE, so a rail's blade is not always TB1 -- pad lookups are net-scoped,
-        # so listing every TB ref is safe (only same-net blades match). GND previously
+        # so listing every TB ref is safe when it is explicitly declared as a
+        # candidate bank (only same-net blades match). GND previously
         # had NO override at all -> fell to the J_IN/J_OUT default (absent on this
         # board) -> the 62A return path never injected on ANY 24-pin solve.
         tb_all = ["TB%d" % i for i in range(1, 11)]
@@ -254,8 +284,10 @@ def board_thermal_config(board_path, board_hint=None):
                            ("/SENSE3V3_HI", "/SENSE3V3_LO", "RS3"),
                            ("+5VSB", "/SENSE5VSB_LO", "RS4")):
             ov[hi] = {"refs_src": ["J3"], "refs_sink": [rs]}
-            ov[lo] = {"refs_src": [rs], "refs_sink": tb_all}
-        ov["GND"] = {"refs_src": tb_all, "refs_sink": ["J3"]}
+            ov[lo] = {"refs_src": [rs],
+                      "refs_sink_candidates": tb_all}
+        ov["GND"] = {"refs_src_candidates": tb_all,
+                     "refs_sink": ["J3"]}
         return nc, profile_stackup, ov, None
     if "hub-standard" in name or "hub" in name.split("-")[0:1]:
         # The Hub has no J_IN/J_OUT or *_HI cable anatomy, so it needs an
@@ -493,7 +525,8 @@ def _prepare_filled(board_path, *, return_provenance=False):
 
         for zone in board.Zones():
             zone.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         _assert_geometry_parity(source_manifest, _declared_copper_manifest(board))
 
         # One bounded, overwritten cache entry per process/thread avoids both
@@ -546,16 +579,27 @@ def _prepare_filled(board_path, *, return_provenance=False):
 
 def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
                    grid_mm=0.3, h_eff=15.0, src_sink_override=None,
-                   time_budget_s=None, backend="auto", board_hint=None):
+                   time_budget_s=None, backend="auto", board_hint=None,
+                   additional_h_W_m2K=0.0, case_cooling=False):
     """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
-    render_thermal_detail). Reads the per-board config, fills source-declared zones, applies
-    the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
-    overrides), and runs the 2.5D field solver. Returns (res, filled_board_path, cool_label).
+    render_thermal_detail). Verifies the current source heat contract, fills only
+    source-declared zones, and runs the 2.5D board-field solver. No case-cooling
+    credit is taken unless explicitly requested; incremental convection is an
+    unqualified sensitivity, not inferred fan performance. Returns
+    (res, filled_board_path, cool_label). This does not solve package junction T.
     Factored out so the per-layer raster and the full-detail copper map solve ONCE and share
     the exact same field (no double solve, no drift between the two views)."""
     import pcbnew
+    import cec_thermal_contract
     cfg_nc, cfg_stack, cfg_ov, cfg_cool = board_thermal_config(
         board_path, board_hint=board_hint)   # read BEFORE _prepare_filled renames
+    heat = cec_thermal_contract.from_board(board_path,
+        board_hint=board_hint or os.environ.get("CEC_THERMAL_BOARD_HINT"),
+        transport_currents=currents if currents is not None else cfg_nc,
+        transport_endpoints=src_sink_override if src_sink_override is not None else cfg_ov)
+    if not heat["mapping_ok"]:
+        raise ValueError("thermal source/artifact mapping incomplete: %s" % heat["mapping_issues"])
+    air = cec_thermal_contract.cooling_case(additional_h_W_m2K)
     dielectric = board_dielectric_config(board_path, board_hint=board_hint)
     profile_name = board_fab_profile(board_path, board_hint=board_hint)
     board_path, geometry = _prepare_filled(board_path, return_provenance=True)
@@ -567,7 +611,7 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
         src_sink_override = cfg_ov                        # 12VHPWR -> J3/J4 lanes; cable boards -> auto J_IN/J_OUT
 
     cool_kw, cool_label = {}, "still-air (no case)"
-    if cfg_cool and os.environ.get("CEC_THERMAL_NO_COOLING", "") not in ("1", "true", "True"):
+    if case_cooling and cfg_cool and os.environ.get("CEC_THERMAL_NO_COOLING", "") not in ("1", "true", "True"):
         g_tim = float(os.environ.get("CEC_THERMAL_TIM_WK", cfg_cool["g_chassis_W_per_K"]))
         g_mnt = float(os.environ.get("CEC_THERMAL_MOUNT_WK", cfg_cool["g_mount_W_per_K"]))
         pre = cfg_cool.get("shunt_prefix", "RS").upper()
@@ -588,11 +632,18 @@ def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
         ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
         src_sink_override=src_sink_override, time_budget_s=time_budget_s,
         dielectric_mm=dielectric,
+        component_power=heat["component_power_W"],
+        shunt_R_ohm=heat.get("shunt_resistance_ohm"),
+        additional_h_W_m2K=air["additional_h_W_m2K"],
         backend=backend,
         gnd_inner_layers=(("In1.Cu", "In4.Cu") if profile_name else
                           ("In1.Cu", "In2.Cu")),
         **cool_kw)
     res.meta.update(geometry)
+    res.meta["component_heat_contract"] = heat
+    res.meta["air_cooling_case"] = air
+    res.meta["component_temperature_qualified"] = False
+    cool_label += " | " + air["label"] + " | component heat included; board-field screening"
     return res, board_path, cool_label
 
 
@@ -611,6 +662,11 @@ def _pil_font(sz, bold=True):
             return ImageFont.truetype("DejaVuSans.ttf", sz)
         except Exception:                                    # noqa: BLE001
             return ImageFont.load_default()
+
+
+def _thermal_copper_layers(board):
+    """The diagnostic cannot silently truncate a six-layer solve to four layers."""
+    return tuple(board.GetEnabledLayers().CuStack())
 
 
 def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no case)",
@@ -684,7 +740,7 @@ def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no cas
     def Xs(x): return (x / 1e6 - minx) * scale
     def Ys(y): return (y / 1e6 - miny) * scale
 
-    CU = [pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu]
+    CU = _thermal_copper_layers(b)
     masks = {lid: Image.new("L", (bw, bh), 0) for lid in CU}
     md = {lid: ImageDraw.Draw(masks[lid]) for lid in CU}
 
@@ -801,7 +857,7 @@ def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no cas
 
     # ---- title / verdict
     dt = res.max_T - res.ambient
-    verdict = "PASS" if dt <= gate_dt else "FAIL"
+    verdict, _incomplete = _blend_thermal_verdict(res, gate_dt)
     vcol = (165, 214, 167) if verdict == "PASS" else (239, 154, 154)
     g.text((14, 9), title or os.path.basename(out_png), fill=(236, 239, 241), font=_pil_font(22))
     g.text((14, 42),
@@ -885,12 +941,42 @@ _BLEND_LTINT = {"F.Cu": (255, 138, 120), "In1.Cu": (150, 238, 175),  # soft per-
                 "In4.Cu": (132, 232, 224), "B.Cu": (130, 182, 255)}
 
 
+def _thermal_operation_report(res):
+    """Require explicit completion; a retained field or legacy cache is not proof.
+
+    This certifies only completion of the field operation, not numerical
+    convergence, component junction temperature, cooling or manufacturing.
+    Electrical injection and temperature-solve completion remain distinct.
+    """
+    meta = getattr(res, "meta", None) or {}
+    reported = meta.get("operation_complete")
+    budget = meta.get("budget_exhausted")
+    iterations = meta.get("thermal_iterations_completed")
+    if budget is True:
+        refusal = "thermal field operation exceeded its time budget"
+    elif reported is not True or budget is not False:
+        refusal = "thermal field operation completion is missing or unproven"
+    elif type(iterations) is not int or iterations < 1:
+        refusal = "no completed temperature iteration is proven"
+    else:
+        refusal = None
+    return {"operation_complete": refusal is None,
+            "budget_exhausted": budget if type(budget) is bool else None,
+            "thermal_iterations_completed": (
+                iterations if type(iterations) is int and iterations >= 0 else None),
+            "operation_refusal": refusal,
+            "current_injection_complete": not bool(
+                (getattr(res, "nets_dropped", None) or {})
+                or (getattr(res, "nets_absent", None) or {}))}
+
+
 def _blend_thermal_verdict(res, gate_dt):
-    """Fail the rendered verdict closed when requested current was not injected."""
+    """Fail partial, unproven or unpowered cool-field stamps closed."""
     dt = res.max_T - res.ambient
-    incomplete = bool((getattr(res, "nets_dropped", None) or {})
-                      or (getattr(res, "nets_absent", None) or {}))
-    return ("PASS" if dt <= gate_dt and not incomplete else "FAIL"), incomplete
+    operation = _thermal_operation_report(res)
+    incomplete = (not operation["operation_complete"]
+                  or not operation["current_injection_complete"])
+    return ("PASS" if 0.05 < dt <= gate_dt and not incomplete else "FAIL"), incomplete
 
 
 def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
@@ -1245,7 +1331,7 @@ def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
         g.text((14 * ss, 44 * ss),
                "colour = local copper temperature (turbo)   ·   peak %.1f°C   dT %.1f°C (gate %d)   [%s]%s   %s"
                % (res.max_T, dt, gate_dt, verdict,
-                  "  INJECTION INCOMPLETE" if injection_incomplete else "", cool_label),
+                  "  FIELD INCOMPLETE" if injection_incomplete else "", cool_label),
                fill=vcol, font=_pil_font(15 * ss, False))
         g.text((14 * ss, 68 * ss),
                "smooth field base + %d copper layers drawn translucent & stacked (overlaps show through)   ·   "
@@ -1347,10 +1433,12 @@ def render_detail_blend(board_path, out_png, mode="thermal", currents=None, stac
     _draw_detail_blend(fpath, res, out_png, mode=mode, currents=leg_cur, cool_label=cool_label,
                        gate_dt=gate_dt, cmap_name=cmap_name, final_board_w=final_board_w,
                        title=os.path.basename(board_path))
-    dt_pass = (res.max_T - res.ambient) <= gate_dt
+    verdict, incomplete = _blend_thermal_verdict(res, gate_dt)
     out = {
         "ok": True, "mode": mode, "max_T": round(res.max_T, 2), "ambient": res.ambient,
-        "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
+        "dT": round(res.max_T - res.ambient, 2), "verdict": verdict,
+        **_thermal_operation_report(res),
+        "component_temperature_qualified": False,
         "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
         "geometry_source": res.meta.get("geometry_source"),
         "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
@@ -1374,10 +1462,12 @@ def render_thermal_detail(board_path, out_png, currents=None, stackup=None,
                                             src_sink_override=src_sink_override)
     _draw_detail_blend(fpath, res, out_png, mode="thermal", cool_label=cool_label, gate_dt=gate_dt,
                        cmap_name=cmap_name, title=os.path.basename(board_path))
-    dt_pass = (res.max_T - res.ambient) <= gate_dt
+    verdict, incomplete = _blend_thermal_verdict(res, gate_dt)
     return {
         "ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
-        "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
+        "dT": round(res.max_T - res.ambient, 2), "verdict": verdict,
+        **_thermal_operation_report(res),
+        "component_temperature_qualified": False,
         "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
         "geometry_source": res.meta.get("geometry_source"),
         "source_geometry_sha256": res.meta.get("source_geometry_sha256"),
@@ -1462,8 +1552,7 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
     # under 100). The displayed verdict is therefore the BULK-TEMPERATURE gate only; maxJ is shown for
     # reference, flagged as a local mesh value.
     maxJ = max(res.per_net_maxJ.values()) if res.per_net_maxJ else 0.0
-    dt_pass = (res.max_T - res.ambient) <= gate_dt
-    verdict = "PASS" if dt_pass else "FAIL"
+    verdict, _incomplete = _blend_thermal_verdict(res, gate_dt)
     vcol = "#a5d6a7" if verdict == "PASS" else "#ef9a9a"
     ax.set_title(
         f"electro-thermal overlay   max_T={res.max_T:.1f} C  "
@@ -1776,10 +1865,12 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     except Exception:                                        # noqa: BLE001
         current_name = None
 
-    dt_pass = (res.max_T - res.ambient) <= gate_dt
+    verdict, incomplete = _blend_thermal_verdict(res, gate_dt)
     return {
         "ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
-        "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
+        "dT": round(res.max_T - res.ambient, 2), "verdict": verdict,
+        **_thermal_operation_report(res),
+        "component_temperature_qualified": False,
         "cooling": cool_label,
         "grid_mm": res.grid_mm, "vmin": round(vmin, 1), "vmax": round(vmax, 1),
         "per_layer_maxT": per_layer_maxT,

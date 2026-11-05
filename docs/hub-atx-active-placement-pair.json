@@ -1,0 +1,13 @@
+{
+  "carrier": {
+    "path": "build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.kicad_pcb",
+    "sha256": "5f5c3d2a2af6b81d2f9bb0fff5e85bb08e36b966c52b0728f95f46b50c066820"
+  },
+  "cover": {
+    "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_pcb",
+    "sha256": "75029cafc3e60c1ebd1bbbc37143103e4d26e5dd6de15290a33d74fc52dac2f1"
+  },
+  "schema": 1,
+  "release_accepted": false,
+  "qualification": "placement-envelopes-under-declared-acceptance-bounds"
+}

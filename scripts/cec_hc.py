@@ -523,7 +523,8 @@ def _fill_only(path):
     board.BuildConnectivity()
     for z in board.Zones():
         z.UnFill()
-    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    import cec_zone_fill
+    cec_zone_fill.fill(board)
     pcbnew.SaveBoard(path, board)
 
 

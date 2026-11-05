@@ -41,6 +41,12 @@ def violation(kind, *uuids):
 
 
 class RouteImportSanitationTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch("cec_copper_echo.remove_exact_echoes", return_value={
+            "removed": [], "removed_count": 0})
+        self.echo = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _paths(self, directory):
         baseline = os.path.join(directory, "baseline.kicad_pcb")
         candidate = os.path.join(directory, "candidate.kicad_pcb")

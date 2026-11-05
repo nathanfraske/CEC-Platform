@@ -1,5 +1,10 @@
 # Current Beta Standard schematic and component-coherence audit
 
+> Historical August audit. The live source snapshot is now the
+> [November 4 source audit](standard-main-source-audit-2026-11-04.md), pinned by
+> `standard-main-source-audit-current.json`. The following status and findings
+> describe the August snapshot, not current fabrication readiness.
+
 **Status: no source-level electrical blockers -- regenerated from current
 source on 2026-08-12. Qualification warnings remain open. PCB fabrication
 readiness is deliberately not evaluated.**

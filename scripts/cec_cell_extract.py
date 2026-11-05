@@ -413,7 +413,8 @@ def net_map_for_index(template, index):
 
 
 def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None,
-          lay_tracks=False, lay=False, apply=False, clearance_mm=None):
+          lay_tracks=False, lay=False, apply=False, clearance_mm=None,
+          preserved_nets=()):
     """Affine-place `template` at a new anchor (at_mm, rot), remapping refs
     via `ref_map` (template ref -> destination ref) and net roles via
     `net_map` (role -> destination literal net name; any role NOT given falls
@@ -496,7 +497,19 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None,
                     "layers": v["layers"],
                 }
             )
-        copper = {"tracks": tracks, "vias": v_out}
+        # Frozen conductors already exist on the destination board. Generate
+        # only mutable nets; never duplicate or reshape the retained prefix.
+        frozen = set(preserved_nets or ())
+        if frozen and board is not None:
+            names = tuple(str(name) for name in board.GetNetInfo().NetsByName())
+            for row in tracks + v_out:
+                row["net"] = _unique_board_netname(row["net"], names) or row["net"]
+        skipped = sum(row["net"] in frozen for row in tracks + v_out)
+        copper = {"tracks": [row for row in tracks if row["net"] not in frozen],
+                  "vias": [row for row in v_out if row["net"] not in frozen]}
+        if frozen:
+            copper["preserved_nets"] = sorted(frozen)
+            copper["excluded_from_regeneration"] = skipped
 
     if apply:
         if board is None:

@@ -1,0 +1,501 @@
+{
+  "schema": 2,
+  "release_accepted": false,
+  "routing_admitted": false,
+  "automatic_promotion": false,
+  "use": "Paired 3D checked source seeds for replacement placement; keep assembly policy and hash-pinned peer",
+  "paired_evidence": "build/hub-atx-3d-placement-20260922/paired-validation.json",
+  "rows": [
+    {
+      "board": "atx-24pin-rev3",
+      "input": "/home/codex/src/CEC-Platform/build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.kicad_pcb",
+      "input_sha256": "5f5c3d2a2af6b81d2f9bb0fff5e85bb08e36b966c52b0728f95f46b50c066820",
+      "derived": true,
+      "source_signature": {
+        "sha256": "63de0cb8ff6d3d37436026e968b0e635733b825c704bfd18f881401de963e656",
+        "files": [
+          {
+            "path": "beta/assembly/hub-atx-stack.json",
+            "size": 5671,
+            "sha256": "e62fa210ada4fe59a55b586f0bec5b564273a62a64856ffab8cce30eaf8c5676"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/01-atx-power-control.kicad_sch",
+            "size": 132272,
+            "sha256": "9a904b1803d6a10048ba90462b5ba1eb2e6a305489116144ef08a22dcded02f7"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/02-power-usb.kicad_sch",
+            "size": 159475,
+            "sha256": "aaa83033edf2fbb5cc08c271088978ea375c18b0c6e25bb39dd9d519467ba55a"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/03-regulator-mcu.kicad_sch",
+            "size": 96589,
+            "sha256": "28c28d6a82974ff5b3ebf161d0a3f30267439c0472d4c4576f93b1610d4dd06e"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/04-hub-can-stack.kicad_sch",
+            "size": 81274,
+            "sha256": "95fdfe7aac8526a04d3310f1730a49ae1848bcc1b06164ae48f6bc99a843ba7f"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/05-rail-sensing.kicad_sch",
+            "size": 124607,
+            "sha256": "483d1c7b776e9d053c568d30de96346133dd3185bbd7e08a007d973ca946931a"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/24pin-module.kicad_pro",
+            "size": 19850,
+            "sha256": "c94a940795fb19dced859fc5a22a1e893e37000d26efacdec77744b59367cd15"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/24pin-module.kicad_sch",
+            "size": 23892,
+            "sha256": "22464a3f45681ea71952e31efc4b217c0bd4f695b00d290bf466cb64d46dbc25"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/blueprints/sense-rail-v1.json",
+            "size": 4266,
+            "sha256": "7bb43534cc88ab8fd672a46ca4f89fc3ee93fcfc9318429c6b469615fff24e12"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/bom/24pin-module-BOM-jlcpcb.csv",
+            "size": 3608,
+            "sha256": "444134e42f6ecde59bf8d9a6863672d4f335de382b2969759df8a1d0da3fa2f0"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/bom/atx-hub-stack-hardware.csv",
+            "size": 817,
+            "sha256": "65622a0499cfa97013ce62b635d2cb813f8f03e095c4e5c7f0c4c43b4fb48b44"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/bom/bom.csv",
+            "size": 11882,
+            "sha256": "7efd6f364a74e5260e89bd0577ce05ac7330049aa318eb94527e83c78896134c"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/fp-lib-table",
+            "size": 3687,
+            "sha256": "cf3bf8d37b2bb8fa7454f5840910f4e2af4a0d190746edb74301f7226905df13"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/pipeline-policy.json",
+            "size": 1762,
+            "sha256": "f31f6216960ca1fc2a2acbd77cbe0310958c7e305e8ce6d35edad4f4a20c93f9"
+          },
+          {
+            "path": "beta/atx-24pin-rev3/sym-lib-table",
+            "size": 678,
+            "sha256": "d58b5cc62ba786d1f31f1a1b36c1245aa42bc9f35c36a0d27187ae7721ab495f"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.interface-eco.json",
+            "size": 733,
+            "sha256": "6800a5405ccf8fc66ff5c40c711fd0467986e016a2c2d22b2a6a07ca9a26a987"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.kicad_pcb",
+            "size": 648598,
+            "sha256": "5f5c3d2a2af6b81d2f9bb0fff5e85bb08e36b966c52b0728f95f46b50c066820"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.kicad_pro",
+            "size": 9599,
+            "sha256": "2f9d4b039e1d334ef98abf5ea6af5a18f1c4409e771f9e407430aa93a1572162"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_pcb",
+            "size": 553387,
+            "sha256": "75029cafc3e60c1ebd1bbbc37143103e4d26e5dd6de15290a33d74fc52dac2f1"
+          },
+          {
+            "path": "docs/hub-atx-active-placement-pair.json",
+            "size": 482,
+            "sha256": "dfbeccb8eca4331c53c92c95b77d82dea03d4d8f396effda2860ca1d99882463"
+          },
+          {
+            "path": "lib/vendor/Button_Switch_SMD.pretty/TS-1088-AR02016.kicad_mod",
+            "size": 3741,
+            "sha256": "f598bc191f37645ddadd0946c83695f257051f4f4502c11396f6267afabeaeba"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/C_0402_1005Metric.kicad_mod",
+            "size": 1775,
+            "sha256": "d6d9b9bce35b71ba135a0acc6b3f555f20b34f64f85529d36cb90ee2c272a3b3"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/C_0603_1608Metric.kicad_mod",
+            "size": 1767,
+            "sha256": "37bd8557e92154d81b6098c479702a307936633cf84b402fbb3219d2e2292010"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/C_0805_2012Metric.kicad_mod",
+            "size": 1869,
+            "sha256": "4f7118c10d7fb01c8d0356a0baa89d63138516ac7a43be2b0a631721cad5e264"
+          },
+          {
+            "path": "lib/vendor/Connector_JST.pretty/JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal.kicad_mod",
+            "size": 4536,
+            "sha256": "2575d44bb1f3330ac28b318532edd953c9916fba639db39d634f52e53da4f072"
+          },
+          {
+            "path": "lib/vendor/Connector_Molex.pretty/Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal.kicad_mod",
+            "size": 12821,
+            "sha256": "b77b64cbfe6c065171b1bea02839320270233116f9435440c2b17d23085aeab1"
+          },
+          {
+            "path": "lib/vendor/Connector_PinHeader_2.54mm.pretty/PinHeader_2x02_P2.54mm_Vertical.kicad_mod",
+            "size": 3101,
+            "sha256": "929acce894a90d99292944725045427108c1a13cf5b68dcf41ca330bee434b5f"
+          },
+          {
+            "path": "lib/vendor/Connector_PinHeader_2.54mm.pretty/PinHeader_2x03_P2.54mm_Vertical.kicad_mod",
+            "size": 3360,
+            "sha256": "f60d70d60f2f2f7bf6ea573c0dc2945034cc96b21edbc33237b47b0ec6f32a3d"
+          },
+          {
+            "path": "lib/vendor/Connector_PinHeader_2.54mm.pretty/PinHeader_2x04_P2.54mm_Vertical.kicad_mod",
+            "size": 3605,
+            "sha256": "7752babd7f8c23c34d73ec13c27e6f6cd6ba5fb57d2ea442fdbce72f644b5eac"
+          },
+          {
+            "path": "lib/vendor/Connector_PinSocket_2.54mm.pretty/Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical.kicad_mod",
+            "size": 2064,
+            "sha256": "2b14026d6df1ed9c934d919c6eeaeb9058c00326353c49fe393bbf5909b3ca6d"
+          },
+          {
+            "path": "lib/vendor/Connector_Screw.pretty/XFCN_T34069_THT_M3_40A.kicad_mod",
+            "size": 4508,
+            "sha256": "6d680009f049236a9fc06e9f4c99f3bb79477cd9d8f3dfcb41a61b07321ab02b"
+          },
+          {
+            "path": "lib/vendor/Connector_Screw.pretty/XFCN_TTR32100127-0600_THT_M3_60A.kicad_mod",
+            "size": 4748,
+            "sha256": "49cd717c74fff56e0c34dd01295551ad18106a24edd84cc5338d02c7379539ff"
+          },
+          {
+            "path": "lib/vendor/Connector_USB.pretty/USB_C_Receptacle_XKB_U262-16XN-4BVC11.kicad_mod",
+            "size": 7210,
+            "sha256": "c72174c7a34306d9466045fe0f3ed99934ad6bddedaf2253f02a53ce4ad65d6b"
+          },
+          {
+            "path": "lib/vendor/Diode_SMD.pretty/D_SOD-323.kicad_mod",
+            "size": 4406,
+            "sha256": "ffa8cc9e0264a455f59aed40981d5c82fbf0e634059bb8d670444a209310a9b7"
+          },
+          {
+            "path": "lib/vendor/Package_DFN_QFN.pretty/RUX0012A.kicad_mod",
+            "size": 4686,
+            "sha256": "216b804fe5b23e8c4d9e70c0bf14df99751ef00902e268e9ce5c4666d1f70a64"
+          },
+          {
+            "path": "lib/vendor/Package_SO.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+            "size": 6319,
+            "sha256": "fc8185f4c01263b469d53f6b7013571a8989a3ff21d2b1c7bfd8fd69cabf09a7"
+          },
+          {
+            "path": "lib/vendor/Package_SO.pretty/VSSOP-10_3x3mm_P0.5mm.kicad_mod",
+            "size": 6561,
+            "sha256": "73dae353b1551982bc15f9b27e0025a79fcd851e681cea21368e229e9ac78ce9"
+          },
+          {
+            "path": "lib/vendor/Package_SON.pretty/WSON-6-1EP_2x2mm_P0.65mm_EP1x1.6mm.kicad_mod",
+            "size": 4169,
+            "sha256": "856ca01ac943a36b941bbbb9f9660ea3bcf4186475b243ab0ddfe896c3f5eafc"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR.kicad_mod",
+            "size": 3770,
+            "sha256": "e4c8eecb3eb951e7dc25bef4c9b047ac14f0097b1a954b73bca88ce01ea7083e"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL.kicad_mod",
+            "size": 4124,
+            "sha256": "6e3ee57a21d42bb01c2d6f4389b45a41a7222284bbab27c1558ed2d0855e96b4"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-5.kicad_mod",
+            "size": 6578,
+            "sha256": "f1336f7e401280feb44c655db885b3fcd723130eb162ecec8a817f1418cec711"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-6.kicad_mod",
+            "size": 5921,
+            "sha256": "6956848f49652e7336dcac9d2a9f7c0e8a421bd5cf2db7f1dcba0612750c0baf"
+          },
+          {
+            "path": "lib/vendor/RF_Module.pretty/ESP32-C6-MINI-1.kicad_mod",
+            "size": 12076,
+            "sha256": "d72bfb60cdce7b432f87eaee0175667b5b4f71c83380dec40b33c17f41bb75b3"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_0402_1005Metric.kicad_mod",
+            "size": 1776,
+            "sha256": "6bb902c13e9ddf3268180c6d5552d21435f42a46f8534351882831167cf578af"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_1206_3216Metric.kicad_mod",
+            "size": 2784,
+            "sha256": "c95030751c4152789faaa3f2bdce55d4b4d0d894c25a039b443bb7558e779ba7"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_2512_6332Metric.kicad_mod",
+            "size": 1780,
+            "sha256": "d7a14fa43aa28ab5eef5d71ccca44f1e977218c514cfa88ce77878691591087e"
+          }
+        ]
+      },
+      "placement_study_only": true,
+      "requires_replace_placement": true
+    },
+    {
+      "board": "hub-standard-rev2",
+      "input": "/home/codex/src/CEC-Platform/build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_pcb",
+      "input_sha256": "75029cafc3e60c1ebd1bbbc37143103e4d26e5dd6de15290a33d74fc52dac2f1",
+      "derived": true,
+      "source_signature": {
+        "sha256": "89e1a7324b4b9776b1100ea401dad46b6855e26d466f9864c15d612e8e2f4c11",
+        "files": [
+          {
+            "path": "beta/assembly/hub-atx-stack.json",
+            "size": 5671,
+            "sha256": "e62fa210ada4fe59a55b586f0bec5b564273a62a64856ffab8cce30eaf8c5676"
+          },
+          {
+            "path": "beta/hub-standard-rev2/01-power-input-selection.kicad_sch",
+            "size": 89970,
+            "sha256": "cd8552596883e08840ef8926c419b74d701608d45b01b998f8998d2ddcec29c7"
+          },
+          {
+            "path": "beta/hub-standard-rev2/02-holdup-3v3.kicad_sch",
+            "size": 75176,
+            "sha256": "6d562b5b9d7c6a5d60370aa4f9edc599579f27d52a439a4d7e7cf70d2fed0f00"
+          },
+          {
+            "path": "beta/hub-standard-rev2/03-mcu-usb.kicad_sch",
+            "size": 110229,
+            "sha256": "3c9d1f2193440b025720e914b727d34d4759d56432dac6df86b0c99f294a05cf"
+          },
+          {
+            "path": "beta/hub-standard-rev2/04-can-module-ports.kicad_sch",
+            "size": 131543,
+            "sha256": "4ec9b24fd8a3764b9de1bc289f3ce1d67362898af29b0225daea51c7edfde872"
+          },
+          {
+            "path": "beta/hub-standard-rev2/05-kvm-aux-sensors.kicad_sch",
+            "size": 56916,
+            "sha256": "60de2a3f4238118ba8116c30ea96667cf0f0f352097ec3a570837ca246a47524"
+          },
+          {
+            "path": "beta/hub-standard-rev2/06-status-leds.kicad_sch",
+            "size": 63710,
+            "sha256": "316aae77e20b45fdc1866faff240ee01bba3ecc418c7a51b1d365fb16edd2e1e"
+          },
+          {
+            "path": "beta/hub-standard-rev2/bom/bom.csv",
+            "size": 10448,
+            "sha256": "662240ee282e18f0a8ea32f433765b966979f84e778b9d2c8cd1d0f227715097"
+          },
+          {
+            "path": "beta/hub-standard-rev2/bom/hub-standard-rev2-BOM-jlcpcb.csv",
+            "size": 3601,
+            "sha256": "af0326bc5b453fc0bd83414bbc2c5b425cb37b2db5867380836f59c661cb5309"
+          },
+          {
+            "path": "beta/hub-standard-rev2/fp-lib-table",
+            "size": 3241,
+            "sha256": "99c7c2a1ba4c9d2b7f52f9366e705d5788bd0c44df8649c9fd34bd826a06d901"
+          },
+          {
+            "path": "beta/hub-standard-rev2/hub-standard-rev2.kicad_dru",
+            "size": 4875,
+            "sha256": "0cd4baad0903890e12ea849745bcbdb36e051a07f17598ea9a45d269f87cb5b8"
+          },
+          {
+            "path": "beta/hub-standard-rev2/hub-standard-rev2.kicad_pro",
+            "size": 20458,
+            "sha256": "6a6484695d63a4102f611772fb2a31fd08997d54b996b5364d2078d821462a1f"
+          },
+          {
+            "path": "beta/hub-standard-rev2/hub-standard-rev2.kicad_sch",
+            "size": 20315,
+            "sha256": "ddd55aaf44571821fa6243f0c03f79a2e8460417ecbc0cb2ef29adae9e98f1e5"
+          },
+          {
+            "path": "beta/hub-standard-rev2/pipeline-policy.json",
+            "size": 3144,
+            "sha256": "ede6bb691b09e9b49f830f87fef7ecae330b865e0e9629e76c8eff5ee5aaccac"
+          },
+          {
+            "path": "beta/hub-standard-rev2/sym-lib-table",
+            "size": 459,
+            "sha256": "60517187655c296ca43dd85705b2387e7edaab3738f7fab6ec2cf435b8840b84"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/ATX-PLACEMENT-SEED.kicad_pcb",
+            "size": 648598,
+            "sha256": "5f5c3d2a2af6b81d2f9bb0fff5e85bb08e36b966c52b0728f95f46b50c066820"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.interface-eco.json",
+            "size": 819,
+            "sha256": "91bfcfc0e9b3661c3ed42e764f1ca8e0c1d7521d9f8c849ab75ff62394c306e9"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_dru",
+            "size": 4875,
+            "sha256": "0cd4baad0903890e12ea849745bcbdb36e051a07f17598ea9a45d269f87cb5b8"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_pcb",
+            "size": 553387,
+            "sha256": "75029cafc3e60c1ebd1bbbc37143103e4d26e5dd6de15290a33d74fc52dac2f1"
+          },
+          {
+            "path": "build/hub-atx-3d-placement-20260922/Hub-PLACEMENT-SEED.kicad_pro",
+            "size": 9599,
+            "sha256": "2f9d4b039e1d334ef98abf5ea6af5a18f1c4409e771f9e407430aa93a1572162"
+          },
+          {
+            "path": "docs/hub-atx-active-placement-pair.json",
+            "size": 482,
+            "sha256": "dfbeccb8eca4331c53c92c95b77d82dea03d4d8f396effda2860ca1d99882463"
+          },
+          {
+            "path": "lib/cec.pretty/RJ45_FTP_Shielded_Horizontal.kicad_mod",
+            "size": 6594,
+            "sha256": "4e2c65c9b5f5b5a23535fea1b31c7d19bb4bcd12fd8144f492bed2495746e99d"
+          },
+          {
+            "path": "lib/vendor/Button_Switch_SMD.pretty/TS-1088-AR02016.kicad_mod",
+            "size": 3741,
+            "sha256": "f598bc191f37645ddadd0946c83695f257051f4f4502c11396f6267afabeaeba"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/CP_Elec_6.3x7.7.kicad_mod",
+            "size": 5014,
+            "sha256": "99ee6a66bbf5ceabb7fbc79761595e7023d2321ea1426cde1e878cfd6da58d69"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/CP_Elec_Lelon_VZH_18x16.5.kicad_mod",
+            "size": 1797,
+            "sha256": "3ee426799324ddc7304320fc3171748964abea4e683c7cac25ea7337b44a912f"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/C_0402_1005Metric.kicad_mod",
+            "size": 1775,
+            "sha256": "d6d9b9bce35b71ba135a0acc6b3f555f20b34f64f85529d36cb90ee2c272a3b3"
+          },
+          {
+            "path": "lib/vendor/Capacitor_SMD.pretty/C_0603_1608Metric.kicad_mod",
+            "size": 1767,
+            "sha256": "37bd8557e92154d81b6098c479702a307936633cf84b402fbb3219d2e2292010"
+          },
+          {
+            "path": "lib/vendor/Connector_JST.pretty/JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal.kicad_mod",
+            "size": 8658,
+            "sha256": "a67a8398710820fe97acb069d38d252dedd38b2bf4848185d286223b9c1f9f63"
+          },
+          {
+            "path": "lib/vendor/Connector_PinSocket_2.54mm.pretty/PinSocket_2x02_P2.54mm_Vertical.kicad_mod",
+            "size": 1403,
+            "sha256": "a3e1d4a2826a1e055a45e8ff36eb625c38c6c039a78f64d66684e8cf2168a093"
+          },
+          {
+            "path": "lib/vendor/Connector_PinSocket_2.54mm.pretty/PinSocket_2x03_P2.54mm_Vertical.kicad_mod",
+            "size": 1595,
+            "sha256": "8d7743b4ca3e3acd94ae46f685bc9bb6ee64b639a523834e0abcbbda3adafd35"
+          },
+          {
+            "path": "lib/vendor/Connector_PinSocket_2.54mm.pretty/PinSocket_2x04_P2.54mm_Vertical.kicad_mod",
+            "size": 1786,
+            "sha256": "178a9506df6fd61f2ed1376926f74e29a0b6cafb6e894865888d5de6bcedcbdc"
+          },
+          {
+            "path": "lib/vendor/Connector_USB.pretty/USB_C_Receptacle_XKB_U262-16XN-4BVC11.kicad_mod",
+            "size": 7210,
+            "sha256": "c72174c7a34306d9466045fe0f3ed99934ad6bddedaf2253f02a53ce4ad65d6b"
+          },
+          {
+            "path": "lib/vendor/Diode_SMD.pretty/D_SMA.kicad_mod",
+            "size": 4518,
+            "sha256": "3ee16c33db65140f0509c3525793043a068fc4c1a34bc175f79755e5ec30cac2"
+          },
+          {
+            "path": "lib/vendor/Diode_SMD.pretty/D_SOD-323.kicad_mod",
+            "size": 4406,
+            "sha256": "ffa8cc9e0264a455f59aed40981d5c82fbf0e634059bb8d670444a209310a9b7"
+          },
+          {
+            "path": "lib/vendor/Inductor_SMD.pretty/VLS252010HBX-2R2M-1.kicad_mod",
+            "size": 1556,
+            "sha256": "2b812ecf50004bf3e5a369bd2ef706adb3721aa1a925123e6a6c7b8fb7979d7e"
+          },
+          {
+            "path": "lib/vendor/LED_SMD.pretty/LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount.kicad_mod",
+            "size": 2726,
+            "sha256": "e407c2efd972e47947c08afa654eb2164417a147e3914707c78e8063b1b1123d"
+          },
+          {
+            "path": "lib/vendor/Package_DFN_QFN.pretty/RUX0012A.kicad_mod",
+            "size": 4686,
+            "sha256": "216b804fe5b23e8c4d9e70c0bf14df99751ef00902e268e9ce5c4666d1f70a64"
+          },
+          {
+            "path": "lib/vendor/Package_SO.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+            "size": 6319,
+            "sha256": "fc8185f4c01263b469d53f6b7013571a8989a3ff21d2b1c7bfd8fd69cabf09a7"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-5.kicad_mod",
+            "size": 6578,
+            "sha256": "f1336f7e401280feb44c655db885b3fcd723130eb162ecec8a817f1418cec711"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL.kicad_mod",
+            "size": 3934,
+            "sha256": "c77f6bea9399031de82bbef2d957f5ab3f30a77b5142910b555688c0628f13b0"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23-6.kicad_mod",
+            "size": 5921,
+            "sha256": "6956848f49652e7336dcac9d2a9f7c0e8a421bd5cf2db7f1dcba0612750c0baf"
+          },
+          {
+            "path": "lib/vendor/Package_TO_SOT_SMD.pretty/SOT-23.kicad_mod",
+            "size": 6222,
+            "sha256": "28ed4beec2095028a3f9a3d0c677dabb97cd9f8b41ffc6d879fff4c554618d12"
+          },
+          {
+            "path": "lib/vendor/RF_Module.pretty/ESP32-S3-WROOM-1_NoAntKeepout.kicad_mod",
+            "size": 14812,
+            "sha256": "0d6f723b9fccb29fde15cfa04ad987b82568314baf63882a94a1874c05190f44"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/NTC_0402_1005Metric.kicad_mod",
+            "size": 3726,
+            "sha256": "6212fb89a166655286ba7ba26efe0836ff4d1665a0655e1b6fe44a837db689c1"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_0402_1005Metric.kicad_mod",
+            "size": 1776,
+            "sha256": "6bb902c13e9ddf3268180c6d5552d21435f42a46f8534351882831167cf578af"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_0805_2012Metric.kicad_mod",
+            "size": 2065,
+            "sha256": "6e1b38a10d2b56692858715b8cac96675389171d0b9b90f6421284043dd0c1e8"
+          },
+          {
+            "path": "lib/vendor/Resistor_SMD.pretty/R_1206_3216Metric.kicad_mod",
+            "size": 2784,
+            "sha256": "c95030751c4152789faaa3f2bdce55d4b4d0d894c25a039b443bb7558e779ba7"
+          }
+        ]
+      },
+      "placement_study_only": true,
+      "requires_replace_placement": true
+    }
+  ]
+}

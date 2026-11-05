@@ -39,6 +39,54 @@ class FabCheckProfileTests(unittest.TestCase):
         self.assertEqual(evidence["board_min_drill_mm"], 0.30)
         self.assertEqual(evidence["board_min_annular_mm"], 0.125)
 
+    def test_precision_signal_via_uses_explicit_qualified_profile(self):
+        class Properties:
+            @staticmethod
+            def asdict():
+                return {"CEC_FAB_PROFILE": "jlcpcb_6l_pofv_signal"}
+
+        class Settings:
+            m_ViasMinSize = 500_000
+            m_MinThroughDrill = 200_000
+            m_ViasMinAnnularWidth = 100_000
+
+        class Board:
+            @staticmethod
+            def GetProperties():
+                return Properties()
+
+            @staticmethod
+            def GetDesignSettings():
+                return Settings()
+
+        diameter, drill, evidence = (
+            cec_fab_profile.precision_signal_via_geometry(
+                Board(), 0.60, 0.30))
+        self.assertEqual((diameter, drill), (0.50, 0.25))
+        self.assertEqual(evidence["selection"],
+                         "qualified-compact-signal")
+
+    def test_precision_signal_via_without_profile_keeps_request(self):
+        class Settings:
+            m_ViasMinSize = 500_000
+            m_MinThroughDrill = 200_000
+            m_ViasMinAnnularWidth = 100_000
+
+        class Board:
+            @staticmethod
+            def GetProperties():
+                raise AttributeError
+
+            @staticmethod
+            def GetDesignSettings():
+                return Settings()
+
+        diameter, drill, evidence = (
+            cec_fab_profile.precision_signal_via_geometry(
+                Board(), 0.60, 0.30))
+        self.assertEqual((diameter, drill), (0.60, 0.30))
+        self.assertEqual(evidence["selection"], "requested-netclass")
+
     def test_current_pcie_family_names_resolve_high_current_profile(self):
         for name in ("pcie-8pin-2port", "pcie-8pin-3port"):
             self.assertEqual(

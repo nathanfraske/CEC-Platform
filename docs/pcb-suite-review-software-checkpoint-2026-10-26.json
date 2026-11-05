@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "kind": "verified_software_and_routing_progress_checkpoint_not_fabrication_release",
+  "checkpoint": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/pipeline-manual-closure-checkpoint-20261026-bw.json",
+  "checkpoint_sha256": "0a94ba725835d37e2e7742fa40c01cc00eb3ccbc06deb3783105893c55ef9649",
+  "archive_sha256": "806f540835e1d062c2f3e1e7377ff71a48ab0fcdfb018bd6e03494aafc126206",
+  "archive_bytes": 1025806,
+  "uncompressed_bytes": 6602941,
+  "regular_files": 35,
+  "all_archived_regular_bytes_verified": true,
+  "restore": "Apply the eight exact base archives in manifest restore order, then this BW overlay. Original archives retained; no lossy report roll-up claimed.",
+  "regression": {
+    "path": "build/parallel-full-integration-20261026-closure52-receipt.json",
+    "sha256": "75ad2aafc8c651efab0d8bf89fcbdcbe5df43470089555f7736ce79f744edc69",
+    "modules": 438,
+    "tests": 13445,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "elapsed_s": 841.9940783840138,
+    "frozen_code_and_dependencies_unchanged": true,
+    "whole_repository_test_coverage_claim": false
+  },
+  "selected_hardware_ledger": "docs/pcb-suite-review-goal-2026-10-21.json",
+  "selected_hardware_ledger_sha256_at_archive": "290edc8d0e1b90abc08371701fd3628d3963fbc0ef5a9e8e54884d7e45f7c26a",
+  "checkpoint_snapshot_precedes_pointer_only_updates": true,
+  "selected_plan": {
+    "path": "build/parallel-review-suite-manual-supply-epoch-20261026-jp.json",
+    "sha256": "d3c7b0f68d95ac665b63de939de7e32111d52d8f83cab4cc68ea5ab71eee4300"
+  },
+  "fresh_whole_nine_receiving": {
+    "path": "/mnt/c/Users/Admin/Documents/CEC-Board-Reviews/nine-board-manual-supply-20261026-root-jp/receiving.json",
+    "sha256": "03a3e86829da414efd16d924b25131f1430ba80c67cf31f37084723f88a87157",
+    "all_nine_native_parity_and_source_intake_passed": true,
+    "typed_print_transitions_fresh_and_live": true,
+    "code_plan_and_driver_unchanged": true
+  },
+  "selected_suite": {
+    "opens": 51,
+    "other_error_level_native_findings": 0,
+    "warnings": 371,
+    "exclusions": 0,
+    "eps_opens": 21,
+    "pcie_three_port_opens": 16,
+    "vhp_opens": 14,
+    "other_six_boards_opens": 0
+  },
+  "physical_boards_changed_this_slice": 2,
+  "accepted_opens_retired_this_slice": 3,
+  "dimensions_unchanged": true,
+  "original_controls_byte_exact": true,
+  "completed_generic_slices": [
+    "Source-derived stationary-owner Ground obligation after its selected moving bypass cuts the old owner return.",
+    "Canonical exact native copper component ordering; no false Kelvin disagreement from island iteration order.",
+    "Bounded native-feedback macro-tail cascade with each local Source proof and independent original-prefix aggregate receiving.",
+    "Complete unchanged supply current authority with actual-face prefix receiving; unused protected faces do not poison permitted F/B prefixes or gain prefix/throat permission."
+  ],
+  "manual_repairs": [
+    "EPS complete U30/C30 cohort and literal retained THRESH endpoint.",
+    "PCIe three-port Source-rule IO8 strap join.",
+    "EPS full-current Source-qualified U10/C10 supply link."
+  ],
+  "measured_slowdown_evidence": {
+    "path": "build/continuation-narrative-20261026-bw.json",
+    "sha256": "57c98d7edd29ee906a8922ac35a6d78e265d2a802dd971daf599ea164521ad71"
+  },
+  "next_causal_work": [
+    "EPS C7 full-class column intersects real retained B collector; relocate the real passive/cell or independently qualify a local current-safe window.",
+    "EPS U11.2 is an address strap, not a supply input; retain exact Source role and whole-current requirements.",
+    "12VHPWR requires a complete coordinated ordinary reflow around the sealed SB_CBL_PRES blocker before the positive conditional TACH path can be admitted; no further incomplete nested domains promoted.",
+    "PCIe three-port still needs complete protected-pair/current/measurement ownership and geometry work; no ordinary reclassification.",
+    "After electrical closure, complete the explicit final fabrication-defect and export inspection plus inherited warning and assembly backlog."
+  ],
+  "pending_reviewed_courtyard_conflicts": 13,
+  "conditional_unreceived_reflows_selected": false,
+  "warning_backlog_deferred_not_suppressed": true,
+  "goal_complete": false,
+  "fab_ready": false,
+  "release_authority": false
+}

@@ -260,7 +260,6 @@ class TestHubAcceptance(unittest.TestCase):
                 pass
 
         board = Board()
-        filler = mock.Mock()
         pickup = {"pads": 3, "vias": 3, "stubs": 2, "pofv": 1,
                   "skipped": 0, "skipped_detail": []}
         bypass = {"pairs": 2, "linked": 2, "legs": 4, "refused": 0,
@@ -293,7 +292,7 @@ class TestHubAcceptance(unittest.TestCase):
             return same_footprint
 
         with mock.patch.object(pcbnew, "LoadBoard", return_value=board), \
-                mock.patch.object(pcbnew, "ZONE_FILLER", return_value=filler), \
+                mock.patch("cec_zone_fill.fill", return_value=True) as fill, \
                 mock.patch.object(cec_precision_route, "precision_route_board",
                                   side_effect=precision_side_effect) as precision_route, \
                 mock.patch.object(cec_fr, "synthesize_power_pickups",
@@ -346,7 +345,8 @@ class TestHubAcceptance(unittest.TestCase):
         prune.assert_called_once_with(
             board, set(), discover_nets=("/PWR",),
             discover_pofv_nets=("/PWR",))
-        self.assertEqual(filler.Fill.call_count, 4)
+        self.assertEqual(fill.call_count, 4)
+        self.assertTrue(all(call.args==(board,) for call in fill.call_args_list))
         self.assertEqual(result["areas"], 7)
         self.assertEqual(result["power_pickups"], pickup)
         self.assertEqual(result["precision"], precision)
@@ -498,16 +498,19 @@ class TestHubAcceptance(unittest.TestCase):
             self.assertTrue(params["lastmile"])
 
     def test_all_terms_are_required(self):
-        args = ({"gates_pass": True}, 0, [], True, True)
+        from route_final_craft_fixtures import clean_quality
+        clean = {"gates_pass": True, "route_quality": clean_quality()}
+        args = (clean, 0, [], True, True)
         terms, accepted = H._acceptance_terms(*args)
         self.assertTrue(accepted)
         self.assertTrue(all(terms.values()))
         mutations = [
-            ({"gates_pass": False}, 0, [], True, True),
-            ({"gates_pass": True}, 1, [], True, True),
-            ({"gates_pass": True}, 0, [object()], True, True),
-            ({"gates_pass": True}, 0, [], False, True),
-            ({"gates_pass": True}, 0, [], True, False),
+            ({**clean, "gates_pass": False}, 0, [], True, True),
+            (clean, 1, [], True, True),
+            (clean, 0, [object()], True, True),
+            (clean, 0, [], False, True),
+            (clean, 0, [], True, False),
+            ({"gates_pass": True}, 0, [], True, True),
         ]
         for values in mutations:
             with self.subTest(values=values):

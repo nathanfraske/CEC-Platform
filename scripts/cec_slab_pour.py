@@ -39,6 +39,8 @@ except ImportError:                                    # host-side import for te
 if pcbnew is not None:
     import cec_swig_guard as _swig_guard
     _swig_guard.pin()
+    import cec_native_layer_masks as _native_layer_masks
+    _native_layer_masks.install(pcbnew)
 
 MM = 1e6
 
@@ -230,6 +232,20 @@ def rasterize(board, nc, lay_id, grid, clearance_mm=0.3):
     foreign = np.zeros((grid.ny, grid.nx), bool)
     anchors = np.zeros((grid.ny, grid.nx), bool)
     c = clearance_mm
+    # The fallback must preserve the same mounting-face body reservations as
+    # exact territory planning and placement admission. Pads alone do not
+    # represent a large capacitor's mechanical body or its reserved area.
+    from cec_power_body import foreign_regions
+    layer_name = fab.COPPER_LAYER_IDS.get(int(lay_id)) or board.GetLayerName(lay_id)
+    for region in foreign_regions(board, nc, layer=layer_name, margin_mm=c):
+        grid.stamp_box(foreign, *region['box'])
+    import cec_native_rule_areas
+    from cec_pour_plan import _stamp_poly
+    for row in cec_native_rule_areas.pour_obstacles(board,[layer_name])[layer_name]:
+        # Cell-centre containment alone misses thin keepouts. Cover every
+        # cell touching the native polygon; holes/concavities remain real.
+        _stamp_poly(foreign,row['geometry'].buffer(grid.cell*math.sqrt(2)/2,
+                    join_style=2),grid)
     for fp in board.GetFootprints():
         for p in fp.Pads():
             on_layer = lay_id in p.GetLayerSet().CuStack()
@@ -1344,6 +1360,90 @@ def route_overunder(layers, passable, anchors, clab, nclusters, *,
     return path_cells, bridges, True, None
 
 
+class BridgeFieldRefused(RuntimeError):
+    """A located, exact realization refusal; never parse diagnostic strings."""
+
+    def __init__(self, message, bridge, *, required=None, available=0):
+        super().__init__(message)
+        self.evidence = {
+            "row": int(bridge[0]), "col": int(bridge[1]),
+            "from_layer": str(bridge[2]), "to_layer": str(bridge[3]),
+            "required_vias": required, "available_vias": int(available),
+            "reason": str(message),
+        }
+
+
+class BridgeSearchRefused(RuntimeError):
+    """Durable net/terminal evidence for an exhausted realization refinement."""
+
+    def __init__(self, net, feedback, bottleneck, *, grid_refinement=None):
+        import json
+        self.evidence = {
+            "schema": 1, "kind": "power_bridge_feasibility", "net": str(net),
+            "bridge_feasibility": feedback, "bottleneck": bottleneck,
+        }
+        if grid_refinement:
+            self.evidence['grid_refinement'] = grid_refinement
+        super().__init__("over-under bridge search for %s refused: %s" % (
+            net, json.dumps(self.evidence, sort_keys=True)))
+
+
+def route_overunder_with_bridge_feedback(
+        layers, passable, anchors, clab, nclusters, *, bridge_probe,
+        max_replans=8, realization_probe=None, **search_kwargs):
+    """Reject unrealizable transitions before publishing a searched route.
+
+    Probe the *complete* ordered field set with the production realizer's
+    ledger. A refused transition cell becomes a local search obstacle, not a
+    globally forbidden copper cell. The original masks and incumbent board
+    are untouched. This bounded heuristic is not a proof that all possible
+    orientations/orderings have been exhausted. Final filled-copper admission
+    is still required even when the probe passes.
+    """
+    if int(max_replans) != max_replans or max_replans < 0:
+        raise ValueError("max_replans must be a nonnegative integer")
+    kwargs = dict(search_kwargs)
+    if "chains_out" in kwargs:
+        raise ValueError("feedback search owns its per-attempt chains")
+    original = kwargs.pop("bridge_forbidden", None)
+    forbidden = (np.zeros(clab.shape, dtype=bool) if original is None
+                 else original.copy())
+    receipt = {"searches": 0, "field_probes": 0, "refusals": [],
+               "max_replans": int(max_replans)}
+    for attempt in range(int(max_replans) + 1):
+        chains = []
+        path_cells, bridges, ok, bottleneck = route_overunder(
+            layers, passable, anchors, clab, nclusters,
+            bridge_forbidden=forbidden, chains_out=chains, **kwargs)
+        receipt["searches"] += 1
+        if not ok:
+            receipt["stop_reason"] = "search_exhausted_after_feedback" if attempt else "search_failed"
+            return path_cells, bridges, ok, bottleneck, chains, receipt
+        try:
+            if bridges:
+                receipt["field_probes"] += 1
+                bridge_probe(bridges)
+                if realization_probe is not None:
+                    realization_probe(path_cells, bridges, chains)
+        except BridgeFieldRefused as exc:
+            row = dict(exc.evidence)
+            r, c = row["row"], row["col"]
+            if not (0 <= r < clab.shape[0] and 0 <= c < clab.shape[1]):
+                raise ValueError("bridge refusal outside search grid") from exc
+            receipt["refusals"].append(row)
+            if forbidden[r, c] or attempt == int(max_replans):
+                receipt["stop_reason"] = ("repeated_refusal" if forbidden[r, c]
+                                          else "bridge_replan_budget_exhausted")
+                return {}, [], False, {
+                    **row, "reason": receipt["stop_reason"],
+                    "bridge_refusals": list(receipt["refusals"]),
+                }, [], receipt
+            forbidden[r, c] = True
+            continue
+        receipt["stop_reason"] = "field_set_admitted"
+        return path_cells, bridges, True, bottleneck, chains, receipt
+
+
 def power_bridge_cost(amps, margin, rcells):
     """Return the search cost of one high-current layer transition.
 
@@ -1445,6 +1545,9 @@ def via_clear_of_foreign_tracks(board, netcode, x_mm, y_mm, *,
         return True
     at = pcbnew.VECTOR2I(int(round(float(x_mm) * MM)),
                          int(round(float(y_mm) * MM)))
+    import cec_native_rule_areas
+    if cec_native_rule_areas.via_conflict(board,at,int(round(float(diameter_mm)*MM))):
+        return False
     barrel = pcbnew.SHAPE_CIRCLE(
         at, int(round(float(diameter_mm) * MM / 2.0)))
     clearance = int(round(float(clearance_mm) * MM))
@@ -1700,7 +1803,7 @@ def vias_for_current(amps, *, redundancy=1, margin=MARGIN):
 
 def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
                    ledger_mm=VIA_LEDGER_MM, n_needed=None, pad_allow=None,
-                   via_allow=None):
+                   via_allow=None, pad_halo_mm=None):
     """Via positions for ONE compact field: a roughly square ARRAY centred on
     the transition (owner ruling 2026-07-25 -- a layer change is one via array,
     not a fence across the corridor), each slot checked against the barrel
@@ -1766,7 +1869,9 @@ def field_via_line(field6, half_w, grid, pad_boxes, placed, *, pitch_mm=1.2,
         vy = round(cy + perp[1] * sp + dy * sa, 3)
         if _via_ledger_hit(list(placed) + out, vx, vy, ledger_mm):
             continue
-        if (_pad_hit(pad_boxes, vx, vy, VIA_R + PAD_MARGIN)
+        pad_halo = (VIA_R + PAD_MARGIN if pad_halo_mm is None
+                    else max(VIA_R, float(pad_halo_mm)))
+        if (_pad_hit(pad_boxes, vx, vy, pad_halo)
                 and not (pad_allow and pad_allow(vx, vy))):
             reseated += 1                  # blocked slot -> keep sliding
             continue
@@ -1851,13 +1956,41 @@ def _l_simplify(cells, free, grid):
     return cells
 
 
+def _export_polygon_geometry(geometry, *, precision=3, min_area_mm2=0.4):
+    """Quantize valid geometry without serializing collapsed/self-touching rings.
+
+    Coordinate-by-coordinate rounding can turn a sub-grid neck into a
+    backtracking edge. Quantize the topology first, at the same export grid,
+    then keep only actual area components. Holes remain holes. This does not
+    heal arbitrary invalid input or authorize a new electrical connection.
+    """
+    from shapely import set_precision
+    from shapely.geometry import Polygon
+
+    if not geometry.is_valid:
+        raise ValueError('invalid source geometry before polygon export')
+    quantized = set_precision(geometry, 10.0 ** -int(precision), mode='valid_output')
+    rows = []
+    for part in getattr(quantized, 'geoms', (quantized,)):
+        if part.geom_type != 'Polygon' or part.area < min_area_mm2:
+            continue
+        exterior = [(round(x, precision), round(y, precision)) for x, y in part.exterior.coords]
+        holes = [[(round(x, precision), round(y, precision)) for x, y in ring.coords]
+                 for ring in part.interiors]
+        if not Polygon(exterior, holes).is_valid:
+            raise ValueError('invalid quantized polygon export')
+        rows.append(dict(polygon=exterior, **({'holes': holes} if holes else {})))
+    return rows
+
+
 def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                             existing_vias=(), f_admit=None, free_masks=None,
                             clip_masks=None, holes_out=None,
                             pitch_mm=1.2, ledger_mm=VIA_LEDGER_MM,
                             pad_allow=None, via_allow=None,
                             bridge_via_count=None,
-                            strict_bridges=False):
+                            strict_bridges=False, pad_clearance_mm=PAD_MARGIN,
+                            via_details_out=None, landing_allow=None):
     """v4-GRADE FALLBACK REALIZATION (mandate part 3, 2026-07-25): the path
     stays the search's; the copper is DRAWN geometry -- one straight capsule
     cover per maximal same-layer run (collinear-simplified centerline at
@@ -1940,8 +2073,15 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
     placed = list(existing_vias)
     via_pts = []
     from shapely.geometry import box as _sbox2
-    for f in bridges:
+    for field_index, f in enumerate(bridges):
         (r, c, lf, lt, dx, dy) = f[:6]
+        # Barrel freedom is not landing freedom. Apply mounting-face body
+        # reservations to every proposed member of the field, including
+        # reseated sites, before a complete field is selected. The vector
+        # clipper and the exact gate remain independent final consumers.
+        def field_allow(x, y):
+            return ((via_allow is None or via_allow(x, y))
+                    and (landing_allow is None or landing_allow(x, y, (lf, lt))))
         fcx = grid.x0 + (c + 0.5) * grid.cell
         fcy = grid.y0 + (r + 0.5) * grid.cell
         # The search and drawing stages must use the same F.Cu admission
@@ -1953,7 +2093,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
             msg = ("bridge at cell (%d,%d) has no admitted F.Cu landing"
                    % (r, c))
             if strict_bridges:
-                raise RuntimeError(msg)
+                raise BridgeFieldRefused(msg, f, required=bridge_via_count)
             notes.append(msg + " -- whole bridge dropped")
             continue
         half_w = max(reqw.get(lf, 1.2), reqw.get(lt, 1.2)) / 2.0
@@ -1961,7 +2101,17 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         vs, rs = field_via_line(f, half_w, grid, pad_boxes, placed,
                                 pitch_mm=pitch_mm, ledger_mm=ledger_mm,
                                 n_needed=bridge_via_count,
-                                pad_allow=pad_allow, via_allow=via_allow)
+                                pad_allow=pad_allow, via_allow=field_allow,
+                                # Keep the same foreign-pad clearance used
+                                # when the zone outline is clipped, plus the
+                                # small same-net landing collar required by
+                                # exact barrel admission.  The old fixed
+                                # 0.20-mm screen could accept a via that the
+                                # later 0.30-mm zone carve disconnected.
+                                pad_halo_mm=(
+                                    VIA_R + max(PAD_MARGIN,
+                                                float(pad_clearance_mm))
+                                    + 0.05))
         needed_vias = (int(bridge_via_count)
                        if bridge_via_count is not None else None)
         max_partial_vias = len(vs)
@@ -1998,7 +2148,7 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                 if ("F.Cu" in {lf, lt} and admit is not None
                         and not admit.buffer(1e-6).covers(Point(x, y))):
                     return False
-                return via_allow is None or via_allow(x, y)
+                return field_allow(x, y)
 
             def _axis_spur(rr, cc, *, row_first=True):
                 """Return a two-leg Manhattan cell walk, or ``None``.
@@ -2044,7 +2194,10 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                         shifted, half_w, grid, pad_boxes, placed,
                         pitch_mm=pitch_mm, ledger_mm=ledger_mm,
                         n_needed=bridge_via_count,
-                        pad_allow=pad_allow, via_allow=via_allow)
+                        pad_allow=pad_allow, via_allow=field_allow,
+                        pad_halo_mm=(
+                            VIA_R + max(PAD_MARGIN,
+                                        float(pad_clearance_mm)) + 0.05))
                     if not _field_complete(shifted_vs):
                         continue
                     vs, rs = shifted_vs, shifted_rs
@@ -2087,7 +2240,11 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                                 shifted, half_w, grid, pad_boxes, placed,
                                 pitch_mm=pitch_mm, ledger_mm=ledger_mm,
                                 n_needed=bridge_via_count,
-                                pad_allow=pad_allow, via_allow=via_allow)
+                                pad_allow=pad_allow, via_allow=field_allow,
+                                pad_halo_mm=(
+                                    VIA_R + max(PAD_MARGIN,
+                                                float(pad_clearance_mm))
+                                    + 0.05))
                             if not _field_complete(shifted_vs):
                                 continue
                             vs, rs = shifted_vs, shifted_rs
@@ -2112,7 +2269,8 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                 msg = ("bridge at cell (%d,%d) placed NO via (ledger + pad "
                        "exclusion exhausted every slot)" % (r, c))
             if strict_bridges:
-                raise RuntimeError(msg)
+                raise BridgeFieldRefused(
+                    msg, f, required=needed_vias, available=max_partial_vias)
             notes.append(msg)
             continue
         if rs:
@@ -2120,6 +2278,13 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
                          "past pads" % (r, c, rs))
         placed.extend(vs)
         via_pts.extend(vs)
+        if via_details_out is not None:
+            via_details_out.extend({
+                "x_mm": float(x), "y_mm": float(y),
+                "field_index": int(field_index),
+                "field_kind": "layer_transition",
+                "from_layer": str(lf), "to_layer": str(lt),
+            } for x, y in vs)
         landing_r, landing_c = landing_spur[-1]
         landing_x = grid.x0 + (landing_c + 0.5) * grid.cell
         landing_y = grid.y0 + (landing_r + 0.5) * grid.cell
@@ -2161,14 +2326,9 @@ def realize_overunder_rects(chains, bridges, reqw, grid, *, pad_boxes=(),
         if landing_geoms.get(lay):
             u = unary_union([u] + landing_geoms[lay])
         polys = []
-        for g in getattr(u, "geoms", [u]):
-            if g.geom_type != "Polygon" or g.area < 0.4:
-                continue
-            polys.append([(round(x, 3), round(y, 3))
-                          for (x, y) in g.exterior.coords])
-            holes = [[(round(x, 3), round(y, 3))
-                      for (x, y) in ring.coords]
-                     for ring in g.interiors]
+        for row in _export_polygon_geometry(u):
+            polys.append(row['polygon'])
+            holes = row.get('holes') or []
             if holes and holes_out is not None:
                 holes_out[(lay, len(polys) - 1)] = holes
         if polys:
@@ -2220,24 +2380,14 @@ def _clip_pours_around_generated_vias(pours, vias, *, clearance_mm=0.3):
             continue
         geom = Polygon(row["polygon"], row.get("holes") or ()).buffer(0)
         result = geom.difference(unary_union(foreign))
-        pieces = [result] if result.geom_type == "Polygon" else list(
-            getattr(result, "geoms", ()))
-        valid = [piece for piece in pieces
-                 if piece.geom_type == "Polygon" and piece.area >= 0.4]
         if result.equals(geom):
             out.append(row)
             continue
         clipped += 1
-        for piece in valid:
+        for geometry_row in _export_polygon_geometry(result):
             revised = dict(row)
-            revised["polygon"] = [(round(x, 3), round(y, 3))
-                                  for x, y in piece.exterior.coords]
-            holes = [[(round(x, 3), round(y, 3)) for x, y in ring.coords]
-                     for ring in piece.interiors]
-            if holes:
-                revised["holes"] = holes
-            else:
-                revised.pop("holes", None)
+            revised.pop('holes', None)
+            revised.update(geometry_row)
             out.append(revised)
     return out, clipped
 
@@ -2286,18 +2436,60 @@ def prune_unseeded_pour_components(board, pours, vias=()):
                           if row["row"].get("net") == net}:
                 try:
                     lid = board.GetLayerID(layer)
-                    if pad.IsOnLayer(lid):
+                    # KiCad exposes IsOnLayer, while lightweight workers and
+                    # deterministic geometry tests may only expose CuStack.
+                    # Both describe the same physical fact; accepting either
+                    # prevents a valid connector manifold from being mistaken
+                    # for an unseeded island merely because the adapter is
+                    # narrow.
+                    if hasattr(pad, "IsOnLayer"):
+                        on_layer = bool(pad.IsOnLayer(lid))
+                    else:
+                        on_layer = lid in set(
+                            pad.GetLayerSet().CuStack())
+                    if on_layer:
                         pad_seeds.setdefault((net, layer), []).append(geom)
                 except (AttributeError, TypeError, ValueError):
                     continue
 
     via_points = {}
+    terminal_via_seeds = {}
+    # A through-via that is already in the same physical copper component as
+    # a same-net pad is an electrical terminal on every layer it spans.  This
+    # is the ordinary SMD-to-inner-pour pickup topology (via in pad or a short
+    # surface dogbone).  Treating only pads resident on the pour layer as
+    # seeds incorrectly deletes the entire inner rail before KiCad can fill
+    # it.  Conversely, an isolated via is not a seed: that preserves the
+    # fail-closed rule for a floating generated-zone/via pair.
+    try:
+        board.BuildConnectivity()
+        connectivity = board.GetConnectivity()
+    except Exception:                                  # noqa: BLE001
+        connectivity = None
     for track in board.GetTracks():
         if track.GetClass() != "PCB_VIA" or not track.GetNetname():
             continue
         pos = track.GetPosition()
-        via_points.setdefault(track.GetNetname(), []).append(
-            Point(pos.x / MM, pos.y / MM))
+        net = track.GetNetname()
+        point = Point(pos.x / MM, pos.y / MM)
+        via_points.setdefault(net, []).append(point)
+        pad_connected = False
+        if connectivity is not None:
+            try:
+                pad_connected = any(
+                    item.GetClass() == "PAD"
+                    and item.GetNetCode() == track.GetNetCode()
+                    for item in connectivity.GetConnectedItems(track))
+            except Exception:                          # noqa: BLE001
+                pad_connected = False
+        if pad_connected:
+            for layer in track.GetLayerSet().CuStack():
+                terminal_via_seeds.setdefault(
+                    # Generated pour rows use canonical KiCad identifiers.
+                    # Board.GetLayerName() is the user-visible stack label
+                    # (for example PWR), so it cannot key this graph on a
+                    # custom-named stackup.
+                    (net, pcbnew.LayerName(layer)), []).append(point)
     for via in vias or ():
         net = via.get("net")
         if net:
@@ -2319,6 +2511,9 @@ def prune_unseeded_pour_components(board, pours, vias=()):
             layer = str(lrow.get("layer"))
             if any(lg.intersects(seed) for seed in
                    pad_seeds.get((net, layer), ())):
+                keep.add(left["index"])
+            if any(lg.intersects(seed) for seed in
+                   terminal_via_seeds.get((net, layer), ())):
                 keep.add(left["index"])
             for right in net_rows[i + 1:]:
                 rrow, rg = right["row"], right["geom"]
@@ -2385,6 +2580,8 @@ def _clip_pours_around_foreign_copper(board, pours, *, clearance_mm=0.25):
     from shapely.ops import unary_union
 
     clearance = float(clearance_mm)
+    from cec_power_body import body_regions
+    bodies = body_regions(board, margin_mm=clearance)
     enabled = set(board.GetEnabledLayers().CuStack())
     pads = []
     for footprint in board.GetFootprints():
@@ -2440,6 +2637,9 @@ def _clip_pours_around_foreign_copper(board, pours, *, clearance_mm=0.25):
         net = row.get("net")
         foreign = [geom for owner, layers, geom in pads + copper
                    if owner != net and layer in layers]
+        foreign.extend(_sbox(*body['box']) for body in bodies
+                       if row.get('layer', 'F.Cu') == body['layer']
+                       and net not in body['nets'])
         if not foreign:
             out.append(row)
             continue
@@ -2449,20 +2649,10 @@ def _clip_pours_around_foreign_copper(board, pours, *, clearance_mm=0.25):
             out.append(row)
             continue
         clipped += 1
-        pieces = ([revised_geom] if revised_geom.geom_type == "Polygon" else
-                  list(getattr(revised_geom, "geoms", ())))
-        for piece in pieces:
-            if piece.geom_type != "Polygon" or piece.area < 0.4:
-                continue
+        for geometry_row in _export_polygon_geometry(revised_geom):
             revised = dict(row)
-            revised["polygon"] = [(round(x, 3), round(y, 3))
-                                  for x, y in piece.exterior.coords]
-            holes = [[(round(x, 3), round(y, 3)) for x, y in ring.coords]
-                     for ring in piece.interiors]
-            if holes:
-                revised["holes"] = holes
-            else:
-                revised.pop("holes", None)
+            revised.pop('holes', None)
+            revised.update(geometry_row)
             out.append(revised)
     return out, clipped
 
@@ -2774,7 +2964,7 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
                         shunt_mask, net_current_margins=None,
                         clearance_mm=0.3, manifolds=(),
                         generated_vias=(), generated_pours=(),
-                        terminal_refs=None):
+                        terminal_refs=None, terminal_escape_mm=None):
     """Shared per-net SEARCH PREP for the over-under machinery -- extracted
     2026-07-25 (pre-FR corridor reservation, docs/slab-pour-design-2026-07-24.md
     priority ruling) so `synthesize_overunder_pours` (post-route realization)
@@ -2792,6 +2982,10 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     net"), byte-identical to the report reasons the realization always used."""
     from scipy import ndimage
     st = ndimage.generate_binary_structure(2, 1)
+    # Refining a grid must not silently shorten the physical pad escape.  The
+    # legacy four-cell allowance remains the default; a refinement carries
+    # that original distance, not its original cell count, into the new grid.
+    local_escape_cells = _terminal_escape_cells(grid.cell, terminal_escape_mm)
     raw_policy = [x.strip() for x in
                   os.environ.get("CEC_POWER_POUR_LAYERS", "").split(",")
                   if x.strip() in fab.COPPER_LAYERS]
@@ -2869,10 +3063,10 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
         # there, and a short pad-adjacent neck is thermally fine (the
         # current spreads at the pad; neck length is what matters).
         escape_budget = {
-            cluster: max(4, rc + int(math.ceil(span / grid.cell)))
+            cluster: max(local_escape_cells, rc + int(math.ceil(span / grid.cell)))
             for cluster, span in manifold_escape_spans.get(lay, {}).items()}
         approach, approach_notes[lay] = _terminal_approach_to_full_width(
-            anc, clab, nclusters, ~fmask, eroded, st, local_cells=4,
+            anc, clab, nclusters, ~fmask, eroded, st, local_cells=local_escape_cells,
             max_cells_by_cluster=escape_budget)
         passable[lay] = eroded | anc | approach
         anchors[lay] = anc
@@ -2916,10 +3110,10 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
         eroded = ndimage.binary_erosion(
             ~fmask, structure=st, iterations=rc)
         escape_budget = {
-            cluster: max(4, rc + int(math.ceil(span / grid.cell)))
+            cluster: max(local_escape_cells, rc + int(math.ceil(span / grid.cell)))
             for cluster, span in manifold_escape_spans.get(extra, {}).items()}
         approach, approach_notes[extra] = _terminal_approach_to_full_width(
-            anc, clab, nclusters, ~fmask, eroded, st, local_cells=4,
+            anc, clab, nclusters, ~fmask, eroded, st, local_cells=local_escape_cells,
             max_cells_by_cluster=escape_budget)
         passable[extra] = eroded | anc | approach
         anchors[extra] = anc
@@ -3012,8 +3206,11 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
     # passable by the passable-=eroded|anchors construction above.
     f_admit_mask = None
     if "F.Cu" in passable and not f_power_transit:
+        landing_cells = max(1, int(math.ceil(
+            .75 * (4.0 * grid.cell if terminal_escape_mm is None
+                   else terminal_escape_mm) / grid.cell - 1e-12)))
         _f_allow = (ndimage.binary_dilation(anchors["F.Cu"], structure=st,
-                                            iterations=3)
+                                            iterations=landing_cells)
                     | shunt_mask | anchors["F.Cu"])
         if _man_eff_f is not None:
             # a laid F manifold is ADMITTED top copper (the add_power_pours
@@ -3067,10 +3264,134 @@ def _prep_overunder_net(board, net, nc, ask_layers, grid, *, net_currents,
             "approach_notes": approach_notes}, None
 
 
+def _overunder_bridge_geometry(board, nc, prep, grid, existing_vias,
+                               bridge_via_count, clearance_mm):
+    """One exact field contract for early search feedback and final drawing."""
+    import cec_power_body
+    body_regions = cec_power_body.foreign_regions(
+        board, nc, margin_mm=clearance_mm)
+    pad_boxes = []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            bb = pad.GetBoundingBox()
+            pad_boxes.append((bb.GetLeft() / MM, bb.GetTop() / MM,
+                              bb.GetRight() / MM, bb.GetBottom() / MM))
+    pad_boxes.extend(footprint_copper_boxes(board))
+    for edge in edge_cut_items(board):
+        bb = edge.GetBoundingBox()
+        pad_boxes.append((bb.GetLeft() / MM - 0.5, bb.GetTop() / MM - 0.5,
+                          bb.GetRight() / MM + 0.5, bb.GetBottom() / MM + 0.5))
+
+    def pad_allow(x, y):
+        if pcbnew is None:
+            return False
+        blocking, allowed = fab.via_at_pad_conflicts(
+            board, pcbnew.VECTOR2I(_nm(x), _nm(y)), _nm(0.9), _nm(0.5), nc)
+        return blocking is None and bool(allowed)
+
+    def via_allow(x, y):
+        col, row = grid.ix(x), grid.iy(y)
+        return (0 <= col < grid.nx and 0 <= row < grid.ny
+                and not prep["bridge_forbidden"][row, col]
+                and via_clear_of_foreign_tracks(
+                    board, nc, x, y, diameter_mm=2.0 * VIA_R,
+                    clearance_mm=clearance_mm))
+
+    def landing_allow(x, y, layers):
+        return cec_power_body.landing_clear(
+            body_regions, x, y, layers, radius_mm=VIA_R + 0.05)
+
+    fmask = prep.get("f_admit_mask")
+    return {
+        "pad_boxes": pad_boxes, "existing_vias": existing_vias,
+        "f_admit": _mask_rects(fmask, grid) if fmask is not None else None,
+        "free_masks": prep.get("free") or prep.get("passable"),
+        "pad_allow": pad_allow, "via_allow": via_allow,
+        "landing_allow": landing_allow,
+        "bridge_via_count": bridge_via_count, "strict_bridges": True,
+        "pad_clearance_mm": clearance_mm,
+    }
+
+
+def copper_contains_disk(copper, point, radius_mm):
+    """Exact circular land containment, including every native void/hole.
+
+    Polygon erosion with miter joins expands reentrant corners as squares and
+    can reject a fully contained disk. A covered centre and its minimum
+    Euclidean distance to ALL boundaries are necessary and sufficient. Do not
+    approximate the circle by an inscribed polygon or repair invalid copper.
+    """
+    if not math.isfinite(float(radius_mm)) or radius_mm<=0:
+        raise ValueError('invalid copper landing radius')
+    return bool(not copper.is_empty and copper.is_valid and copper.covers(point)
+                and copper.boundary.distance(point)+1e-9>=radius_mm)
+
+
+def require_bridge_landings(pours, vias, bridges, *, diameter_mm=0.9,
+                            landing_margin_mm=0.045):
+    """Reject a complete field if post-clipping copper cannot seat its lands.
+
+    Point/barrel freedom is not a two-layer copper landing. Use the same
+    full circular land and unchanged margin, with polygon holes retained.
+    Nothing here grows or edits a pour or a field.
+    """
+    from shapely.geometry import Point, Polygon
+    from shapely.ops import unary_union
+
+    if (not math.isfinite(float(diameter_mm)) or diameter_mm<=0
+            or not math.isfinite(float(landing_margin_mm)) or landing_margin_mm<0):
+        raise ValueError('invalid bridge landing requirements')
+
+    layers = {}
+    for row in pours:
+        layers.setdefault(row['layer'], []).append(
+            Polygon(row['polygon'], holes=row.get('holes') or ()))
+    copper = {layer:unary_union(parts) for layer,parts in layers.items()}
+    radius = diameter_mm/2+landing_margin_mm
+    for index, bridge in enumerate(bridges):
+        field = [row for row in vias if row.get('field_index') == index]
+        valid = [row for row in field if all(
+            layer in copper and copper_contains_disk(copper[layer],
+                Point(row['x_mm'],row['y_mm']),radius) for layer in bridge[2:4])]
+        if not field or len(valid) != len(field):
+            raise BridgeFieldRefused('clipped copper cannot contain complete bridge landings',
+                                     bridge, required=len(field), available=len(valid))
+
+
+def _terminal_escape_cells(cell_mm, terminal_escape_mm=None):
+    distance = 4.0 * cell_mm if terminal_escape_mm is None else float(terminal_escape_mm)
+    if not math.isfinite(distance) or distance <= 0:
+        raise ValueError('terminal_escape_mm must be finite and positive')
+    return max(1, int(math.ceil(distance / cell_mm - 1e-12)))
+
+
+def _power_refinement_schedule(grid, levels, max_cells):
+    """Finite precision ladder, bounded before allocating any fine masks."""
+    if isinstance(levels, bool) or int(levels) != levels or not 0 <= levels <= 4:
+        raise ValueError('grid_refinement_levels must be an integer in [0, 4]')
+    if isinstance(max_cells, bool) or int(max_cells) != max_cells or max_cells <= 0:
+        raise ValueError('max_refinement_cells must be a positive integer')
+    result = []
+    for level in range(1, int(levels) + 1):
+        factor = 2 ** level
+        # Grid floors each dimension. Include its fractional tail before
+        # scaling; multiplying the floored dimensions would UNDERestimate
+        # fine-grid work and could bypass the configured allocation ceiling.
+        cells = (int(grid.nx) + 1) * (int(grid.ny) + 1) * factor * factor
+        result.append(dict(cell_mm=grid.cell / factor, cells_upper_bound=cells,
+                           admitted=cells <= max_cells))
+        if cells > max_cells:
+            break
+    return result
+
+
 def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                                manifolds=False, collect=None,
                                manifold_dicts=None, reserved_pours=(),
-                               reserved_vias=()):
+                               reserved_vias=(), bridge_replan_limit=8,
+                               grid_refinement_levels=0,
+                               max_refinement_cells=500000,
+                               terminal_escape_mm=None):
     """v2 OVER-UNDER POURS -- "the pour is a routed object" (owner
     ratification 2026-07-24 late; docs/slab-pour-design-2026-07-24.md, "v2"
     section). Per rail: ONE continuous path from terminal to terminal,
@@ -3113,8 +3434,19 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
     reqw} and collect["_grid"] = the Grid -- so the caller can derive the
     pre-FR corridor reservation from the SAME solve (one solve, three
     consumers; reservation_from_search consumes exactly these).
+
+    Optional bounded grid refinement retries only a failed net, carrying all
+    earlier awarded copper and its original physical terminal escape budget.
+    Successful coarse nets are never re-solved. Each collect[net]['grid'] is
+    authoritative for that net's masks; _grid is only the base-grid default.
+    Refined geometry still needs the caller's exact whole-board admission.
     """
     grid = Grid(board, cell_mm)
+    refinement_schedule = _power_refinement_schedule(
+        grid, grid_refinement_levels, max_refinement_cells)
+    escape_mm = (4.0 * grid.cell if terminal_escape_mm is None
+                 else float(terminal_escape_mm))
+    _terminal_escape_cells(grid.cell, escape_mm)
     nets_nc = {n.GetNetname(): c
                for c, n in board.GetNetInfo().NetsByNetcode().items()}
     if collect is not None:
@@ -3198,7 +3530,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             net_current_margins=net_current_margins,
             clearance_mm=clearance_mm, manifolds=man_by_net.get(net, ()),
             generated_vias=planned_bridge_vias, generated_pours=planned_pours,
-            terminal_refs=terminal_refs)
+            terminal_refs=terminal_refs, terminal_escape_mm=escape_mm)
         if prep is None:
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "reason": _why}
@@ -3216,10 +3548,37 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         _bridge_via_count = (vias_for_current(_amps, margin=_margin)
                              if _amps > 0.0 else None)
         _bridge_cost = power_bridge_cost(_amps, _margin, rcells)
-        chains = []
-        path_cells, bridges, ok, bottleneck = route_overunder(
+        bridge_geometry = _overunder_bridge_geometry(
+            board, nc, prep, grid, existing_vias_mm,
+            _bridge_via_count, clearance_mm)
+
+        def bridge_probe(fields):
+            # No trunk drawing or board mutation: qualify the complete field
+            # set against its own atomic via ledger using the same realizer.
+            realize_overunder_rects([], fields, reqw, grid, **bridge_geometry)
+
+        def realization_probe(paths, fields, candidate_chains):
+            masks = corridor_masks(paths, fields, rcells, prep['foreign'], grid,
+                                   margin_cells=0, terminal_anchors=prep['anchors'])
+            holes, details = {}, []
+            polygons, _points, _notes = realize_overunder_rects(
+                candidate_chains, fields, reqw, grid, **bridge_geometry,
+                clip_masks=masks, holes_out=holes, via_details_out=details)
+            rows = [dict(net=net, layer=layer, polygon=poly,
+                         holes=holes.get((layer, i)) or [])
+                    for layer, polys in polygons.items() for i, poly in enumerate(polys)]
+            rows, _ = _clip_pours_around_generated_vias(
+                rows, planned_bridge_vias, clearance_mm=clearance_mm)
+            rows, _ = _clip_pours_around_foreign_copper(
+                board, rows, clearance_mm=clearance_mm)
+            require_bridge_landings(rows, details, fields)
+
+        path_cells, bridges, ok, bottleneck, chains, bridge_feedback = \
+            route_overunder_with_bridge_feedback(
             prep["layers"], prep["passable"], prep["anchors"], prep["clab"],
-            prep["nclusters"], bias_fn=prep["bias_fn"], chains_out=chains,
+            prep["nclusters"], bias_fn=prep["bias_fn"],
+            bridge_probe=bridge_probe, max_replans=bridge_replan_limit,
+            realization_probe=realization_probe,
             bridge_cost=_bridge_cost,
             bridge_forbidden=prep["bridge_forbidden"],
             prefer_non_f_anchors=prep.get("prefer_non_f_anchors", True),
@@ -3229,10 +3588,33 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             bottleneck["terminals"] = terminal_cluster_members(
                 board, nc, grid, prep["clab"], bottleneck.get("cluster"),
                 terminal_refs=terminal_refs)
+            # After a bridge rejection the disconnected tree reports its
+            # destination cluster, not necessarily the source landing that
+            # exhausted the via field. Preserve both: nearby current-terminal
+            # clusters are bounded placement proposals, not a proof of cause.
+            labels = prep['clab']
+            occupied_r, occupied_c = np.nonzero(labels > 0)
+            nearby = set()
+            for refusal in bridge_feedback['refusals']:
+                if not len(occupied_r):
+                    break
+                distances = ((occupied_r - refusal['row']) ** 2
+                             + (occupied_c - refusal['col']) ** 2)
+                nearest = distances == distances.min()
+                nearby.update(int(value) for value in
+                              labels[occupied_r[nearest], occupied_c[nearest]])
+            bottleneck['field_terminals'] = [
+                item for cluster in sorted(nearby)
+                for item in terminal_cluster_members(board, nc, grid, labels,
+                    cluster, terminal_refs=terminal_refs)]
+            if nearby:
+                bottleneck['field_terminal_basis'] = 'nearest_current_cluster_to_rejected_field_proposal_only'
         if collect is not None:
             collect[net] = {"ok": ok, "path_cells": path_cells,
                             "bridges": bridges, "rcells": prep["rcells"],
                             "foreign": prep["foreign"], "reqw": prep["reqw"],
+                            "anchors": prep["anchors"],
+                            "bridge_feasibility": bridge_feedback,
                             "grid": grid}
 
         _man_rep = ({"manifolds": len(man_by_net.get(net, ())),
@@ -3247,6 +3629,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         })
         _domain_rep["current_contract"] = current_contracts.get(net)
         _search_rep = {
+            "bridge_feasibility": bridge_feedback,
             "required_width_mm": {
                 layer: round(float(width), 6)
                 for layer, width in prep["reqw"].items()},
@@ -3261,6 +3644,66 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             report[net] = {"path_found": False, "segments": 0, "bridges": 0,
                            "layers_used": [], "bottleneck": bottleneck,
                            **_man_rep, **_domain_rep, **_search_rep}
+            refinement = []
+            last_field_refusal = None
+            refined = False
+            for step in refinement_schedule:
+                entry = dict(step, terminal_escape_mm=escape_mm)
+                refinement.append(entry)
+                if not step['admitted']:
+                    entry['stop_reason'] = 'grid_cell_budget_exhausted'
+                    break
+                sub = {}
+                try:
+                    fine_pours, fine_vias, fine_report = synthesize_overunder_pours(
+                        board, [a], cell_mm=step['cell_mm'],
+                        clearance_mm=clearance_mm, collect=sub,
+                        manifold_dicts=man_by_net.get(net, ()),
+                        reserved_pours=planned_pours,
+                        reserved_vias=planned_bridge_vias,
+                        bridge_replan_limit=bridge_replan_limit,
+                        grid_refinement_levels=0,
+                        max_refinement_cells=max_refinement_cells,
+                        terminal_escape_mm=escape_mm)
+                except BridgeSearchRefused as exc:
+                    last_field_refusal = exc
+                    entry.update(path_found=False, stop_reason='bridge_fields_exhausted',
+                                 failure=dict(exc.evidence))
+                    continue
+                fine_row = fine_report.get(net) or {}
+                entry.update(path_found=bool(fine_row.get('path_found')),
+                             bottleneck=fine_row.get('bottleneck'))
+                if not entry['path_found']:
+                    continue
+                pour_dicts.extend(fine_pours)
+                planned_pours.extend(fine_pours)
+                via_list.extend(fine_vias)
+                for via in fine_vias:
+                    radius = float(via.get('radius_mm', VIA_R))
+                    existing_vias_mm.append((via['x_mm'], via['y_mm'], radius))
+                    planned_bridge_vias.append(dict(via, radius_mm=radius))
+                report[net] = dict(fine_row, grid_refinement=refinement,
+                                   base_cell_mm=grid.cell,
+                                   selected_cell_mm=step['cell_mm'])
+                if collect is not None:
+                    collect[net] = sub[net]
+                refined = True
+                break
+            if refined:
+                continue
+            if refinement:
+                report[net]['grid_refinement'] = refinement
+            if last_field_refusal is not None:
+                raise BridgeSearchRefused(net,
+                    last_field_refusal.evidence['bridge_feasibility'],
+                    last_field_refusal.evidence['bottleneck'],
+                    grid_refinement=refinement) from last_field_refusal
+            if bridge_feedback["refusals"]:
+                # The old exact-field refusal aborted this transaction. Do
+                # not turn an exhausted refinement into a partial authority
+                # that omits the failed rail from its frozen-net inventory.
+                raise BridgeSearchRefused(net, bridge_feedback, bottleneck,
+                                          grid_refinement=refinement)
             print(f"[cec_slab_pour] over-under: NO PATH for {net} -- "
                   f"bottleneck {bottleneck}", file=sys.stderr)
             continue
@@ -3273,7 +3716,7 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
         # CEC_OU_SMEAR=1 as the A/B escape hatch.
         _realize_masks = corridor_masks(
             path_cells, bridges, rcells, prep["foreign"], grid,
-            margin_cells=0)
+            margin_cells=0, terminal_anchors=prep["anchors"])
         _realized_holes = {}
         if os.environ.get("CEC_OU_SMEAR") == "1":
             # The legacy shape stays available for A/B, but it must obey the
@@ -3290,68 +3733,20 @@ def synthesize_overunder_pours(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
                                        n_needed=_bridge_via_count,
                                        existing=existing_vias_mm)
         else:
-            _fmask = prep.get("f_admit_mask")
-            _f_admit = (_mask_rects(_fmask, grid)
-                        if _fmask is not None else None)
-            _padb = []
-            for _fp in board.GetFootprints():
-                for _pd in _fp.Pads():
-                    _bb = _pd.GetBoundingBox()
-                    _padb.append((_bb.GetLeft() / MM, _bb.GetTop() / MM,
-                                  _bb.GetRight() / MM, _bb.GetBottom() / MM))
-            _padb.extend(footprint_copper_boxes(board))
-            # Reuse the field-via pad exclusion machinery for Edge.Cuts. Its
-            # VIA_R + PAD_MARGIN expansion is only the pad-standoff rule; pre-
-            # inflate apertures by the 0.5-mm copper-edge requirement too.
-            _edge_clear = 0.5
-            for _edge in edge_cut_items(board):
-                _bb = _edge.GetBoundingBox()
-                _padb.append((_bb.GetLeft() / MM - _edge_clear,
-                              _bb.GetTop() / MM - _edge_clear,
-                              _bb.GetRight() / MM + _edge_clear,
-                              _bb.GetBottom() / MM + _edge_clear))
-
-            def _pofv_pad_allow(_x, _y, _nc=nc):
-                if pcbnew is None:
-                    return False
-                _at = pcbnew.VECTOR2I(_nm(_x), _nm(_y))
-                _blocking, _allowed = fab.via_at_pad_conflicts(
-                    board, _at, _nm(0.9), _nm(0.5), _nc)
-                return _blocking is None and bool(_allowed)
-
-            _bridge_forbidden = prep["bridge_forbidden"]
-            # Size a layer transition from the sustained design current, not
-            # from its surrounding corridor width.  The corridor also carries
-            # spreading, reach, and manufacturing margin; using it as an
-            # ampacity proxy over-populates low-current wide rails and can
-            # create a fictitious congestion failure.  The converse is just
-            # as important: a narrow high-current terminal neck must not
-            # under-size its transition.  Retain the width heuristic only for
-            # genuinely unmodelled nets.
-            def _planned_via_allow(_x, _y, _mask=_bridge_forbidden,
-                                   _board=board, _nc=nc):
-                _i, _j = grid.ix(_x), grid.iy(_y)
-                return (0 <= _i < grid.nx and 0 <= _j < grid.ny
-                        and not _mask[_j, _i]
-                        and via_clear_of_foreign_tracks(
-                            _board, _nc, _x, _y,
-                            diameter_mm=2.0 * VIA_R,
-                            clearance_mm=clearance_mm))
+            _via_details = []
             try:
                 realized, _vpts, _rnotes = realize_overunder_rects(
-                    chains, bridges, reqw, grid, pad_boxes=_padb,
-                    existing_vias=existing_vias_mm, f_admit=_f_admit,
-                    free_masks=prep.get("free") or prep.get("passable"),
+                    chains, bridges, reqw, grid, **bridge_geometry,
                     clip_masks=_realize_masks, holes_out=_realized_holes,
-                    pad_allow=_pofv_pad_allow, via_allow=_planned_via_allow,
-                    bridge_via_count=_bridge_via_count,
-                    strict_bridges=True)
+                    via_details_out=_via_details)
             except RuntimeError as exc:
                 # A bare grid cell is not actionable in a ten-rail solve.
                 # Preserve the strict refusal, but identify the owning net so
                 # placement/layer/via-ledger repairs target the real corridor.
                 raise RuntimeError(f"over-under realization for {net}: {exc}") from exc
-            net_vias = [{"x_mm": x, "y_mm": y} for (x, y) in _vpts]
+            net_vias = (_via_details if len(_via_details) == len(_vpts)
+                        else [{"x_mm": x, "y_mm": y}
+                              for (x, y) in _vpts])
             for _nt in _rnotes:
                 print(f"[cec_slab_pour] over-under[{net}]: {_nt}",
                       file=sys.stderr)
@@ -3482,7 +3877,7 @@ def _mask_rects(mask, grid):
 
 
 def corridor_masks(path_cells, bridges, rcells, foreign, grid, *,
-                   margin_cells=1):
+                   margin_cells=1, terminal_anchors=None):
     """PURE raster half of the reservation: per-layer corridor masks from one
     net's over-under search result. Each layer's path is dilated by that
     layer's OWN half-width in cells (the same *rcells* the search eroded by
@@ -3493,11 +3888,18 @@ def corridor_masks(path_cells, bridges, rcells, foreign, grid, *,
     (rasterize() output, already clearance-padded) is SUBTRACTED -- the
     margin ring and any anchor-walked stretch (own pads beside foreign pads
     at a connector carry no erosion guarantee, incl. the anchor-approach
-    taper cells) can therefore never swallow a foreign pad or its halo,
-    which would wall FR off from copper it MUST still reach. Bridge overlap
-    disks are applied first (on a copy) so the via-array landing areas are
-    reserved on both transitioning layers. Returns {layer: mask}, non-empty
-    layers only."""
+    taper cells) can therefore never swallow a foreign pad or its halo.
+
+    A coarse foreign stamp can overlap the one raster cell containing a legal
+    same-net pad/via next to a fine-pitch foreign pad.  Search explicitly
+    admits that own anchor, so deleting it here makes realization stop one
+    cell short and turns ``path_found`` into a false positive.  When
+    *terminal_anchors* is supplied, restore only path cells that are also real
+    own-net anchors.  KiCad's exact filler still carves the neighboring foreign
+    shape; the restored cell merely guarantees the outline reaches the true
+    terminal coordinate.  Bridge overlap disks are applied first (on a copy)
+    so the via-array landing areas are reserved on both transitioning layers.
+    Returns {layer: mask}, non-empty layers only."""
     from scipy import ndimage
     st = ndimage.generate_binary_structure(2, 1)
     pc = {lay: m.copy() for lay, m in path_cells.items()}
@@ -3512,13 +3914,17 @@ def corridor_masks(path_cells, bridges, rcells, foreign, grid, *,
         f = foreign.get(lay)
         if f is not None:
             dil = dil & ~f
+            own = (terminal_anchors or {}).get(lay)
+            if own is not None:
+                dil |= m & own
         if dil.any():
             out[lay] = dil
     return out
 
 
 def reservation_from_search(net, ok, path_cells, bridges, rcells, foreign,
-                            grid, *, margin_cells=1):
+                            grid, *, margin_cells=1,
+                            terminal_anchors=None):
     """PURE post-search half of `reserve_pour_corridors`: corridor rect dicts
     from one net's search outcome. Returns (corridors, reserved):
 
@@ -3534,8 +3940,10 @@ def reservation_from_search(net, ok, path_cells, bridges, rcells, foreign,
                                            for m in path_cells.values()):
         return [], False
     cors = []
-    for lay, m in corridor_masks(path_cells, bridges, rcells, foreign, grid,
-                                 margin_cells=margin_cells).items():
+    for lay, m in corridor_masks(
+            path_cells, bridges, rcells, foreign, grid,
+            margin_cells=margin_cells,
+            terminal_anchors=terminal_anchors).items():
         for (x0, y0, x1, y1) in _mask_rects(m, grid):
             cors.append({"net": net, "layer": lay,
                          "x0": round(x0, 3), "y0": round(y0, 3),
@@ -3686,7 +4094,7 @@ def reserve_pour_corridors(board, asks, *, cell_mm=0.8, clearance_mm=0.3,
             full_width=prep.get("full_width"))
         cors, reserved = reservation_from_search(
             net, ok, path_cells, bridges, prep["rcells"], prep["foreign"],
-            grid)
+            grid, terminal_anchors=prep["anchors"])
         if not reserved:
             report[net] = {"reserved": False, "exclude_pins": [],
                            **({"bottleneck": bottleneck} if not ok else
@@ -3853,7 +4261,8 @@ def cleanup_floating_zones(board_path):
     # smuggle it back in through the fill rule.
     filled_now = False
     try:
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        import cec_zone_fill
+        cec_zone_fill.fill(board)
         filled_now = True
         if hasattr(board, "BuildConnectivity"):
             board.BuildConnectivity()          # connectivity must see the fill
@@ -4141,24 +4550,139 @@ def guaranteed_shunt_patches(board, margin_mm=4.5, gap_mm=0.15,
 # ---------------------------------------------------------------------------
 def connector_manifolds(board, nets=None, *, margin_mm=0.3,
                         ref_prefixes=("J", "TB")):
-    """Manifold pour dicts for every (connector, net) pin group.
+    """Manifold pour dicts for local connector pin groups.
 
     *nets* -- restrict to these net names (None = every non-GND net on a
     connector). GND is always excluded (plane-carried; a GND manifold would
-    just shadow the plane). ``margin_mm`` is a local attach allowance, not a
-    board-routing corridor: the over-under solver owns the widened remote path.
-    Keeping this small prevents a connector's grouped power row from creating
-    a giant slab across interleaved foreign pins. Returns dicts in
+    just shadow the plane).  Repeated switch/regulator/BGA lands are joined by
+    ``synthesize_same_footprint_links`` before priority-power planning.  They
+    deliberately do not use zones: an exact filler can erase a sub-millimetre
+    pin-field neck even when the planning polygon is geometrically connected.
+
+    ``margin_mm`` is a local attach allowance, not a board-routing corridor:
+    the over-under solver owns the widened remote path. Keeping this small
+    prevents a grouped power row from creating a giant slab across interleaved
+    foreign pins. Returns dicts in
     add_power_pours' format with
     provenance "slab" (the bond/scrap filter + F-rectangularize exemption
     class) and a "name" carrying the manifold identity for the choke-point
     admit + the nowhere-reaper exemption."""
+    from shapely.geometry import box as _sbox
+    from shapely.ops import unary_union
+
+    def _pad_box(pad, grow=0.0):
+        bb = pad.GetBoundingBox()
+        return _sbox(bb.GetLeft() / MM - grow, bb.GetTop() / MM - grow,
+                     bb.GetRight() / MM + grow,
+                     bb.GetBottom() / MM + grow)
+
+    def _local_pin_clusters(pads, field_pads, *, grow):
+        """Return electrically honest local bus-bar polygons for *pads*.
+
+        A connector can repeat one rail in several remote or interleaved pin
+        groups.  The old bounding-box manifold covered all of them at once;
+        foreign pads then split the real KiCad fill while the abstract planner
+        still treated the rectangle as one conductor.  Join only neighboring,
+        row/column-aligned pads whose Manhattan bridge clears every foreign
+        connector pad.  A minimum spanning forest keeps L-shaped groups local
+        and prevents a cycle from enclosing an unrelated pin.
+        """
+        if not pads:
+            return []
+        centres = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                   for p in field_pads]
+        pitch = min((math.hypot(ax - bx, ay - by)
+                     for i, (ax, ay) in enumerate(centres)
+                     for bx, by in centres[i + 1:]
+                     if math.hypot(ax - bx, ay - by) > 1e-6),
+                    default=float("inf"))
+        # Wide side pads on a fine-pitch IC can be 1.0--1.5 mm apart even
+        # though its signal-pin pitch is 0.5 mm.  Keep a small absolute local
+        # window as well as the connector-relative pitch window; the foreign
+        # pad intersection test below still rejects a shortcut across an
+        # intervening pin.
+        neighbor_limit = (max(2.0, 1.35 * pitch)
+                          if math.isfinite(pitch) else float("inf"))
+        own = [_pad_box(p, float(grow)) for p in pads]
+        foreign = [_pad_box(p) for p in field_pads
+                   if p not in pads]
+        edges = []
+        for i, a in enumerate(pads):
+            ap = a.GetPosition()
+            ac = (ap.x / MM, ap.y / MM)
+            abb = _pad_box(a)
+            for j in range(i + 1, len(pads)):
+                b = pads[j]
+                bp = b.GetPosition()
+                bc = (bp.x / MM, bp.y / MM)
+                bbb = _pad_box(b)
+                distance = math.hypot(ac[0] - bc[0], ac[1] - bc[1])
+                if distance > neighbor_limit + 1e-6:
+                    continue
+                x_aligned = min(abb.bounds[2], bbb.bounds[2]) \
+                    >= max(abb.bounds[0], bbb.bounds[0]) - 1e-6
+                y_aligned = min(abb.bounds[3], bbb.bounds[3]) \
+                    >= max(abb.bounds[1], bbb.bounds[1]) - 1e-6
+                if not (x_aligned or y_aligned):
+                    continue
+                bridge = _sbox(
+                    min(own[i].bounds[0], own[j].bounds[0]),
+                    min(own[i].bounds[1], own[j].bounds[1]),
+                    max(own[i].bounds[2], own[j].bounds[2]),
+                    max(own[i].bounds[3], own[j].bounds[3]))
+                if any(bridge.intersection(obstacle).area > 1e-9
+                       for obstacle in foreign):
+                    continue
+                edges.append((distance, i, j, bridge))
+
+        parent = list(range(len(pads)))
+
+        def find(index):
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        chosen = []
+        for distance, i, j, bridge in sorted(
+                edges, key=lambda row: (row[0], row[1], row[2])):
+            ri, rj = find(i), find(j)
+            if ri == rj:
+                continue
+            parent[rj] = ri
+            chosen.append((i, j, bridge))
+        components = {}
+        for index in range(len(pads)):
+            components.setdefault(find(index), []).append(index)
+        component_edges = {}
+        for i, j, bridge in chosen:
+            component_edges.setdefault(find(i), []).append(bridge)
+
+        rows = []
+        for root, indices in components.items():
+            geometry = unary_union(
+                [own[index] for index in indices]
+                + component_edges.get(root, []))
+            parts = list(getattr(geometry, "geoms", (geometry,)))
+            for part in parts:
+                points = _drop_collinear([
+                    (round(x, 3), round(y, 3))
+                    for x, y in part.exterior.coords])
+                rows.append((
+                    min((pads[index].GetPosition().y / MM,
+                         pads[index].GetPosition().x / MM)
+                        for index in indices),
+                    [pads[index] for index in indices], points))
+        return [(cluster_pads, points) for _key, cluster_pads, points
+                in sorted(rows, key=lambda row: row[0])]
+
     fcu = board.GetLayerID("F.Cu")
     bcu = board.GetLayerID("B.Cu")
     out = []
     for fp in board.GetFootprints():
         ref = fp.GetReference() or ""
-        if not ref.startswith(tuple(ref_prefixes)):
+        connector = ref.startswith(tuple(ref_prefixes))
+        if not connector:
             continue
         field_pads = [pad for pad in fp.Pads()
                       if list(pad.GetLayerSet().CuStack())]
@@ -4181,50 +4705,55 @@ def connector_manifolds(board, nets=None, *, margin_mm=0.3,
                 continue
             by_net.setdefault(n, []).append(p)
         for net, ps in sorted(by_net.items()):
-            x0 = min(p.GetBoundingBox().GetLeft() for p in ps) / MM - margin_mm
-            y0 = min(p.GetBoundingBox().GetTop() for p in ps) / MM - margin_mm
-            x1 = max(p.GetBoundingBox().GetRight() for p in ps) / MM + margin_mm
-            y1 = max(p.GetBoundingBox().GetBottom() for p in ps) / MM + margin_mm
+            clusters = _local_pin_clusters(ps, field_pads, grow=margin_mm)
+            for cluster_index, (cluster_pads, polygon) in enumerate(clusters):
             # natural layers: >1 copper layer on any pad = THT group (barrels
             # anchor F AND In2); single-layer = SMD group on its own side.
-            tht = any(len(set(p.GetLayerSet().CuStack())) > 1 for p in ps)
-            if tht:
-                profile_name = fab.active_profile_name(
-                    board, hint=os.environ.get("CEC_THERMAL_BOARD_HINT", ""))
-                enabled = set(fab.enabled_copper_layers(board))
-                if profile_name:
-                    roles = dict(zip(
-                        fab.COPPER_LAYERS,
-                        fab.get_profile(profile_name)["roles"]))
-                    candidates = [
-                        layer for layer in fab.COPPER_LAYERS
-                        if layer != "F.Cu" and layer in enabled
-                        and "PWR" in roles.get(layer, "")]
-                    # Select the most capable non-top manifold layer.  On the
-                    # high-current stack this is the 2 oz B.Cu SIG/PWR face,
-                    # not the 0.5 oz In3 power plane; on the signal stack the
-                    # dedicated In3 power layer remains the only candidate.
-                    candidates.sort(key=lambda layer: (
-                        -fab.copper_thickness_mm(profile_name, layer),
-                        fab.COPPER_LAYERS.index(layer)))
-                    secondary = candidates[0] if candidates else None
+                tht = any(len(set(p.GetLayerSet().CuStack())) > 1
+                          for p in cluster_pads)
+                if tht:
+                    profile_name = fab.active_profile_name(
+                        board, hint=os.environ.get(
+                            "CEC_THERMAL_BOARD_HINT", ""))
+                    enabled = set(fab.enabled_copper_layers(board))
+                    if profile_name:
+                        roles = dict(zip(
+                            fab.COPPER_LAYERS,
+                            fab.get_profile(profile_name)["roles"]))
+                        candidates = [
+                            layer for layer in fab.COPPER_LAYERS
+                            if layer != "F.Cu" and layer in enabled
+                            and "PWR" in roles.get(layer, "")]
+                        # Select the most capable non-top manifold layer.  On
+                        # the high-current stack this is the 2 oz B.Cu
+                        # SIG/PWR face, not the 0.5 oz In3 power plane.
+                        candidates.sort(key=lambda layer: (
+                            -fab.copper_thickness_mm(profile_name, layer),
+                            fab.COPPER_LAYERS.index(layer)))
+                        secondary = candidates[0] if candidates else None
+                    else:
+                        secondary = "In2.Cu"
+                    lays = [layer for layer in ("F.Cu", secondary)
+                            if layer and layer in enabled]
                 else:
-                    secondary = "In2.Cu"
-                lays = [layer for layer in ("F.Cu", secondary)
-                        if layer and layer in enabled]
-            else:
-                stack = set(ps[0].GetLayerSet().CuStack())
-                lays = ["B.Cu" if bcu in stack and fcu not in stack
-                        else "F.Cu"]
-            for lay in lays:
-                out.append({"net": net, "layer": lay,
-                            "polygon": [(round(x0, 3), round(y0, 3)),
-                                        (round(x1, 3), round(y0, 3)),
-                                        (round(x1, 3), round(y1, 3)),
-                                        (round(x0, 3), round(y1, 3))],
-                            "provenance": "slab", "priority": 3,
-                            "name": "manifold:%s:%s" % (ref, net),
-                            "escape_span_mm": round(escape_span, 3)})
+                    stack = set(cluster_pads[0].GetLayerSet().CuStack())
+                    lays = ["B.Cu" if bcu in stack and fcu not in stack
+                            else "F.Cu"]
+                name = "manifold:%s:%s" % (ref, net)
+                if len(clusters) > 1:
+                    name += ":%d" % (cluster_index + 1)
+                xs = [point[0] for point in polygon]
+                ys = [point[1] for point in polygon]
+                local_escape_span = max(max(xs) - min(xs),
+                                        max(ys) - min(ys))
+                for lay in lays:
+                    row = {"net": net, "layer": lay,
+                           "polygon": polygon,
+                           "provenance": "slab", "priority": 3,
+                           "name": name,
+                           "escape_span_mm": round(
+                               min(escape_span, local_escape_span), 3)}
+                    out.append(row)
     return out
 
 
@@ -4240,6 +4769,61 @@ def _excludable_pad(p, shunt_boxes):
     px, py = q.x / MM, q.y / MM
     return any(bx0 <= px <= bx1 and by0 <= py <= by1
                for (bx0, by0, bx1, by1) in shunt_boxes)
+
+
+def physical_pad_connection_points(board):
+    """Return copper contacts for ownership and connectivity proofs.
+
+    Records are ``(net, x, y, layer[, outer_r, inner_r])``.  The optional
+    radii describe a conservative circular region that is guaranteed to be
+    inside the pad copper: ``outer_r`` is half the pad's smaller dimension
+    and ``inner_r`` removes the drilled hole.  Consumers continue to accept
+    the historic four-field point records, but real-board proofs must not
+    require a route/pour to cover the mathematical centre of a plated hole.
+
+    Through-hole lands electrically exist on every copper layer and therefore
+    use ``None``. A surface land exists only on its canonical copper layer.
+    Keeping that fourth field is essential: otherwise redundant-layer cleanup
+    can claim that an inner pour passing underneath an SMD source/sink owns the
+    terminal, delete the real surface landing and then prune every required
+    transition via as an orphan.
+    """
+    canonical_by_id = {}
+    for name in fab.COPPER_LAYERS:
+        try:
+            layer_id = int(board.GetLayerID(name))
+        except Exception:                              # noqa: BLE001
+            continue
+        if layer_id >= 0:
+            canonical_by_id[layer_id] = name
+    points = []
+    for footprint in board.GetFootprints():
+        for pad in footprint.Pads():
+            net = str(pad.GetNetname() or "")
+            if not net:
+                continue
+            stack = tuple(int(layer) for layer in pad.GetLayerSet().CuStack())
+            if not stack:
+                continue
+            layer = None if len(set(stack)) > 1 else canonical_by_id.get(
+                stack[0], str(pad.GetLayerName() or ""))
+            position = pad.GetPosition()
+            record = (net, position.x / MM, position.y / MM, layer)
+            try:
+                size = pad.GetSize()
+                outer_r = max(0.0, min(float(size.x), float(size.y)) /
+                              (2.0 * MM) - 0.01)
+                drill = pad.GetDrillSize()
+                inner_r = max(0.0, max(float(drill.x), float(drill.y)) /
+                              (2.0 * MM) + 0.01)
+                if outer_r > inner_r + 0.01:
+                    record += (outer_r, inner_r)
+            except Exception:                              # noqa: BLE001
+                # Lightweight test doubles and old pcbnew bindings may not
+                # expose size/drill accessors; retain point-only semantics.
+                pass
+            points.append(record)
+    return points
 
 
 def pourfirst_conv_split(power_pours, frozen_nets, full):
@@ -4378,11 +4962,52 @@ def enumerate_winning(cands, vias, *, no_path_nets=(), gang_keep=None,
     return kept, dropped
 
 
+def _contact_fields(record):
+    """Normalize a legacy point or pad-region contact record."""
+    x, y = float(record[0]), float(record[1])
+    layer = record[2] if len(record) > 2 else None
+    outer_r = max(0.0, float(record[3])) if len(record) > 3 else 0.0
+    inner_r = max(0.0, float(record[4])) if len(record) > 4 else 0.0
+    return x, y, layer, outer_r, inner_r
+
+
+def _contact_geometry(record):
+    """Copper geometry represented by one normalized contact record.
+
+    For a drilled land this is an annulus, not a filled disc: treating the
+    empty drill centre as copper would merely replace the old false-negative
+    with a false-positive.  The deliberately inscribed outer circle is safe
+    for circular, oval, rectangular and rotated rectangular pads.
+    """
+    x, y, _layer, outer_r, inner_r = _contact_fields(record)
+    point = _shp_point(x, y)
+    if outer_r <= 0.0:
+        return point
+    copper = point.buffer(outer_r, quad_segs=16)
+    if inner_r > 0.0:
+        copper = copper.difference(point.buffer(inner_r, quad_segs=16))
+    return copper
+
+
+def _contact_intersects(poly, record):
+    """Whether solution copper physically touches a pad/barrel contact."""
+    return poly.intersects(_contact_geometry(record))
+
+
+def _contact_key(record):
+    x, y, layer, _outer_r, _inner_r = _contact_fields(record)
+    return round(x, 6), round(y, 6), layer
+
+
 def _conn_set(poly, pts, layer=None):
-    """Connection points a polygon actually covers ON ITS OWN LAYER."""
-    return frozenset((round(x, 1), round(y, 1)) for (x, y, lay) in pts
-                     if (lay is None or layer is None or lay == layer)
-                     and poly.covers(_shp_point(x, y)))
+    """Physical contacts a polygon makes ON ITS OWN LAYER."""
+    out = []
+    for record in pts:
+        x, y, contact_layer, _outer_r, _inner_r = _contact_fields(record)
+        if (contact_layer is None or layer is None or contact_layer == layer) \
+                and _contact_intersects(poly, record):
+            out.append((round(x, 1), round(y, 1)))
+    return frozenset(out)
 
 
 def _shp_point(x, y):
@@ -4483,13 +5108,14 @@ def drop_redundant_layers(kept, *, pads=(), vias=(), min_layers=None,
     # an inner zone passing over it connects nothing. Modelling pads as bare
     # points made an In2 copy look like it owned an F.Cu terminal -- which
     # would have deleted the only zone actually touching the pad.
-    pts_by_net = {}                                        # net -> [(x,y,lay)]
+    pts_by_net = {}                              # net -> contact descriptors
     _pad_only = {}
     for _p in pads or ():
         n, x, y = _p[0], _p[1], _p[2]
         lay = _p[3] if len(_p) > 3 else None                # None = all layers
-        pts_by_net.setdefault(n, []).append((x, y, lay))
-        _pad_only.setdefault(n, set()).add((x, y, lay))
+        contact = (x, y, lay) + tuple(_p[4:])
+        pts_by_net.setdefault(n, []).append(contact)
+        _pad_only.setdefault(n, set()).add(contact)
     for v in vias or ():
         pts_by_net.setdefault(v.get("net"), []).append(
             (v.get("x_mm", 0.0), v.get("y_mm", 0.0), None))
@@ -4634,22 +5260,24 @@ def _net_graph_connected(zones, pts, *, required_terms=()):
                 if gi.intersects(gj):
                     union(i, j)
                 continue
-            for (x, y, lay) in pts:                        # barrel: all layers
-                if lay is None and gi.covers(_shp_point(x, y)) \
-                        and gj.covers(_shp_point(x, y)):
+            for contact in pts:                            # barrel: all layers
+                _x, _y, lay, _outer_r, _inner_r = \
+                    _contact_fields(contact)
+                if lay is None and _contact_intersects(gi, contact) \
+                        and _contact_intersects(gj, contact):
                     union(i, j)
                     break
     terms = set()
     covered_required = set()
-    required = {
-        (round(float(x), 6), round(float(y), 6), lay)
-        for (x, y, lay) in (required_terms or ())}
+    required = {_contact_key(contact) for contact in (required_terms or ())}
     comps = set()
-    for (x, y, lay) in pts:
+    for contact in pts:
+        x, y, lay, _outer_r, _inner_r = _contact_fields(contact)
         for i, (li, gi) in enumerate(polys):
-            if (lay is None or lay == li) and gi.covers(_shp_point(x, y)):
+            if ((lay is None or lay == li)
+                    and _contact_intersects(gi, contact)):
                 terms.add((round(x, 1), round(y, 1)))
-                key = (round(float(x), 6), round(float(y), 6), lay)
+                key = _contact_key(contact)
                 if key in required:
                     covered_required.add(key)
                 comps.add(find(i))
@@ -4711,8 +5339,7 @@ def _drop_parallel_bridges(kept, pts_by_net, min_layers, net_amps,
         # smaller piece. Without this the pass dropped the F.Cu manifold
         # holding J3's pads and kept an inner lane, which is electrically
         # legal through THT barrels but is the wrong owner on both counts.
-        _pads_only = [(x, y, lay) for (x, y, lay) in pts
-                      if (x, y, lay) in _pad_pts.get(net, ())]
+        _pads_only = list(_pad_pts.get(net, ()))
 
         def _holds_pad(i):
             from shapely.geometry import Polygon
@@ -4721,8 +5348,11 @@ def _drop_parallel_bridges(kept, pts_by_net, min_layers, net_amps,
             except Exception:                              # noqa: BLE001
                 return False
             lay = kept[i].get("layer", "F.Cu")
-            return any((pl is None or pl == lay) and g.covers(_shp_point(px, py))
-                       for (px, py, pl) in _pads_only)
+            return any(
+                (_contact_fields(contact)[2] is None
+                 or _contact_fields(contact)[2] == lay)
+                and _contact_intersects(g, contact)
+                for contact in _pads_only)
 
         def _area(i):
             from shapely.geometry import Polygon

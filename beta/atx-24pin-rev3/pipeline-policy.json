@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "board": "atx-24pin-rev3",
+  "params": {
+    "respect_antenna_keepout": false,
+    "assembly_envelope": {"role": "carrier", "contract": "beta/assembly/hub-atx-stack.json", "pair": "docs/hub-atx-active-placement-pair.json"},
+    "outline_compaction": {
+      "enabled": true,
+      "step_mm": 4.0,
+      "max_steps": 2,
+      "shrink_axes": ["width"],
+      "include_incremental": true,
+      "include_fresh_placement": false,
+      "repack_collisions": true,
+      "repack_max_variants": 1,
+      "repack_beam_width": 16,
+      "probe_route_preflight": false,
+      "edge_follow_exclude_refs": ["J6P", "J6C", "J6D", "H1"],
+      "edge_follow": [
+        {"edge": "right", "margin_mm": 14.0, "mode": "contain", "clearance_mm": 0.5}
+      ],
+      "minimum_edge_margin_mm": 0.5,
+      "fallback_steps_mm": []
+    },
+    "bootstrap_outline_mm": [
+      86.0,
+      95.0
+    ],
+    "schematic_first_normalization": true,
+    "net_current_contracts": {
+      "/SENSE3V3": 20.0,
+      "/SENSE5V": 20.0,
+      "/SENSE12V": 12.0,
+      "/SENSE5VSB": 3.0,
+      "/ATX_NEG12V": 1.0,
+      "+5V_MAIN": 20.0,
+      "+3V3": 0.5,
+      "+5VSB": 3.0,
+      "+5V_SYS": 3.0,
+      "/5VSB_MUX": 3.0,
+      "/+5V_SYS_PORT": 2.5,
+      "/VBUS_RAW": 0.75,
+      "/VBUS_F": 0.75,
+      "/VBUS": 0.75
+    },
+    "current_endpoint_contracts": [
+      {
+        "net": "/ATX_NEG12V",
+        "sources": [{"ref": "J3", "pins": ["14"], "mpn": "39291247", "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"}],
+        "sinks": [{"ref": "J_SIG1", "pins": ["1"], "mpn": "SSQ-102-03-G-D", "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical"}],
+        "basis": "Owner-authorized 1 A sustained negative-12-volt pass-through design basis, 2026-10-17: actual J3 pin 14 to J_SIG1 pin 1. The existing 125 percent conductor geometry margin applies once to the complete path. C22, C23 and R75 are local bypass/divider leaves, not alternate full-current sinks or a basis for reducing the pass-through load. This is not a measured load, PSU source guarantee, connector/barrel capacity, inrush, thermal or release qualification."
+      },
+      {
+        "net": "/VBUS_RAW",
+        "sources": [{"ref": "J5", "pins": ["A4", "A9", "B4", "B9"], "mpn": "USB4215-03-A", "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A"}],
+        "sinks": [{"ref": "F1", "pins": ["1"], "mpn": "1206L075/16WR", "footprint": "cec-Resistor_SMD:R_1206_3216Metric"}],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: USB-C VBUS bank to F1 input. Uses only the pre-existing 0.75 A service-chain conductor basis and its once-applied 125 percent geometry margin; no fuse clamp, equal pin sharing, barrel, inrush, thermal or release qualification is inferred."
+      },
+      {
+        "net": "/VBUS_F",
+        "sources": [{"ref": "F1", "pins": ["2"], "mpn": "1206L075/16WR", "footprint": "cec-Resistor_SMD:R_1206_3216Metric"}],
+        "sinks": [{"ref": "FB1", "pins": ["1"], "mpn": "MPZ2012S601AT000", "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"}],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: F1 output to FB1 input. The existing service-chain current and margin are unchanged; component hold/trip/current ratings are not substituted for a load or fault-current bound."
+      },
+      {
+        "net": "/VBUS",
+        "sources": [{"ref": "FB1", "pins": ["2"], "mpn": "MPZ2012S601AT000", "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"}],
+        "sinks": [{"ref": "U6", "pins": ["2"], "mpn": "TPS2121RUXR", "footprint": "cec-Package_DFN_QFN:RUX0012A"}],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
+      }
+    ],
+    "supply_consumer_allocations": [
+      {
+        "net": "+5V_MAIN",
+        "device_package": "TPS2121 RUX",
+        "pin": "7",
+        "amps": 3.0004,
+        "maximum_consumers": 1,
+        "basis": "Full unchanged 3 A SYS output conductor design basis plus TPS2121 enabled-input quiescent maximum 0.0004 A (TI SLVSEA3F section 7.5). The independent native receiver requires a selected RUX package, one distinct common OUT net carrying that existing authority, one physical shared-rail tap and unchanged aggregate source/sink partitions. The 20 A main cable-rail ceiling is unchanged; the existing 125 percent geometry margin is applied once. No equal branch sharing, source clamp, input-capacitor inrush, fault, terminal/barrel capacity or release qualification follows."
+      },
+      {
+        "net": "+5V_SYS",
+        "device_package": "TJA1051T/3 SO8",
+        "pin": "3",
+        "amps": 0.5,
+        "maximum_consumers": 1,
+        "basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+      }
+    ],
+    "net_current_contract_notes": [
+      "Sustained worst case: 3V3 and 5V use the owner-ratified 20 A ceiling, 12V uses two 6 A circuits, and standby uses 3 A.",
+      "The owner authorized 1 A sustained for the ATX negative-12-volt pass-through on 2026-10-17. Size the actual selected-layer copper for 1.25 A after the unchanged routing margin, without dividing current among layers or counting the divider current as the pass-through load. The conservative shared-return calculation must include this newly declared rail; it receives no assumed cancellation credit. This authorization does not itself qualify the existing geometry or selected contacts.",
+      "The interconnect cross-check is 18.32 A per ratified blade joint after 125 percent margin.",
+      "The selected F1 1206L075/16WR (C371166) USB service chain uses the platform's existing 0.75 A sustained routing design basis (docs/usb-ingress-bom-delta-2026-07-24.md, 24-pin cascade; same explicit basis as the PCIe and 12VHPWR service cells). This is a conservative geometry envelope, not a measured load, guaranteed PTC clamp, TPS2121 fault-current limit, or barrel/inrush/release qualification. The normal 125 percent geometry margin applies once. Main-rail ceilings and reviewed component budgets are unchanged.",
+      "The Hub-bound output uses the existing Hub shared 2.5 A design basis, not 2.5 A per header: J6P and legacy J2 are alternate connections to the same single reviewed Hub. +5V_SYS and 5VSB_MUX use a conservative 3 A conductor design basis: the same 2.5 A shared external allocation plus 0.5 A local allowance. The existing wireless-disabled ATX +3V3 budget (0.2048376 A with its existing 20 percent margin), TJA1051 VCC short-circuit maximum (0.110 A; NXP TJA1051 Rev 9 table 7), and two TPS2121 quiescent maxima (0.0004 A each; TI SLVSEA3F section 7.5) remain below that local allowance. This adds missing routing authority only: it does not substitute a source rating for the actual component load budget, increase the standby source ceiling, rate terminal/barrel sharing, qualify inrush, or assert that the TPS2121 clamps at 3 A. Existing 125 percent conductor sizing applies once to these design bases. The USB-only service mode remains bounded by its separate 0.75 A basis; it is not qualified for the full external Hub allocation."
+    ],
+    "qualified_interface_anchor": {
+      "provider": "cec_xfcn_contract",
+      "project": "atx-main",
+      "edge": "top",
+      "terminal_edge_y_mm": 0.9
+    },
+    "automatic_pin_escape_tier": true,
+    "pre_route_craft_admission": true,
+    "decoupler_cell_pre_route": true,
+    "post_route_corner_chamfer": true,
+    "post_route_teardrops": "release",
+    "certificate_repair": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "input": "/home/codex/src/CEC-Platform/beta/pcie-8pin-2port/candidate/pcie-8pin-2port-candidate.kicad_pcb",
+  "input_sha256": "4c8fe154767ed3c1d8bfab9664c2199c2455e8b7f8c4374b018c59cbaaa98f35",
+  "output": "/home/codex/src/CEC-Platform/beta/pcie-8pin-2port/candidate/pcie-8pin-2port-candidate.kicad_pcb",
+  "output_sha256": "b896d8753503e4edae493f34cc4d7339797200b7a56b9e758af4e6fa08a47781",
+  "moved": {
+    "TB11": {
+      "before": [
+        34.0,
+        42.55,
+        0.0
+      ],
+      "after": [
+        20.0,
+        42.55,
+        0.0
+      ]
+    },
+    "TB13": {
+      "before": [
+        20.0,
+        42.55,
+        0.0
+      ],
+      "after": [
+        34.0,
+        42.55,
+        0.0
+      ]
+    }
+  },
+  "outline_unchanged": true,
+  "unrelated_footprints_unchanged": true,
+  "copper_unchanged": true,
+  "affected_nets": [
+    "/SENSEC1_LO",
+    "GND"
+  ],
+  "stale_copper": [
+    {
+      "uuid": "7e295beb-750a-442f-830d-3ad72620a4e2",
+      "net": "GND",
+      "kind": "ZONE"
+    }
+  ],
+  "route_authority_invalidated": true,
+  "admission_ok": false,
+  "release_authority": false,
+  "required_next_stages": [
+    "mechanical_clearance",
+    "placement_admission",
+    "power_corridor_rebuild",
+    "routing",
+    "full_drc"
+  ],
+  "note": "Nominal mating ECO preview, not a routed/admitted board.",
+  "backup": "/home/codex/src/CEC-Platform/build/mating-source-backup-20260911/pcie2-main/before.kicad_pcb"
+}

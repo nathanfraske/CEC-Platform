@@ -69,3 +69,17 @@ docs/v4-queue/
 *-erc.rpt
 *-drc.rpt
 tmp-pre795/
+
+# Local model jobs and generated inspection location, never source controls.
+/.cec/
+/docs/pcb-suite-inspection-current.json
+
+# Working experiments/output are inventoried and recovered before cleanup.
+# Reusable sources are promoted to src/, scripts/, ops/ or experiments/.
+/tmp/
+/output/
+/cec-priority-power-admit-input-*.kicad_pcb
+
+# Python editable-install metadata.
+*.egg-info/
+**/candidate/tmp*.kicad_pro

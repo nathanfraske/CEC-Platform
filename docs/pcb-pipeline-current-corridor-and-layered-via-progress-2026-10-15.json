@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "scope": "Generic routing/copper refinements and source-bound private ATX corridor work; not fabrication release",
+  "status": "progress_not_closed",
+  "working_frontier": "build/actual-current-corridor-tail-closed-private-working-frontier-20261015-jvb.json",
+  "published_frontier_preserved": "build/actual-matched-received-feed-and-octilinear-final-corner-private-frontier-20261015-jsg.json",
+  "production_selector_preserved": "build/review-bound-atx1-hub0-current-production-tail-frontier-20261013-ial.json",
+  "atx": {
+    "source_sha256": "19ad4b9d91ccdd6bf273e12fd566017e1cea7fcab69936448f82f19b9fb159a9",
+    "working_sha256": "b70a671bf6d16d9f3324fe90e9d33041596988f0aeeeb25da9d5d2aae071b8fe",
+    "working_board": "build/atx1-source-reserved-threshold-exact-terminal-overhang-trial-20261015-juy/UNADMITTED-native-ordinary-junction-trim/board.kicad_pcb",
+    "grade": "build/atx1-final-corridor-native-tail-closed-full50-grade-20261015-juz/diagnostics.json",
+    "dimensions_mm": [78, 89.5],
+    "before": {"opens": 1, "scored_drc": 4, "raw_native_drc": 1176},
+    "after": {"opens": 1, "scored_drc": 4, "raw_native_drc": 1130},
+    "raw_reduction_is_silkscreen_only": {"silk_overlap": 26, "silk_over_copper": 20},
+    "full50": {"PASS": 23, "N/A": 14, "FAIL": 10, "DECLARED": 3},
+    "clipped": {"expected": 16, "checked": 14, "passed": 14, "failed": 0, "unknown": 2},
+    "last_open": {"net": "/SENSE12V_HI", "unchanged_aggregate_a": 12, "geometry_margin": 1.25},
+    "inherited_current_width_objects": 58,
+    "current_debt_not_upgraded_to_qualification": true,
+    "source_shunt_and_measurement_input_poses_preserved": true,
+    "only_component_poses_changed": ["U712V1 comparator", "C712V1 assigned bypass"],
+    "source_priority_bus_route_and_zone_outlines_preserved": true
+  },
+  "hub": {
+    "sha256": "8dfb59cc20129f12f83db7a694abb103c622194f1e39a97d7b3aa305e7ad45fc",
+    "unchanged": true,
+    "dimensions_mm": [84.49, 72.2],
+    "opens": 0, "scored_drc": 0, "raw_native_drc": 1030,
+    "full50": {"PASS": 22, "N/A": 17, "FAIL": 8, "DECLARED": 3},
+    "fresh_grade": "build/hub0-immutable-layered-via-final-epoch-full50-control-20261015-juv/diagnostics.json"
+  },
+  "immutable_pcie2_control": {
+    "sha256": "2f09d2765bacc5281a52fc7b6afaafa06078fb3aa1c1c2be037b708edd059388",
+    "unchanged": true, "opens": 0, "scored_drc": 0, "raw_native_drc": 604,
+    "full50": {"PASS": 32, "N/A": 12, "FAIL": 3, "DECLARED": 3},
+    "inherited_clipped": {"expected": 8, "passed": 6, "failed": 2},
+    "fresh_grade": "build/pcie2-immutable-layered-via-final-epoch-full50-control-20261015-juu/diagnostics.json",
+    "release_qualification_not_inferred": true
+  },
+  "generic_features": [
+    {
+      "code": "scripts/cec_ordinary_barrel_reseat.py",
+      "change": "Bounded multi-face same-width native endpoint kernels, not segment-count guesses",
+      "bounds": "Two to four actual faces, at most eight tracks, at most four per face; exact centre-ending linear chain; reject loops, tees, width changes, grouped material and unknown contacts",
+      "synthetic_tests": "tests/test_multiface_barrel_endpoint_kernels.py",
+      "actual_receipt": "build/atx1-repacked-threshold-native-multiface-barrel-clearance-20261015-jtw/construction.json"
+    },
+    {
+      "code": "scripts/cec_native_macro_overhang_cleanup.py",
+      "change": "Exact integer junction-extrema trim with independent source-delta and current receiving; preserve the bridge instead of deleting a partial-junction tail",
+      "bounds": "Positive ordinary net, new native warning hint, ungrouped unlocked straight copper; at most eight candidates; no pad/barrel/unknown-fill contact removal",
+      "synthetic_tests": "tests/test_native_macro_overhang_cleanup.py",
+      "actual_receipts": [
+        "build/atx1-native-comparator-corridor-received-junction-trim-repack-20261015-jtu/construction.json",
+        "build/atx1-source-reserved-threshold-exact-terminal-overhang-trial-20261015-juy/construction.json"
+      ]
+    },
+    {
+      "code": ["scripts/cec_native_via_land_context.py", "scripts/cec_fr.py:_via_spot_clear"],
+      "change": "Optional actual native normal/front-inner-back circular padstack in the all-face via guard",
+      "bounds": "Every enabled layer, native land/annulus floors, full-depth bore, drill spacing and hole-to-copper floors retained; maximum envelope remains conservative for assembly exclusions, rule areas and future reservations",
+      "synthetic_tests": "tests/test_native_layered_via_guard.py",
+      "actual_roundtrip_diagnostics": [
+        "build/actual-full-web-outer-narrow-inner-padstack-native-diagnostic-20261015-jug/diagnostic.json",
+        "build/actual-reserved-threshold-path-narrow-inner-through-via-probe-20261015-jun/diagnostic.json"
+      ],
+      "integration_boundary": "Guard and read-only portal discovery support the native template. Maze operation transport, actual route construction and independent saved transition receiving still need explicit template propagation. No custom transition is accepted as routed copper yet.",
+      "barrel_or_thermal_rating_not_inferred": true
+    }
+  ],
+  "regressions": {
+    "xml": "build/native-multiface-junction-and-layered-via-complete-final-regressions-20261015-jur.xml",
+    "bindings": "build/native-multiface-junction-and-layered-via-complete-final-regressions-20261015-jur.bindings.json",
+    "modules": 176, "passed": 5688, "failed": 0, "errors": 0, "skipped": 0,
+    "new_synthetic_tests": 53,
+    "code_and_tests_unchanged": true,
+    "native_drc_build": "/home/codex/.cache/cec/native-drc-10.0.5"
+  },
+  "actual_corridor_work": {
+    "rigid_pose_menu": "build/actual-comparator-bypass-full-current-portal-seat-menu-20261015-jst.json",
+    "repack_and_exact_junction_receiving": "build/atx1-native-comparator-corridor-received-junction-trim-repack-20261015-jtu/construction.json",
+    "threshold_barrel_receiving": "build/atx1-repacked-threshold-native-multiface-barrel-clearance-20261015-jtw/construction.json",
+    "readable_fields_receiving": "build/atx1-repacked-comparator-readable-native-field-cleanup-20261015-jud/construction.json",
+    "reserved_component_reflow": "build/atx1-native-threshold-permitted-face-reserved-component-reflow-20261015-juk/construction.json",
+    "redundant_kernel_cut": "build/atx1-source-reserved-threshold-obsolete-kernel-cut-trial-20261015-juo/construction.json",
+    "redundant_copper_removed_mm": 2.92560456263875,
+    "newly_exposed_overhang_trim": "build/atx1-source-reserved-threshold-exact-terminal-overhang-trial-20261015-juy/construction.json",
+    "reflow_is_not_a_length_improvement": "The short threshold chain grew from 4.4627 to 11.2021 mm to respect the whole-current transition reservation; the distinct redundant kernel was then retired. No shorter total-route claim.",
+    "actual_matched_stack_and_current": "build/actual-corridor-native-tail-closed-pair-current-stack-receiving-20261015-jva.json",
+    "stack_before_and_after_ok": true,
+    "no_new_or_worsened_current_debt": true
+  },
+  "qualification_boundary": {
+    "strict_clipped_comparison_complete": true,
+    "strict_same_evidence": false,
+    "reason": "Two positive SENSE5V_HI legs retain absolute PASS but their native filled-copper refinement hashes changed; strict comparator was not weakened",
+    "exact_integer_fill_difference_receipt": "build/actual-source-comparator-corridor-force-fill-integer-delta-20261015-juw.json",
+    "fill_difference_scope": "JRV to JUO, before final ordinary overhang trim; no automatic extension to another saved board",
+    "measured_affected_zone": "f15ae997-606a-4d4b-bb47-75d55c15d7f2",
+    "native_lost_area_mm2": 2.24545e-8,
+    "native_added_area_mm2": 0.001266387794,
+    "zero_tolerance_or_buffer_used": true,
+    "required_before_qualification_publication": "Independently source-bound exact changed-copper/pose reconstruction, both positive absolute cut readmissions, strict unaffected evidence and unchanged unknown coverage",
+    "no_unknown_legs_upgraded": true,
+    "no_qualified_frontier_or_production_selector_changed": true
+  },
+  "next_slice": [
+    "Reconstruct the actual paired-route corridor around the source-current transition, receiving both CAN conductors together; do not rip up or narrow the priority power bus",
+    "Propagate native per-layer circular lands through bounded transition construction and exact saved receiving; retain full-depth drill and current/contact gates",
+    "Construct a whole-current source-to-shunt path and close the remaining 12V open, then repeat native full-board/50-check/current/physical/stack receiving",
+    "Continue contour, signal-corner and immediate-ground-return polish without dimension growth or weaker rules"
+  ],
+  "no_path_claim": false,
+  "unattended_unchanged_waves_started": false,
+  "browser_tabs_opened": 0,
+  "heavy_toolchains_downloaded": 0,
+  "source_boards_deleted_or_overwritten": false,
+  "fab_ready": false,
+  "release_authority": false
+}

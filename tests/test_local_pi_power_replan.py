@@ -29,6 +29,62 @@ class LocalPiPowerReplanTests(unittest.TestCase):
             "vias": [{"net": "PWR", "x_mm": 1.0, "y_mm": 1.0}],
         }
 
+    def test_critical_first_defers_pour_cleanup_until_reconciliation(self):
+        self.assertEqual(
+            synth.priority_pour_enforcement_phase(
+                pre_power_compile_enabled=True,
+                priority_policy="critical-first"),
+            "after_power_reconciliation")
+
+    def test_other_owner_orders_keep_immediate_pour_cleanup(self):
+        for enabled, policy in (
+                (True, "power-first"),
+                (False, "critical-first"),
+                (False, "power-first")):
+            with self.subTest(enabled=enabled, policy=policy):
+                self.assertEqual(
+                    synth.priority_pour_enforcement_phase(
+                        pre_power_compile_enabled=enabled,
+                        priority_policy=policy),
+                    "immediate")
+
+    def test_local_power_pin_access_escalates_fast_refusal_once(self):
+        board = mock.Mock()
+        board.GetTracks.return_value = []
+        fast = {"groups": 2, "linked": 1, "refused": 1,
+                "legs": 1, "vias": 0,
+                "detail": [{"net": "PWR_A", "status": "linked"}]}
+        exact = {"groups": 2, "linked": 1, "refused": 0,
+                 "legs": 3, "vias": 2,
+                 "detail": [{"net": "PWR_B", "status": "linked"}]}
+        link = mock.Mock(side_effect=(fast, exact))
+        modules = {
+            "cec_current_topology": SimpleNamespace(
+                route_width_contracts=lambda *_args, **_kwargs: {}),
+            "cec_fr": SimpleNamespace(
+                _project_netclass_resolver=lambda _path: (
+                    lambda _net: {"track_width": 0.25}),
+                synthesize_same_footprint_links=link,
+                group_local_pofv_signal_vias=lambda *_args: None),
+        }
+        with mock.patch.dict(sys.modules, modules):
+            result = synth._synthesize_priority_power_local_pin_access(
+                board, "/tmp/board.kicad_pcb", {"PWR_A", "PWR_B"})
+
+        self.assertEqual(link.call_count, 2)
+        self.assertTrue(link.call_args_list[0].kwargs["bridge_fast"])
+        self.assertTrue(link.call_args_list[0].kwargs["local_cluster_only"])
+        self.assertFalse(link.call_args_list[1].kwargs["bridge_fast"])
+        self.assertTrue(link.call_args_list[1].kwargs["allow_maze"])
+        self.assertTrue(link.call_args_list[1].kwargs["local_cluster_only"])
+        self.assertEqual(result["linked"], 2)
+        self.assertEqual(result["refused"], 0)
+        self.assertEqual(result["legs"], 4)
+        self.assertEqual(result["vias"], 2)
+        self.assertEqual(len(result["detail"]), 2)
+        self.assertEqual(result["fast_pass"], fast)
+        self.assertEqual(result["exact_retry"], exact)
+
     def test_local_clip_preserves_vias_and_binds_admitted_state(self):
         with tempfile.TemporaryDirectory() as temp:
             temp = Path(temp)
@@ -59,7 +115,10 @@ class LocalPiPowerReplanTests(unittest.TestCase):
 
             modules = {
                 "cec_fr": SimpleNamespace(
-                    _pourfirst_state=lambda: self._frozen_state()),
+                    _pourfirst_state=lambda: self._frozen_state(),
+                    reseat_overunder_vias=lambda _b, vias, _pours:
+                        (list(vias), {"ok": True, "changed": False,
+                                      "reseated": 0})),
                 "cec_pour_clearance": SimpleNamespace(
                     inspect_file=lambda _path: {
                         "status": "ok", "n_tracks": 0, "n_vias": 0}),
@@ -109,7 +168,10 @@ class LocalPiPowerReplanTests(unittest.TestCase):
             previous_state.write_text(json.dumps(self._frozen_state()))
             modules = {
                 "cec_fr": SimpleNamespace(
-                    _pourfirst_state=lambda: self._frozen_state()),
+                    _pourfirst_state=lambda: self._frozen_state(),
+                    reseat_overunder_vias=lambda _b, vias, _pours:
+                        (list(vias), {"ok": True, "changed": False,
+                                      "reseated": 0})),
                 "cec_pour_clearance": SimpleNamespace(),
                 "cec_slab_pour": SimpleNamespace(
                     _clip_pours_around_foreign_copper=lambda _b, rows, **_kw:
@@ -211,6 +273,33 @@ class LocalPiPowerReplanTests(unittest.TestCase):
                 else:
                     os.environ["CEC_POURFIRST_STATE"] = previous
 
+    def test_failed_authority_feedback_recovers_planner_certificate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            authority = Path(temp) / "critical-prefix-power-authority.json"
+            authority.write_text(json.dumps({
+                "candidates": [{"compile_failure": {"report": {
+                    "/RAIL": {
+                        "path_found": False,
+                        "planner_bottleneck": {
+                            "kind": "via_field_access", "net": "/RAIL",
+                            "fields": [{"field_index": 0,
+                                        "centre_mm": [1.0, 2.0]}],
+                        },
+                    },
+                }}}],
+            }), encoding="utf-8")
+
+            feedback = synth._power_authority_failure_feedback(
+                temp, "critical-prefix")
+
+            self.assertEqual(feedback["power_planner_failure_nets"],
+                             ["/RAIL"])
+            self.assertEqual(
+                feedback["power_planner_failures"]["/RAIL"]
+                ["planner_bottleneck"]["kind"], "via_field_access")
+            self.assertEqual(feedback["power_failure_authority"],
+                             str(authority.resolve()))
+
     def test_fresh_power_candidate_is_settled_before_exact_admission(self):
         with tempfile.TemporaryDirectory() as temp:
             temp = Path(temp)
@@ -260,6 +349,59 @@ class LocalPiPowerReplanTests(unittest.TestCase):
             selection = report["candidate_selection"]["candidates"][0]
             self.assertTrue(selection[
                 "power_artifact_settlement"]["converged"])
+
+    def test_post_priority_escape_uses_original_geometric_territory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp = Path(temp)
+            source = temp / "source.kicad_pcb"
+            state = temp / "failure.json"
+            source.write_text("board", encoding="utf-8")
+            territory = [{
+                "net": "PWR",
+                "layers": ("In3.Cu",),
+                "polygon": [[0, 0], [5, 0], [5, 5], [0, 5]],
+            }]
+            terminal = {"ref": "U1", "pad": "1", "net": "PWR"}
+            captured = []
+            board = mock.Mock()
+            board.GetNetInfo.return_value.NetsByNetcode.return_value = {}
+            modules = {
+                "cec_fab_profile": SimpleNamespace(
+                    active_profile_name=lambda *_args, **_kwargs: None),
+                "cec_fr": SimpleNamespace(
+                    synthesize_power_pickups=lambda *_args, **_kwargs: {
+                        "pads": 0, "vias": 0, "stubs": 0, "pofv": 0,
+                        "skipped": 0,
+                    },
+                    synthesize_power_escape_fanouts=lambda _board, pours,
+                    _terminals, **_kwargs: (
+                        captured.append(pours) or {
+                            "placed": 0, "refused": 1, "detail": []}),
+                ),
+                "cec_pour_plan": SimpleNamespace(
+                    declared_parallel_bundles=lambda *_args: {}),
+                "cec_slab_pour": SimpleNamespace(
+                    shunt_neighborhoods=lambda _board: [],
+                    synthesize_overunder_pours=lambda *_args, **_kwargs: (
+                        [], [], {"PWR": {
+                            "path_found": False,
+                            "bottleneck": {"terminals": [terminal]},
+                        }})),
+                "pcbnew": SimpleNamespace(LoadBoard=lambda _path: board),
+            }
+            with mock.patch.dict(sys.modules, modules), mock.patch.object(
+                    synth, "_priority_power_asks",
+                    return_value=([{"net": "PWR",
+                                   "layers": ("In3.Cu",)}], {})), \
+                    mock.patch.object(
+                        synth, "_synthesize_priority_power_local_pin_access",
+                        return_value={}):
+                with self.assertRaisesRegex(
+                        RuntimeError, "post-priority routed-power no-path"):
+                    synth._compile_post_priority_power_candidate(
+                        str(source), territory, str(state))
+
+            self.assertEqual(captured, [territory])
 
 
 if __name__ == "__main__":

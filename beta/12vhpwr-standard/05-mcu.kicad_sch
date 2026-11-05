@@ -2272,6 +2272,7 @@
 		(property "Manufacturer" "Samsung" (at 158.75 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL05B104KO5NNNC" (at 158.75 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C1525" (at 158.75 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U1.3" (at 158.75 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7dc335fb-8faf-4380-8ae6-ce969a304e97"))
 		(pin "2" (uuid "e20b5b97-7c7c-4adc-a739-5228e54bbaf6"))
 		(instances
@@ -2322,6 +2323,7 @@
 		(property "Manufacturer" "Samsung" (at 199.39 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL21A106KAYNNNE" (at 199.39 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C15850" (at 199.39 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "BypassOwner" "U1.3" (at 199.39 227.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "a921af57-b382-49b8-a25f-71a9624516c6"))
 		(pin "2" (uuid "05afaeb8-fa3d-4152-b0fa-a58eddb0620e"))
 		(instances

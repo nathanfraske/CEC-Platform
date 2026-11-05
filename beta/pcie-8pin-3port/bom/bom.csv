@@ -10,7 +10,7 @@ F1,1,750mA/16V PTC,R_1206_3216Metric,1206L075/16WR,Littelfuse,C371166,,,,,,"750m
 FB1,1,MPZ2012S601AT000,C_0805_2012Metric,MPZ2012S601AT000,TDK,C21519,,,,,,
 FB2,1,0R,C_0805_2012Metric,0R-0805-jumper,Generic,,,,,,,
 J1,1,TO-HUB,RJ45_FTP_Shielded_Horizontal,KH-RJ45-58-8P8C,Kinghelm,C2683360,,,https://www.lcsc.com/datasheet/C2683360.pdf,,,
-J5,1,USB-C 2.0,USB_C_Receptacle_XKB_U262-16XN-4BVC11,U262-161N-4BVC11,XKB Connection,C319148,,,https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf,,,
+J5,1,USB-C 2.0,USB_C_Receptacle_GCT_USB4215-03-A,USB4215-03-A,GCT,C37616412,,,https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/6328/USB4215-03-A.pdf,,,
 J_IN1,1,C1 PSU,Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal,45586-0005,Molex,,,,,,,
 J_IN2,1,C2 PSU,Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal,45586-0005,Molex,,,,,,,
 J_IN3,1,C3 PSU,Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal,45586-0005,Molex,,,,,,,

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "carrier_family": "atx-24pin-rev3",
+  "cover_family": "hub-standard-rev2",
+  "mirror_x": true,
+  "datum_tolerance_mm": 0.05,
+  "anchor_pairs": [["J6P", "J6P"], ["J6C", "J6C"], ["J6D", "J6D"], ["H1", "H1"]],
+  "contact_pairs": [["J6P", "J6P"], ["J6C", "J6C"], ["J6D", "J6D"]],
+  "ports": [
+    {"ref": "TB6", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "TB4", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "TB2", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "TB1", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "TB5", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "TB9", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "J_SIG1", "edge": "top", "clearance_mm": 1.2},
+    {"ref": "J3", "edge": "bottom", "clearance_mm": 1.2}
+  ],
+  "basis": "Existing owner requirement for headers outside the mated Hub silhouette and existing 1.2 mm planar stack guard; not new 3D qualification."
+}

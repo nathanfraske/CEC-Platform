@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "status": "engineering_shadow_only_not_a_selected_part_substitution",
+  "goal_scope": "Nine existing current-BETA PCBs; ARGB remains excluded.",
+  "current_selected_part_changed": false,
+  "canonical_boards_changed": false,
+  "release_authority": false,
+  "candidate": {
+    "manufacturer": "Korean Hroparts Elec",
+    "mpn": "TYPE-C-31-M-12",
+    "lcsc": "C165948",
+    "jlc_catalog": "https://jlcpcb.com/partdetail/Korean_HropartsElec-TYPE_C_31_M12/C165948",
+    "live_stock_and_purchase_price_verified": false,
+    "sourcing_note": "The exact JLC-native catalog entry was found. A later live fetch returned HTTP 429; do not turn cached prices/stock into a purchase or budget assertion. No order was placed."
+  },
+  "evidence": {
+    "manufacturer_drawing": {
+      "source_url": "https://datasheet.lcsc.com/datasheet/pdf/9e56b777c022540fcce7c7f67825f55e.pdf",
+      "path": "C:/Users/Admin/Documents/CEC-Board-Reviews/tmp/pdfs/usb-qualification-20261021-b/hro-C165948.pdf",
+      "sha256": "6ae33d50ac47820114661138dc4e4659f40fdc5d4f485b46685dfec338da1a9e",
+      "drawing_date": "2020-12-08",
+      "sheet": "1 of 1",
+      "nominal_recommended_layout": {
+        "peg_hole_diameter_mm": 0.6,
+        "peg_hole_pitch_mm": 5.78,
+        "power_and_ground_group_centers_x_mm": [-3.2, -2.4, 2.4, 3.2],
+        "wide_group_width_mm": 0.6,
+        "small_land_width_mm": 0.3,
+        "land_rear_edge_to_peg_datum_mm": 1.64,
+        "land_front_edge_to_peg_datum_mm": 0.5,
+        "inferred_land_length_mm": 1.14,
+        "pcb_pattern_tolerance_mm": 0.05
+      }
+    },
+    "official_library_shadow": {
+      "source_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/raw/master/Connector_USB.pretty/USB_C_Receptacle_HRO_TYPE-C-31-M-12.kicad_mod",
+      "path": "C:/Users/Admin/Documents/CEC-Board-Reviews/tmp/pdfs/usb-qualification-20261021-b/HRO-official-kicad.kicad_mod",
+      "sha256": "c562a7f9713a8b754c4d2305a2ea15453469a1c8c48a9b17973383e8993fc750",
+      "note": "This library cites an older manufacturer drawing. Its 0.65 mm holes, 1.45 mm lands and wide-group X centers differ from the current drawing's nominal recommendation. A passing shadow DRC does not qualify those changes, assembly tolerances, or contact coverage. The library has not been installed as the new project selection.",
+      "source_schematic_pinout_edited": false,
+      "logical_shell_alias_for_shadow": "SH mapped to existing S1; no net names or pad UUIDs changed.",
+      "complete_footprint_body_graphics_and_models_replaced": false
+    }
+  },
+  "cross_board_shadow": {
+    "receipt": "C:/Users/Admin/Documents/CEC-Board-Reviews/usb-hro-shadow-suite-20261021-h/receipt.json",
+    "sha256": "fe78997be92af3fc2389de0c1348b553f7630f57479b9a464298f9d9ac4b8707",
+    "all_original_candidate_hashes_unchanged": true,
+    "code_unchanged_during_recorded_probe": true,
+    "not_production_selected": true,
+    "cases": {
+      "eps-8pin-rev3": {"opens": 227, "native_errors": 0, "scored_drc": 0},
+      "pcie-8pin-3port": {"opens": 223, "native_errors": 0, "scored_drc": 0, "note": "31 opens disappear because the existing GND plane cache is rebuilt; that independent fill-only improvement was separately received with the ORIGINAL selected connector."},
+      "pcie-8pin-2port": {"opens": 0, "native_errors": 0, "scored_drc": 0, "ordinary_ground_vias_reseated": 2},
+      "atx-24pin-rev3": {"opens": 0, "native_errors": 10, "scored_drc": 10, "note": "The first generic branch classifier rejected the source's authored Default class; that spelling restriction is fixed, but a subsequent probe correctly refuses the grouped 0.3/0.2 mm POFV ground via. Two local signal/power trace conflicts also remain."},
+      "12vhpwr-standard": {"opens": 78, "native_errors": 29, "scored_drc": 29, "note": "This explicitly bound shadow used the earlier 78-open working source, not the current 72-open winner. It conflicts with a grouped pair-return GND via and a compact USB_CC2 portal, as well as local copper/mask geometry. It is NOT a current-board regression or a candidate to promote."}
+    }
+  },
+  "generic_constructor": {
+    "path": "scripts/cec_local_ground_reseat.py",
+    "scope": "Private, transactional, ordinary ungrouped GND portal reconstruction; component ECO and current/return-loop/release qualification are outside its authority.",
+    "parameters": ["literal via UUIDs", "literal same-package surface GND pad UUIDs", "actual source project geometry", "bounded motion/reach/trials/deadline"],
+    "preserved": ["via identity", "drill and all copper diameters", "layer span", "net", "lock state", "all retained source traces"],
+    "new_copper": "Only guarded axis/45-degree full-source-class GND bridges when existing copper no longer reaches the moved barrel. An existing anchor's larger width is not reduced.",
+    "refusals": ["group-owned native allocations", "compact process exceptions", "non-ground vias", "non-uniform or non-through barrels", "missing explicit project dimension authority", "nonlocal ownership", "exhausted finite search"],
+    "rollback": "A failed batch or exception restores all old via poses and destroys every newly added bridge.",
+    "production_admission_receiver_implemented": false,
+    "source_part_eco_receiver_implemented": false,
+    "tests": {"synthetic_constructor_cases": 20, "focused_with_affected_modules": 96, "failed": 0, "path": "build/review-suite-new-slices-focused-20261021-n.xml"}
+  },
+  "qualification_needed_before_selection": [
+    "Resolve exact drawing versus library land-pattern differences using actual contact extents and assembly tolerances; do not infer qualification from a generic library name.",
+    "Bind the complete vendored footprint, shell pin mapping, datasheet and actual 3D model to the selected MPN and source hierarchy.",
+    "Reconstruct grouped compact/pair-return portals through their actual owners and repeat process, pair/reference-plane and native receiving. Never reuse the ordinary-via tier as a waiver.",
+    "Repair the remaining exact USB ingress branch conflicts without changing the established current budgets or protected unrelated copper.",
+    "Archive the old source snapshots, perform a hash-bound full component ECO, and repeat current-source parity, native DRC, opens, stack/mating and source electrical checks before promotion.",
+    "Refresh live JLC stock/pricing before selection; retain physical sample fit, soldering and USB electrical qualification for the later full-suite review."
+  ]
+}

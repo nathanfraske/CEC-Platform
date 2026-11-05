@@ -218,7 +218,9 @@ def mating_frame_pins(W, H, contract, side):
        "sides": {name: {"conn_ref": .., "mount_refs": (..), "mirror_x": bool}}}
     A side with mirror_x=True flips to mate. Each shared point is first made
     relative to that board's assembly-center offset, then its X is reflected;
-    connector orientation becomes ``180deg - rot``. Returns
+    connector orientation is derived from the explicitly declared local
+    footprint reflection; a same-handed contact field cannot mate by rotation.
+    Returns
     {"anchor_pins": .., "mount_pos_override": .., ["mount_fp_override": ..]}
     for that side -- feed into BOARD_PARAMS. One declaration, every mating
     side derived; the mating refs are alignment DATUM (exempt from
@@ -226,21 +228,23 @@ def mating_frame_pins(W, H, contract, side):
     after applying each side's assembly translation/reflection, every mating
     field is coincident."""
     sd = contract["sides"][side]
+    from cec_stack_fit_screen import mating_rotation, frame_center
+    def mate_angle(angle):
+        return mating_rotation(angle, assembly_mirror_x=bool(sd.get("mirror_x")),
+                               footprint_mirror_axis=sd.get("footprint_mirror_axis"))
     m = -1.0 if sd.get("mirror_x") else 1.0
     ax, ay = sd.get("assembly_dc", (0.0, 0.0))
-    cx, cy = W / 2.0, H / 2.0
+    cx, cy = frame_center(sd, (W, H))
     if "conns" in contract:                       # v2: N structural segments
         pins = {c["ref"]: (cx + m * (c["dc"][0] - ax),
                            cy + c["dc"][1] - ay,
-                           ((180.0 - c.get("rot", 0)) % 360.0
-                            if sd.get("mirror_x") else c.get("rot", 0)))
+                           mate_angle(c.get("rot", 0)))
                 for c in contract["conns"]}
     else:                                         # legacy single connector
         dx, dy = contract["conn_dc"]
         _rot = contract.get("conn_rot", 0)
         pins = {sd["conn_ref"]: (cx + m * (dx - ax), cy + dy - ay,
-                                 ((180.0 - _rot) % 360.0
-                                  if sd.get("mirror_x") else _rot))}
+                                 mate_angle(_rot))}
     # standoffs: an explicit "mount_dc" POINT LIST (possibly EMPTY -- the R1
     # structural-segment form carries stability in the segments themselves; a
     # single point = the R2 provisioned DNP-able land) or the legacy "rect_dc"
@@ -260,6 +264,18 @@ def mating_frame_pins(W, H, contract, side):
     out = {"anchor_pins": pins, "mount_pos_override": mounts}
     if mounts and contract.get("mount_fp"):
         out["mount_fp_override"] = {r: contract["mount_fp"] for r in mounts}
+    if mounts and contract.get("mount_net"):
+        # Board-only conductive mounting lands are absent from the schematic
+        # netlist by construction.  Carry their declared electrical role into
+        # both fresh materialization and destructive schematic-sync/resume;
+        # otherwise KiCad correctly strips the unowned net during rehydration
+        # and a mechanically valid ground lug becomes floating.  One mapping
+        # per pad number is sufficient even when the footprint deliberately
+        # repeats that pad number for a stitched land/via ring.
+        out["source_sync_extra_pad_nets"] = {
+            "%s.1" % ref: str(contract["mount_net"])
+            for ref in mounts
+        }
     return out
 
 
@@ -317,10 +333,8 @@ MEZZ_HUB_24PIN = {
     "mount_contact": mezz.GROUND_LUG["contact"],
     "stack": mezz.STACK,
     "sides": {
-        "atx-24pin-rev3": {"mount_refs": ("H1",), "mirror_x": False,
-                            "assembly_dc": (0.0, 0.0)},
-        "hub-standard-rev2": {"mount_refs": ("H1",), "mirror_x": True,
-                              "assembly_dc": mezz.STACK["hub_assembly_dc_mm"]},
+        "atx-24pin-rev3": {**mezz.SIDES['header'], "mount_refs": ("H1",)},
+        "hub-standard-rev2": {**mezz.SIDES['socket'], "mount_refs": ("H1",)},
     },
 }
 
@@ -1029,16 +1043,18 @@ def _lane_net_map(n):
 # v0 template (scripts/gen_24pin_sense_cell.py -- RS + INA238 + INA181A2 +
 # TLV7011, parts packed PERPENDICULAR to the pad axis so both pad-axis
 # approaches stay free for the force-rail stubs/arrays, the v3-keystone rule),
-# four stamps anchored at the blade-row shunt seats. ideal_internal synthesizes
-# the one internal net (DETAMP: 181-out -> 7011-in); kelvin copper stays the
-# precision tap pass's job. Bypass/threshold passives keep auto_cluster
-# ownership (they cluster to these stamped positions).
+# four stamps anchored at the blade-row shunt seats.  The detector trace is
+# deliberately deferred to the board router: pre-locking that lower-priority
+# local net can fence the INA181's Kelvin input even though the cell placement
+# itself is route-clean.  Kelvin copper therefore receives first-route
+# authority; DETAMP is ordinary residual routing. Bypass/threshold passives
+# keep auto_cluster ownership (they cluster to these stamped positions).
 _SENSE_RAIL_BP_24 = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                  "blueprints", "sense-rail-v0.json")
 _SENSE_RAIL_BP_24_LEFT = os.path.join(ROOT, "beta", "atx-24pin-rev3",
                                       "blueprints", "sense-rail-v0-left.json")
 _SENSE_RAIL_BP_24_TAPS = os.path.join(ROOT, "beta", "atx-24pin-rev3",
-                                      "blueprints", "sense-rail-v0-taps.json")
+                                      "blueprints", "sense-rail-v1.json")
 _BP_RAILS_24 = {
     "RS1": ({"RS2": "RS1", "U11": "U10", "U65V1": "U612V1", "U75V1": "U712V1"},
             {"CELL_HI": "/SENSE12V_HI", "CELL_LO": "/SENSE12V_LO",
@@ -1066,7 +1082,7 @@ BOARD_PARAMS["atx-24pin-rev3"]["blueprint_cells"] = [
     # 11.9 walk pitch; the per-pair coverage guard then skips route-time
     # synthesis for these pairs). Mixed handedness still faces two banks in
     # one pitch -- uniform-right + the J1 tuck stands.
-    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": True,
+    {"template": _SENSE_RAIL_BP_24_TAPS, "anchor_ref": rs, "ideal_internal": False,
      "ref_map": rm, "net_map": nm}
     for rs, (rm, nm) in _BP_RAILS_24.items()]
 
@@ -2354,10 +2370,21 @@ def _rescore_published(best, published_pcb):
         "route_quality": dict(metrics.detail.get("route_quality") or {}),
     })
 
+    geometry = csp._oracle_netclass_geometry(str(published_pcb))
+    best['netclass_geometry'] = geometry
+    best['netclass_geometry_ok'] = geometry.get('ok') is True
+    # Publish-time copper edits invalidate the work-board's craft verdict,
+    # even when connectivity and protected-net scoring still pass. Use the
+    # complete unscoped saved-board audit returned by this fresh score.
+    craft_terms = csp._oracle_route_craft_gate_terms(best['route_quality'])
+    best.update(craft_terms)
+    best['route_craft'] = best['route_quality']
     gate_terms = dict(best.get("gate_terms") or {})
     if gate_terms:
         gate_terms["gates_pass"] = bool(metrics.gates_pass)
         gate_terms["routing_complete"] = metrics.unconnected == 0
+        gate_terms['netclass_geometry_ok'] = best['netclass_geometry_ok']
+        gate_terms.update(craft_terms)
         best["gate_terms"] = gate_terms
         try:
             best["gate"] = bool(csp._route_oracle_accepts(gate_terms))
