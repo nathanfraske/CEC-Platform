@@ -127,3 +127,9 @@ KiCad image: NumPy, SciPy, Shapely and pytest for fresh child interpreters. CI n
 installs those using the native container's own package manager, instead of
 passing host-Python dependencies through `PYTHONPATH`. This changes no PCB,
 receiver predicate, resource bound or manufacturing rule.
+
+The container also exposed a synthetic fixture's assumption that saving a
+scratch PCB always creates a project sidecar. That fixture now retains its
+actual native minima and explicitly writes its declared Default netclass
+when the side effect is absent. A regression suppresses the implicit sidecar;
+production source-family/project requirements remain unchanged.

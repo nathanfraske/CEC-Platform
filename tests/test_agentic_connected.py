@@ -15,6 +15,7 @@ import cec_redundant_force_branch as authority
 from cec_pipeline import construction, geometry, power
 from cec_pipeline.cells import preview
 from test_complete_cell_receiving import saved_pair
+from test_complete_cell_connections import native_source
 from test_native_contour_regions import board as contour_board
 
 
@@ -93,6 +94,24 @@ def test_incomplete_authored_cell_cannot_be_selected_by_connectivity_claim(
     construction._construct(source, candidate, dict(operations=[operation]), "opaque")
     proof = receiving.receive(source, candidate, board_hint="opaque")
     assert not proof["ok"] and proof["errors"]
+
+
+def test_scratch_fixture_does_not_require_implicit_project_side_effect(tmp_path, monkeypatch):
+    save = pcbnew.SaveBoard
+
+    def without_implicit_project(filename, board, *args, **kwargs):
+        result = save(filename, board, *args, **kwargs)
+        path = Path(filename)
+        if path.name == "seed-native-source.kicad_pcb":
+            assert path.parent == tmp_path
+            path.with_suffix(".kicad_pro").unlink(missing_ok=True)
+        return result
+
+    monkeypatch.setattr(pcbnew, "SaveBoard", without_implicit_project)
+    source, parent, _, _ = native_source(tmp_path, monkeypatch)
+    assert source.with_suffix(".kicad_pro").is_file()
+    assert parent.GetDesignSettings().m_MinClearance == 200000
+    assert parent.GetDesignSettings().m_NetSettings.GetDefaultNetclass().GetTrackWidth() == 200000
 
 
 @pytest.mark.parametrize("style", ["square", "chamfer45"])

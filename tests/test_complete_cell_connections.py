@@ -55,6 +55,15 @@ def native_source(tmp_path,monkeypatch,*,turn=0,planes=True,source_class_width_m
         for item in [*board.GetFootprints(),*board.GetTracks(),*board.Zones()]:item.Rotate(origin,angle)
     poses={fp.GetReference():[fp.GetPosition().x/1e6+.5,fp.GetPosition().y/1e6+.5,
         fp.GetOrientationDegrees()] for fp in (owner,cap)}
+    # Capture actual scratch-board minima rather than relying on SaveBoard
+    # to emit a project sidecar (that side effect differs across KiCad builds).
+    settings=board.GetDesignSettings()
+    source_rules={key:pcbnew.ToMM(getattr(settings,member)) for key,member in (
+        ('min_clearance','m_MinClearance'),('min_track_width','m_TrackMinWidth'),
+        ('min_via_diameter','m_ViasMinSize'),('min_through_hole_diameter','m_MinThroughDrill'),
+        ('min_hole_to_hole','m_HoleToHoleMin'),('min_hole_clearance','m_HoleClearance'),
+        ('min_copper_edge_clearance','m_CopperEdgeClearance'),
+        ('min_via_annular_width','m_ViasMinAnnularWidth'))}
     # SaveBoard caches a dummy project. Use a seed path, restore the borrowed
     # Default, then load a distinct final path with its complete sidecar first.
     klass=board.GetDesignSettings().m_NetSettings.GetDefaultNetclass()
@@ -71,7 +80,10 @@ def native_source(tmp_path,monkeypatch,*,turn=0,planes=True,source_class_width_m
         klass.SetTrackWidth(borrowed[0]);klass.SetClearance(borrowed[1])
         klass.SetViaDiameter(borrowed[2]);klass.SetViaDrill(borrowed[3])
     path=tmp_path/'saved-native-source.kicad_pcb'
-    project=json.loads(seed.with_suffix('.kicad_pro').read_text())
+    project_path=seed.with_suffix('.kicad_pro')
+    project=json.loads(project_path.read_text()) if project_path.is_file() else {
+        'board':{'design_settings':{'rules':source_rules}},
+        'net_settings':{'classes':[{'name':'Default'}]}}
     default=next(entry for entry in project['net_settings']['classes']if entry['name']=='Default')
     default.update(track_width=source_class_width_mm,clearance=.2,via_diameter=.6,via_drill=.3)
     project['net_settings']['netclass_assignments']={}
