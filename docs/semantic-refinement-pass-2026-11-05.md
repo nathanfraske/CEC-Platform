@@ -6,6 +6,12 @@ Nine existing PCBs remain at **zero native opens, errors and exclusions**.
 Fresh native checks were run after relocation into the portable checkpoint's
 real library context. The unchanged 283 warnings and five recorded EPS field
 blockers remain explicit; native closure is not fabrication/SI/thermal release.
+Attaching the fresh VHP field receipt also makes **three inherited VHP coupling
+blockers** visible in the inspector. Its exact source and candidate both have
+the same three keys; they were not introduced by this contour. Hub field keys
+remain empty. Boards without attached field evidence are still labelled
+unestablished, not clean. The eight recorded EPS/VHP blockers are separate from
+zero native DRC errors and need subsequent field-aware route work.
 
 Current receipt: `checkpoints/review-20261105-semantic-refinement/receipt.json`,
 SHA256 `e2657dd7e081bcfde60c4798c78f568948ff40e7fd29e6d4667c7708cc1c8ed4`.
