@@ -1,0 +1,283 @@
+{
+  "schema": 1,
+  "status": "private_native_cell_RECEIVED_NOT_RELEASED",
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+  "source_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/native-pair-v20/board.kicad_pcb",
+  "candidate_sha256": "0bc7f970253d5c1f5246b10335034080fce1ad84ad2447c947b52b2d78bcc6d0",
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "poses": [
+      {
+        "reference": "R55",
+        "at_nm": [
+          27200000,
+          56700000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "R56",
+        "at_nm": [
+          29100000,
+          56700000
+        ],
+        "rotation_deg": 270
+      }
+    ],
+    "routes": [
+      {
+        "net": "+5VSB",
+        "layer": "F.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            30594990,
+            59525000
+          ],
+          [
+            30594990,
+            56994990
+          ],
+          [
+            30000000,
+            56400000
+          ],
+          [
+            30000000,
+            55500001
+          ],
+          [
+            29970000,
+            55470001
+          ],
+          [
+            26630000,
+            55470001
+          ],
+          [
+            26600000,
+            55500001
+          ],
+          [
+            26600000,
+            55600000
+          ],
+          [
+            26433120,
+            55766880
+          ],
+          [
+            26433120,
+            57180000
+          ],
+          [
+            26463120,
+            57210000
+          ],
+          [
+            27200000,
+            57210000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "SIG2",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            24509990,
+            56190000
+          ],
+          [
+            23424990,
+            57275000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            27200000,
+            56046844
+          ],
+          [
+            27230000,
+            56016844
+          ],
+          [
+            29070000,
+            56016844
+          ],
+          [
+            29100000,
+            56046844
+          ],
+          [
+            29100000,
+            56190000
+          ]
+        ]
+      }
+    ],
+    "vias": [],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [
+      "80262295-4045-4dbc-a9b4-aaee9de999d5",
+      "87fd7c9a-ee93-4e37-b921-18a023e13bab",
+      "9c23c2e6-716c-44ae-b626-4b5693bbd4f4",
+      "d693fbdd-334d-4ac5-9a43-b8c2a814e9dc",
+      "e9da9b66-ee3f-4aa1-8964-3e6f6b2e268b"
+    ],
+    "allow_locked_transport_uuids": [
+      "b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+      "d48f0ac8-dc32-4959-aa78-fc9326f3e8b1"
+    ],
+    "reference_group_uuids": [
+      "a1dea770-31b1-5e49-b8de-f601e2e38253"
+    ]
+  },
+  "native_macro": {
+    "mandatory_requests": 8,
+    "non_ground_requests_resolved": 7,
+    "unresolved": 0,
+    "obsolete_internal_join_is_not_a_destination": true,
+    "recomposed_owned_base_edge_uuids": [
+      "d693fbdd-334d-4ac5-9a43-b8c2a814e9dc",
+      "e9da9b66-ee3f-4aa1-8964-3e6f6b2e268b"
+    ],
+    "transported_source_native_uuids": [
+      "b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+      "d48f0ac8-dc32-4959-aa78-fc9326f3e8b1"
+    ],
+    "no_new_barrels": true,
+    "all_eight_obligations_independently_received": true
+  },
+  "receivers": {
+    "macro": {
+      "ok": true,
+      "complete": true,
+      "errors": [],
+      "prefill_barrels": {
+        "ok": true,
+        "refusals": [],
+        "all_carried_barrels_examined": 2,
+        "pre_refill_literal_authored_nets_not_normalized": true,
+        "routing_admitted": false,
+        "release_authority": false
+      },
+      "frame_surface": {
+        "ok": true,
+        "conflicts": [],
+        "source_unchanged": true,
+        "native_ground_refill_still_required": [],
+        "routing_admitted": false,
+        "release_authority": false,
+        "no_path_proof": false,
+        "final_native_drc_and_whole_board_receiving_still_required": true
+      }
+    },
+    "current": {
+      "ok": true,
+      "before_fault_objects": 2,
+      "after_fault_objects": 2,
+      "new_faults": [],
+      "worsened_faults": [],
+      "current_qualified": false
+    },
+    "native": {
+      "errors": 0,
+      "warnings": 92,
+      "opens": 0,
+      "error_items": []
+    },
+    "partitions": {
+      "preserved": true,
+      "source_component_count": 90,
+      "child_component_count": 90,
+      "native_source_component_count": 90,
+      "native_child_component_count": 90,
+      "overlap_token_count": 48,
+      "intersection_pairs": 64,
+      "exact_positive_native_island_overlap": true,
+      "demoted_parts_count": 0
+    }
+  },
+  "source_fill": {
+    "non_ground_zone_count": 42,
+    "all_non_ground_zone_ASTs_exact": true,
+    "changed_zone_uuids": [
+      "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+      "d973fe53-5c88-47cd-9e60-63dafba1de54"
+    ],
+    "C37_guard_and_all_other_non_ground_zones_preserved": true,
+    "whole_power_refill_performed": false
+  },
+  "limits": [
+    "Not bar-fit or current/thermal/release qualified.",
+    "Full-rail 0.477370 mm source supply authority retained; U-shaped path is not claimed final placement polish.",
+    "Reviewed selector not changed."
+  ],
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false,
+  "native_macro_endpoint_rule": {
+    "applicable": true,
+    "written": true,
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/native-pair-v20/board.kicad_dru",
+    "group": "CEC_LOCAL_ENDPOINT_NECKDOWN",
+    "min_width_mm": 0.2
+  },
+  "not_established_here": [
+    "Bar body/landing fit and assembled height receiving",
+    "Enclosing paired assembly, field and whole-board Kelvin gates",
+    "Full-current/thermal qualification; inherited 5VSB current debt remains"
+  ],
+  "family_manifest": {
+    "path": "family-manifest.json",
+    "sha256": "adecb499980fed8260be84b7f9c408c01e75c33532fd4b7673bb8cdd88cde910",
+    "source_sidecars": {
+      ".authored-prefix.json": null,
+      ".cellreport.json": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+      ".kicad_dru": "54c48539595395ac888f49d1dfe6ca7e0c594031503c8e77de9f8e20ddee5e12",
+      ".kicad_prl": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+      ".kicad_pro": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+      ".placement-search.json": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+      ".pourfirst-skeleton.kicad_pcb": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+      ".pourfirst-state.json": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+      ".pourplan.json": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+      ".power-prefix.json": null,
+      ".priority-replacements.json": null,
+      ".railreport.json": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+      ".route-lineage.json": null
+    },
+    "candidate_sidecars": {
+      ".authored-prefix.json": null,
+      ".cellreport.json": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+      ".kicad_dru": "e8308795da1432ce62ddedab04005311d382ea6a558cd99475afb01a9fe0c645",
+      ".kicad_prl": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+      ".kicad_pro": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+      ".placement-search.json": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+      ".pourfirst-skeleton.kicad_pcb": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+      ".pourfirst-state.json": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+      ".pourplan.json": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+      ".power-prefix.json": null,
+      ".priority-replacements.json": null,
+      ".railreport.json": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+      ".route-lineage.json": null
+    }
+  }
+}
