@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "source_receipt_sha256": "0409dbd1890d2f47ccc728649f36f64e32b189bf6a4b51aa370d67417187379f",
+  "selected_board": "hub-standard-rev2",
+  "selected_job": "8f06c9c2cc3b71c5451c0b2a",
+  "source_pcb_sha256": "cf14e0114fa04caf7c2e632d9113746e020a7235014b0c178255a7d120088869",
+  "candidate_pcb_sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+  "published_checkpoint": "checkpoints/review-20261105-outline-compaction/receipt.json",
+  "published_checkpoint_sha256": "c3d2e807be8bfb55ebc7e49b8bf760fa199da9f213aa3b4a4038d58c39c8f4f6",
+  "suite_native": {"boards": 9, "opens": 0, "errors": 0, "warnings": 283, "exclusions": 0},
+  "independent_export_verification": "Canonical receipt normalization, all nine native counts, board/companion/library/field/plot hashes and originating publication identity verified read-only",
+  "geometry": {
+    "source_bounds_mm": [-0.49, 1.2, 84.0, 73.4],
+    "candidate_bounds_mm": [-0.49, 1.2, 84.0, 72.8],
+    "source_size_mm": [84.49, 72.2],
+    "candidate_size_mm": [84.49, 71.6],
+    "height_reduction_mm": 0.6,
+    "nominal_laminate_area_reduction_mm2": 50.694,
+    "changed_edge_primitives": 5,
+    "unchanged_internal_LED_cutouts": 6,
+    "tracks_pads_parts_holes_power_copper_moved": false,
+    "combined_Hub_ATX_laminate_envelope_mm": [86.49, 89.5],
+    "combined_envelope_reduced": false
+  },
+  "checks": {
+    "candidate_native": {"opens": 0, "errors": 0, "warnings": 28, "exclusions": 0},
+    "new_native_copper_sliver_or_island_findings": 0,
+    "all_required_workbench_receivers_passed": true,
+    "six_layer_native_before_after_visual_coverage": true,
+    "regression_tests_passed": 657,
+    "targeted_outline_tests_passed": 54,
+    "review_nonregression_only": true
+  },
+  "negative_control": {
+    "job": "773c526662dca0b7a11b6831",
+    "trim_mm": 1.0,
+    "native_errors": 1,
+    "native_opens": 0,
+    "error_type": "copper_edge_clearance",
+    "actual_clearance_mm": 0.3598,
+    "required_clearance_mm": 0.5,
+    "location": "J5 shield pad at translated lower-left corner",
+    "selected": false
+  },
+  "generic_tooling": [
+    "Bounded rounded outer-edge translation with exact five-primitive receiving, preserving native radii and unrelated recesses",
+    "Internal footprint cutout preservation using exact signed-ring topology and independent saved native hole identity",
+    "Original Ground-only local clipping of removed laminate expanded by unchanged source edge clearance and explicit numerical guard",
+    "Synthetic four-side, notch, cutout, topology, style and saved-tamper regression tests"
+  ],
+  "parallel_suite_findings": {
+    "Hub_ATX": "Further combined-envelope reduction requires coherent Hub RJ45 row movement and ATX lower input/sense-cell repack; trimming Hub bottom alone does not shrink the stack envelope.",
+    "EPS_main": "Potential small left trim requires qualified missing TPS2121 courtyard restoration first; all physical and copper gates remain due.",
+    "VHP_PCIe_main": "Hardware, USB shield and terminal envelopes limit passive trimming. Larger reductions need cell/interface repacking, not removal of occupied margin.",
+    "daughterboards": "Existing power copper and terminal envelopes limit passive trimming. EPS return-plane gain and unresolved thermal screen must remain protected. Provisional terminal courtyards do not qualify full body or washer envelopes."
+  },
+  "qualification_boundaries": [
+    "Not a fabrication release, current or thermal qualification",
+    "No mounting, connector, stack gap, pinout or rated-current changes",
+    "Existing native warnings and separate fabrication findings remain open",
+    "The EPS daughterboard thermal screen remains failing; no cooling credit or current derating was introduced",
+    "Production permission cannot be inferred from zero opens and native DRC errors"
+  ],
+  "release_authority": false
+}

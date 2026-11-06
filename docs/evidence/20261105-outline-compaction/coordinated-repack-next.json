@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "status": "source-bound feasibility findings; no coordinated repack or new busbar BOM admitted",
+  "owner_direction": [
+    "Repack Hub and ATX together to reduce physical assembly dimensions and improve aligned placements, pours and power routes",
+    "Preserve parts, pinouts, nominal 22mm stack and mating directions unless a separately reviewed change is accepted",
+    "Evaluate metal power bars as an area-saving alternative, prioritizing ATX and Hub",
+    "Do not introduce a significant total BOM or assembly cost increase"
+  ],
+  "findings": [
+    "A simple Hub port-row +1mm shift collides with J6D and termination/support parts. The scout found a 35-footprint spatial dependency closure including the USB/KVM region; bbox clearance is not routing or stack qualification.",
+    "Moving Hub J6D +1mm X requires matching ATX J6D -1mm X under the existing dead-bug transform.",
+    "The existing low-power SMD place_cell compiler cannot transport the THT connector/rated-copper group. Its role and hole gates must not be weakened to manufacture a pass.",
+    "The five-owner J2/F1/R5/C18/D2 source plan refused source_signal_bias_known_peer_package_required; no routing candidate was staged.",
+    "ATX lower J3 is a 26-hole connector. Existing power_route may shorten its retained full-current perimeter loop while maintaining fixed port endpoints; a larger connector move needs independent rigid-cell contact and boundary restoration proof."
+  ],
+  "busbar_screen": {
+    "electrical_BOM_changed": false,
+    "candidate_family": "PCB copper busbars / power links; the verified low-cost catalog examples are SMT, not raised THT",
+    "examples": [
+      {
+        "mpn": "STHW4-DU-TS350810",
+        "lcsc": "C18548299",
+        "catalog_dimensions_mm": [35, 8, 1],
+        "catalog_material": "tin-plated pure/red copper; generic product title inconsistently says brass, so supplier drawing controls",
+        "assembly_listing": "JLCPCB Extended, SMT, Economic and Standard",
+        "indicative_small_quantity_price_usd": 0.20,
+        "sources": ["https://www.lcsc.com/product-detail/metal-products-smt-copper-sheet_steipu-sthw4-du-ts350810_C18548299.html", "https://jlcpcb.com/partdetail/Steipu-STHW4_DUTS350810/C18548299"]
+      },
+      {
+        "mpn": "CCS2010030TTJ",
+        "lcsc": "C46634559",
+        "catalog_dimensions_mm": [10, 3, 2],
+        "catalog_material": "matte tin-plated copper",
+        "indicative_quantity_5_price_usd": 0.2053,
+        "sources": ["https://www.lcsc.com/product-detail/C46634559.html", "https://www.lcsc.com/category/2014.html"]
+      }
+    ],
+    "price_and_stock_scope": "Public listings checked 2026-11-05; approximate screening prices, not a reserved inventory or landed PCBA quote. Different catalog views show differing stock snapshots.",
+    "assembly_cost_reference": {
+      "source": "https://jlcpcb.com/help/article/pcb-assembly-price",
+      "page_updated": "2026-10-22",
+      "checked": "2026-11-05",
+      "economic_extended_feeder_loading_usd": 3.07,
+      "standard_basic_or_extended_feeder_loading_usd": 1.53,
+      "lowest_quantity_SMT_joint_usd": 0.0016,
+      "scope": "Published fee schedule only. Actual uploaded BOM/CPL quote controls joint counting, minimum quantities, process eligibility and incremental charges. Existing order fees must not be charged again in an incremental comparison unless the process changes.",
+      "illustrative_parts_only": "Four bars at approximately USD 0.20 each add approximately USD 0.80 in components, before feeder amortization, assembly and any special processing. This is not an accepted BOM or assembled cost quote."
+    },
+    "cost_gate": [
+      "Compare incremental component, feeder, placement, soldering, inspection, handling and procurement costs at actual batch quantities",
+      "Prefer existing JLC SMT process and few shared MPNs; no assumed free manual labor or automatic PCB cost saving",
+      "No custom tooling or process escalation without showing the total cost tradeoff to the owner"
+    ],
+    "physical_gate": [
+      "Flat SMT bars save width via conductor cross-section but do not grant clearance to route under their conductive underside",
+      "Raised THT bars require explicit stand-off, hole/tab, solder-joint and opposing-board clearance qualification",
+      "No bar may bypass a shunt, protection component or Kelvin partition",
+      "Verify full-current entrances, exits and intervening PCB necks; bar cross-section alone is not an ampacity rating",
+      "Use actual material, attachment and cooling boundaries in electrical/thermal models; no invented conductivity or contact performance"
+    ]
+  },
+  "source_evidence": "CEC-Board-Reviews/outline-compaction-20261105/stack-scout/hub-rj45-inward-proposal.json",
+  "release_authority": false
+}

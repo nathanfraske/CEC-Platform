@@ -1,0 +1,9 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "cec")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/c8c74e9ca56f2d8079c61553.pretty")(options "")(descr "CEC shared footprints (universal interface)"))
+  (lib (name "cec-Connector_Blade")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/a5a6db60db2d93471c962045.pretty")(options "")(descr "Vendored, pinned -- TE 63849-1 (unreferenced) + TE 63951-1 FASTON tabs / Keystone blade clips"))
+  (lib (name "cec-Connector_Generic")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/fff48679d89dfe84065459ce.pretty")(options "")(descr "Bare THT solder-field footprints, per §2.8 v1.4.0 daughterboard output side"))
+  (lib (name "cec-Connector_PinHeader_2.54mm")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/6fc5d861aae748033984740b.pretty")(options "")(descr "Vendored pinned Samtec TSW-102-16-G-D-RA and generic 2.54 mm headers"))
+  (lib (name "cec-MountingHole")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/1ebfbe252645243c1ab96f62.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Connector_Screw")(type "KiCad")(uri "${KIPRJMOD}/../../../libraries/720f6be18e86cbf87578274f.pretty")(options "")(descr "CEC reviewed XFCN high-current screw-terminal footprints; prototype qualification gated"))
+)

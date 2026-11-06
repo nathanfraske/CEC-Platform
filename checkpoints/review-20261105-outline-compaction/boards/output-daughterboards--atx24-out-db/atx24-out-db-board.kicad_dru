@@ -1,0 +1,15 @@
+(version 1)
+
+# 24-pin ATX daughterboard XFCN prototype: four T34069 M3 bolt pads
+# (+12V/+5V/+3V3/+5VSB), two TTR M3 bolt pads (GND), and the retained 1x4
+# signal stub. The lands remain incoming-sample/electrical-qualification gated;
+# see docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md.
+
+(rule "Power min width"
+	(constraint track_width (min 0.4mm))
+	(condition "A.NetClass == 'Power'"))
+
+# The current KiCad board-edge checks deliberately remain active for every
+# XFCN land.  Do not waive them here: the imported drawings do not fully
+# qualify the daughterboard insertion geometry, so those findings are part of
+# the fail-closed incoming-sample and electrical-coupon release gate.
