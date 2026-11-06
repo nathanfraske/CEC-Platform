@@ -112,6 +112,23 @@ def plan(board, operation, board_hint):
 
 
 def emit_connections(board, routes, vias, *, identity):
+    """Add an explicit connection batch atomically, including failed probes.
+
+    Checks may fail after earlier legs/routes have been added. Those tentative
+    objects must never become obstacles or apparent connectivity for a retry.
+    This is rollback only; all existing geometry/process checks still apply.
+    """
+    original = {str(item.m_Uuid.AsString()) for item in board.GetTracks()}
+    try:
+        return _emit_connections(board, routes, vias, identity=identity)
+    except BaseException:
+        for item in list(board.GetTracks()):
+            if str(item.m_Uuid.AsString()) not in original:
+                board.Remove(item)
+        raise
+
+
+def _emit_connections(board, routes, vias, *, identity):
     import pcbnew
     import cec_fr as fr
     import cec_native_rule_areas as rule_areas
@@ -124,6 +141,7 @@ def emit_connections(board, routes, vias, *, identity):
         "bounded_explicit_cell_connections_required",
     )
     incoming = []
+    existing = {str(item.m_Uuid.AsString()) for item in board.GetTracks()}
     enabled = set(board.GetEnabledLayers().CuStack())
     settings = board.GetDesignSettings()
     for index, route in enumerate(routes):
@@ -184,8 +202,12 @@ def emit_connections(board, routes, vias, *, identity):
                     )
                 )
             )
+            uid = str(track.m_Uuid.AsString())
+            require(uid not in existing and board.ResolveItem(track.m_Uuid, True) is None,
+                    "new_connection_identity_must_not_alias_existing_native_item")
             board.Add(track)
-            incoming.append(str(track.m_Uuid.AsString()))
+            existing.add(uid)
+            incoming.append(uid)
     for index, value in enumerate(vias):
         require(
             type(value) is dict
@@ -218,8 +240,12 @@ def emit_connections(board, routes, vias, *, identity):
                 str(uuid.uuid5(uuid.NAMESPACE_URL, identity + ":via:" + str(index)))
             )
         )
+        uid = str(via.m_Uuid.AsString())
+        require(uid not in existing and board.ResolveItem(via.m_Uuid, True) is None,
+                "new_connection_identity_must_not_alias_existing_native_item")
         board.Add(via)
-        incoming.append(str(via.m_Uuid.AsString()))
+        existing.add(uid)
+        incoming.append(uid)
     return incoming
 
 
