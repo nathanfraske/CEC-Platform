@@ -1,0 +1,315 @@
+{
+  "schema": 1,
+  "source": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/loop-proof-20261105/cut/board.kicad_pcb",
+    "sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3"
+  },
+  "candidate": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb",
+    "sha256": "496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"
+  },
+  "retired_or_redrawn_source_uuids": [
+    "042cad00-1d84-4fe6-8568-ca0cab20bf39",
+    "16ac70be-9838-459c-af56-56a7e0240504",
+    "1c8a144b-2152-42ab-aa20-792f65e896f9",
+    "1f641818-cb23-468a-89c2-972ec8449b20",
+    "23835ed1-129a-47e4-9206-2ab10ae7b5e5",
+    "2a82207b-90ae-4068-a36c-78799dcc4281",
+    "50244163-2c72-4edb-b160-870be1424312",
+    "5719a5b3-896e-4005-972c-5e9310dd25d8",
+    "5fcf3de2-2240-4c0e-8238-845e82b7fbee",
+    "8189a6d8-faa1-4c70-a00a-4d8bc6741c55",
+    "b1e183df-c450-48eb-98ec-4dfc9bd5d9e2",
+    "b7649c3a-9c71-4af2-be7e-6fb0e498acd4",
+    "ce01c0ac-ec04-47df-bcec-ef51505f7397",
+    "d3292adf-764b-42e2-84de-ae1c61a6ea3a",
+    "d5186103-5ae5-4a79-bdee-23fdc360a167"
+  ],
+  "C7_pad_rebindings": [
+    {
+      "candidate_key": [
+        "pad",
+        "C7",
+        "1",
+        64500000,
+        71000000,
+        "defecadb-26fb-4a23-ab1e-131736468481"
+      ],
+      "source_key": [
+        "pad",
+        "C7",
+        "1",
+        62050000,
+        69700000,
+        "defecadb-26fb-4a23-ab1e-131736468481"
+      ]
+    },
+    {
+      "candidate_key": [
+        "pad",
+        "C7",
+        "2",
+        64500000,
+        69100000,
+        "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4"
+      ],
+      "source_key": [
+        "pad",
+        "C7",
+        "2",
+        63950000,
+        69700000,
+        "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4"
+      ]
+    }
+  ],
+  "native_partitions": {
+    "available": true,
+    "preserved": true,
+    "demoted_parts": [],
+    "source_component_count": 89,
+    "child_component_count": 89,
+    "native_source_component_count": 89,
+    "native_child_component_count": 89,
+    "reported_parts_contain_comparison_keys_only": true,
+    "overlap_token_count": 46,
+    "intersection_pairs": 60,
+    "exact_positive_native_island_overlap": true,
+    "whole_zone_uuid_connectivity_credit": false,
+    "current_capacity_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false,
+    "independent_delta_pose_current_receiving_still_required": true
+  },
+  "pairs": {
+    "ok": true,
+    "complete": true,
+    "pairs": [
+      {
+        "pair": [
+          "usb",
+          "/USB_D_P",
+          "/USB_D_N"
+        ],
+        "ok": true,
+        "regressions": [],
+        "inherited_debt": [
+          "route layer(s) lack adjacent GND reference: In3.Cu",
+          "5 transition via(s) lack a GND return via within 1.5mm",
+          "filled adjacent-GND coverage 44.0% is below 95%",
+          "coupled-route coverage 74.8% is below 80%"
+        ],
+        "candidate_debt": [
+          "route layer(s) lack adjacent GND reference: In3.Cu",
+          "5 transition via(s) lack a GND return via within 1.5mm",
+          "filled adjacent-GND coverage 44.0% is below 95%",
+          "coupled-route coverage 74.8% is below 80%"
+        ],
+        "source_metrics": {
+          "skew_mm": 0.841,
+          "uncoupled_length_mm": 14.863,
+          "vias_p": 6,
+          "vias_n": 6,
+          "reference_coverage_pct": 44,
+          "coupled_coverage_pct": 74.8
+        },
+        "candidate_metrics": {
+          "skew_mm": 0.841,
+          "uncoupled_length_mm": 14.863,
+          "vias_p": 6,
+          "vias_n": 6,
+          "reference_coverage_pct": 44,
+          "coupled_coverage_pct": 74.8
+        }
+      },
+      {
+        "pair": [
+          "can",
+          "/HUB LINK + CAN + STACK/CAN_H",
+          "/HUB LINK + CAN + STACK/CAN_L"
+        ],
+        "ok": true,
+        "regressions": [],
+        "inherited_debt": [],
+        "candidate_debt": [],
+        "source_metrics": {
+          "skew_mm": 0,
+          "uncoupled_length_mm": 1,
+          "vias_p": 0,
+          "vias_n": 0,
+          "reference_coverage_pct": 100,
+          "coupled_coverage_pct": 0
+        },
+        "candidate_metrics": {
+          "skew_mm": 0,
+          "uncoupled_length_mm": 1,
+          "vias_p": 0,
+          "vias_n": 0,
+          "reference_coverage_pct": 100,
+          "coupled_coverage_pct": 0
+        }
+      },
+      {
+        "pair": [
+          "can",
+          "/HUB LINK + CAN + STACK/CAN_H_BUS",
+          "/HUB LINK + CAN + STACK/CAN_L_BUS"
+        ],
+        "ok": true,
+        "regressions": [],
+        "inherited_debt": [
+          "route layer(s) lack adjacent GND reference: In3.Cu",
+          "3 transition via(s) lack a GND return via within 1.5mm",
+          "filled adjacent-GND coverage 52.1% is below 95%"
+        ],
+        "candidate_debt": [
+          "route layer(s) lack adjacent GND reference: In3.Cu",
+          "3 transition via(s) lack a GND return via within 1.5mm",
+          "filled adjacent-GND coverage 52.1% is below 95%"
+        ],
+        "source_metrics": {
+          "skew_mm": 0.84,
+          "uncoupled_length_mm": 1.094,
+          "vias_p": 2,
+          "vias_n": 2,
+          "reference_coverage_pct": 52.1,
+          "coupled_coverage_pct": 97.7
+        },
+        "candidate_metrics": {
+          "skew_mm": 0.84,
+          "uncoupled_length_mm": 1.094,
+          "vias_p": 2,
+          "vias_n": 2,
+          "reference_coverage_pct": 52.1,
+          "coupled_coverage_pct": 97.7
+        }
+      }
+    ],
+    "scope": [
+      [
+        "usb",
+        "/USB_D_P",
+        "/USB_D_N"
+      ],
+      [
+        "can",
+        "/HUB LINK + CAN + STACK/CAN_H",
+        "/HUB LINK + CAN + STACK/CAN_L"
+      ],
+      [
+        "can",
+        "/HUB LINK + CAN + STACK/CAN_H_BUS",
+        "/HUB LINK + CAN + STACK/CAN_L_BUS"
+      ]
+    ],
+    "scope_from_native_geometry": true,
+    "changed_track_count": 33,
+    "changed_track_nets": [
+      "+3V3",
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "/FOUR-RAIL PRECISION + FAST SENSING/THRESH",
+      "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+      "GND"
+    ],
+    "complete_pair_inventory": [
+      [
+        "usb",
+        "/USB_D_P",
+        "/USB_D_N"
+      ],
+      [
+        "can",
+        "/HUB LINK + CAN + STACK/CAN_H",
+        "/HUB LINK + CAN + STACK/CAN_L"
+      ],
+      [
+        "can",
+        "/HUB LINK + CAN + STACK/CAN_H_BUS",
+        "/HUB LINK + CAN + STACK/CAN_L_BUS"
+      ]
+    ],
+    "shared_return_or_terminal_geometry_changed": true,
+    "inherited_legacy_policy_assumptions": true,
+    "continuous_return_proof": false,
+    "physics_qualification": false,
+    "source_policy_path": "/home/codex/src/CEC-Platform/experiments/repack/loop-proof-20261105/cut/board.kicad_pcb"
+  },
+  "ground_via": {
+    "source": {
+      "uuid": "d9205cce-4454-4efb-896d-408633d8d5a8",
+      "at_nm": [
+        63950000,
+        69700000
+      ],
+      "net": "GND",
+      "drill_nm": 300000,
+      "diameters_nm": {
+        "F.Cu": 600000,
+        "GND": 600000,
+        "SIG2": 600000,
+        "PWR": 600000,
+        "GND2": 600000,
+        "B.Cu": 600000
+      },
+      "type": 4,
+      "top": 0,
+      "bottom": 2,
+      "locked": true
+    },
+    "candidate": {
+      "uuid": "d9205cce-4454-4efb-896d-408633d8d5a8",
+      "at_nm": [
+        64500000,
+        69100000
+      ],
+      "net": "GND",
+      "drill_nm": 300000,
+      "diameters_nm": {
+        "F.Cu": 600000,
+        "GND": 600000,
+        "SIG2": 600000,
+        "PWR": 600000,
+        "GND2": 600000,
+        "B.Cu": 600000
+      },
+      "type": 4,
+      "top": 0,
+      "bottom": 2,
+      "locked": true
+    },
+    "process_dimensions_unchanged": true
+  },
+  "draft_status": {
+    "routing_admitted": false,
+    "current_Kelvin_return_and_pair_receiving_complete": false,
+    "release_authority": false,
+    "source_unchanged": true
+  },
+  "native_fill": {
+    "algorithm": "native-priority-settle-v1",
+    "stable": true,
+    "ordered_passes": 2,
+    "compiled_zone_count": 40,
+    "initialized_selected": true,
+    "fingerprint": "3b78856032afeaf43b53bad643403735b4ffb233200910fc1246bc8ee0920353",
+    "native_copper_received": false,
+    "release_authority": false
+  },
+  "gates": {
+    "field_physics": {
+      "qualified": false,
+      "reason": "Native saved-fill partition overlap is connectivity evidence only, not continuous field/return or thermal proof."
+    },
+    "full_current": {
+      "qualified": false,
+      "reason": "Not run as an accepted operation; no full-current/thermal qualification established. Existing current contracts remain unchanged."
+    },
+    "native_drc": {
+      "independently_run": false,
+      "reason": "Parent reports zero opens; this independent report did not rerun DRC."
+    },
+    "overall_routing_admission": false,
+    "release_authority": false
+  },
+  "board_files_modified": false
+}

@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "scope": "Independent read-only native F.Cu geometry clearance screen of explicit manual route sketches. Not accepted routing.",
+  "source": {
+    "path": "experiments/repack/loop-proof-20261105/cut/board.kicad_pcb",
+    "sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3"
+  },
+  "planning_input": "docs/evidence/20261105-connected-repack/next-bar-corridor.json",
+  "bar_land": {
+    "net": "/SENSE3V3_HI",
+    "center_mm": [
+      69,
+      64.5
+    ],
+    "rotation_deg": 90,
+    "size_mm": [
+      20.8,
+      3.7
+    ],
+    "bounds_mm": [
+      67.15,
+      54.1,
+      70.85,
+      74.9
+    ]
+  },
+  "clearance_method": {
+    "face": "F.Cu",
+    "candidate_width_nm": 200000,
+    "screen_clearance_nm": 200000,
+    "native_geometry": "Native pad/track/via TransformShapeToPolygon, ERROR_OUTSIDE, 1000 nm chord error; all remaining different-net actual F.Cu copper and saved F.Cu fill tested.",
+    "other_layers_unchanged": true,
+    "current_or_custom_rule_admission": false
+  },
+  "routes": {
+    "VBUS": {
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "points_mm": [
+        [
+          65.2,
+          62.6
+        ],
+        [
+          66.85,
+          62.6
+        ],
+        [
+          66.85,
+          53.3
+        ],
+        [
+          70.5,
+          53.3
+        ],
+        [
+          71.4,
+          54.2
+        ],
+        [
+          71.4,
+          60.4
+        ]
+      ],
+      "retired_source_track_uuids": [
+        "1f641818-cb23-468a-89c2-972ec8449b20",
+        "23835ed1-129a-47e4-9206-2ab10ae7b5e5",
+        "2a82207b-90ae-4068-a36c-78799dcc4281",
+        "b1e183df-c450-48eb-98ec-4dfc9bd5d9e2",
+        "b7649c3a-9c71-4af2-be7e-6fb0e498acd4",
+        "ce01c0ac-ec04-47df-bcec-ef51505f7397",
+        "d3292adf-764b-42e2-84de-ae1c61a6ea3a",
+        "d5186103-5ae5-4a79-bdee-23fdc360a167"
+      ],
+      "remaining_different_net_pad_track_via_conflicts": [],
+      "saved_fill_conflicts": [],
+      "bar_land_gap_mm": 0.20000000000001703
+    },
+    "THRESH": {
+      "net": "/FOUR-RAIL PRECISION + FAST SENSING/THRESH",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "points_mm": [
+        [
+          66.44,
+          54
+        ],
+        [
+          66.25,
+          53.81
+        ],
+        [
+          66.25,
+          53.1
+        ],
+        [
+          67.1,
+          52.25
+        ],
+        [
+          67.77,
+          52.25
+        ]
+      ],
+      "retired_source_track_uuids": [
+        "5fcf3de2-2240-4c0e-8238-845e82b7fbee",
+        "8189a6d8-faa1-4c70-a00a-4d8bc6741c55",
+        "50244163-2c72-4edb-b160-870be1424312",
+        "16ac70be-9838-459c-af56-56a7e0240504"
+      ],
+      "remaining_different_net_pad_track_via_conflicts": [],
+      "saved_fill_conflicts": [],
+      "bar_land_gap_mm": 0.6171089255601273
+    }
+  },
+  "mutual_route_gap_mm": 0.21000000000000796,
+  "all_existing_vias_retained": true,
+  "existing_holes_or_leads_moved": false,
+  "source_board_modified": false,
+  "accepted": false,
+  "warnings": [
+    "Explicit cut ownership still requires independent source-bound receiving; listed tracks are not deletion authority by this report.",
+    "Screen assumes the existing conflicted VBUS and THRESH paths are replaced in full. The parent loop-proof cut supplies prior housekeeping loop proof.",
+    "VBUS is exactly at nominal 0.2 mm land clearance. No placement, dimensional or manufacturing uncertainty is absorbed by that equality.",
+    "Native construction plus whole-board DRC, opens, saved copper/current/field/return/threshold intent and assembly gates remain mandatory.",
+    "Only a geometric local screen; not an ampacity rating, physical fit qualification, current allocation change or waiver.",
+    "C7 and bottom SYS_PORT detour are outside this review."
+  ]
+}

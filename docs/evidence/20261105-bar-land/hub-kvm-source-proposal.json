@@ -1,0 +1,1032 @@
+{
+  "schema": 1,
+  "scope": "Source-owned KVM top-edge relocation preparation. No board constructed. Not accepted.",
+  "source": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/j6c-connected-20261105/cover/board.kicad_pcb",
+    "sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc"
+  },
+  "owners": [
+    {
+      "reference": "J_KVM",
+      "footprint": "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal",
+      "source_pose_mm": [
+        40.030001,
+        59.55,
+        0
+      ],
+      "target": {
+        "reference": "J_KVM",
+        "at_nm": [
+          60100000,
+          5750000
+        ],
+        "rotation_deg": 0
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "80a5729c-36fd-445c-a3b2-edd29262c151",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+          "source_at_nm": [
+            44030001,
+            59550000
+          ],
+          "xy_incident_tracks": [
+            "00dad7aa-624c-4524-a7ac-b2b7f7883e84",
+            "6d876840-030c-4735-8284-82d6be08e4ba",
+            "7ccccc3e-6969-4ee0-a7ef-93b139698482"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "2",
+          "uuid": "22c1c3db-5d43-4367-b4df-97277dee84fd",
+          "net": "GND",
+          "source_at_nm": [
+            42030001,
+            59550000
+          ],
+          "xy_incident_tracks": [],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "3",
+          "uuid": "6fbe31d3-141f-4815-840b-32846bbe79f6",
+          "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+          "source_at_nm": [
+            40030001,
+            59550000
+          ],
+          "xy_incident_tracks": [
+            "1c048c42-f76b-4b4e-9c30-24ff0a5f115a",
+            "ebe3f357-cdc7-4383-8119-d17460b2ef89"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "4",
+          "uuid": "1da4e187-1d4c-43c3-a932-b44a38c96b12",
+          "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+          "source_at_nm": [
+            38030001,
+            59550000
+          ],
+          "xy_incident_tracks": [
+            "cbf900a8-96a9-4eb9-a5b9-42dbc06df660"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "5",
+          "uuid": "85873a23-5ab8-43be-96fd-19ea7c5b4c0f",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+          "source_at_nm": [
+            36030001,
+            59550000
+          ],
+          "xy_incident_tracks": [
+            "8f26dc5b-02e1-5e1a-9ebf-044ecf55c616",
+            "c2b95db5-850c-5fa2-82d3-ecd8271177bf",
+            "f103d021-8604-55c5-8906-fc6d0a705a46"
+          ],
+          "via_centers_inside_land": []
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+          "at_nm": [
+            64100000,
+            5750000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            62100000,
+            5750000
+          ]
+        },
+        {
+          "number": "3",
+          "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+          "at_nm": [
+            60100000,
+            5750000
+          ]
+        },
+        {
+          "number": "4",
+          "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+          "at_nm": [
+            58100000,
+            5750000
+          ]
+        },
+        {
+          "number": "5",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+          "at_nm": [
+            56100000,
+            5750000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "F5",
+      "footprint": "R_1206_3216Metric",
+      "source_pose_mm": [
+        35.950001,
+        52,
+        0
+      ],
+      "target": {
+        "reference": "F5",
+        "at_nm": [
+          62300000,
+          10500000
+        ],
+        "rotation_deg": 90
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+          "source_at_nm": [
+            34487501,
+            52000000
+          ],
+          "xy_incident_tracks": [
+            "0b0b5d79-baaf-4aab-a496-5e9117e6b9ab",
+            "1bc01650-9ec9-47ed-8d2e-29aad564492f"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "2",
+          "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+          "net": "/KVM_5V_IN",
+          "source_at_nm": [
+            37412501,
+            52000000
+          ],
+          "xy_incident_tracks": [
+            "4cf58cc9-56e0-4dc1-b4fd-c45773534cdd"
+          ],
+          "via_centers_inside_land": [
+            "6989b933-4a49-435f-835d-ea6d0d9b2ad7"
+          ]
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+          "at_nm": [
+            62300000,
+            11962500
+          ]
+        },
+        {
+          "number": "2",
+          "net": "/KVM_5V_IN",
+          "at_nm": [
+            62300000,
+            9037500
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "D7",
+      "footprint": "D_SOD-323",
+      "source_pose_mm": [
+        40.350001,
+        52.3,
+        0
+      ],
+      "target": {
+        "reference": "D7",
+        "at_nm": [
+          55000000,
+          10400000
+        ],
+        "rotation_deg": 90
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "f9af92f0-1d03-5e1b-bd47-fd27f6ded5fa",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+          "source_at_nm": [
+            39300001,
+            52300000
+          ],
+          "xy_incident_tracks": [
+            "6f3244b8-7bd2-44fd-9e22-3f683e35e748",
+            "96759590-2e6e-4d37-bc3e-b473ef22c6c6",
+            "7382bcd4-ecaf-4d20-a938-b29325cc4f54",
+            "b766093a-33a1-4cc3-a8f6-f49deb6c469d",
+            "f4b24c44-60dc-4f6b-80f2-003336f89f15"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "2",
+          "uuid": "c6b4d215-a00a-559c-83d5-d1b06ca0ec6a",
+          "net": "GND",
+          "source_at_nm": [
+            41400001,
+            52300000
+          ],
+          "xy_incident_tracks": [
+            "f18f398d-f296-45da-9c64-be3699f18d98"
+          ],
+          "via_centers_inside_land": []
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+          "at_nm": [
+            55000000,
+            11450000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            55000000,
+            9350000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "R28",
+      "footprint": "R_0402_1005Metric",
+      "source_pose_mm": [
+        55.8313,
+        9.6963,
+        90
+      ],
+      "target": {
+        "reference": "R28",
+        "at_nm": [
+          53900000,
+          12700000
+        ],
+        "rotation_deg": 0
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "0bf58f3c-844e-4954-b1c5-e056e58e00ef",
+          "net": "/PWR_FAIL_INT",
+          "source_at_nm": [
+            55831300,
+            10206300
+          ],
+          "xy_incident_tracks": [
+            "0f0f9528-575e-44a6-b4b7-9d2b43cd5350",
+            "812515ab-d134-45c8-9215-6815585b9c12"
+          ],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "2",
+          "uuid": "5b2ef7b5-b66b-4c44-995d-b5c6698e7983",
+          "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+          "source_at_nm": [
+            55831300,
+            9186300
+          ],
+          "xy_incident_tracks": [
+            "9b798315-b643-4cb9-9322-f1b90fd747b6"
+          ],
+          "via_centers_inside_land": []
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/PWR_FAIL_INT",
+          "at_nm": [
+            53390000,
+            12700000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+          "at_nm": [
+            54410000,
+            12700000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "C_bulk1",
+      "footprint": "CP_Elec_6.3x7.7",
+      "source_pose_mm": [
+        59,
+        4.956299,
+        0
+      ],
+      "target": {
+        "reference": "C_bulk1",
+        "at_nm": [
+          40500000,
+          53000000
+        ],
+        "rotation_deg": 0
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "ae09916a-6356-42f4-9016-ece513a8095c",
+          "net": "+5VSB",
+          "source_at_nm": [
+            56300000,
+            4956299
+          ],
+          "xy_incident_tracks": [
+            "6ddf7806-a470-435f-9092-4ea319c5aee6",
+            "20a90713-1a9e-5caf-84a9-f6cf9ce17086",
+            "dc85b1e2-ad17-46a5-a526-99c9c38812f1",
+            "fb2c944f-7b79-444f-8bb1-37f625088a23"
+          ],
+          "via_centers_inside_land": [
+            "12117b2c-ad36-4b96-bac5-3345fb3907cd"
+          ]
+        },
+        {
+          "number": "2",
+          "uuid": "e6871917-19e8-496e-b2e8-e97dc2bfe73c",
+          "net": "GND",
+          "source_at_nm": [
+            61700000,
+            4956299
+          ],
+          "xy_incident_tracks": [],
+          "via_centers_inside_land": [
+            "0ca4d4b4-644c-45ef-be69-570c9a59f0d3"
+          ]
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "+5VSB",
+          "at_nm": [
+            37800000,
+            53000000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            43200000,
+            53000000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "C32",
+      "footprint": "C_0402_1005Metric",
+      "source_pose_mm": [
+        44.82,
+        50.48,
+        -90
+      ],
+      "target": {
+        "reference": "C32",
+        "at_nm": [
+          45850000,
+          50300000
+        ],
+        "rotation_deg": 270
+      },
+      "pads": [
+        {
+          "number": "1",
+          "uuid": "0655c4e3-e4b6-4ac1-a76a-816acb32dcbc",
+          "net": "+5VSB",
+          "source_at_nm": [
+            44820000,
+            50000000
+          ],
+          "xy_incident_tracks": [],
+          "via_centers_inside_land": []
+        },
+        {
+          "number": "2",
+          "uuid": "d041bc68-6060-4ef2-a561-83d577c6703b",
+          "net": "GND",
+          "source_at_nm": [
+            44820000,
+            50960000
+          ],
+          "xy_incident_tracks": [],
+          "via_centers_inside_land": [
+            "d52a6523-8b53-4a63-b1dd-2d349d822a3d"
+          ]
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "+5VSB",
+          "at_nm": [
+            45850000,
+            49820000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            45850000,
+            50780000
+          ]
+        }
+      ]
+    }
+  ],
+  "xy_incident_track_inventory": [
+    {
+      "uuid": "00dad7aa-624c-4524-a7ac-b2b7f7883e84",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "start_nm": [
+        43500000,
+        59750000
+      ],
+      "end_nm": [
+        43500000,
+        59550000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "6d876840-030c-4735-8284-82d6be08e4ba",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "start_nm": [
+        43500000,
+        59550000
+      ],
+      "end_nm": [
+        44030001,
+        59550000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "7ccccc3e-6969-4ee0-a7ef-93b139698482",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "start_nm": [
+        41000000,
+        62250000
+      ],
+      "end_nm": [
+        43500000,
+        59750000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "1c048c42-f76b-4b4e-9c30-24ff0a5f115a",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        40030001,
+        59550000
+      ],
+      "end_nm": [
+        39530001,
+        59550000
+      ],
+      "locked": false,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "ebe3f357-cdc7-4383-8119-d17460b2ef89",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        39530001,
+        56500000
+      ],
+      "end_nm": [
+        39530001,
+        59550000
+      ],
+      "locked": false,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "cbf900a8-96a9-4eb9-a5b9-42dbc06df660",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        38030001,
+        57030001
+      ],
+      "end_nm": [
+        38030001,
+        59550000
+      ],
+      "locked": false,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "8f26dc5b-02e1-5e1a-9ebf-044ecf55c616",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        35530001,
+        59300000
+      ],
+      "end_nm": [
+        35780001,
+        59550000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "c2b95db5-850c-5fa2-82d3-ecd8271177bf",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        35780001,
+        59550000
+      ],
+      "end_nm": [
+        36030001,
+        59550000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "f103d021-8604-55c5-8906-fc6d0a705a46",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        35530001,
+        58969999
+      ],
+      "end_nm": [
+        35530001,
+        59300000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "0b0b5d79-baaf-4aab-a496-5e9117e6b9ab",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "start_nm": [
+        34487501,
+        52100000
+      ],
+      "end_nm": [
+        33437501,
+        53150000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "1bc01650-9ec9-47ed-8d2e-29aad564492f",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "start_nm": [
+        34487501,
+        52000000
+      ],
+      "end_nm": [
+        34487501,
+        52100000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "4cf58cc9-56e0-4dc1-b4fd-c45773534cdd",
+      "net": "/KVM_5V_IN",
+      "layer": "B.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        37112501,
+        52400000
+      ],
+      "end_nm": [
+        37112501,
+        57498800
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "6f3244b8-7bd2-44fd-9e22-3f683e35e748",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        40092001,
+        52896000
+      ],
+      "end_nm": [
+        39496001,
+        52300000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "96759590-2e6e-4d37-bc3e-b473ef22c6c6",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        39104001,
+        52300000
+      ],
+      "end_nm": [
+        39104001,
+        51800000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "7382bcd4-ecaf-4d20-a938-b29325cc4f54",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        39104001,
+        51800000
+      ],
+      "end_nm": [
+        39104001,
+        52100000
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "b766093a-33a1-4cc3-a8f6-f49deb6c469d",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        39104001,
+        52100000
+      ],
+      "end_nm": [
+        39304001,
+        52300000
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "f4b24c44-60dc-4f6b-80f2-003336f89f15",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        39304001,
+        52300000
+      ],
+      "end_nm": [
+        42550000,
+        52300000
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "f18f398d-f296-45da-9c64-be3699f18d98",
+      "net": "GND",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        41400001,
+        52300000
+      ],
+      "end_nm": [
+        41400001,
+        51625000
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "0f0f9528-575e-44a6-b4b7-9d2b43cd5350",
+      "net": "/PWR_FAIL_INT",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        55831300,
+        10206300
+      ],
+      "end_nm": [
+        52759300,
+        13278300
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "812515ab-d134-45c8-9215-6815585b9c12",
+      "net": "/PWR_FAIL_INT",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        57331300,
+        10206300
+      ],
+      "end_nm": [
+        55831300,
+        10206300
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "9b798315-b643-4cb9-9322-f1b90fd747b6",
+      "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "start_nm": [
+        55831300,
+        9186300
+      ],
+      "end_nm": [
+        56881300,
+        8136300
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "6ddf7806-a470-435f-9092-4ea319c5aee6",
+      "net": "+5VSB",
+      "layer": "F.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        53500000,
+        4956299
+      ],
+      "end_nm": [
+        56300000,
+        4956299
+      ],
+      "locked": true,
+      "pad_face_compatible": true
+    },
+    {
+      "uuid": "20a90713-1a9e-5caf-84a9-f6cf9ce17086",
+      "net": "+5VSB",
+      "layer": "B.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        56300000,
+        4956299
+      ],
+      "end_nm": [
+        56300000,
+        13800000
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "dc85b1e2-ad17-46a5-a526-99c9c38812f1",
+      "net": "+5VSB",
+      "layer": "B.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        45000000,
+        4500000
+      ],
+      "end_nm": [
+        56300000,
+        4500000
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    },
+    {
+      "uuid": "fb2c944f-7b79-444f-8bb1-37f625088a23",
+      "net": "+5VSB",
+      "layer": "B.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        56300000,
+        4500000
+      ],
+      "end_nm": [
+        56300000,
+        4956299
+      ],
+      "locked": true,
+      "pad_face_compatible": false
+    }
+  ],
+  "source_vias_inside_selected_lands": [
+    {
+      "uuid": "6989b933-4a49-435f-835d-ea6d0d9b2ad7",
+      "net": "/KVM_5V_IN",
+      "at_nm": [
+        37412501,
+        52000000
+      ],
+      "drill_nm": 250000,
+      "locked": true
+    },
+    {
+      "uuid": "12117b2c-ad36-4b96-bac5-3345fb3907cd",
+      "net": "+5VSB",
+      "at_nm": [
+        56300000,
+        4956299
+      ],
+      "drill_nm": 400000,
+      "locked": true
+    },
+    {
+      "uuid": "0ca4d4b4-644c-45ef-be69-570c9a59f0d3",
+      "net": "GND",
+      "at_nm": [
+        61700000,
+        4956299
+      ],
+      "drill_nm": 250000,
+      "locked": true
+    },
+    {
+      "uuid": "d52a6523-8b53-4a63-b1dd-2d349d822a3d",
+      "net": "GND",
+      "at_nm": [
+        44820000,
+        50960000
+      ],
+      "drill_nm": 200000,
+      "locked": true
+    }
+  ],
+  "pose_authority": "docs/evidence/20261105-busbar-candidates/paired-request.json",
+  "mechanical_closure": [
+    "J_KVM",
+    "F5",
+    "D7",
+    "R28",
+    "C_bulk1",
+    "C32"
+  ],
+  "local_manual_route_intents": [
+    {
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+      "layer": "F.Cu",
+      "width_nm": 239266,
+      "points_nm": [
+        [
+          64100000,
+          5750000
+        ],
+        [
+          64100000,
+          10162500
+        ],
+        [
+          62300000,
+          11962500
+        ]
+      ],
+      "status": "Concept only. Re-derive complete original two-terminal net graph before replacing all old chain pieces."
+    },
+    {
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "points_nm": [
+        [
+          56100000,
+          5750000
+        ],
+        [
+          56100000,
+          10350000
+        ],
+        [
+          55000000,
+          11450000
+        ]
+      ],
+      "status": "Concept J_KVM.5 to D7.1 branch only. R21.1 branch and all original contacts remain required."
+    }
+  ],
+  "required_external_connections": [
+    {
+      "from": "F5.2",
+      "net": "/KVM_5V_IN",
+      "to": [
+        "U11.2",
+        "C22.1",
+        "C23.1"
+      ],
+      "status": "Long new power route not authored. Retain source in-pad via ownership, every endpoint and original width/current requirements."
+    },
+    {
+      "from": "J_KVM.3",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "to": [
+        "R19.2"
+      ],
+      "status": "New top-edge UART route required; source R19 pose remains fixed."
+    },
+    {
+      "from": "J_KVM.4",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "to": [
+        "R20.2"
+      ],
+      "status": "New top-edge UART route required; source R20 pose remains fixed."
+    },
+    {
+      "from": "J_KVM.5 and D7.1",
+      "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+      "to": [
+        "R21.1"
+      ],
+      "status": "Nearby top reference branch required."
+    },
+    {
+      "from": "C_bulk1.1",
+      "net": "+5VSB",
+      "to": "All original surviving native source partitions including broad rail taps",
+      "status": "Do not reinterpret as U8 decoupler or independent load."
+    },
+    {
+      "from": "R28.1",
+      "net": "/PWR_FAIL_INT",
+      "to": "Original source-connected signal partitions",
+      "status": "Critical route. Do not weaken intent."
+    },
+    {
+      "from": "R28.2",
+      "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+      "to": "Original source-connected comparator threshold partitions",
+      "status": "Critical route. Do not weaken intent."
+    }
+  ],
+  "current_boundaries": {
+    "shared_5vsb_basis_a": 2.5,
+    "ptc_label_not_current_clamp": true,
+    "new_kvm_branch_budget_inferred": false,
+    "preserve_existing_source_width_layer_and_current_authority": true
+  },
+  "limitations": [
+    "XY incidence includes other-layer tracks that require their actual owning via/barrel proof; it is not a copper contact or deletion authorization.",
+    "All source cuts and all affected native partitions must be independently re-derived before construction.",
+    "No autoroute, automatic placement search, copper retirement, track unlocking or source modification is authorized by this inventory.",
+    "Local manual paths are not collision-screened or complete accepted routes.",
+    "Native draft and DRC not attempted because F5-to-U11, bulk 5VSB and all multi-boundary critical connections remain un-authored.",
+    "Use metadata-preserving drafts with refill if later constructing. Never stock CLI save-board normalization.",
+    "Retain exact committed top-edge protection poses; no alternative right-edge placement was shown to reduce combined envelope and reroute obligations."
+  ],
+  "board_files_modified": false,
+  "routing_admitted": false,
+  "removal_authorized": false
+}

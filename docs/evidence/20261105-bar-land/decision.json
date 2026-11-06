@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "goal_status": "active",
+  "turn_classification": "progress",
+  "scope": "Private native bar-land construction and conflict removal, not production admission",
+  "review_incumbents_replaced": false,
+  "review_pointer_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+  "proved_progress": [
+    "Retired 31 redundant +3V3 loop tracks (30.572352 mm) after native contact and full partition checks, not from endpoint coincidence alone.",
+    "Source-bound C7 rotation, two supply-lead redraws and movement of its original Ground via retain an immediate in-pad return without dragging a common power trunk.",
+    "Reconstructed three different-net paths away from the real XFCN land while preserving original widths, nets, layers and rules.",
+    "Added generic bounded private track retirement, real source-bound single-land reinforcement insertion and exact source-via padstack copying, with independent tests and no admission authority.",
+    "Constructed the real BB1 footprint, saved it in native KiCad, refilled all native zones and verified the saved copper rather than relying on a rendered overlay."
+  ],
+  "corridor_candidate": {
+    "path": "experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb",
+    "sha256": "496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749",
+    "native_opens": 0,
+    "native_DRC_errors": 0,
+    "native_warnings": 69,
+    "original_partitions_preserved": true,
+    "pair_nonregression_passes": true,
+    "current_thermal_or_release_admission": false
+  },
+  "clean_land_candidate": {
+    "path": "experiments/repack/bar-land-clean-20261105/carrier/board.kicad_pcb",
+    "sha256": "cbacc785c55d4948f254a6f31a9c3eb15f41f0d40480d666cc5e477996b27364",
+    "request": "docs/evidence/20261105-bar-land/clean-land-draft.json",
+    "native_opens": 1,
+    "native_DRC_errors": 0,
+    "native_warnings": 74,
+    "open_identity": "New BB1 single pad on F.Cu is not connected to the retained /SENSE3V3_HI B.Cu conductor.",
+    "original_partitions_preserved": true,
+    "added_isolated_components": 1,
+    "declared_stack_screen_passes": true,
+    "complete_assembled_Z_qualified": false,
+    "bar_installed_height_allocation_mm": 2.4,
+    "height_allocation_qualified": false,
+    "outline_mm": [78, 89.5],
+    "verified_XY_compaction_mm": [0, 0],
+    "original_power_trunk_retained": true,
+    "current_thermal_joint_or_assembly_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false
+  },
+  "cover": {
+    "path": "experiments/repack/bar-land-clean-20261105/cover/board.kicad_pcb",
+    "sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc",
+    "byte_identical_to_previously_verified_J6C_private_candidate": true,
+    "native_opens_from_identical_prior_evidence": 0,
+    "native_DRC_errors_from_identical_prior_evidence": 0
+  },
+  "failed_experiment": {
+    "evidence": "docs/evidence/20261105-bar-land/via-array-review.json",
+    "proposed_end_vias": 12,
+    "native_opens": 0,
+    "native_DRC_errors": 32,
+    "accepted": false,
+    "reason": "The source-process vias collide with retained NEG12 and housekeeping copper on inner layers. An open count of zero does not admit this shorted board.",
+    "decision": "Stop blind array enumeration. Do not change unrelated rated conductors merely to make this non-compacting prototype look connected."
+  },
+  "cost_and_process": {
+    "evidence": "docs/evidence/20261105-bar-land/global-assembly-evidence.json",
+    "global_JLC_catalog_listing_verified": true,
+    "part_USD_snapshot_single": 0.2237,
+    "stock_snapshot": 2000,
+    "assembly_listing": "Wave Soldering / backend manualWeld",
+    "automated_SMT_reflow_qualified": false,
+    "assembled_BOM_increment_quoted": false,
+    "manufacturer_25A_current_or_numeric_material_guarantee_obtained": false
+  },
+  "regression": {
+    "passed": 880,
+    "failed": 0,
+    "skipped": 0,
+    "warnings": 2,
+    "elapsed_seconds": 117.81,
+    "junit": "docs/evidence/20261105-bar-land/regression.xml",
+    "junit_sha256": "b28b1fd8091f8cd1778950ef7ad6bde4be708ea57ca9bf5f8e02cffce9e75116",
+    "scope": "All agentic modules plus force-sense shards, SPICE runners/sanity and thermal completion regression tests. Not new physical current, thermal or manufacturing qualification."
+  },
+  "next_action": {
+    "evidence": "docs/evidence/20261105-bar-land/compaction-leverage.json",
+    "priority": "Reconstruct the different-net /SENSE12V_HI bottom loop together with the approved J3 inward move and matched Hub repack. That loop, not BB1, currently limits ATX Y.",
+    "potential_not_achieved": "Moving J3 y79.4 to77.4 and its rated loop inward may permit ATX bottom89.5 to87.5. The mirrored Hub edge bank, not the internal 3V3 bar, controls paired X.",
+    "bar_policy": "Require demonstrated global geometry leverage plus source-qualified bar/joints and full current/thermal/Kelvin/assembly receiving before replacing rated copper or accepting added assembly cost.",
+    "remaining": [
+      "Real rated busbar contact topology and external material/process or measured qualification evidence.",
+      "Actual matched-stack X/Y compaction and verified unchanged complete assembled Z.",
+      "Top-edge KVM and remaining paired placement reconstruction.",
+      "Complete final routed candidates, full independent receiving and final prettification."
+    ]
+  }
+}

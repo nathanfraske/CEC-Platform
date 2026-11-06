@@ -2,7 +2,7 @@
 
 This materializes an agent's source-bound poses and exact track redraws so
 unfinished multi-board reconstruction can be inspected in native KiCad. No
-placement search, route search, current waiver, new via or source selection.
+placement search, route search, current waiver or implicit source selection.
 Drafts cannot be promoted by this module; every independent receiving gate is
 still required. Reviewed sources and project rules are immutable.
 """
@@ -18,6 +18,32 @@ import uuid
 from . import repack, geometry
 from .identity import digest, require
 from .native import _native
+
+
+def _retire(board, ids):
+    """Explicit private subtraction; no connectivity or current authority.
+
+    Restrict this drafting operation to ungrouped straight tracks. A source
+    anchor embedded in a typed allocation remains protected by native deletion.
+    Validate the complete batch before mutating any copper.
+    """
+    from cec_native_items import discard_items
+    require(type(ids) is list and len(ids) <= 128
+            and all(type(key) is str and key for key in ids)
+            and len(set(ids)) == len(ids), 'bounded_unique_draft_retirement_ids')
+    tracks = {str(t.m_Uuid.AsString()): t for t in board.GetTracks()}
+    require(all(key in tracks for key in ids), 'existing_draft_retirement_tracks')
+    selected = [tracks[key] for key in ids]
+    require(all(t.GetClass() == 'PCB_TRACK' for t in selected),
+            'draft_retirement_is_not_via_or_arc_removal')
+    require(not any(g.ContainsItem(t) for g in board.Groups() for t in selected),
+            'draft_retirement_cannot_change_groups')
+    records = [dict(uuid=key, net=str(t.GetNetname()), layer=board.GetLayerName(t.GetLayer()),
+                    width_nm=t.GetWidth(), locked=bool(t.IsLocked()),
+                    source_points_nm=[list(t.GetStart()), list(t.GetEnd())])
+               for key, t in zip(ids, selected)]
+    discard_items(board, selected)
+    return records
 
 
 def _redraw(board, edits, identity):
@@ -82,6 +108,43 @@ def _move_vias(board, edits):
     return records
 
 
+def _copy_vias(board, edits, identity):
+    """Clone explicit ungrouped source barrels; geometry, not current authority."""
+    pcbnew,quiet=_native()
+    require(type(edits) is list and len(edits)<=32,'bounded_explicit_draft_via_copies')
+    tracks={str(t.m_Uuid.AsString()):t for t in board.GetTracks()}
+    occupied=set(tracks)
+    for fp in board.GetFootprints():
+        occupied|={str(i.m_Uuid.AsString()) for i in
+                   [fp,*fp.Pads(),*fp.GraphicalItems(),*fp.GetFields()]}
+    occupied|={str(i.m_Uuid.AsString()) for i in [*board.GetDrawings(),*board.Zones(),*board.Groups()]}
+    sites={tuple(t.GetPosition()) for t in tracks.values() if t.GetClass()=='PCB_VIA'}
+    prepared=[]
+    for index,edit in enumerate(edits):
+        require(type(edit) is dict and set(edit)=={'source_uuid','at_nm'},'exact_draft_via_copy_fields')
+        key=edit['source_uuid']
+        require(type(key) is str and key in tracks and tracks[key].GetClass()=='PCB_VIA',
+                'existing_source_barrel_required')
+        via=tracks[key];at=geometry.point(edit['at_nm'])
+        require(bool(str(via.GetNetname())) and not any(g.ContainsItem(via) for g in board.Groups()),
+                'named_ungrouped_source_via_required')
+        require(tuple(at) not in sites,'draft_copied_via_site_collision')
+        sites.add(tuple(at))
+        derived=str(uuid.uuid5(uuid.NAMESPACE_URL,identity+':via-copy:'+str(index)+':'+key))
+        require(derived not in occupied,'draft_copied_via_uuid_collision');occupied.add(derived)
+        prepared.append((key,via,at,derived))
+    records=[]
+    for key,via,at,derived in prepared:
+        clone=via.Duplicate();clone.m_Uuid.Clone(pcbnew.KIID(derived))
+        clone.SetPosition(pcbnew.VECTOR2I(*at));board.Add(clone)
+        records.append(dict(source_uuid=key,added_uuid=derived,net=str(via.GetNetname()),
+            source_at_nm=list(via.GetPosition()),at_nm=at,locked=bool(via.IsLocked()),
+            drill_nm=via.GetDrillValue(),top_layer=board.GetLayerName(via.TopLayer()),
+            bottom_layer=board.GetLayerName(via.BottomLayer()),
+            source_process_cloned=True,current_qualified=False,assembly_qualified=False))
+    return records
+
+
 def stage(request, directory, *, refill=False):
     import cec_force_current as force
     import cec_additive_route_receiving as syntax
@@ -89,8 +152,13 @@ def stage(request, directory, *, refill=False):
 
     require(type(refill) is bool, 'explicit_draft_refill_mode')
 
-    require(type(request) is dict and set(request)=={'schema','placement','board_hints','redraws','via_moves'}
-            and type(request['schema']) is int and request['schema']==1,'exact_paired_draft_request')
+    fields={'schema','placement','board_hints','redraws','via_moves'}
+    require(type(request) is dict and type(request.get('schema')) is int
+            and request['schema'] in (1,2,3,4)
+            and set(request)==fields|({'retired_tracks'} if request['schema']>=2 else set())
+                                   |({'flatbars'} if request['schema']>=3 else set())
+                                   |({'via_copies'} if request['schema']==4 else set()),
+            'exact_paired_draft_request')
     binding=request['placement']
     require(type(binding) is dict and set(binding)=={'path','sha256'},'hash_bound_draft_placement')
     planpath=Path(binding['path']).resolve(strict=True)
@@ -106,11 +174,42 @@ def stage(request, directory, *, refill=False):
             'explicit_paired_draft_redraw_scopes')
     require(type(request['via_moves']) is dict and set(request['via_moves'])=={'carrier','cover'},
             'explicit_paired_draft_via_scopes')
+    retired=request.get('retired_tracks',{'carrier':[],'cover':[]})
+    require(type(retired) is dict and set(retired)=={'carrier','cover'},
+            'explicit_paired_draft_retirement_scopes')
+    for side in ('carrier','cover'):
+        require(type(retired[side]) is list and all(type(key) is str for key in retired[side]),
+                'explicit_draft_retirement_ids')
+        require(type(request['redraws'][side]) is list and type(request['via_moves'][side]) is list,
+                'explicit_draft_edit_lists')
+        edited={edit.get('uuid') for edit in request['redraws'][side]+request['via_moves'][side]
+                if type(edit) is dict and type(edit.get('uuid')) is str}
+        require(not set(retired[side]) & edited, 'draft_retirement_overlaps_redraw_or_via_move')
+    bars=request.get('flatbars',{'carrier':[],'cover':[]})
+    require(type(bars) is dict and set(bars)=={'carrier','cover'}
+            and all(type(rows) is list and len(rows)<=4 for rows in bars.values()),
+            'bounded_explicit_paired_flatbar_scopes')
+    via_copies=request.get('via_copies',{'carrier':[],'cover':[]})
+    require(type(via_copies) is dict and set(via_copies)=={'carrier','cover'}
+            and all(type(rows) is list and len(rows)<=32 for rows in via_copies.values()),
+            'bounded_explicit_paired_via_copy_scopes')
+    for side in ('carrier','cover'):
+        moved={r.get('uuid') for r in request['via_moves'][side] if type(r) is dict
+               and type(r.get('uuid')) is str}
+        require(all(type(r) is dict and type(r.get('source_uuid')) is str
+                    and r['source_uuid'] not in moved for r in via_copies[side]),
+                'draft_via_copy_requires_unmoved_source_prototype')
     sources={side:Path(plan[side]['path']).resolve(strict=True) for side in ('carrier','cover')}
     families={side:force._family(path,request['board_hints'][side]) for side,path in sources.items()}
     protected={str(planpath),str(Path(plan['contract']['path']).resolve())}
     for side,path in sources.items():
         protected |= force._protected_paths(path,request['board_hints'][side])
+    from . import flatbars
+    for rows in bars.values():
+        for row in rows:
+            require(type(row) is dict and 'part' in row,'explicit_draft_flatbar_input')
+            partpath,part=flatbars._read(row['part'])
+            protected |= {str(partpath),str((partpath.parent/(part['footprint']+'.kicad_mod')).resolve())}
     directory=Path(directory).resolve()
     force._check_proposal_directory(directory,protected)
     require(not directory.exists(),'draft_directory_must_be_new_never_overwrite')
@@ -128,6 +227,10 @@ def stage(request, directory, *, refill=False):
             moved.append(str(fp.m_Uuid.AsString()))
         edits=_redraw(board,request['redraws'][side],digest(request)+':'+side)
         vias=_move_vias(board,request['via_moves'][side])
+        cuts=_retire(board,retired[side])
+        inserted=[flatbars.construct(board,path,row,board_hint=request['board_hints'][side],
+                                    identity=digest(request)+':'+side) for row in bars[side]]
+        copies=_copy_vias(board,via_copies[side],digest(request)+':'+side)
         fill=None
         if refill:
             import cec_zone_fill
@@ -135,14 +238,26 @@ def stage(request, directory, *, refill=False):
             for zone in board.Zones():
                 if not zone.GetIsRuleArea():zones.append(zone)
             fill=cec_zone_fill.compile_selected(board,zones,timeout_s=8.,initialize_selected=True)
-        work.append((side,board,moved,edits,vias,fill))
+        work.append((side,board,moved,edits,vias,cuts,inserted,copies,fill))
+    bar_stack=None
+    if any(bars.values()):
+        contract=json.loads(Path(plan['contract']['path']).read_text())
+        envelopes=contract.setdefault('envelopes',{})
+        for _,_,_,_,_,_,inserted,_,_ in work:
+            for row in inserted:
+                key=row['footprint'];env=row['declared_envelope']
+                if key in envelopes:
+                    require(envelopes[key]==env,'draft_bar_envelope_cannot_override_contract')
+                envelopes[key]=env
+        bar_stack,_=repack.assembly.evaluate_boards(work[0][1],work[1][1],contract)
+        require(bar_stack['ok'],'draft_bar_requires_passing_paired_stack_screen')
     directory.mkdir(parents=True)
     receipt=dict(schema=1,kind='UNADMITTED_PAIRED_ENGINEERING_DRAFT',request=request,
                  source_families=families,boards=[],routing_admitted=False,
                  current_Kelvin_return_and_pair_receiving_complete=False,
-                 release_authority=False,complete=False)
+                 bar_stack_screen=bar_stack,release_authority=False,complete=False)
     repack.inspection.write_json(directory/'draft.json',receipt)
-    for side,board,moved,edits,vias,fill in work:
+    for side,board,moved,edits,vias,cuts,inserted,copies,fill in work:
         parent=sources[side];folder=directory/side;folder.mkdir()
         for path in parent.parent.glob(parent.stem+'.*'):
             if path.is_file():shutil.copy2(path,folder/path.name)
@@ -158,10 +273,13 @@ def stage(request, directory, *, refill=False):
         changed|={r['uuid'] for r in vias}
         if refill:changed|={str(z.m_Uuid.AsString()) for z in board.Zones() if not z.GetIsRuleArea()}
         added={key for r in edits for key in r['added_uuids']}
+        added|={r['footprint_uuid'] for r in inserted}
+        added|={r['added_uuid'] for r in copies}
         changed|={key for r in edits for key in r['group_uuids']}
+        removed={r['uuid'] for r in cuts}
         names={id(node):key for key,node in old.items()}
         root[1:]=[fresh[names[id(node)]] if names.get(id(node)) in changed else node
-                  for node in root[1:]]
+                  for node in root[1:] if names.get(id(node)) not in removed]
         root.extend(fresh[key] for key in sorted(added))
         target.write_text(syntax._render(root)+'\n')
         saved=pcbnew.LoadBoard(str(target))
@@ -175,7 +293,8 @@ def stage(request, directory, *, refill=False):
         raw.unlink()  # Our new, verified IO scratch file; not a source artifact.
         receipt['boards'].append(dict(side=side,path=str(target),source=str(parent),
             source_sha256=plan[side]['sha256'],sha256=repack.inspection.sha(target),
-            moved_footprint_uuids=moved,redraws=edits,via_moves=vias,
+            moved_footprint_uuids=moved,redraws=edits,via_moves=vias,retired_tracks=cuts,flatbars=inserted,
+            via_copies=copies,
             saved_fills_still_source=not refill,refill_required=not refill,
             native_DRC_required=True,native_fill=fill))
     require(repack.inspection.sha(planpath)==binding['sha256']
@@ -183,6 +302,11 @@ def stage(request, directory, *, refill=False):
             and all(repack.inspection.sha(p)==plan[s]['sha256'] for s,p in sources.items())
             and all(force._family(p,request['board_hints'][s])==families[s] for s,p in sources.items()),
             'draft_sources_changed_during_construction')
+    for rows in bars.values():
+        for row in rows:
+            partpath,part=flatbars._read(row['part'])
+            require(repack.inspection.sha(partpath.parent/(part['footprint']+'.kicad_mod'))
+                    ==row['footprint_sha256'],'draft_bar_footprint_changed_during_construction')
     receipt['complete']=True;receipt['source_unchanged']=True
     repack.inspection.write_json(directory/'draft.json',receipt)
     return receipt

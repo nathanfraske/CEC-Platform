@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "carrier": {
+    "path": "experiments/repack/loop-proof-20261105/cut/board.kicad_pcb",
+    "sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3",
+    "poses": [
+      {
+        "reference": "C7",
+        "at_nm": [
+          64500000,
+          70050000
+        ],
+        "rotation_deg": 90
+      }
+    ]
+  },
+  "cover": {
+    "path": "experiments/repack/j6c-connected-20261105/cover/board.kicad_pcb",
+    "sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc",
+    "poses": []
+  },
+  "contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  }
+}
