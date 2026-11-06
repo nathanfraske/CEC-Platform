@@ -54,14 +54,17 @@ def project(ref,at):
     x,y=at[0]-old[0],at[1]-old[1]
     return [new[0]+c*x+s*y,new[1]-s*x+c*y]
 
-mode = argparse.ArgumentParser();mode.add_argument('mode',choices=['geometry','contacts','landings']);args=mode.parse_args()
+mode = argparse.ArgumentParser();mode.add_argument('mode',choices=['geometry','geometry-selected-v2','contacts','landings']);args=mode.parse_args()
+if args.mode == 'geometry-selected-v2':
+    poses['C55']=[20900000,46240000,0]
+    poses['C51']=source_poses['C51'][:]
 base = dict(schema=1,source=str(source.relative_to(ROOT)),source_sha256=SHA,
     source_native_binding=binding,peer=str(peer.relative_to(ROOT)),peer_sha256=force._hash(peer),
     stack=str(stack.relative_to(ROOT)),stack_sha256=force._hash(stack),source_poses=source_poses,proposed_poses=poses,
     pose_origin_only_old_study=str(old_study.relative_to(ROOT)),old_study_is_not_current_source_proof=True,
     source_copper_retained=True,board_saved=False,transport_or_cut_permission=False,accepted=False,release_authority=False)
 
-if args.mode == 'geometry':
+if args.mode in ('geometry','geometry-selected-v2'):
     pose_board();shapes={};basis={}
     for ref,fp in fps.items():
         try:shapes[ref],basis[ref]=assembly.footprint_planar_envelope(fp)
@@ -78,6 +81,28 @@ if args.mode == 'geometry':
     base.update(native_courtyards={r:dict(bounds_mm=list(shapes[r].bounds),geometry=shapes[r].__geo_interface__,basis=basis[r]) for r in poses},
         same_face_courtyard_collisions=hits,near_courtyards=near,paired_ok=paired['ok'],paired_violations=paired['violations'],
         actual_moved_pad_positions={r:[desc(q) for q in fps[r].Pads()] for r in poses})
+    if args.mode == 'geometry-selected-v2':
+        axis=p.VECTOR2I(21850000,46240000);hits=[]
+        for t in tracks:
+            if t.GetNetname() == 'Ground':continue
+            for layer in t.GetLayerSet().CuStack():
+                if t.GetEffectiveShape(layer).Collide(axis,450000):
+                    hits.append(dict(item=desc(t),layer=int(layer),actual_copper_with_200000nm_clearance=True))
+        from shapely.geometry import LineString,Point
+        from shapely.ops import unary_union
+        exclusion=unary_union([LineString([(t.GetStart().x/1e6,t.GetStart().y/1e6),
+            (t.GetEnd().x/1e6,t.GetEnd().y/1e6)]).buffer(t.GetWidth()/2e6+.45,resolution=128)
+            for t in tracks if t.GetClass() == 'PCB_TRACK' and t.GetNetname() == '/SENSE3V3_HI'])
+        blocker_ids={'f24778c4-cb5f-402a-8e40-a8125b10d4ea','fc438acf-f774-4fbe-8325-c3ff300f7951',
+            'ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72'}
+        base.update(selected_physical_intent=True,stationary_refs=['C51'],
+            hypothetical_C55_ground_seat=dict(axis_nm=list(axis),diameter_nm=500000,drill_nm=300000,
+                all_layer_track_barrel_conflicts=hits,not_a_via_admission=True),
+            retained_3V3_seat_exclusion_exit_distance_mm=Point(21.85,46.24).distance(exclusion.boundary),
+            exclusion_basis='Native straight centerlines and widths, offset by .25 mm barrel radius plus .2 mm clearance; 128-segment round buffers. Exceeds .8 mm by a wide margin even allowing pad-edge entry.',
+            blocking_old_SS_and_supply_tracks=[desc(t) for t in tracks if force._uid(t) in blocker_ids],
+            old_track_ownership_status='No actual proposal frame supplied to this study. These are exact source obstacles; no retirement/transport authority inferred from net membership or moving U6.',
+            locality_note='C51 is SS control timing, not a supply-selected bypass. Native SS route reconstruction and its own control-cap role remain mandatory; no 3.5 mm supply rule is borrowed.')
 
 elif args.mode == 'contacts':
     deadline=time.monotonic()+9.;inventory=[];candidate={};items=metal._objects(b)

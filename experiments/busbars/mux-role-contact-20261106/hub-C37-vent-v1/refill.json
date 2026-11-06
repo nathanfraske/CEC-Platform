@@ -1,0 +1,21 @@
+{
+  "native_refill": {
+    "algorithm": "native-priority-settle-v1",
+    "native_version": "10.0.5",
+    "zone_count": 52,
+    "ordered_passes": 2,
+    "stable": true,
+    "tolerance_nm": 0,
+    "pass_fingerprints": [
+      "35f9c2dd49a223e9a060c0a294a3e3faacf7765eca2608651e5d2dd056754c58",
+      "35f9c2dd49a223e9a060c0a294a3e3faacf7765eca2608651e5d2dd056754c58"
+    ],
+    "fingerprint": "35f9c2dd49a223e9a060c0a294a3e3faacf7765eca2608651e5d2dd056754c58",
+    "wall_s": 1.818394
+  },
+  "candidate_sha256": "0d717c4cb1000a31601a0c4567eb2e16253982adf2cc6600f5b4af871ff35adf",
+  "saved": true,
+  "board_private_only": true,
+  "current_qualified": false,
+  "release_authority": false
+}

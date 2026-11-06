@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-06T20:42:28Z",
+  "goal_status": "active",
+  "status": "complete_source_macro_compiles_private_Hub_pose_retains_zero_errors_and_opens_not_admitted",
+  "implemented": [
+    "Explicit current-cut intents select only the native connected component touching an additional capacitor. Every selected edge is freshly proved at the exact unchanged whole-current contract, touching retired peers cannot disappear, moved pad owners retain exact rigid identity, and retained conductors remain literal.",
+    "All surviving native contacts, including mid-segment tees and coincident distinct ports, become full-width restoration demands. Independent saved receiving rederives the same selection from fresh compiler ownership, not caller proof or net membership.",
+    "Already-owned rated supply and bypass leaves compose with already-owned adjacent current cuts. Whole original leaf proofs, original work bounds, current contracts and native component ports are preserved; obsolete internal bends no longer become fictitious retained anchors.",
+    "Native integer layer-map keys and JSON receipt keys normalize before canonical sorting, preserving every width/current field. Multidigit layer maps and explicit longer bounded source spans have regressions."
+  ],
+  "regressions": {
+    "unique_cases": 531,
+    "passed": 531,
+    "each_case_external_timeout_s": 10,
+    "maximum_parallel": 2,
+    "summary": "experiments/busbars/mux-reconstruction-20261106/regression-composed-current-final-v1/summary.json",
+    "summary_sha256": "c5411c1b9a7b7aeaf0f060c8a78e08b4c63d08a581e1a2168c4aefab0a8e05fa",
+    "archive": "regressions-current-composition-v1.tar.gz",
+    "archive_sha256": "d4b4111346b8061eeebd219bdffdef4628c1580c7bb18672f8ddce8942ca8dbb",
+    "raw_per_case_XML_and_summary_archived": true,
+    "new_native_cohort_cases": 15,
+    "new_native_rated_leaf_cases": 14,
+    "cross_board_product_replacement_replay_claimed": false
+  },
+  "actual_ATX_macro": {
+    "report": "compile-rated-leaf-bounds-v1.json",
+    "sha256": "f45dd6a9f1eace22fe2b2843004ff1577b3a316d64f3adb9fc252bf46bbe5c46",
+    "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+    "all_nine_source_compilation_phases_completed": true,
+    "every_phase_externally_bounded_s": 10,
+    "elapsed_s": 42.271355371995014,
+    "requests": 42,
+    "Ground_requests": 9,
+    "local_supply_requests": 4,
+    "boundary_requests": 29,
+    "source_owned_retired_tracks": 29,
+    "additional_owned_edges": 22,
+    "complete_native_cut_components": 9,
+    "obsolete_endpoint_demands_composed": 18,
+    "construction_started": false,
+    "this_packet_geometry_is_original_study_not_the_corrected_C51_Hub_pair": true,
+    "physical_clearance_or_routing_admission": false
+  },
+  "physical_search": {
+    "VBUS_barrel_three_hand_selected_seats": "VBUS-barrel-three-seat-scout.json",
+    "all_three_rejected": true,
+    "C55_three_alternatives": "C55-stationary-C51-three-targets.json",
+    "horizontal_C55_placement_rejected_by_authored_3V3_bus_not_just_zone_fill": true,
+    "clearance_root": "C51-clearance-root.json",
+    "C51_pose_mm_deg": [18.3, 50.237573, 180],
+    "C51_actual_VBUS_gap_mm": 0.210001,
+    "C51_courtyard_original_contacts_and_retained_Ground_barrel_pass": true,
+    "C51_alone_fails_unchanged_Hub_C37_vent": true,
+    "coordinated_solution": "C37-coordinated-translation.json",
+    "Hub_C37_pose_mm_deg": [73.5, 49.7, 90],
+    "Hub_C37_shift_mm": [0.0, 0.1],
+    "paired_geometry_passes_with_corrected_C51": true,
+    "board_dimensions_or_stack_gap_increased": false
+  },
+  "private_Hub": {
+    "path": "hub-C37-vent-v1/candidate/board.kicad_pcb",
+    "sha256": "4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992",
+    "actual_delta": "Only C37 footprint translation and genuine native-refilled polygon payload of supply zone fc65fef1; all other authored items and sidecars literal.",
+    "errors_before_after": [0, 0],
+    "opens_before_after": [0, 0],
+    "warnings_before_after": [166, 166],
+    "all_original_contacts_and_fixed_POFV_containment_preserved": true,
+    "native_partitions_before_after": [94, 94],
+    "partition_demotions": 0,
+    "generic_receiver_ok": false,
+    "first_receiver_refusal": "Receiver-native replay changes untouched R35 annotation GROUP 0a18f6b6; actual saved candidate preserves it. Do not attribute this observed refusal to a zone.",
+    "separate_open_receiving_requirement": "Existing generic pose receiver's Ground-only refill scope does not establish current/capacity or exact change authority for the non-Ground supply fill.",
+    "correct_board_identity": "hub-standard-rev2",
+    "existing_HOLD_current_A": 0.5,
+    "existing_geometry_margin": 1.25,
+    "existing_HOLD_source_sink": ["D1", "RJ_HOLD"],
+    "historical_path_hint_unknown_current_result_superseded": true,
+    "current_or_placement_or_routing_or_release_admitted": false
+  },
+  "preserved": {
+    "ATX_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+    "Hub_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "review_selector_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+    "hashes_rechecked_this_slice": true,
+    "bar_installed": false,
+    "new_XY_compaction_demonstrated": false
+  },
+  "part_status": {
+    "source": "experiments/busbars/keystone-verified-20261106/verification.json",
+    "manufacturer_drawing_and_exact_JLC_SMT_listing_verified": true,
+    "part_application_current_thermal_joint_height_qualified": false
+  },
+  "next": [
+    "Receive the literal-preserved Hub pose and exact non-Ground refill without skipping unchanged annotation groups, current path capacity or native copper comparisons.",
+    "Regenerate and independently receive the opposing ATX vent reservation from that exact saved Hub; compile the corrected C51 pose rather than reusing the old geometry packet.",
+    "Construct and receive all 42 macro obligations, including immediate C55 Ground and every original supply/control/mesh terminal, before any bar or outline work.",
+    "Install the native two-land bar model only after its full-width joints/corridor fit; verify actual current/thermal performance and assembled height, then compact and fully route."
+  ],
+  "fab_ready": false,
+  "release_authority": false
+}

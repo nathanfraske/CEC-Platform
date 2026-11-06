@@ -1,0 +1,205 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "source_barrel": {
+    "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+    "kind": "PCB_VIA",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "locked": true,
+    "groups": [],
+    "at_nm": [
+      16750000,
+      49500000
+    ],
+    "drill_nm": 300000,
+    "top": 0,
+    "bottom": 2,
+    "diameter_by_layer_nm": {
+      "0": 600000,
+      "4": 600000,
+      "6": 600000,
+      "8": 600000,
+      "10": 600000,
+      "2": 600000
+    }
+  },
+  "complete_original_all_layer_actual_contacts": [
+    {
+      "layer_id": 0,
+      "layer": "F.Cu",
+      "material": {
+        "uuid": "d47f815a-4194-5035-96f4-85ce9d6e2cb3",
+        "kind": "PCB_TRACK",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": true,
+        "groups": [],
+        "start_nm": [
+          16450000,
+          49800000
+        ],
+        "end_nm": [
+          16750000,
+          49500000
+        ],
+        "width_nm": 200000,
+        "layer": 0
+      },
+      "actual_lower_contact_nm2": 31270276710.0
+    },
+    {
+      "layer_id": 2,
+      "layer": "B.Cu",
+      "material": {
+        "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+        "kind": "PCB_TRACK",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": true,
+        "groups": [],
+        "start_nm": [
+          16750000,
+          52750000
+        ],
+        "end_nm": [
+          16750000,
+          49500000
+        ],
+        "width_nm": 200000,
+        "layer": 2
+      },
+      "actual_lower_contact_nm2": 31270173206.0
+    }
+  ],
+  "existing_current_domain_kind": "aggregate_source_sink",
+  "current_domain": {
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "configured_net": "/VBUS",
+    "amps": 0.75,
+    "source_refs": [
+      "FB1"
+    ],
+    "sink_refs": [
+      "U6"
+    ],
+    "authority_refs": [
+      "FB1",
+      "U6"
+    ],
+    "missing_refs": [],
+    "complete": true,
+    "source": "board_policy_existing_current_endpoints",
+    "current_contract": {
+      "amps": 0.75,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/VBUS"
+    },
+    "declared_endpoint_witness": {
+      "declaration": {
+        "net": "/VBUS",
+        "sources": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "pins": [
+              "2"
+            ],
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A"
+          }
+        ],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
+      },
+      "native_endpoints": {
+        "sources": [
+          {
+            "ref": "FB1",
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+            "pins": [
+              "2"
+            ],
+            "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+            "pad_uuids": [
+              "a41e9ae9-7e80-4a8b-9ab3-d67280583df5"
+            ]
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A",
+            "pins": [
+              "2"
+            ],
+            "footprint_uuid": "dded9240-df64-4347-b612-4934ea4cae3a",
+            "pad_uuids": [
+              "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+            ]
+          }
+        ]
+      },
+      "existing_current_contract": {
+        "amps": 0.75,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "/VBUS"
+      },
+      "new_budget_or_pin_sharing_inferred": false
+    }
+  },
+  "current_contract": {
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "amps": 0.75,
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "rise_c": 30.0,
+    "geometry_margin": 1.25,
+    "current_authority": {
+      "amps": 0.75,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/VBUS"
+    },
+    "required_by_layer_mm": {
+      "F.Cu": 0.07053860919543789,
+      "In1.Cu": 0.8450747617670971,
+      "In2.Cu": 0.8450747617670971,
+      "In3.Cu": 0.8450747617670971,
+      "In4.Cu": 0.8450747617670971,
+      "B.Cu": 0.07053860919543789
+    },
+    "routing_layers": [
+      "F.Cu",
+      "In2.Cu",
+      "B.Cu"
+    ],
+    "minimum_track_width_mm": 0.8450747617670971,
+    "authority_refs": [
+      "FB1",
+      "U6"
+    ],
+    "source": "current_domain_ipc2221_worst_routing_layer"
+  },
+  "per_contact_face_full_current_floor_nm": {
+    "0": 200000,
+    "2": 200000
+  },
+  "source_process": [],
+  "barrel_current_rating_inferred": false,
+  "ordinary_signal_reseat_authority": false,
+  "barrel_relocation_or_cut_permission": false,
+  "board_saved": false,
+  "release_authority": false
+}

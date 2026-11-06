@@ -1,0 +1,666 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "C51_exact_Source_pose": [
+    18500000,
+    50125000,
+    180
+  ],
+  "VBUS_barrel_unchanged": true,
+  "other_six_base_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "cases": [
+    {
+      "name": "horizontal_left",
+      "C55_pose_nm_deg": [
+        20900000,
+        46240000,
+        0
+      ],
+      "C55_courtyard_bounds_mm": [
+        19.205,
+        45.265,
+        22.595,
+        47.215
+      ],
+      "courtyard_collisions": [],
+      "paired_ok": true,
+      "paired_violations": [],
+      "pad_positions": {
+        "1": [
+          19950000,
+          46240000
+        ],
+        "2": [
+          21850000,
+          46240000
+        ]
+      },
+      "moved_pad_retained_foreign_copper_200um_conflicts": [
+        {
+          "pin": "2",
+          "uuid": "f24778c4-cb5f-402a-8e40-a8125b10d4ea",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "ref": null,
+          "layer": 0
+        },
+        {
+          "pin": "2",
+          "uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "ref": null,
+          "layer": 0
+        },
+        {
+          "pin": "2",
+          "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": null,
+          "layer": 0
+        }
+      ],
+      "hypothetical_centered_Ground_via": {
+        "at_nm": [
+          21850000,
+          46240000
+        ],
+        "diameter_nm": 500000,
+        "drill_nm": 300000,
+        "pad_process_blocked": false,
+        "process_records": [
+          {
+            "ref": "C55",
+            "pad": "2",
+            "net": "GND",
+            "reason": "JLC06162H-3313 POFV accepted"
+          }
+        ],
+        "all_layer_spot_clear": false,
+        "all_layer_report": {
+          "ok": false,
+          "reason": "foreign copper excludes via land",
+          "at_mm": [
+            21.85,
+            46.24
+          ],
+          "diameter_mm": 0.5,
+          "clearance_mm": 0.2,
+          "layer": "F.Cu",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                19.8,
+                44.4
+              ],
+              "to_mm": [
+                22.8,
+                47.4
+              ],
+              "width_mm": 0.2,
+              "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+              "contact": "clearance"
+            }
+          ]
+        },
+        "actual_saved_foreign_filled_zone_conflicts": [
+          {
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "net": "/SENSE3V3_HI",
+            "layer": "B.Cu"
+          }
+        ]
+      },
+      "IN1_to_C55_SUP_full_width_path": {
+        "width_nm": 477370,
+        "layer": "F.Cu",
+        "points_mm": [
+          [
+            17.67499,
+            47.775001
+          ],
+          [
+            18.799989,
+            47.775001
+          ],
+          [
+            18.92499,
+            47.65
+          ],
+          [
+            18.92499,
+            47.26501
+          ],
+          [
+            19.95,
+            46.24
+          ]
+        ],
+        "legs": [
+          {
+            "a_mm": [
+              17.67499,
+              47.775001
+            ],
+            "b_mm": [
+              18.799989,
+              47.775001
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.799989,
+              47.775001
+            ],
+            "b_mm": [
+              18.92499,
+              47.65
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.92499,
+              47.65
+            ],
+            "b_mm": [
+              18.92499,
+              47.26501
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.92499,
+              47.26501
+            ],
+            "b_mm": [
+              19.95,
+              46.24
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          }
+        ],
+        "length_mm": 3.1363501530782454,
+        "maximum_mm": 3.5,
+        "C54_SUP_is_explicit_path_endpoint_or_actual_intersected_land": true
+      }
+    },
+    {
+      "name": "horizontal_right",
+      "C55_pose_nm_deg": [
+        21050000,
+        46240000,
+        0
+      ],
+      "C55_courtyard_bounds_mm": [
+        19.355,
+        45.265,
+        22.745,
+        47.215
+      ],
+      "courtyard_collisions": [],
+      "paired_ok": true,
+      "paired_violations": [],
+      "pad_positions": {
+        "1": [
+          20100000,
+          46240000
+        ],
+        "2": [
+          22000000,
+          46240000
+        ]
+      },
+      "moved_pad_retained_foreign_copper_200um_conflicts": [
+        {
+          "pin": "2",
+          "uuid": "f24778c4-cb5f-402a-8e40-a8125b10d4ea",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "ref": null,
+          "layer": 0
+        },
+        {
+          "pin": "2",
+          "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": null,
+          "layer": 0
+        }
+      ],
+      "hypothetical_centered_Ground_via": {
+        "at_nm": [
+          22000000,
+          46240000
+        ],
+        "diameter_nm": 500000,
+        "drill_nm": 300000,
+        "pad_process_blocked": false,
+        "process_records": [
+          {
+            "ref": "C55",
+            "pad": "2",
+            "net": "GND",
+            "reason": "JLC06162H-3313 POFV accepted"
+          }
+        ],
+        "all_layer_spot_clear": false,
+        "all_layer_report": {
+          "ok": false,
+          "reason": "foreign copper excludes via land",
+          "at_mm": [
+            22.0,
+            46.24
+          ],
+          "diameter_mm": 0.5,
+          "clearance_mm": 0.2,
+          "layer": "F.Cu",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                19.8,
+                44.4
+              ],
+              "to_mm": [
+                22.8,
+                47.4
+              ],
+              "width_mm": 0.2,
+              "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+              "contact": "clearance"
+            }
+          ]
+        },
+        "actual_saved_foreign_filled_zone_conflicts": [
+          {
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "net": "/SENSE3V3_HI",
+            "layer": "B.Cu"
+          }
+        ]
+      },
+      "IN1_to_C55_SUP_full_width_path": {
+        "width_nm": 477370,
+        "layer": "F.Cu",
+        "points_mm": [
+          [
+            17.67499,
+            47.775001
+          ],
+          [
+            18.799989,
+            47.775001
+          ],
+          [
+            18.92499,
+            47.65
+          ],
+          [
+            18.92499,
+            47.41501
+          ],
+          [
+            20.1,
+            46.24
+          ]
+        ],
+        "legs": [
+          {
+            "a_mm": [
+              17.67499,
+              47.775001
+            ],
+            "b_mm": [
+              18.799989,
+              47.775001
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.799989,
+              47.775001
+            ],
+            "b_mm": [
+              18.92499,
+              47.65
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.92499,
+              47.65
+            ],
+            "b_mm": [
+              18.92499,
+              47.41501
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              18.92499,
+              47.41501
+            ],
+            "b_mm": [
+              20.1,
+              46.24
+            ],
+            "foreign_clear": true,
+            "blockers": [],
+            "edge_clear": true,
+            "native_rule_hits": []
+          }
+        ],
+        "length_mm": 3.1984821874342093,
+        "maximum_mm": 3.5,
+        "C54_SUP_is_explicit_path_endpoint_or_actual_intersected_land": true
+      }
+    },
+    {
+      "name": "vertical_right_up",
+      "C55_pose_nm_deg": [
+        20960000,
+        49150000,
+        270
+      ],
+      "C55_courtyard_bounds_mm": [
+        19.985,
+        47.455,
+        21.935,
+        50.845
+      ],
+      "courtyard_collisions": [],
+      "paired_ok": true,
+      "paired_violations": [],
+      "pad_positions": {
+        "1": [
+          20960000,
+          48200000
+        ],
+        "2": [
+          20960000,
+          50100000
+        ]
+      },
+      "moved_pad_retained_foreign_copper_200um_conflicts": [
+        {
+          "pin": "1",
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "ref": null,
+          "layer": 0
+        },
+        {
+          "pin": "2",
+          "uuid": "36034a2e-3dd8-47d2-94be-dbed075d1a6e",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "ref": null,
+          "layer": 0
+        }
+      ],
+      "hypothetical_centered_Ground_via": {
+        "at_nm": [
+          20960000,
+          50100000
+        ],
+        "diameter_nm": 500000,
+        "drill_nm": 300000,
+        "pad_process_blocked": false,
+        "process_records": [
+          {
+            "ref": "C55",
+            "pad": "2",
+            "net": "GND",
+            "reason": "JLC06162H-3313 POFV accepted"
+          }
+        ],
+        "all_layer_spot_clear": false,
+        "all_layer_report": {
+          "ok": false,
+          "reason": "foreign copper excludes via land",
+          "at_mm": [
+            20.96,
+            50.1
+          ],
+          "diameter_mm": 0.5,
+          "clearance_mm": 0.2,
+          "layer": "B.Cu",
+          "blockers": [
+            {
+              "kind": "zone",
+              "net": "/SENSE3V3_HI",
+              "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+              "layer": "B.Cu",
+              "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+              "contact": "zone_clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE3V3_HI",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                23.0,
+                47.2
+              ],
+              "to_mm": [
+                23.55,
+                47.75
+              ],
+              "width_mm": 6.535523,
+              "uuid": "0bc2cb3f-481e-5c3e-9f9f-05d9ac091683",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE3V3_HI",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                19.75,
+                43.95
+              ],
+              "to_mm": [
+                23.0,
+                47.2
+              ],
+              "width_mm": 6.535523,
+              "uuid": "344a69bb-cc2d-4535-af62-f48abd141ee9",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE3V3_HI",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                23.55,
+                47.75
+              ],
+              "to_mm": [
+                56.17,
+                47.75
+              ],
+              "width_mm": 6.535523,
+              "uuid": "5379029e-f69f-594e-91cb-29a11b47b702",
+              "contact": "clearance"
+            }
+          ]
+        },
+        "actual_saved_foreign_filled_zone_conflicts": [
+          {
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "net": "/SENSE3V3_HI",
+            "layer": "B.Cu"
+          }
+        ]
+      },
+      "IN1_to_C55_SUP_full_width_path": {
+        "width_nm": 477370,
+        "layer": "F.Cu",
+        "points_mm": [
+          [
+            17.67499,
+            47.775001
+          ],
+          [
+            20.535001,
+            47.775001
+          ],
+          [
+            20.96,
+            48.2
+          ]
+        ],
+        "legs": [
+          {
+            "a_mm": [
+              17.67499,
+              47.775001
+            ],
+            "b_mm": [
+              20.535001,
+              47.775001
+            ],
+            "foreign_clear": false,
+            "blockers": [
+              {
+                "kind": "track",
+                "net": "GND",
+                "layer": "F.Cu",
+                "locked": true,
+                "from_mm": [
+                  20.4,
+                  48.0
+                ],
+                "to_mm": [
+                  19.445406,
+                  48.954594
+                ],
+                "width_mm": 0.2,
+                "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+                "contact": "clearance"
+              }
+            ],
+            "edge_clear": true,
+            "native_rule_hits": []
+          },
+          {
+            "a_mm": [
+              20.535001,
+              47.775001
+            ],
+            "b_mm": [
+              20.96,
+              48.2
+            ],
+            "foreign_clear": false,
+            "blockers": [
+              {
+                "kind": "track",
+                "net": "GND",
+                "layer": "F.Cu",
+                "locked": true,
+                "from_mm": [
+                  20.4,
+                  48.0
+                ],
+                "to_mm": [
+                  19.445406,
+                  48.954594
+                ],
+                "width_mm": 0.2,
+                "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+                "contact": "clearance"
+              }
+            ],
+            "edge_clear": true,
+            "native_rule_hits": []
+          }
+        ],
+        "length_mm": 3.461050349795003,
+        "maximum_mm": 3.5,
+        "C54_SUP_is_explicit_path_endpoint_or_actual_intersected_land": true
+      }
+    }
+  ],
+  "all_original_tracks_and_barrels_retained": true,
+  "board_saved": false,
+  "cut_or_reseat_authority": false,
+  "release_authority": false
+}

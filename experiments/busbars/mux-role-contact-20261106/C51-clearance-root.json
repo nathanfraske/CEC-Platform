@@ -1,0 +1,276 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "clearance_root": {
+    "last_refused_y_nm": 50237568,
+    "first_clear_y_nm": 50237573,
+    "bisections": [
+      {
+        "y_nm": 50275000,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50200000,
+        "violates_210000nm": true
+      },
+      {
+        "y_nm": 50237500,
+        "violates_210000nm": true
+      },
+      {
+        "y_nm": 50256250,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50246875,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50242187,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50239843,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50238671,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50238085,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50237792,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50237646,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50237573,
+        "violates_210000nm": false
+      },
+      {
+        "y_nm": 50237536,
+        "violates_210000nm": true
+      },
+      {
+        "y_nm": 50237554,
+        "violates_210000nm": true
+      },
+      {
+        "y_nm": 50237563,
+        "violates_210000nm": true
+      },
+      {
+        "y_nm": 50237568,
+        "violates_210000nm": true
+      }
+    ],
+    "target_clearance_nm": 210000
+  },
+  "fixed_final_targets": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "cases": [
+    {
+      "name": "C51_clearance_root",
+      "final_target_refs": [
+        "U6",
+        "C9",
+        "C27",
+        "R54",
+        "C54",
+        "C55",
+        "C51"
+      ],
+      "actual_target_poses": {
+        "U6": [
+          16999990,
+          47400000,
+          0.0
+        ],
+        "C9": [
+          13000000,
+          48000000,
+          -90.0
+        ],
+        "C27": [
+          14563990,
+          45800000,
+          180.0
+        ],
+        "R54": [
+          14800000,
+          48625000,
+          -90.0
+        ],
+        "C54": [
+          18924990,
+          48130000,
+          270
+        ],
+        "C55": [
+          20800000,
+          49350000,
+          270
+        ],
+        "C51": [
+          18300000,
+          50237573,
+          180
+        ]
+      },
+      "courtyard_clashes": [],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            18924990,
+            47650000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 1.2562345521442242,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            20800000,
+            48400000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 3.18689680568747,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      },
+      "paired_ok": false,
+      "paired_violations": [
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C51",
+            "C37"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        }
+      ],
+      "C51_source_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_posed_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_all_original_native_terminal_contacts_still_present": true,
+      "retained_C51_Ground_via_process_blocked": false,
+      "retained_C51_Ground_via_process_records": [
+        {
+          "ref": "C51",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "C51_moved_pad_retained_foreign_copper_200um_conflicts": [],
+      "C51_Ground_to_fixed_VBUS_barrel_clearance": {
+        "via_uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+        "at_nm": [
+          16750000,
+          49500000
+        ],
+        "diameter_nm": 600000,
+        "drill_nm": 300000,
+        "source": {
+          "native_max_noncolliding_clearance_nm": 313525,
+          "native_min_colliding_clearance_nm": 313526,
+          "physical_overlap": false
+        },
+        "proposed": {
+          "native_max_noncolliding_clearance_nm": 210001,
+          "native_min_colliding_clearance_nm": 210002,
+          "physical_overlap": false
+        },
+        "required_clearance_nm": 200000
+      },
+      "SS_control_endpoints": {
+        "U6_SS_pad_uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "U6_SS_nm": [
+          16749990,
+          46250002
+        ],
+        "C51_SS_pad_uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "C51_SS_nm": [
+          19075000,
+          50237573
+        ],
+        "direct_mm": 4.6158849617533795,
+        "C51_is_timing_control_cap_not_selected_supply_bypass": true,
+        "no_supply_bypass_distance_or_current_credit": true,
+        "SS_route_still_must_rebuild_complete_original_native_contacts": true
+      }
+    }
+  ],
+  "board_saved": false,
+  "source_copper_retained": true,
+  "cut_or_route_authority": false,
+  "release_authority": false
+}

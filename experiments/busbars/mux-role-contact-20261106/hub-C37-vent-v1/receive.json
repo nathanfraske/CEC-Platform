@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "ok": false,
+  "complete": false,
+  "errors": [
+    "ValueError:connected_pose_exact_native_replay_refused:['ValueError:original_native_item_changed:0a18f6b6-26dd-5ffc-9aa1-910bfc79600a']"
+  ],
+  "moved": [
+    {
+      "uuid": "3aee6a4d-c364-461a-8f3c-649ab16f0f3e",
+      "ref": "C37",
+      "before_nm": [
+        73500000,
+        49600000
+      ],
+      "after_nm": [
+        73500000,
+        49700000
+      ],
+      "quarter_turns": 0
+    }
+  ],
+  "scope": "explicit_connected_pose_with_exact_additive_contact_restoration",
+  "source_material_retired": false,
+  "current_qualified": false,
+  "placement_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "exact_source_plus_additions": {
+    "schema": 1,
+    "scope": "source_plus_additions_ground_refill_receiving",
+    "ok": false,
+    "complete": false,
+    "release_authority": false,
+    "inherited_debt_qualified": false,
+    "errors": [
+      "ValueError:original_native_item_changed:0a18f6b6-26dd-5ffc-9aa1-910bfc79600a"
+    ],
+    "allowed_original_changes": [],
+    "elapsed_s": 0.407939
+  },
+  "actual_board_hint": "hub-standard-rev2",
+  "board_private_only": true
+}

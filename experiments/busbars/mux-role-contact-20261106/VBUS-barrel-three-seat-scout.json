@@ -1,0 +1,723 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "source_barrel": {
+    "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+    "kind": "PCB_VIA",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "locked": true,
+    "groups": [],
+    "at_nm": [
+      16750000,
+      49500000
+    ],
+    "drill_nm": 300000,
+    "top": 0,
+    "bottom": 2,
+    "diameter_by_layer_nm": {
+      "0": 600000,
+      "4": 600000,
+      "6": 600000,
+      "8": 600000,
+      "10": 600000,
+      "2": 600000
+    }
+  },
+  "complete_original_all_layer_actual_contacts": [
+    {
+      "layer_id": 0,
+      "layer": "F.Cu",
+      "material": {
+        "uuid": "d47f815a-4194-5035-96f4-85ce9d6e2cb3",
+        "kind": "PCB_TRACK",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": true,
+        "groups": [],
+        "start_nm": [
+          16450000,
+          49800000
+        ],
+        "end_nm": [
+          16750000,
+          49500000
+        ],
+        "width_nm": 200000,
+        "layer": 0
+      },
+      "actual_lower_contact_nm2": 31270276710.0
+    },
+    {
+      "layer_id": 2,
+      "layer": "B.Cu",
+      "material": {
+        "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+        "kind": "PCB_TRACK",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": true,
+        "groups": [],
+        "start_nm": [
+          16750000,
+          52750000
+        ],
+        "end_nm": [
+          16750000,
+          49500000
+        ],
+        "width_nm": 200000,
+        "layer": 2
+      },
+      "actual_lower_contact_nm2": 31270173206.0
+    }
+  ],
+  "existing_current_domain_kind": "aggregate_source_sink",
+  "current_domain": {
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "configured_net": "/VBUS",
+    "amps": 0.75,
+    "source_refs": [
+      "FB1"
+    ],
+    "sink_refs": [
+      "U6"
+    ],
+    "authority_refs": [
+      "FB1",
+      "U6"
+    ],
+    "missing_refs": [],
+    "complete": true,
+    "source": "board_policy_existing_current_endpoints",
+    "current_contract": {
+      "amps": 0.75,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/VBUS"
+    },
+    "declared_endpoint_witness": {
+      "declaration": {
+        "net": "/VBUS",
+        "sources": [
+          {
+            "ref": "FB1",
+            "pins": [
+              "2"
+            ],
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "pins": [
+              "2"
+            ],
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A"
+          }
+        ],
+        "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
+      },
+      "native_endpoints": {
+        "sources": [
+          {
+            "ref": "FB1",
+            "mpn": "MPZ2012S601AT000",
+            "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+            "pins": [
+              "2"
+            ],
+            "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+            "pad_uuids": [
+              "a41e9ae9-7e80-4a8b-9ab3-d67280583df5"
+            ]
+          }
+        ],
+        "sinks": [
+          {
+            "ref": "U6",
+            "mpn": "TPS2121RUXR",
+            "footprint": "cec-Package_DFN_QFN:RUX0012A",
+            "pins": [
+              "2"
+            ],
+            "footprint_uuid": "dded9240-df64-4347-b612-4934ea4cae3a",
+            "pad_uuids": [
+              "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+            ]
+          }
+        ]
+      },
+      "existing_current_contract": {
+        "amps": 0.75,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "/VBUS"
+      },
+      "new_budget_or_pin_sharing_inferred": false
+    }
+  },
+  "current_contract": {
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "amps": 0.75,
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "rise_c": 30.0,
+    "geometry_margin": 1.25,
+    "current_authority": {
+      "amps": 0.75,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/VBUS"
+    },
+    "required_by_layer_mm": {
+      "F.Cu": 0.07053860919543789,
+      "In1.Cu": 0.8450747617670971,
+      "In2.Cu": 0.8450747617670971,
+      "In3.Cu": 0.8450747617670971,
+      "In4.Cu": 0.8450747617670971,
+      "B.Cu": 0.07053860919543789
+    },
+    "routing_layers": [
+      "F.Cu",
+      "In2.Cu",
+      "B.Cu"
+    ],
+    "minimum_track_width_mm": 0.8450747617670971,
+    "authority_refs": [
+      "FB1",
+      "U6"
+    ],
+    "source": "current_domain_ipc2221_worst_routing_layer"
+  },
+  "per_contact_face_full_current_floor_nm": {
+    "0": 200000,
+    "2": 200000
+  },
+  "source_process": [],
+  "barrel_current_rating_inferred": false,
+  "ordinary_signal_reseat_authority": false,
+  "barrel_relocation_or_cut_permission": false,
+  "board_saved": false,
+  "release_authority": false,
+  "exact_seven_footprint_poses_retained": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "candidates": [
+    {
+      "name": "minimal_left",
+      "center_mm": [
+        16.59,
+        49.5
+      ],
+      "diameter_nm": 600000,
+      "drill_nm": 300000,
+      "pad_process_blocked": false,
+      "pad_process_records": [],
+      "all_layer_spot_clear": false,
+      "all_layer_report": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          16.59,
+          49.5
+        ],
+        "diameter_mm": 0.6,
+        "clearance_mm": 0.2,
+        "layer": "B.Cu",
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              16.103544,
+              48.903553
+            ],
+            "to_mm": [
+              16.103544,
+              59.925
+            ],
+            "width_mm": 0.2,
+            "uuid": "be78cc58-17f6-41e7-9b89-3cb48aad190a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      "actual_saved_foreign_filled_zone_conflicts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "net": "GND",
+          "layer": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "net": "GND",
+          "layer": "GND2"
+        }
+      ],
+      "unknown_saved_zone_geometry": [],
+      "conservative_projected_barrel_conflicts": [
+        {
+          "uuid": "72f21f4f-d1e3-487e-afb5-0ca3007fe56c",
+          "net": "GND",
+          "axis_nm": [
+            16428239,
+            49221751
+          ],
+          "diameter_nm": 500000,
+          "center_distance_mm": 0.321852648151293,
+          "required_copper_center_distance_mm": 0.75,
+          "physical_overlap": true,
+          "diagnostic_source_owned_projection_not_admitted": true
+        }
+      ],
+      "full_original_width_endpoint_paths": [
+        {
+          "layer_id": 0,
+          "layer": "F.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.45,
+              49.8
+            ],
+            [
+              16.45,
+              49.64
+            ],
+            [
+              16.59,
+              49.5
+            ]
+          ],
+          "length_mm": 0.3579898987322307,
+          "legs": [
+            {
+              "a_mm": [
+                16.45,
+                49.8
+              ],
+              "b_mm": [
+                16.45,
+                49.64
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            },
+            {
+              "a_mm": [
+                16.45,
+                49.64
+              ],
+              "b_mm": [
+                16.59,
+                49.5
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        },
+        {
+          "layer_id": 2,
+          "layer": "B.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.75,
+              52.75
+            ],
+            [
+              16.75,
+              49.66
+            ],
+            [
+              16.59,
+              49.5
+            ]
+          ],
+          "length_mm": 3.3162741699796965,
+          "legs": [
+            {
+              "a_mm": [
+                16.75,
+                52.75
+              ],
+              "b_mm": [
+                16.75,
+                49.66
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            },
+            {
+              "a_mm": [
+                16.75,
+                49.66
+              ],
+              "b_mm": [
+                16.59,
+                49.5
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "above_C51",
+      "center_mm": [
+        16.75,
+        49.19
+      ],
+      "diameter_nm": 600000,
+      "drill_nm": 300000,
+      "pad_process_blocked": false,
+      "pad_process_records": [],
+      "all_layer_spot_clear": false,
+      "all_layer_report": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          16.75,
+          49.19
+        ],
+        "diameter_mm": 0.6,
+        "clearance_mm": 0.2,
+        "layer": "F.Cu",
+        "blockers": [
+          {
+            "kind": "pad",
+            "ref": "U6",
+            "pad": "4",
+            "net": "GND",
+            "layer": "F.Cu",
+            "uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+            "footprint_uuid": "dded9240-df64-4347-b612-4934ea4cae3a",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+            "layer": "F.Cu",
+            "locked": true,
+            "at_mm": [
+              16.103544,
+              48.903553
+            ],
+            "diameter_mm": 0.5,
+            "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+            "contact": "clearance"
+          }
+        ]
+      },
+      "actual_saved_foreign_filled_zone_conflicts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "net": "GND",
+          "layer": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "net": "GND",
+          "layer": "GND2"
+        }
+      ],
+      "unknown_saved_zone_geometry": [],
+      "conservative_projected_barrel_conflicts": [
+        {
+          "uuid": "72f21f4f-d1e3-487e-afb5-0ca3007fe56c",
+          "net": "GND",
+          "axis_nm": [
+            16428239,
+            49221751
+          ],
+          "diameter_nm": 500000,
+          "center_distance_mm": 0.3233237806317376,
+          "required_copper_center_distance_mm": 0.75,
+          "physical_overlap": true,
+          "diagnostic_source_owned_projection_not_admitted": true
+        },
+        {
+          "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "axis_nm": [
+            17249990,
+            49100000
+          ],
+          "diameter_nm": 500000,
+          "center_distance_mm": 0.5080255900050705,
+          "required_copper_center_distance_mm": 0.75,
+          "physical_overlap": true,
+          "diagnostic_source_owned_projection_not_admitted": true
+        }
+      ],
+      "full_original_width_endpoint_paths": [
+        {
+          "layer_id": 0,
+          "layer": "F.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.45,
+              49.8
+            ],
+            [
+              16.45,
+              49.49
+            ],
+            [
+              16.75,
+              49.19
+            ]
+          ],
+          "length_mm": 0.7342640687119272,
+          "legs": [
+            {
+              "a_mm": [
+                16.45,
+                49.8
+              ],
+              "b_mm": [
+                16.45,
+                49.49
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            },
+            {
+              "a_mm": [
+                16.45,
+                49.49
+              ],
+              "b_mm": [
+                16.75,
+                49.19
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        },
+        {
+          "layer_id": 2,
+          "layer": "B.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.75,
+              52.75
+            ],
+            [
+              16.75,
+              49.19
+            ]
+          ],
+          "length_mm": 3.5600000000000023,
+          "legs": [
+            {
+              "a_mm": [
+                16.75,
+                52.75
+              ],
+              "b_mm": [
+                16.75,
+                49.19
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "below_C51",
+      "center_mm": [
+        16.75,
+        50.75
+      ],
+      "diameter_nm": 600000,
+      "drill_nm": 300000,
+      "pad_process_blocked": false,
+      "pad_process_records": [],
+      "all_layer_spot_clear": false,
+      "all_layer_report": {
+        "ok": false,
+        "reason": "native rule area excludes via land",
+        "at_mm": [
+          16.75,
+          50.75
+        ],
+        "diameter_mm": 0.6,
+        "clearance_mm": 0.2,
+        "layer": null,
+        "blockers": [
+          {
+            "kind": "native_rule_area",
+            "uuid": "cdb78967-3235-44b9-962b-6ce7aa574142",
+            "name": "ASSEMBLY VENT C37 - proposed coordinated repack",
+            "layers": [
+              "F.Cu"
+            ]
+          }
+        ]
+      },
+      "actual_saved_foreign_filled_zone_conflicts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "net": "GND",
+          "layer": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "net": "GND",
+          "layer": "GND2"
+        }
+      ],
+      "unknown_saved_zone_geometry": [],
+      "conservative_projected_barrel_conflicts": [],
+      "full_original_width_endpoint_paths": [
+        {
+          "layer_id": 0,
+          "layer": "F.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.45,
+              49.8
+            ],
+            [
+              16.45,
+              50.45
+            ],
+            [
+              16.75,
+              50.75
+            ]
+          ],
+          "length_mm": 1.0742640687119327,
+          "legs": [
+            {
+              "a_mm": [
+                16.45,
+                49.8
+              ],
+              "b_mm": [
+                16.45,
+                50.45
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            },
+            {
+              "a_mm": [
+                16.45,
+                50.45
+              ],
+              "b_mm": [
+                16.75,
+                50.75
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        },
+        {
+          "layer_id": 2,
+          "layer": "B.Cu",
+          "width_nm": 200000,
+          "points_mm": [
+            [
+              16.75,
+              52.75
+            ],
+            [
+              16.75,
+              50.75
+            ]
+          ],
+          "length_mm": 2.0,
+          "legs": [
+            {
+              "a_mm": [
+                16.75,
+                52.75
+              ],
+              "b_mm": [
+                16.75,
+                50.75
+              ],
+              "foreign_clear": true,
+              "foreign_blockers": [],
+              "edge_clear": true,
+              "native_rule_hits": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "candidate_axes_and_paths_are_geometry_only": true,
+  "all_original_saved_track_and_zone_material_retained": true,
+  "hypothetical_barrel_position_changed_in_RAM_only": true
+}
