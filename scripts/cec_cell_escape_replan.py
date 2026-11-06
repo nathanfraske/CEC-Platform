@@ -12,6 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
+from contextlib import nullcontext
 
 import pcbnew
 import cec_cell_row_rebuild as row
@@ -101,7 +102,20 @@ def prepare(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_esca
     aggregate_cap_shift_bound(aggregate_capacitor_max_shift_mm)
     shared_supply_root_pad_uuids=shared_fork.supply_root_ids(shared_supply_root_pad_uuids)
     import cec_source_device_pinmap as source_pinmap
-    with source_pinmap.observation_scope(board,board_hint=board_hint,timeout_s=10.):
+    import cec_source_linear_power_stage as source_stage
+    import cec_source_ground_leaf as canonical_source
+    # Observation reuse is an optimization, not a new admission precondition
+    # for an ordinary cell whose opt-in discovers no power stage. Each real
+    # positive stage/capacitor role still independently requires its Source.
+    source_observation = (allow_linear_power_stage_reconstruction
+        and canonical_source.source_nc._root(board,board_hint) is not None)
+    with (force._thermal_hint(board_hint) if allow_linear_power_stage_reconstruction else nullcontext()), \
+            source_pinmap.observation_scope(board,board_hint=board_hint,timeout_s=10.), \
+            (canonical_source.observation_scope(board,board_hint=board_hint,timeout_s=10.)
+                if source_observation else nullcontext()), \
+            (source_stage.observation_scope(board,poses,board_hint=board_hint,
+                reference_group_uuids=reference_group_uuids,
+                enabled=True,timeout_s=10.) if source_observation else nullcontext()):
         return _prepare_source(board,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
             allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
             allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,
@@ -179,13 +193,17 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         **(dict(allow_linear_power_stage_reconstruction=True)
             if allow_linear_power_stage_reconstruction else {}))
     programming_refs=programming.participant_refs(programming_resistors)
+    import cec_source_timing_capacitor as timing
+    timing_caps=timing.plan(board,poses,board_hint=board_hint,
+        reference_group_uuids=reference_group_uuids,
+        allow_linear_power_stage_reconstruction=allow_linear_power_stage_reconstruction)
     import cec_source_series_link_placement as series_link
     series_links=series_link.plan(board,poses,board_hint=board_hint,reference_group_uuids=reference_group_uuids)
     import cec_source_signal_bias_placement as signal_bias
     signal_biases=signal_bias.plan(board,poses,board_hint=board_hint,
         reference_group_uuids=reference_group_uuids,
-        excluded_refs=set(control_shunts)|set(control_pullups)|set(control_gate_biases)|programming_refs|set(series_links))
-    passive_roles=(set(control_shunts),set(control_pullups),set(control_gate_biases),set(signal_biases),programming_refs,set(series_links))
+        excluded_refs=set(control_shunts)|set(control_pullups)|set(control_gate_biases)|programming_refs|set(series_links)|set(timing_caps))
+    passive_roles=(set(control_shunts),set(control_pullups),set(control_gate_biases),set(signal_biases),programming_refs,set(series_links),set(timing_caps))
     if sum(map(len,passive_roles))!=len(set().union(*passive_roles)):
         raise ValueError('disjoint_source_control_passive_roles_required')
     with force._thermal_hint(board_hint):
@@ -199,7 +217,9 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
     import cec_additional_aggregate_macro as aggregate_caps
     additional_caps=aggregate_caps.collect(board,poses,board_hint=board_hint,
         reference_group_uuids=reference_group_uuids,
-        excluded_refs=set().union(*passive_roles)|set(by_cap))
+        excluded_refs=set().union(*passive_roles)|set(by_cap),
+        allow_linear_power_stage_reconstruction=allow_linear_power_stage_reconstruction,
+        allow_owned_locked_escapes=allow_owned_locked_escapes)
     if aggregate_capacitor_max_shift_mm is not None and not additional_caps:
         raise ValueError('explicit_additional_capacitor_reach_requires_positive_Source_role')
     if set(additional_caps)&set().union(*passive_roles):
@@ -293,6 +313,9 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
             continue
         if ref in programming_refs:
             if reqs:raise ValueError('programming_resistor_cannot_alias_power_bypass')
+            continue
+        if ref in timing_caps:
+            if reqs:raise ValueError('timing_capacitor_cannot_alias_power_bypass')
             continue
         if ref in series_links:
             if reqs:raise ValueError('source_series_link_cannot_alias_power_bypass')
@@ -612,6 +635,7 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
     if control_gate_biases:result['selected_control_gate_biases']=control_gate_biases
     if signal_biases:result['selected_signal_bias_resistors']=signal_biases
     if programming_resistors:result['selected_programming_resistors']=programming_resistors
+    if timing_caps:result['selected_timing_capacitors']=timing_caps
     if series_links:result['selected_source_series_links']=series_links
     if allow_linear_power_stage_reconstruction:
         result['allow_linear_power_stage_reconstruction']=True
@@ -1319,6 +1343,8 @@ def _obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
     requests.update(control_gate_bias.requests(source,board,proposal))
     import cec_programming_resistor_placement as programming
     requests.update(programming.requests(source,board,proposal))
+    import cec_source_timing_capacitor as timing
+    requests.update(timing.requests(source,board,proposal))
     import cec_source_series_link_placement as series_link
     requests.update(series_link.requests(source,board,proposal))
     import cec_source_signal_bias_placement as signal_bias
@@ -1623,10 +1649,27 @@ def _typed_macro_ground_scope(request):
         import cec_programming_resistor_placement as programming
         if root['role']==programming.GROUND_ROLE:
             return programming.ground_root_label(root)
+        import cec_source_timing_capacitor as timing
+        if root['role']==timing.GROUND_ROLE:
+            return timing.ground_root_label(root)
         return bool(root['role'] in ('ground','reference','power_return','address')
             and root.get('manufacturer_source')
             and root.get('source_ground_strap_restored_without_role_or_current_reclassification') is True)
     for authority in authorities:
+        # Reservoir Ground leaves have their own positively replayed role;
+        # they must not borrow the selected-bypass or low-power-IC label.
+        # This only chooses a full-source-class construction menu. The
+        # compiler/receiver still rederive exact ownership and all returns.
+        import cec_aggregate_cap_ground_leaf as aggregate_ground
+        import cec_wired_aggregate_ground_leaf as wired_ground
+        aggregate_type = next((helper for helper in (aggregate_ground, wired_ground)
+            if type(authority) is dict and authority.get('kind') == helper.KIND), None)
+        if aggregate_type is not None:
+            if not aggregate_type.authority_label(authority):return None
+            source_widths.append(authority['source_width_nm'])
+            source_class_floors.append(authority['source_full_class_width_nm'])
+            ids.append(authority['native_source_uuid'])
+            continue
         import cec_source_ground_continuation as continuation
         continued=authority.get('kind')==continuation.KIND if type(authority)is dict else False
         if (type(authority) is not dict

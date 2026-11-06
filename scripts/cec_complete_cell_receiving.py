@@ -200,26 +200,32 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
         programming_resistors=programming.plan(parent,actual,board_hint=hint,
             reference_group_uuids=reference_group_uuids,**stage_options)
         programming_refs=programming.participant_refs(programming_resistors)
+        import cec_source_timing_capacitor as timing
+        timing_caps=timing.plan(parent,actual,board_hint=hint,
+            reference_group_uuids=reference_group_uuids,**stage_options)
         import cec_source_series_link_placement as series_link
         series_links=series_link.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_source_signal_bias_placement as signal_bias
         bias_resistors=signal_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(series_links))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(series_links)|set(timing_caps))
         import cec_additional_aggregate_macro as aggregate_caps
         additional=aggregate_caps.collect(parent,actual,board_hint=hint,
             reference_group_uuids=reference_group_uuids,require_explicit_owner=False,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(bias_resistors)|set(series_links))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(bias_resistors)|set(series_links)|set(timing_caps),
+            allow_owned_locked_escapes=True,**stage_options)
         # Recover the unique canonical owner from original Source intent,
         # never a constructor-provided refdes. Its saved pose must remain
         # exactly stationary; a power-stage relocation is not authorized.
         for proof in additional.values():
             ref=proof['source_locality_owner']['owner_ref']
             old=parent.FindFootprintByReference(ref);new=child.FindFootprintByReference(ref)
-            if old is None or new is None or pose(old)!=pose(new):
+            wired=proof.get('source_wired_identity')
+            motion=None if wired is None else wired.get('coherent_owner_motion')
+            if old is None or new is None or (motion is None and pose(old)!=pose(new)):
                 raise ValueError('saved_additional_capacitor_owner_must_remain_stationary')
             refs.add(ref)
             actual[ref]=[new.GetPosition().x/1e6,new.GetPosition().y/1e6,new.GetOrientationDegrees()]
-        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),programming_refs,set(additional),set(series_links))
+        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),programming_refs,set(additional),set(series_links),set(timing_caps))
         if (sum(map(len,passive_roles))!=len(set().union(*passive_roles))
                 or set().union(*passive_roles)!=unowned):
             raise ValueError('actual_motion_not_complete_source_selected_cells')
@@ -234,6 +240,8 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
             reference_group_uuids=reference_group_uuids))
         programming.requests(parent,child,dict(poses=actual,selected_programming_resistors=programming_resistors,
             board_hint=hint,reference_group_uuids=reference_group_uuids,**stage_options))
+        timing.requests(parent,child,dict(poses=actual,selected_timing_capacitors=timing_caps,
+            board_hint=hint,reference_group_uuids=reference_group_uuids,**stage_options))
         series_link.requests(parent,child,dict(poses=actual,selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         signal_bias.requests(parent,child,dict(poses=actual,selected_signal_bias_resistors=bias_resistors,
@@ -243,8 +251,9 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         if additional:
             aggregate_caps.requests(parent,child,dict(poses=actual,additional_aggregate_capacitors=additional,
-                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|programming_refs|set(series_links)),
-                board_hint=hint,reference_group_uuids=reference_group_uuids))
+                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|programming_refs|set(series_links)|set(timing_caps)),
+                board_hint=hint,reference_group_uuids=reference_group_uuids,
+                allow_owned_locked_escapes=True,**stage_options))
         refs|=set().union(*passive_roles)
     else:
         lease.advance('source_passive_role_requests')

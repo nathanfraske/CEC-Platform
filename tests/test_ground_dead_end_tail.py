@@ -126,3 +126,77 @@ def test_unbounded_scope_cannot_prune_native_copper(tmp_path, kwargs):
     source, board, body, tip, root, _ = fixture(tmp_path)
     with pytest.raises(ValueError):
         tails.plan(board, force._uid(tip), **kwargs)
+
+
+@pytest.mark.parametrize('angle',[0,90,180,270])
+@pytest.mark.parametrize('both_locked',[False,True])
+def test_exact_source_locked_tail_consent_preserves_root_returns_and_saved_replay(tmp_path,angle,both_locked):
+    source,board,body,tip,root,_=fixture(tmp_path,angle)
+    body.SetLocked(True);tip.SetLocked(both_locked)
+    field._save_field_snapshot(board,source);original=source.read_bytes()
+    allowed=[force._uid(t)for t in(body,tip)if t.IsLocked()]
+    with pytest.raises(ValueError):tails.plan(board,force._uid(tip))
+    proof=tails.plan(board,force._uid(tip),allow_locked_track_uuids=allowed)
+    assert proof['allow_locked_track_uuids']==sorted(allowed)
+    assert set(proof['retired_track_uuids'])=={force._uid(body),force._uid(tip)}
+    tails.subtract(board,json.loads(json.dumps(proof)))
+    candidate=force._copy_family(source,tmp_path/'locked-child')
+    additive._ground_refill(board);field._save_field_snapshot(board,candidate)
+    received=tails.receive(source,candidate,proof,board_hint='unclassified-test')
+    assert received['ok']and received['complete'],received
+    assert received['retained_root_via_uuid']==force._uid(root)
+    assert received['all_surviving_native_partitions_preserved']
+    assert not received['current_qualified']and not received['release_authority']
+    assert source.read_bytes()==original
+
+
+@pytest.mark.parametrize('fault',['none','wrong','root','unlocked','duplicate','boolean','string','too_many','missing_one'])
+def test_locked_permission_must_name_every_and_only_actual_locked_retired_track(tmp_path,fault):
+    source,board,body,tip,root,_=fixture(tmp_path)
+    body.SetLocked(True)
+    a,b,r=map(force._uid,(body,tip,root));scope=[a]
+    if fault=='none':scope=[]
+    elif fault=='wrong':scope=['not-an-object']
+    elif fault=='root':scope=[a,r]
+    elif fault=='unlocked':scope=[a,b]
+    elif fault=='duplicate':scope=[a,a]
+    elif fault=='boolean':scope=True
+    elif fault=='string':scope=a
+    elif fault=='too_many':scope=[str(i)for i in range(9)]
+    else:tip.SetLocked(True)
+    before=tails._source_binding(board)
+    with pytest.raises(ValueError):
+        tails.plan(board,b,allow_locked_track_uuids=scope)
+    assert tails._source_binding(board)==before
+
+
+@pytest.mark.parametrize('fault',['dropped_consent','wrong_consent','forged_retirement','stale_source_lock'])
+def test_saved_receiver_freshly_rederives_exact_lock_and_retirement_scope(tmp_path,fault):
+    source,board,body,tip,root,_=fixture(tmp_path)
+    body.SetLocked(True);field._save_field_snapshot(board,source)
+    body_uid=force._uid(body)
+    proof=tails.plan(board,force._uid(tip),allow_locked_track_uuids=[body_uid])
+    tails.subtract(board,proof)
+    candidate=force._copy_family(source,tmp_path/'locked-child')
+    additive._ground_refill(board);field._save_field_snapshot(board,candidate)
+    if fault=='dropped_consent':proof.pop('allow_locked_track_uuids')
+    elif fault=='wrong_consent':proof['allow_locked_track_uuids']=[force._uid(root)]
+    elif fault=='forged_retirement':proof['retired_track_uuids'].append(force._uid(root))
+    else:
+        changed=pcbnew.LoadBoard(str(source))
+        next(t for t in changed.GetTracks()if force._uid(t)==body_uid).SetLocked(False)
+        field._save_field_snapshot(changed,source)
+    before=(source.read_bytes(),candidate.read_bytes())
+    received=tails.receive(source,candidate,proof,board_hint='unclassified-test')
+    assert not received['ok']and not received['complete']and received['errors']
+    assert before==(source.read_bytes(),candidate.read_bytes())
+
+
+def test_exact_locked_consent_does_not_waive_group_or_existing_work_bounds(tmp_path):
+    source,board,body,tip,root,_=fixture(tmp_path)
+    body.SetLocked(True);allowed=[force._uid(body)]
+    with pytest.raises(ValueError,match='scope_bound'):
+        tails.plan(board,force._uid(tip),allow_locked_track_uuids=allowed,max_tracks=1)
+    group=pcbnew.PCB_GROUP(board);group.SetName('independent-owner');board.Add(group);group.AddItem(body)
+    with pytest.raises(ValueError,match='ungrouped'):
+        tails.plan(board,force._uid(tip),allow_locked_track_uuids=allowed)

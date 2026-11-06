@@ -410,9 +410,9 @@ def _ground_boundary_typer(parent,transport,proposal,deadline):
     initial=row._source_binding(parent);epoch=force._code_identity()
     source=Path(parent.GetFileName()).resolve();family=force._family(source,proposal.get('board_hint'))
     original=copy.deepcopy(proposal);original_transport=copy.deepcopy(transport)
-    optional_context=None;programming_context=None;shunt_context=None
+    optional_context=None;programming_context=None;shunt_context=None;timing_context=None
     def typed(pad):
-        nonlocal optional_context,programming_context,shunt_context
+        nonlocal optional_context,programming_context,shunt_context,timing_context
         fp=pad.GetParentFootprint();ref=fp.GetReference()
         if (ref not in proposal['poses'] or pad.GetNetname()!='GND' or pad.HasHole()
                 or pad.GetAttribute()!=pcbnew.PAD_ATTRIB_SMD):return None
@@ -442,6 +442,16 @@ def _ground_boundary_typer(parent,transport,proposal,deadline):
             if fresh!=proposal['selected_programming_resistors']:
                 raise ValueError('fresh_programming_resistor_Ground_boundary_authority_required')
             return programming.ground_root(fresh[ref],pad_uuid=force._uid(pad),reference=ref)
+        if ref in proposal.get('selected_timing_capacitors',{}):
+            import cec_source_timing_capacitor as timing
+            if timing_context is None:
+                timing_context=timing.plan(parent,proposal['poses'],board_hint=proposal['board_hint'],
+                    reference_group_uuids=proposal.get('reference_group_uuids',()),
+                    timeout_s=min(10.,max(.001,deadline-time.monotonic())),
+                    **timing.replay_options(proposal))
+            if timing_context!=proposal['selected_timing_capacitors']:
+                raise ValueError('fresh_timing_capacitor_Ground_boundary_authority_required')
+            return timing.ground_root(timing_context[ref],pad_uuid=force._uid(pad),reference=ref)
         model=roles.footprint_contract(fp)
         if (not model or model!=proposal['device_contracts'].get(ref)
                 or set(model['pins'].values())&{'power_output','switch','feedback'}):return None
@@ -482,7 +492,7 @@ def _ground_boundary_typer(parent,transport,proposal,deadline):
             source_ground_strap_restored_without_role_or_current_reclassification=True)
     def binding_files():
         """Only immutable input hashes from ACTUAL lazy canonical replays."""
-        proofs=[q['source_proof']for context in(programming_context,shunt_context)
+        proofs=[q['source_proof']for context in(programming_context,shunt_context,timing_context)
             if context is not None for q in context.values()]
         if optional_context is not None:proofs.extend(optional_context.get('proofs',{}).values())
         bindings={}

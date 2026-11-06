@@ -1,0 +1,1910 @@
+{
+  "source": "experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "fixed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "all_source_tracks_and_barrels_retained": true,
+  "exact_native_moved_pad_conflicts": [
+    {
+      "moved_ref": "U6",
+      "pad": "1",
+      "pad_uuid": "a021ea00-3f04-4409-b666-0e4fa56f7081",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        16324990,
+        47075002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        48057490
+      ],
+      "source_end_nm": [
+        17000000,
+        48000000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        47900001
+      ],
+      "source_end_nm": [
+        17057490,
+        48057490
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        16824990,
+        47725001
+      ],
+      "source_end_nm": [
+        18225001,
+        47725001
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        15674990,
+        47775001
+      ],
+      "source_end_nm": [
+        16774990,
+        47775001
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17000000,
+        48000000
+      ],
+      "source_end_nm": [
+        18500000,
+        46500000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "2",
+      "pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        16324990,
+        47775001
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        16774990,
+        47775001
+      ],
+      "source_end_nm": [
+        16824990,
+        47725001
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "3",
+      "pad_uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16249989,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "source_start_nm": [
+        15749991,
+        48550000
+      ],
+      "source_end_nm": [
+        16103544,
+        48903553
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "3",
+      "pad_uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16249989,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "source_start_nm": [
+        16103544,
+        48903553
+      ],
+      "source_end_nm": [
+        16103544,
+        48903553
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "4",
+      "pad_uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16749990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        48057490
+      ],
+      "source_end_nm": [
+        17000000,
+        48000000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "4",
+      "pad_uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16749990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        47900001
+      ],
+      "source_end_nm": [
+        17057490,
+        48057490
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "4",
+      "pad_uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16749990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17000000,
+        48000000
+      ],
+      "source_end_nm": [
+        18500000,
+        46500000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "5",
+      "pad_uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "pad_at_nm": [
+        17249990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        48057490
+      ],
+      "source_end_nm": [
+        17000000,
+        48000000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "5",
+      "pad_uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "pad_at_nm": [
+        17249990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17057490,
+        47900001
+      ],
+      "source_end_nm": [
+        17057490,
+        48057490
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "5",
+      "pad_uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "pad_at_nm": [
+        17249990,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17000000,
+        48000000
+      ],
+      "source_end_nm": [
+        18500000,
+        46500000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "8",
+      "pad_uuid": "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        17674990,
+        47075002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17000000,
+        48000000
+      ],
+      "source_end_nm": [
+        18500000,
+        46500000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "8",
+      "pad_uuid": "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        17674990,
+        47075002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "9",
+      "pad_uuid": "bd80c529-9c38-47a7-9b90-531839cabdba",
+      "pad_net": "unconnected-(U6-ST-Pad9)",
+      "pad_at_nm": [
+        17749991,
+        46250002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        17000000,
+        48000000
+      ],
+      "source_end_nm": [
+        18500000,
+        46500000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "10",
+      "pad_uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "pad_at_nm": [
+        17249990,
+        46250002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "11",
+      "pad_uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "pad_at_nm": [
+        16749990,
+        46250002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        12083990,
+        46405002
+      ],
+      "source_end_nm": [
+        12083990,
+        46405002
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "3b391743-cec6-400d-86f0-47b4ef93a289",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13043990,
+        46355002
+      ],
+      "source_end_nm": [
+        13043990,
+        46550000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "432254fb-87c7-5e2c-a2ec-4861176c1f6a",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13043990,
+        46550000
+      ],
+      "source_end_nm": [
+        13443988,
+        46949998
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "48082e21-4c1b-5ca4-8132-bd72552fe017",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13443988,
+        46949998
+      ],
+      "source_end_nm": [
+        13865615,
+        46949998
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13018989,
+        46525002
+      ],
+      "source_end_nm": [
+        13018989,
+        46525002
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "5c8ea661-aa1f-5e9f-9c72-a1002a97d0d7",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13043990,
+        45800000
+      ],
+      "source_end_nm": [
+        13043990,
+        46355002
+      ],
+      "source_width_nm": 477370,
+      "source_locked": false,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "37b10db5-01f5-4df2-b085-c2e135e7e8d5",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        13500000,
+        49500000
+      ],
+      "source_end_nm": [
+        13800000,
+        49800000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "453ec525-d8de-4cf7-98ed-fb07c1bc16af",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        13500000,
+        48265616
+      ],
+      "source_end_nm": [
+        13865615,
+        47900001
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "aec904f9-f4a2-4f54-bf58-108ece0c7260",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        13500000,
+        48071000
+      ],
+      "source_end_nm": [
+        13500000,
+        49500000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "30b4e49c-6538-41b3-bacf-2f382b4b5224",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        12465000,
+        48450000
+      ],
+      "source_end_nm": [
+        12800000,
+        48115000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "fb487a34-042d-4bf7-948e-0832b911b052",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        12200000,
+        48450000
+      ],
+      "source_end_nm": [
+        12465000,
+        48450000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "442d8b20-7e51-4b59-ae72-a663f611a848",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        12200000,
+        48450000
+      ],
+      "source_end_nm": [
+        12200000,
+        48450000
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        15249990,
+        45460004
+      ],
+      "source_end_nm": [
+        15309994,
+        45400000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        15249990,
+        46250002
+      ],
+      "source_end_nm": [
+        15249990,
+        45460004
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        15309994,
+        45400000
+      ],
+      "source_end_nm": [
+        15400000,
+        45400000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        15400000,
+        45400000
+      ],
+      "source_end_nm": [
+        15400000,
+        45400000
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "52a04a71-84b6-47f0-a167-096b97b1e37a",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "source_start_nm": [
+        14549990,
+        45400000
+      ],
+      "source_end_nm": [
+        14549990,
+        45000000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "source_start_nm": [
+        14749990,
+        45600000
+      ],
+      "source_end_nm": [
+        14549990,
+        45400000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "source_start_nm": [
+        14749990,
+        46250002
+      ],
+      "source_end_nm": [
+        14749990,
+        45600000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "2",
+      "pad_uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        14083990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "52a04a71-84b6-47f0-a167-096b97b1e37a",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "source_start_nm": [
+        14549990,
+        45400000
+      ],
+      "source_end_nm": [
+        14549990,
+        45000000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "2",
+      "pad_uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        14083990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "source_start_nm": [
+        14749990,
+        45600000
+      ],
+      "source_end_nm": [
+        14549990,
+        45400000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "1",
+      "pad_uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "pad_at_nm": [
+        14800000,
+        48115000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "GND",
+      "source_start_nm": [
+        14749990,
+        48550000
+      ],
+      "source_end_nm": [
+        14428239,
+        48871751
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "1",
+      "pad_uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "pad_at_nm": [
+        14800000,
+        48115000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "1d05e892-3997-46b1-87ce-d71332df19bf",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        14745990,
+        47871000
+      ],
+      "source_end_nm": [
+        13700000,
+        47871000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "1",
+      "pad_uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "pad_at_nm": [
+        14800000,
+        48115000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "b9a12100-0bed-5729-97dd-fdbf48bfd49e",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        13535001,
+        47775001
+      ],
+      "source_end_nm": [
+        14324990,
+        47775001
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "1",
+      "pad_uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "pad_at_nm": [
+        14800000,
+        48115000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "source_start_nm": [
+        15249990,
+        48550000
+      ],
+      "source_end_nm": [
+        15249990,
+        49100000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "2",
+      "pad_uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        14800000,
+        49135000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "source_start_nm": [
+        15249990,
+        48550000
+      ],
+      "source_end_nm": [
+        15249990,
+        49100000
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "2",
+      "pad_uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        14800000,
+        49135000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "source_start_nm": [
+        15249990,
+        49100000
+      ],
+      "source_end_nm": [
+        15249990,
+        49100000
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C54",
+      "pad": "2",
+      "pad_uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        18924990,
+        48610000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "+5VSB",
+      "source_start_nm": [
+        18225001,
+        47725001
+      ],
+      "source_end_nm": [
+        18500000,
+        48000000
+      ],
+      "source_width_nm": 477370,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C55",
+      "pad": "1",
+      "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+      "pad_net": "+5VSB",
+      "pad_at_nm": [
+        20800000,
+        48400000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+      "source_item_kind": "PCB_TRACK",
+      "source_net": "GND",
+      "source_start_nm": [
+        20400000,
+        48000000
+      ],
+      "source_end_nm": [
+        19445406,
+        48954594
+      ],
+      "source_width_nm": 200000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C51",
+      "pad": "2",
+      "pad_uuid": "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        17525000,
+        49925000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "source_start_nm": [
+        16750000,
+        49500000
+      ],
+      "source_end_nm": [
+        16750000,
+        49500000
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": false,
+      "clearance_200000nm_conflict": true
+    }
+  ],
+  "unique_conflicting_source_tracks": [
+    {
+      "uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "fadba932-2d71-466c-8fab-c01735590521",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "3b391743-cec6-400d-86f0-47b4ef93a289",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "432254fb-87c7-5e2c-a2ec-4861176c1f6a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "48082e21-4c1b-5ca4-8132-bd72552fe017",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "5c8ea661-aa1f-5e9f-9c72-a1002a97d0d7",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": false,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "37b10db5-01f5-4df2-b085-c2e135e7e8d5",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "453ec525-d8de-4cf7-98ed-fb07c1bc16af",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "ordinary_net_eligible": false,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "aec904f9-f4a2-4f54-bf58-108ece0c7260",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "30b4e49c-6538-41b3-bacf-2f382b4b5224",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "fb487a34-042d-4bf7-948e-0832b911b052",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "ordinary_net_eligible": true,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "52a04a71-84b6-47f0-a167-096b97b1e37a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "ordinary_net_eligible": true,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "ordinary_net_eligible": true,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+      "net": "GND",
+      "ordinary_net_eligible": false,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "1d05e892-3997-46b1-87ce-d71332df19bf",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "b9a12100-0bed-5729-97dd-fdbf48bfd49e",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "ordinary_net_eligible": false,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "ordinary_net_eligible": true,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+      "net": "+5VSB",
+      "ordinary_net_eligible": false,
+      "physical_overlap": false,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    },
+    {
+      "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+      "net": "GND",
+      "ordinary_net_eligible": false,
+      "physical_overlap": true,
+      "source_locked": true,
+      "requires_positive_cut_scope": true
+    }
+  ],
+  "existing_barrel_process_failures_after_pose": [
+    {
+      "uuid": "72f21f4f-d1e3-487e-afb5-0ca3007fe56c",
+      "net": "GND",
+      "at_nm": [
+        14428239,
+        49221751
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "R54",
+          "pad": "2",
+          "net": "GND",
+          "reason": "full via land is not contained by the SMD pad"
+        }
+      ]
+    },
+    {
+      "uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+      "net": "GND",
+      "at_nm": [
+        13861080,
+        45861093
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "C27",
+          "pad": "2",
+          "net": "GND",
+          "reason": "full via land is not contained by the SMD pad"
+        }
+      ]
+    },
+    {
+      "uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "at_nm": [
+        15400000,
+        45400000
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "C27",
+          "pad": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "at_nm": [
+        16103544,
+        48903553
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "U6",
+          "pad": "3",
+          "net": "GND",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    },
+    {
+      "uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "at_nm": [
+        13018989,
+        46525002
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "C9",
+          "pad": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    },
+    {
+      "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "at_nm": [
+        15249990,
+        49100000
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "R54",
+          "pad": "2",
+          "net": "GND",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    },
+    {
+      "uuid": "442d8b20-7e51-4b59-ae72-a663f611a848",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "at_nm": [
+        12200000,
+        48450000
+      ],
+      "source_process_records": [],
+      "posed_process_records": [
+        {
+          "ref": "C9",
+          "pad": "2",
+          "net": "GND",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    },
+    {
+      "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "net": "GND",
+      "at_nm": [
+        16924990,
+        46765001
+      ],
+      "source_process_records": [
+        {
+          "ref": "C54",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "posed_process_records": [
+        {
+          "ref": "U6",
+          "pad": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ]
+    }
+  ],
+  "irreducible_fixed_barrel_foreign_pad_overlaps": [
+    {
+      "moved_ref": "U6",
+      "pad": "1",
+      "pad_uuid": "a021ea00-3f04-4409-b666-0e4fa56f7081",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        16324990,
+        47075002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "3",
+      "pad_uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        16249989,
+        48550000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "source_start_nm": [
+        16103544,
+        48903553
+      ],
+      "source_end_nm": [
+        16103544,
+        48903553
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "U6",
+      "pad": "11",
+      "pad_uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "pad_at_nm": [
+        16749990,
+        46250002
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "GND",
+      "source_start_nm": [
+        16924990,
+        46765001
+      ],
+      "source_end_nm": [
+        16924990,
+        46765001
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "1",
+      "pad_uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pad_at_nm": [
+        13000000,
+        47050000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "source_start_nm": [
+        13018989,
+        46525002
+      ],
+      "source_end_nm": [
+        13018989,
+        46525002
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C9",
+      "pad": "2",
+      "pad_uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        13000000,
+        48950000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "442d8b20-7e51-4b59-ae72-a663f611a848",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        12200000,
+        48450000
+      ],
+      "source_end_nm": [
+        12200000,
+        48450000
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "C27",
+      "pad": "1",
+      "pad_uuid": "7be02285-9790-4d29-bdca-078813726555",
+      "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "pad_at_nm": [
+        15043990,
+        45800000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_start_nm": [
+        15400000,
+        45400000
+      ],
+      "source_end_nm": [
+        15400000,
+        45400000
+      ],
+      "source_width_nm": 600000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    },
+    {
+      "moved_ref": "R54",
+      "pad": "2",
+      "pad_uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+      "pad_net": "GND",
+      "pad_at_nm": [
+        14800000,
+        49135000
+      ],
+      "layer": "F.Cu",
+      "source_item_uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "source_item_kind": "PCB_VIA",
+      "source_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "source_start_nm": [
+        15249990,
+        49100000
+      ],
+      "source_end_nm": [
+        15249990,
+        49100000
+      ],
+      "source_width_nm": 500000,
+      "source_locked": true,
+      "physical_overlap": true,
+      "clearance_200000nm_conflict": true
+    }
+  ],
+  "track_cut_only_cannot_fix_barrel_pad_collisions": true,
+  "generic_receivers": {
+    "private_ordinary_signals": "cec_ordinary_route_receiving.receive: exact cuts, immutable pose/settings, explicit locks, no power/ground alias",
+    "current_qualified_tracks": "cec_full_current_planar_reflow.plan/receive: original whole-current basis, exact widths and boundary restoration; not source-barrel retirement authority",
+    "composition": "cec_source_cut_chain.receive: only independently accepted saved phases, not inferred cut permission",
+    "barrels": "Positive exclusive original-contact retirement/reseat receiving required; cannot label power/Ground as ordinary. Retaining all old barrels makes this exact pose impossible."
+  },
+  "source_cut_not_authorized": true,
+  "board_saved": false,
+  "release_authority": false,
+  "different_net_native_pad_pair_conflicts": []
+}

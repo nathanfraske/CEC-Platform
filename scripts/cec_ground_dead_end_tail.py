@@ -1,12 +1,14 @@
 """Source-proved removal of a small, pad-free ground-plane dead-end tail.
 
-This is not mesh pruning or a bypass-current waiver. The unlocked, ungrouped
+This is not mesh pruning or a bypass-current waiver. The ungrouped
 uniform straight-segment chain must have exactly one free tip and terminate
 at one retained native through via which directly touches a saved ground
 plane. No tail material may contact another land, zone, junction, or barrel.
 Saved exact replay, every surviving native partition, and all already-proved
 short ground returns are mandatory. DRC, field, current, and release receiving
 remain separate; inherited factory/PI debt is never qualified here.
+Locked tracks require exact consent for every and only locked retired edge;
+consent cannot grant geometric ownership or authorize a retained root.
 """
 import math
 from pathlib import Path
@@ -32,8 +34,9 @@ def _deadline(timeout_s):
 
 
 def plan(board, seed_uuid, *, ground_net='GND', timeout_s=10.,
-         max_tracks=8, max_length_mm=12.):
+         max_tracks=8, max_length_mm=12., allow_locked_track_uuids=()):
     deadline = _deadline(timeout_s)
+    allowed=ordinary._ids(allow_locked_track_uuids,'ground_dead_end_exact_lock_scope',8)
     if (type(seed_uuid) is not str or not seed_uuid or type(ground_net) is not str
             or not ground_net or type(max_tracks) is not int or not 1 <= max_tracks <= 8
             or type(max_length_mm) not in (int, float) or not math.isfinite(max_length_mm)
@@ -81,7 +84,7 @@ def plan(board, seed_uuid, *, ground_net='GND', timeout_s=10.,
         check_time()
         uid = force._uid(current)
         ends = [tuple(current.GetStart()), tuple(current.GetEnd())]
-        if (current.GetClass() != 'PCB_TRACK' or current.IsLocked() or uid in grouped
+        if (current.GetClass() != 'PCB_TRACK' or current.IsLocked() and uid not in allowed or uid in grouped
                 or current.GetParentGroup() is not None or current.GetWidth() != width
                 or current.GetLayer() != layer or current.GetNetname() != ground_net
                 or point not in ends or ends[0] == ends[1] or uid in retired):
@@ -127,18 +130,24 @@ def plan(board, seed_uuid, *, ground_net='GND', timeout_s=10.,
                 break
     if not planes:
         raise ValueError('retained_root_has_no_actual_saved_ground_plane_contact')
-    return dict(schema=1, kind='pad_free_native_ground_dead_end_tail',
+    if allowed!={force._uid(t)for t in tracks if force._uid(t)in retired and t.IsLocked()}:
+        raise ValueError('only_exact_retired_ground_dead_end_locks_may_be_authorized')
+    result=dict(schema=1, kind='pad_free_native_ground_dead_end_tail',
                 seed_uuid=seed_uuid, ground_net=ground_net, max_tracks=max_tracks,
                 max_length_mm=max_length_mm, source_binding=_source_binding(board),
                 retired_track_uuids=retired, retained_root_via_uuid=force._uid(root),
                 source_layer=layer, source_width_nm=width, source_length_mm=length,
                 root_plane_uuids=sorted(planes), current_qualified=False, release_authority=False)
+    # Preserve legacy unlocked plan representation and its default behavior.
+    if allowed:result['allow_locked_track_uuids']=sorted(allowed)
+    return result
 
 
 def subtract(board, proposal, *, timeout_s=10.):
     fresh = plan(board, proposal['seed_uuid'], ground_net=proposal['ground_net'],
                  max_tracks=proposal['max_tracks'], max_length_mm=proposal['max_length_mm'],
-                 timeout_s=timeout_s)
+                 timeout_s=timeout_s,
+                 allow_locked_track_uuids=proposal.get('allow_locked_track_uuids',()))
     if fresh != proposal:
         raise ValueError('ground_dead_end_stale_or_forged_source_plan')
     by_id = {force._uid(t): t for t in board.GetTracks()}
@@ -209,5 +218,21 @@ def _receive_exact_subtraction(source, candidate, proposal, *, board_hint,
 
 
 def receive(source, candidate, proposal, *, board_hint, timeout_s=10.):
+    # Derive the complete cut/lock scope from the actual saved Source before
+    # any proposal-provided retirement set participates in partition checks.
+    try:
+        deadline=_deadline(timeout_s)
+        board=pcbnew.LoadBoard(str(source))
+        fresh=plan(board,proposal['seed_uuid'],ground_net=proposal['ground_net'],
+            max_tracks=proposal['max_tracks'],max_length_mm=proposal['max_length_mm'],
+            allow_locked_track_uuids=proposal.get('allow_locked_track_uuids',()),
+            timeout_s=max(.001,deadline-time.monotonic()))
+        if fresh!=proposal:raise ValueError('ground_dead_end_stale_or_forged_source_plan')
+        remaining=deadline-time.monotonic()
+        if remaining<=0:raise ValueError('ground_dead_end_saved_replay_deadline')
+    except Exception as exc:
+        return dict(schema=1,ok=False,complete=False,errors=[type(exc).__name__+':'+str(exc)],
+            current_qualified=False,inherited_debt_qualified=False,release_authority=False,
+            full_saved_board_receiving_still_required=True)
     return _receive_exact_subtraction(source, candidate, proposal,
-        board_hint=board_hint, subtractor=subtract, timeout_s=timeout_s)
+        board_hint=board_hint, subtractor=subtract, timeout_s=remaining)

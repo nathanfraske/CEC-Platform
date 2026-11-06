@@ -8,7 +8,11 @@ boolean or stored/committed netlist can grant this permission.
 Selected functional module Ground pins are independently source-bound too;
 they remain separate from optional metal, bypass owners and current budgets.
 """
+import copy
+import contextvars
+from contextlib import contextmanager
 import math
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -24,6 +28,74 @@ import cec_sch_lint as sch
 import cec_source_no_connect as source_nc
 import cec_synth_pipeline as synth
 from cec_footprint_fields import footprint_properties
+from cec_native_items import _native_pointer
+
+
+_export_observations=contextvars.ContextVar('immutable_Source_canonical_export_observation',default=None)
+
+
+def _export_inputs(root,files):
+    """Literal CLI project/library inputs, including their prior absence."""
+    paths={root.with_suffix('.kicad_pro')}
+    for path in files:
+        paths.update(path.parent/name for name in('sym-lib-table','fp-lib-table'))
+    return {str(p):force._hash(p)if p.is_file()else None for p in paths}
+
+
+def _export_observation_live(context,deadline):
+    deadline=min(deadline,context['deadline']);_tick(deadline)
+    board=context['board'];source=context['source']
+    if (_native_pointer(board)!=context['pointer']
+            or Path(board.GetFileName()).resolve()!=source
+            or row._source_binding(board)!=context['binding']
+            or force._family(source,context['hint'])!=context['family']
+            or force._code_identity()!=context['epoch']
+            or dict(os.environ)!=context['environment']):
+        raise ValueError('immutable_canonical_export_Source_changed')
+    root=source_nc._root(board,context['hint'])
+    if root is None or Path(root).resolve()!=context['root']:
+        raise ValueError('immutable_canonical_export_root_changed')
+    files,hashes,_=_hierarchy(context['root'],deadline)
+    if (set(map(str,files))!=set(context['hierarchy'])or hashes!=context['hierarchy']
+            or _export_inputs(context['root'],files)!=context['inputs']):
+        raise ValueError('immutable_canonical_export_hierarchy_or_inputs_changed')
+    import cec_toolchain as tc
+    cli=Path(tc.require_kicad_cli('immutable Source export observation')).resolve()
+    if cli!=context['exporter']or force._hash(cli)!=context['exporter_sha256']:
+        raise ValueError('immutable_canonical_export_exporter_changed')
+    _tick(deadline)
+
+
+@contextmanager
+def observation_scope(board,*,board_hint,timeout_s=10.):
+    """ONE immutable Source invocation; no caller result or persisted cache.
+
+    Only the successful CLI tree is shared. Every consumer still parses the
+    current hierarchy and independently proves its own native/source role.
+    Nested scopes are independent; receiving opens a new scope of its own.
+    """
+    if(type(board_hint)is not str or not board_hint or type(timeout_s)not in(int,float)
+            or not math.isfinite(timeout_s)or not 0<timeout_s<=10.):
+        raise ValueError('bounded_canonical_export_observation_required')
+    deadline=time.monotonic()+timeout_s
+    source=Path(board.GetFileName()).resolve(strict=True)
+    root=source_nc._root(board,board_hint)
+    if root is None:raise ValueError('canonical_export_observation_root_required')
+    root=Path(root).resolve(strict=True);files,hashes,_=_hierarchy(root,deadline)
+    import cec_toolchain as tc
+    cli=Path(tc.require_kicad_cli('Source export observation')).resolve()
+    context=dict(board=board,pointer=_native_pointer(board),source=source,root=root,
+        hint=board_hint,deadline=deadline,binding=row._source_binding(board),
+        family=force._family(source,board_hint),epoch=force._code_identity(),
+        environment=dict(os.environ),hierarchy=hashes,inputs=_export_inputs(root,files),
+        exporter=cli,exporter_sha256=force._hash(cli),result=None)
+    token=_export_observations.set(context)
+    try:
+        _export_observation_live(context,deadline)
+        yield
+    finally:
+        try:_export_observation_live(context,deadline)
+        finally:_export_observations.reset(token)
 
 
 def _tick(deadline):
@@ -134,7 +206,23 @@ def _hierarchy(root,deadline):
 
 
 def _export(root,deadline):
-    """Fresh CLI only, with a bounded timeout and no stale-file fallback."""
+    """Fresh CLI by default; private immutable-invocation observation only."""
+    context=_export_observations.get()
+    if context is None:return _export_fresh(root,deadline)
+    _export_observation_live(context,deadline)
+    if Path(root).resolve()!=context['root']:
+        raise ValueError('canonical_export_observation_requested_root_mismatch')
+    if context['result']is None:
+        result=_export_fresh(root,min(deadline,context['deadline']))
+        _export_observation_live(context,deadline)
+        context['result']=copy.deepcopy(result)
+    else:result=copy.deepcopy(context['result'])
+    _tick(min(deadline,context['deadline']))
+    return result
+
+
+def _export_fresh(root,deadline):
+    """Fresh bounded CLI, never a stale-file fallback."""
     import cec_toolchain as tc
     _tick(deadline);cli=Path(tc.require_kicad_cli('source Ground leaf export')).resolve()
     digest=force._hash(cli)

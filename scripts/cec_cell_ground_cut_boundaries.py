@@ -272,10 +272,17 @@ def requests(source,posed,proposal,*,timeout_s=10.,transported_source_barrels=()
     additional_authorities={}
     if additional_cut:
         import cec_aggregate_cap_ground_leaf as additional
-        derived=additional.single_edge_ownerships(source,proposal,additional_cut,deadline=deadline)
-        additional_authorities={q['change']['uuid']:q['authority'] for q in derived}
-        if set(additional_authorities)!=set(additional_cut) or any(
-                not additional.authority_label(q) for q in additional_authorities.values()):
+        import cec_wired_aggregate_ground_leaf as wired_additional
+        for helper in (additional, wired_additional):
+            ids=sorted({u for p in proposal.get('additional_aggregate_capacitors',{}).values()
+                if (p.get('source_Ground_leaf') or {}).get('scope') == helper.SCOPE
+                for u in p['source_Ground_leaf']['track_uuids']} & set(additional_cut))
+            if not ids:continue
+            derived=helper.single_edge_ownerships(source,proposal,ids,deadline=deadline)
+            if any(not helper.authority_label(q['authority']) for q in derived):
+                raise ValueError('fresh_exact_additional_cap_Ground_leaf_authority_required')
+            additional_authorities.update({q['change']['uuid']:q['authority'] for q in derived})
+        if set(additional_authorities)!=set(additional_cut):
             raise ValueError('fresh_exact_additional_cap_Ground_leaf_authority_required')
     complete_ground_typer=None
     ground_transport={'source_process_barrel_motion':list(transported_source_barrels)}
