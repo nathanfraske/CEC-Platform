@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "observed_date": "2026-11-06",
+  "url": "https://jlcpcb.com/partdetail/Keystone-5104TR/C7466142",
+  "fetch": "Read-only HTTPS GET; root and independent agent verified the exact product page",
+  "root_raw_response_sha256": "626310fd22721b41f57a88c548eb25e5fff0b985df0c49559a81a2d6328a44b4",
+  "raw_response_not_committed": "Contains ephemeral signed image links; only the relevant public product fields are retained here",
+  "manufacturer": "Keystone",
+  "mpn": "5104TR",
+  "jlc_part": "C7466142",
+  "package": "SMD-2P",
+  "component_class": "Extended",
+  "source": "JLCPCB",
+  "assembly_type": "SMT Assembly",
+  "pcba_type": "Economic and Standard",
+  "exact_PCBA_listing_verified": true,
+  "basic_assembly_availability_resolved": true,
+  "redundant_supplier_permission_required": false,
+  "currency": "USD",
+  "page_payload_unit_prices": [
+    {"quantity_min": 1, "quantity_max": 9, "unit_price": 0.6614},
+    {"quantity_min": 10, "quantity_max": 29, "unit_price": 0.5288},
+    {"quantity_min": 30, "quantity_max": 99, "unit_price": 0.4633},
+    {"quantity_min": 100, "quantity_max": 499, "unit_price": 0.3979},
+    {"quantity_min": 500, "quantity_max": 999, "unit_price": 0.3586},
+    {"quantity_min": 1000, "quantity_max": null, "unit_price": 0.3389}
+  ],
+  "stock_payload_not_reserved": {
+    "overseasStockCount": 31,
+    "canPresaleNumber": 30,
+    "preMinPurchaseNum": 18,
+    "encapsulationNumber": 1000,
+    "lossNumber": 4,
+    "leastPatchNumber": 2,
+    "specialComponentFee": 0,
+    "needAuditFlag": false,
+    "noBuyReason": null
+  },
+  "limits": [
+    "Raw stock and purchase fields are not a reservation or a promise of sufficient inventory for 100 boards",
+    "specialComponentFee zero is not an all-in assembly quote; normal Extended, setup, placement and order charges still require the actual quote",
+    "Listed packaging fields do not replace the manufacturer's 2500-piece reel drawing",
+    "The earlier USD 0.206 quantity-100 figure was DigiKey, not this JLC price",
+    "No order, account login, message or payment was made"
+  ],
+  "application_current_and_geometry_qualified": false
+}

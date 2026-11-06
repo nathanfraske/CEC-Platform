@@ -1,0 +1,432 @@
+{
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "replaced_owned_chain": [
+    {
+      "uuid": "278bc5d9-6b20-4816-9ccb-85960582aaed",
+      "start": [
+        12.15,
+        41.55
+      ],
+      "end": [
+        18.35,
+        41.55
+      ],
+      "width_nm": 6535523
+    },
+    {
+      "uuid": "3ace9012-8691-4de3-be94-98946715204b",
+      "start": [
+        7.472648,
+        42.55
+      ],
+      "end": [
+        11.15,
+        42.55
+      ],
+      "width_nm": 6535523
+    },
+    {
+      "uuid": "5c1c6766-9a73-43fb-8528-378ff7ca4890",
+      "start": [
+        11.15,
+        42.55
+      ],
+      "end": [
+        12.15,
+        41.55
+      ],
+      "width_nm": 6535523
+    },
+    {
+      "uuid": "e8ae802e-223d-4792-aa23-8e06299434b5",
+      "start": [
+        7.472648,
+        52.8
+      ],
+      "end": [
+        7.472648,
+        42.55
+      ],
+      "width_nm": 6535523
+    }
+  ],
+  "proposed_segments": [
+    {
+      "start": [
+        9.2,
+        52.8
+      ],
+      "end": [
+        9.2,
+        45.5
+      ],
+      "native_rule_hits": [],
+      "edge_clear": true,
+      "foreign_clear": false,
+      "concrete_copper_blockers": [
+        {
+          "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at": [
+            12.08399,
+            46.405002
+          ]
+        },
+        {
+          "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at": [
+            12.8,
+            49.135
+          ]
+        },
+        {
+          "uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "at": [
+            12.6,
+            48.25
+          ]
+        },
+        {
+          "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at": [
+            11.245,
+            48.705
+          ]
+        }
+      ]
+    },
+    {
+      "start": [
+        9.2,
+        45.5
+      ],
+      "end": [
+        13.15,
+        41.55
+      ],
+      "native_rule_hits": [],
+      "edge_clear": true,
+      "foreign_clear": false,
+      "concrete_copper_blockers": [
+        {
+          "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at": [
+            12.08399,
+            46.405002
+          ]
+        },
+        {
+          "uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at": [
+            13.86108,
+            45.861093
+          ]
+        },
+        {
+          "uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "at": [
+            13.018989,
+            46.525002
+          ]
+        },
+        {
+          "uuid": "16f4a372-7623-4c83-a12d-47ca794b6f86",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "at": [
+            13.018989,
+            46.810001
+          ]
+        },
+        {
+          "uuid": "53814c53-4bb9-481f-a4a9-0ef3846a7d07",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "at": [
+            13.018989,
+            46.525002
+          ]
+        }
+      ]
+    },
+    {
+      "start": [
+        13.15,
+        41.55
+      ],
+      "end": [
+        18.35,
+        41.55
+      ],
+      "native_rule_hits": [],
+      "edge_clear": true,
+      "foreign_clear": true,
+      "concrete_copper_blockers": []
+    }
+  ],
+  "width_nm": 6535523,
+  "clearance_nm": 200000,
+  "ram_removal_only": true,
+  "board_saved": false,
+  "scope": "One exact straight/45-degree copper-only shortcut; full foreign-copper check added after initial rule-only report; not final DRC or global no-path proof",
+  "original_lower_chain_boundary_mm": [
+    7.472648,
+    52.8
+  ],
+  "boundary_restored": false,
+  "boundary_note": "Proposed x9.2 joins retained lower same-net track endpoint, not exact removed-chain x7.472648 endpoint. Exact endpoint replay or explicit co-owned stub removal required; not accepted topology.",
+  "nominal_12v_x4_right_edge_mm": 5.615296,
+  "nominal_3v3_x9_2_left_edge_mm": 5.932238499999999,
+  "nominal_parallel_gap_mm": 0.3169424999999988,
+  "trim_qualified": false,
+  "exact_boundary_connector": {
+    "start": [
+      7.472648,
+      52.8
+    ],
+    "end": [
+      9.2,
+      52.8
+    ],
+    "width_nm": 6535523,
+    "foreign_clear": true,
+    "left_edge_mm": 4.204886500000001,
+    "nominal_gap_to_relocated_x4_12v_mm": -1.4104094999999992,
+    "decision": "Exact boundary connector retains a leftward endcap incompatible with straight x4 12V; co-owned chain boundary must change instead, and main shortcut independently fails foreign-copper screen."
+  },
+  "shared_all_guards_probe": {
+    "schema": 1,
+    "scope": "read_only_explicit_path_geometry_not_route_acceptance",
+    "net": "/SENSE3V3_HI",
+    "layer": "B.Cu",
+    "width_nm": 6535523,
+    "clearance_nm": 200000,
+    "edge_clearance_nm": 500000,
+    "points_nm": [
+      [
+        9200000,
+        52800000
+      ],
+      [
+        9200000,
+        45500000
+      ],
+      [
+        13150000,
+        41550000
+      ],
+      [
+        18350000,
+        41550000
+      ]
+    ],
+    "unknown": [],
+    "project_context": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+    "legs": [
+      {
+        "start_nm": [
+          9200000,
+          52800000
+        ],
+        "end_nm": [
+          9200000,
+          45500000
+        ],
+        "foreign_copper_and_holes_clear": false,
+        "permission_clear": true,
+        "permission_hit": null,
+        "edge_clear": true,
+        "blockers": [
+          {
+            "kind": "via",
+            "net": "GND",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              12.08399,
+              46.405002
+            ],
+            "diameter_mm": 0.5,
+            "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "GND",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              12.8,
+              49.135
+            ],
+            "diameter_mm": 0.35,
+            "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              12.6,
+              48.25
+            ],
+            "diameter_mm": 0.6,
+            "uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "GND",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              11.245,
+              48.705
+            ],
+            "diameter_mm": 0.5,
+            "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+            "contact": "clearance"
+          }
+        ],
+        "unknown": [],
+        "blockers_truncated": false,
+        "status": "blocked",
+        "geometry_screen_clear": false
+      },
+      {
+        "start_nm": [
+          9200000,
+          45500000
+        ],
+        "end_nm": [
+          13150000,
+          41550000
+        ],
+        "foreign_copper_and_holes_clear": false,
+        "permission_clear": true,
+        "permission_hit": null,
+        "edge_clear": true,
+        "blockers": [
+          {
+            "kind": "via",
+            "net": "GND",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              12.08399,
+              46.405002
+            ],
+            "diameter_mm": 0.5,
+            "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "GND",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              13.86108,
+              45.861093
+            ],
+            "diameter_mm": 0.5,
+            "uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+            "contact": "clearance"
+          },
+          {
+            "kind": "via",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            "layer": "B.Cu",
+            "locked": true,
+            "at_mm": [
+              13.018989,
+              46.525002
+            ],
+            "diameter_mm": 0.6,
+            "uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+            "contact": "clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              13.018989,
+              46.810001
+            ],
+            "to_mm": [
+              13.208988,
+              47.0
+            ],
+            "width_mm": 0.47737,
+            "uuid": "16f4a372-7623-4c83-a12d-47ca794b6f86",
+            "contact": "clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              13.018989,
+              46.525002
+            ],
+            "to_mm": [
+              13.018989,
+              46.810001
+            ],
+            "width_mm": 0.47737,
+            "uuid": "53814c53-4bb9-481f-a4a9-0ef3846a7d07",
+            "contact": "clearance"
+          }
+        ],
+        "unknown": [],
+        "blockers_truncated": false,
+        "status": "blocked",
+        "geometry_screen_clear": false
+      },
+      {
+        "start_nm": [
+          13150000,
+          41550000
+        ],
+        "end_nm": [
+          18350000,
+          41550000
+        ],
+        "foreign_copper_and_holes_clear": true,
+        "permission_clear": true,
+        "permission_hit": null,
+        "edge_clear": true,
+        "blockers": [],
+        "unknown": [],
+        "blockers_truncated": false,
+        "status": "clear",
+        "geometry_screen_clear": true
+      }
+    ],
+    "geometry_screen_clear": false,
+    "ownership_checked": false,
+    "connectivity_checked": false,
+    "current_qualified": false,
+    "stack_checked": false,
+    "native_DRC_run": false,
+    "release_authority": false
+  }
+}

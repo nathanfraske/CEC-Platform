@@ -1,0 +1,77 @@
+{
+  "status": "compile_refused",
+  "error_type": "ValueError",
+  "error": "gate_bias_MOS_and_series_peer_must_remain_stationary",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/codex/src/CEC-Platform/experiments/busbars/keystone-verified-20261106/front-feed-scout/mux_compile.py\", line 15, in <module>\n    frame,packet,transported=cells.compile_macro(b,op,'atx-24pin-rev3',enforce_locks=False)\n                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/src/cec_pipeline/cells.py\", line 350, in compile_macro\n    projected, packet = compiler.compile(\n                        ^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 1106, in compile\n    proposal=escape.prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_escape_replan.py\", line 105, in prepare\n    return _prepare_source(board,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_escape_replan.py\", line 177, in _prepare_source\n    programming_resistors=programming.plan(board,poses,board_hint=board_hint,\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_programming_resistor_placement.py\", line 235, in plan\n    ref=fp.GetReference();native._smd(fp,2);native._pose(fp,poses);native._stationary(owner,poses)\n                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_control_gate_bias_placement.py\", line 376, in _stationary\n    _need(tuple(round(v * 1e6) for v in value[:2]) == tuple(fp.GetPosition())\n  File \"/home/codex/src/CEC-Platform/scripts/cec_control_gate_bias_placement.py\", line 38, in _need\n    raise ValueError(message)\nValueError: gate_bias_MOS_and_series_peer_must_remain_stationary\n",
+  "elapsed_s": 1.595353005992365,
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "poses": [
+      {
+        "reference": "C27",
+        "at_nm": [
+          16563990,
+          45800000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C51",
+        "at_nm": [
+          22500000,
+          50125000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C54",
+        "at_nm": [
+          20924990,
+          47245001
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C55",
+        "at_nm": [
+          23450000,
+          48000000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C9",
+        "at_nm": [
+          15000000,
+          48000000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "R54",
+        "at_nm": [
+          16800000,
+          48625000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "U6",
+        "at_nm": [
+          18999990,
+          47400000
+        ],
+        "rotation_deg": 0
+      }
+    ],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [],
+    "allow_locked_transport_uuids": [],
+    "reference_group_uuids": [],
+    "routes": [],
+    "vias": [],
+    "max_shift_nm": 4000000
+  },
+  "board_saved": false
+}

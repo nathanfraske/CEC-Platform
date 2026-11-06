@@ -1,0 +1,1527 @@
+{
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "group": [
+    "C27",
+    "C51",
+    "C54",
+    "C55",
+    "C9",
+    "R54",
+    "U6"
+  ],
+  "trials": [
+    {
+      "delta_mm": [
+        4.0,
+        0.0
+      ],
+      "courtyard_collisions": [],
+      "paired": {
+        "ok": true,
+        "timed_out": false,
+        "reason": null,
+        "violations": [],
+        "missing": [],
+        "contacts": [
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  37.3
+                ],
+                "carrier_mm": [
+                  25.0,
+                  37.3
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  37.3
+                ],
+                "carrier_mm": [
+                  27.54,
+                  37.3
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  39.84
+                ],
+                "carrier_mm": [
+                  25.0,
+                  39.84
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  39.84
+                ],
+                "carrier_mm": [
+                  27.54,
+                  39.84
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "5",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  42.379999999999995
+                ],
+                "carrier_mm": [
+                  25.0,
+                  42.38
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "5",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              },
+              {
+                "id": "6",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  42.379999999999995
+                ],
+                "carrier_mm": [
+                  27.54,
+                  42.38
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "6",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 7.105427357601002e-15,
+            "release_accepted": false
+          },
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  67.0,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  67.0,
+                  20.159899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  67.0,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  67.0,
+                  22.699899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  64.46000000000001,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  64.46,
+                  20.159899
+                ],
+                "distance_mm": 1.464821375527116e-14,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 1.464821375527116e-14,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  64.46000000000001,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  64.46,
+                  22.699899
+                ],
+                "distance_mm": 1.464821375527116e-14,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 1.464821375527116e-14,
+                "ok": true
+              },
+              {
+                "id": "5",
+                "cover_in_carrier_mm": [
+                  61.92,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  61.92,
+                  20.159899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "5",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "6",
+                "cover_in_carrier_mm": [
+                  61.92,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  61.92,
+                  22.699899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "6",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "7",
+                "cover_in_carrier_mm": [
+                  59.379999999999995,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  59.38,
+                  20.159899
+                ],
+                "distance_mm": 7.944109290391274e-15,
+                "role_ok": true,
+                "nearest_id": "7",
+                "nearest_mm": 7.944109290391274e-15,
+                "ok": true
+              },
+              {
+                "id": "8",
+                "cover_in_carrier_mm": [
+                  59.379999999999995,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  59.38,
+                  22.699899
+                ],
+                "distance_mm": 7.944109290391274e-15,
+                "role_ok": true,
+                "nearest_id": "8",
+                "nearest_mm": 7.944109290391274e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 1.464821375527116e-14,
+            "release_accepted": false
+          },
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  62.105002,
+                  60.534999
+                ],
+                "carrier_mm": [
+                  62.105002,
+                  60.534999
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  62.105002,
+                  57.99499900000001
+                ],
+                "carrier_mm": [
+                  62.105002,
+                  57.994999
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  64.645002,
+                  60.534999
+                ],
+                "carrier_mm": [
+                  64.645002,
+                  60.534999
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  64.645002,
+                  57.99499900000001
+                ],
+                "carrier_mm": [
+                  64.645002,
+                  57.994999
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 7.105427357601002e-15,
+            "release_accepted": false
+          }
+        ],
+        "hardware": [
+          {
+            "anchor_pair": [
+              "H1",
+              "H1"
+            ],
+            "mpn": "ASB-2022E",
+            "diameter_max_mm": 5.0,
+            "af_nominal_mm": 4.0,
+            "length_mm": 22.0,
+            "length_tolerance_mm": 0.1,
+            "screw_mpn": "SSCF-M2-5-A2",
+            "head_diameter_mm": 3.8,
+            "head_height_mm": 2.0,
+            "screw_length_mm": 5.0,
+            "thread_diameter_mm": 2.0,
+            "xy": [
+              18.0,
+              20.159899
+            ],
+            "conflicts": [],
+            "ok": true
+          }
+        ],
+        "projected_dimensions": {
+          "schema": 1,
+          "complete": true,
+          "laminate": {
+            "bounds_mm": [
+              0.0,
+              0.0,
+              86.49,
+              87.5
+            ],
+            "size_mm": [
+              86.49,
+              87.5
+            ],
+            "bounding_area_mm2": 7567.875
+          },
+          "declared_body_plus_laminate": {
+            "bounds_mm": [
+              0.0,
+              -1.295,
+              89.585,
+              91.795
+            ],
+            "size_mm": [
+              89.585,
+              93.09
+            ],
+            "bounding_area_mm2": 8339.46765
+          },
+          "missing": [],
+          "geometry_bases": [
+            "declared_maximum_diameter",
+            "declared_post_width_at_native_pad_centres",
+            "design_allocation",
+            "native_courtyard"
+          ],
+          "exclusions": [
+            "external_cables_and_plugs",
+            "hardware_extents",
+            "tool_and_service_access"
+          ],
+          "scope": "declared-envelope sizing only; not physical-package qualification",
+          "release_authority": false
+        },
+        "source_and_peer_unchanged": true,
+        "scope": "paired-native-translation-feasibility",
+        "routing_admitted": false,
+        "release_authority": false
+      },
+      "pin_local_relative_placement_preserved": true,
+      "fixed_route_moved_pad_copper_conflicts": [
+        {
+          "moved": "C55",
+          "pad": "1",
+          "pad_net": "+5VSB",
+          "layer": "F.Cu",
+          "fixed_uuid": "3e971352-53e6-4f3a-984d-f7114935c619",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C55",
+          "pad": "1",
+          "pad_net": "+5VSB",
+          "layer": "F.Cu",
+          "fixed_uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C55",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C9",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "C9",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C9",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "48082e21-4c1b-5ca4-8132-bd72552fe017",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX"
+        },
+        {
+          "moved": "C9",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "c819a2f7-7d2d-4aec-bb0f-384cd8ac4e40",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX"
+        },
+        {
+          "moved": "C9",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "R54",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "d47f815a-4194-5035-96f4-85ce9d6e2cb3",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS"
+        },
+        {
+          "moved": "R54",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS"
+        },
+        {
+          "moved": "R54",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1"
+        },
+        {
+          "moved": "C51",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "fixed_uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C51",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "36034a2e-3dd8-47d2-94be-dbed075d1a6e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "fixed_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "2",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "2",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "2",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "fixed_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "3",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "4",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "5",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "fixed_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "U6",
+          "pad": "5",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "fixed_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "U6",
+          "pad": "6",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "fixed_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "U6",
+          "pad": "6",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "fixed_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "U6",
+          "pad": "7",
+          "pad_net": "+5VSB",
+          "layer": "F.Cu",
+          "fixed_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "U6",
+          "pad": "8",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "9",
+          "pad_net": "unconnected-(U6-ST-Pad9)",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "10",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "11",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "fixed_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "11",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "12",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "U6",
+          "pad": "12",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "C27",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C54",
+          "pad": "1",
+          "pad_net": "+5VSB",
+          "layer": "F.Cu",
+          "fixed_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "GND"
+        },
+        {
+          "moved": "C54",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "f24778c4-cb5f-402a-8e40-a8125b10d4ea",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "C54",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        }
+      ],
+      "copper_trial_not_performed": true,
+      "copper_scope": "Actual moved pad vs unchanged native pads/tracks/vias all copper layers,0.2mm. Not full cut copper/zone/return reconstruction; old local copper retained as fixed diagnostic obstacles.",
+      "accepted": false
+    },
+    {
+      "delta_mm": [
+        4.0,
+        -4.0
+      ],
+      "courtyard_collisions": [
+        {
+          "moved": "C55",
+          "fixed": "J6P",
+          "gap_mm": 0.0
+        }
+      ],
+      "paired": {
+        "ok": false,
+        "timed_out": false,
+        "reason": "native_paired_assembly_refused",
+        "violations": [
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C9",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R54",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U6",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C27",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          }
+        ],
+        "missing": [],
+        "contacts": [
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  37.3
+                ],
+                "carrier_mm": [
+                  25.0,
+                  37.3
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  37.3
+                ],
+                "carrier_mm": [
+                  27.54,
+                  37.3
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  39.84
+                ],
+                "carrier_mm": [
+                  25.0,
+                  39.84
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  39.84
+                ],
+                "carrier_mm": [
+                  27.54,
+                  39.84
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "5",
+                "cover_in_carrier_mm": [
+                  25.0,
+                  42.379999999999995
+                ],
+                "carrier_mm": [
+                  25.0,
+                  42.38
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "5",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              },
+              {
+                "id": "6",
+                "cover_in_carrier_mm": [
+                  27.54,
+                  42.379999999999995
+                ],
+                "carrier_mm": [
+                  27.54,
+                  42.38
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "6",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 7.105427357601002e-15,
+            "release_accepted": false
+          },
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  67.0,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  67.0,
+                  20.159899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  67.0,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  67.0,
+                  22.699899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  64.46000000000001,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  64.46,
+                  20.159899
+                ],
+                "distance_mm": 1.464821375527116e-14,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 1.464821375527116e-14,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  64.46000000000001,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  64.46,
+                  22.699899
+                ],
+                "distance_mm": 1.464821375527116e-14,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 1.464821375527116e-14,
+                "ok": true
+              },
+              {
+                "id": "5",
+                "cover_in_carrier_mm": [
+                  61.92,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  61.92,
+                  20.159899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "5",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "6",
+                "cover_in_carrier_mm": [
+                  61.92,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  61.92,
+                  22.699899
+                ],
+                "distance_mm": 3.552713678800501e-15,
+                "role_ok": true,
+                "nearest_id": "6",
+                "nearest_mm": 3.552713678800501e-15,
+                "ok": true
+              },
+              {
+                "id": "7",
+                "cover_in_carrier_mm": [
+                  59.379999999999995,
+                  20.159899000000003
+                ],
+                "carrier_mm": [
+                  59.38,
+                  20.159899
+                ],
+                "distance_mm": 7.944109290391274e-15,
+                "role_ok": true,
+                "nearest_id": "7",
+                "nearest_mm": 7.944109290391274e-15,
+                "ok": true
+              },
+              {
+                "id": "8",
+                "cover_in_carrier_mm": [
+                  59.379999999999995,
+                  22.699899000000002
+                ],
+                "carrier_mm": [
+                  59.38,
+                  22.699899
+                ],
+                "distance_mm": 7.944109290391274e-15,
+                "role_ok": true,
+                "nearest_id": "8",
+                "nearest_mm": 7.944109290391274e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 1.464821375527116e-14,
+            "release_accepted": false
+          },
+          {
+            "ok": true,
+            "contacts": [
+              {
+                "id": "1",
+                "cover_in_carrier_mm": [
+                  62.105002,
+                  60.534999
+                ],
+                "carrier_mm": [
+                  62.105002,
+                  60.534999
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "1",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "2",
+                "cover_in_carrier_mm": [
+                  62.105002,
+                  57.99499900000001
+                ],
+                "carrier_mm": [
+                  62.105002,
+                  57.994999
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "2",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              },
+              {
+                "id": "3",
+                "cover_in_carrier_mm": [
+                  64.645002,
+                  60.534999
+                ],
+                "carrier_mm": [
+                  64.645002,
+                  60.534999
+                ],
+                "distance_mm": 0.0,
+                "role_ok": true,
+                "nearest_id": "3",
+                "nearest_mm": 0.0,
+                "ok": true
+              },
+              {
+                "id": "4",
+                "cover_in_carrier_mm": [
+                  64.645002,
+                  57.99499900000001
+                ],
+                "carrier_mm": [
+                  64.645002,
+                  57.994999
+                ],
+                "distance_mm": 7.105427357601002e-15,
+                "role_ok": true,
+                "nearest_id": "4",
+                "nearest_mm": 7.105427357601002e-15,
+                "ok": true
+              }
+            ],
+            "mismatched": 0,
+            "no_geometric_mate": 0,
+            "max_offset_mm": 7.105427357601002e-15,
+            "release_accepted": false
+          }
+        ],
+        "hardware": [
+          {
+            "anchor_pair": [
+              "H1",
+              "H1"
+            ],
+            "mpn": "ASB-2022E",
+            "diameter_max_mm": 5.0,
+            "af_nominal_mm": 4.0,
+            "length_mm": 22.0,
+            "length_tolerance_mm": 0.1,
+            "screw_mpn": "SSCF-M2-5-A2",
+            "head_diameter_mm": 3.8,
+            "head_height_mm": 2.0,
+            "screw_length_mm": 5.0,
+            "thread_diameter_mm": 2.0,
+            "xy": [
+              18.0,
+              20.159899
+            ],
+            "conflicts": [],
+            "ok": true
+          }
+        ],
+        "projected_dimensions": {
+          "schema": 1,
+          "complete": true,
+          "laminate": {
+            "bounds_mm": [
+              0.0,
+              0.0,
+              86.49,
+              87.5
+            ],
+            "size_mm": [
+              86.49,
+              87.5
+            ],
+            "bounding_area_mm2": 7567.875
+          },
+          "declared_body_plus_laminate": {
+            "bounds_mm": [
+              0.0,
+              -1.295,
+              89.585,
+              91.795
+            ],
+            "size_mm": [
+              89.585,
+              93.09
+            ],
+            "bounding_area_mm2": 8339.46765
+          },
+          "missing": [],
+          "geometry_bases": [
+            "declared_maximum_diameter",
+            "declared_post_width_at_native_pad_centres",
+            "design_allocation",
+            "native_courtyard"
+          ],
+          "exclusions": [
+            "external_cables_and_plugs",
+            "hardware_extents",
+            "tool_and_service_access"
+          ],
+          "scope": "declared-envelope sizing only; not physical-package qualification",
+          "release_authority": false
+        },
+        "source_and_peer_unchanged": true,
+        "scope": "paired-native-translation-feasibility",
+        "routing_admitted": false,
+        "release_authority": false
+      },
+      "pin_local_relative_placement_preserved": true,
+      "fixed_route_moved_pad_copper_conflicts": [
+        {
+          "moved": "C55",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C55",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "3fe3b7da-003c-4ca4-9726-171309e537fc",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C55",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "99be91a9-c351-4eaa-a9ab-792e8a542628",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C55",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "fixed_kind": "PAD",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+          "fixed_kind": "PCB_VIA",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "0318e59e-3e60-4adb-9594-3edd58a3acf5",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "472916d1-63df-4c2f-af11-9ec2708db9b9",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "52a04a71-84b6-47f0-a167-096b97b1e37a",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C9",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "f2167589-f7c7-47e3-98bb-5a5abd6c42b6",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "R54",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "C51",
+          "pad": "1",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "fixed_uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT"
+        },
+        {
+          "moved": "C51",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "f24778c4-cb5f-402a-8e40-a8125b10d4ea",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "C51",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "+5VSB"
+        },
+        {
+          "moved": "C51",
+          "pad": "2",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "U6",
+          "pad": "3",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "U6",
+          "pad": "4",
+          "pad_net": "GND",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "U6",
+          "pad": "5",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "U6",
+          "pad": "6",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "fixed_uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        },
+        {
+          "moved": "U6",
+          "pad": "6",
+          "pad_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "fixed_uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "fixed_kind": "PCB_TRACK",
+          "fixed_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS"
+        }
+      ],
+      "copper_trial_not_performed": true,
+      "copper_scope": "Actual moved pad vs unchanged native pads/tracks/vias all copper layers,0.2mm. Not full cut copper/zone/return reconstruction; old local copper retained as fixed diagnostic obstacles.",
+      "accepted": false
+    }
+  ],
+  "scope": "Two deliberate common rigid component translations; no copper ownership or routing admission, no board save",
+  "edge": {
+    "route_center_x_mm": 4,
+    "width_mm": 3.230592,
+    "default_guard_mm": 0.5,
+    "max_left_trim_mm": 1.884704,
+    "center_min_for_2mm_trim": 4.115296
+  },
+  "next_operation": "Compile complete local copper+via ownership and cut before cell translation. Include entire lower 3V3 track97e88707-e4ef-4c30-af4e-724ee6e7d22d so no obsolete x7.472648 endcap remains. Repack contextual cells if courtyard test rejects; recheck complete transformed native copper and rebuilt boundaries, saved peer/stack, bypass and source-current receivers."
+}

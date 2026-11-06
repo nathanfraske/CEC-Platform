@@ -1,0 +1,257 @@
+(footprint "Keystone_5104TR_DrawingA_ApplicationPending"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "Keystone 5104 Rev A recommended lands; source-bounded body. Application and installed-clearance qualification pending. Only solder lands are PCB copper.")
+	(property "Reference" "BB**"
+		(at 0 -2.6 0)
+		(layer "F.SilkS")
+		(uuid "561b70ea-1566-5f8f-9143-6effc6efb01a")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Value" "5104TR"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "81168f65-5948-51d6-9546-1ade0bf77843")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.keyelco.com/product-pdf.cfm?p=14021"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "70855fb3-f92b-5cd8-a59e-b6c64bfa1a9b")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "50ab08c2-830b-5619-8af8-1ce32710b3ee")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Manufacturer" "Keystone Electronics"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "dfa4e2ac-e026-58ed-81fc-9eb79feb026e")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "MPN" "5104TR"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bb34cae9-7e5d-5942-aa2e-2e6b20aec4ae")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC" "C7466142"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1f1b0665-ecc6-5399-aaf3-d90aed5c7091")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Source_profile_sha256" "044792798801be72267570dd1fa51d168265f1861e28550500bc1169063c82bf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "07a670b8-f891-5491-bd2f-96e7ec84cdfc")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Qualification" "DOCUMENTED_COMPONENT_APPLICATION_PENDING"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "cb2d03f4-279a-56ca-8974-f48103f5271b")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Height_bare_part_max_mm" "1.9304"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "04df5d6e-a3c5-53c8-9a3f-a1dd5f220d15")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Underbridge_clearance" "UNKNOWN_NOT_A_CONSTANT_HEIGHT_TUNNEL"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3832f73d-8df1-5b87-b8fc-a451bd45bb74")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Catalog_current_A" "20_WITH_PUBLISHED_TEMPERATURE_CONDITIONS"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "964f62ed-82fb-52aa-9633-a58feece7138")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Application_current_qualification" "PENDING"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "6fa02655-3162-57b5-a694-919ca6de6cde")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Electrical_model" "COMPONENT_METAL_AND_TWO_SEPARATE_SOLDER_JOINTS"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "bca2004a-826b-5b6c-910e-28b881e3c587")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers yes)
+	(fp_line
+		(start -6.9 -1.65)
+		(end 6.9 -1.65)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "db39ca69-8592-52c6-8f6f-f9c6d665c90e")
+	)
+	(fp_line
+		(start -6.9 1.65)
+		(end -6.9 -1.65)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "ac098a02-1244-57aa-a2cf-111d4bcab485")
+	)
+	(fp_line
+		(start 6.9 -1.65)
+		(end 6.9 1.65)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "3eaef215-6484-5fde-9294-a100727d31de")
+	)
+	(fp_line
+		(start 6.9 1.65)
+		(end -6.9 1.65)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "68b13066-c8ca-5eba-b7f8-bd12e8d92c12")
+	)
+	(fp_line
+		(start -6.215 -1.2192)
+		(end 6.215 -1.2192)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "2783bc36-e631-5698-9275-3eff29de3c0f")
+	)
+	(fp_line
+		(start -6.215 1.2192)
+		(end -6.215 -1.2192)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "57a787a1-cc64-5030-a66a-97df19b2e9ba")
+	)
+	(fp_line
+		(start 6.215 -1.2192)
+		(end 6.215 1.2192)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "a99429f5-57c8-5ece-b735-707f857c4834")
+	)
+	(fp_line
+		(start 6.215 1.2192)
+		(end -6.215 1.2192)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "738748ca-e486-5d9f-9d91-e2c8fd20ef50")
+	)
+	(pad "1" smd rect
+		(at -5.35 0)
+		(size 2.6 2.8)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "db461c26-1ade-5a39-83bb-e26a9106a0a2")
+	)
+	(pad "1" smd rect
+		(at 5.35 0)
+		(size 2.6 2.8)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "32f2e28a-7d6e-5ba2-9ca4-e0b70b8bf5bf")
+	)
+	(embedded_fonts no)
+)
