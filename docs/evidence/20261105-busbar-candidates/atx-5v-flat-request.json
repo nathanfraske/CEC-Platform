@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "repack": {
+    "path": "docs/evidence/20261105-busbar-candidates/paired-request.json",
+    "sha256": "8be39f857434776145c79eb34217c9e7e6446b0eafcd712acb257421d8480cad"
+  },
+  "part": {
+    "path": "experiments/busbars/sinhoo-30x3x2.json",
+    "sha256": "ddeaa2b342dfff3340686b09d1698e7b3af4d79ed50888166d7645d3e0a04dcc"
+  },
+  "side": "carrier",
+  "board_hint": "atx-24pin-rev3",
+  "source_track_uuid": "bdeacc19-7237-4ced-be18-91b64317c858",
+  "candidates": [
+    {
+      "id": "original 5V corridor after compaction",
+      "at_nm": [
+        36175000,
+        70150000
+      ],
+      "rotation_deg": 0,
+      "solder_allocation_nm": 200000
+    },
+    {
+      "id": "5V corridor shifted up",
+      "at_nm": [
+        36175000,
+        66000000
+      ],
+      "rotation_deg": 0,
+      "solder_allocation_nm": 200000
+    }
+  ]
+}

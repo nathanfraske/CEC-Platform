@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "repack": {
+    "path": "docs/evidence/20261105-busbar-candidates/paired-request.json",
+    "sha256": "8be39f857434776145c79eb34217c9e7e6446b0eafcd712acb257421d8480cad"
+  },
+  "part": {
+    "path": "experiments/busbars/xfcn-20x3x2.json",
+    "sha256": "e16827b4af2ff73307d20301ae730ccf94caab9004f1e8ba342b8e99d1473a8f"
+  },
+  "side": "carrier",
+  "board_hint": "atx-24pin-rev3",
+  "source_track_uuid": "07de3bfe-67b6-4852-b39c-be976c802185",
+  "candidates": [
+    {
+      "id": "inward 3V3 right leg",
+      "at_nm": [
+        69000000,
+        64500000
+      ],
+      "rotation_deg": 90,
+      "solder_allocation_nm": 200000
+    }
+  ]
+}

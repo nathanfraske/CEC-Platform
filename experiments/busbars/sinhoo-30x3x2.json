@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "id": "Sinhoo CCS2030030TTJ / C46634558",
+  "drawing_part_number": "CCS20-30030TTJ",
+  "drawing_url": "https://atta.szlcsc.com/upload/public/pdf/source/20260403/E9365A07C6C7FCE5B620B8960D598252.pdf",
+  "drawing_sha256": "c845e8740cd25f4bc6e8cda61872ab584be247529605b6bdf2b6886d324a45ab",
+  "drawing_revision": "A, 2024-07-30",
+  "dimensions_mm": {"length": [29.7, 30.3], "width": [2.8, 3.2], "height": [1.9, 2.1]},
+  "material": "Manufacturer drawing: red copper, matte tin finish; no numeric conductivity supplied.",
+  "mount": "flat_smt_reinforcement",
+  "catalog_current_a": null,
+  "standoff_min_mm": 0,
+  "unrelated_copper_underbody_permitted": false,
+  "provisional_land_mm": [31, 3.7],
+  "provisional_courtyard_mm": [31.5, 4.2],
+  "land_basis": "Agent engineering allocation beyond maximum body dimensions, NOT manufacturer recommended land or paste qualification.",
+  "assembly_process_qualified": false,
+  "footprint": "Sinhoo_CCS2030030TTJ_REINFORCEMENT_PROVISIONAL",
+  "inventory_snapshot_utc": "2026-11-06",
+  "inventory": {
+    "lcsc_category_url": "https://www.lcsc.com/category/2014.html?brand=13135",
+    "lcsc_category_stock": 865,
+    "lcsc_category_usd_at_5": 0.2608,
+    "jlc_china_url": "https://www.jlc-smt.com/lcsc/detail/C46634558.html",
+    "jlc_china_stock": 0,
+    "jlc_china_cny_at_1": 1.538,
+    "global_jlc_assembly_stock_confirmed": false,
+    "assembly_fees_included": false
+  }
+}

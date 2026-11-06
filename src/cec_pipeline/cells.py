@@ -18,9 +18,10 @@ from .legacy import bootstrap
 bootstrap()
 
 
-def normalize_poses(values):
+def normalize_poses(values, *, limit=8):
+    require(type(limit) is int and 1 <= limit <= 32, "bounded_pose_inventory_required")
     require(
-        type(values) is list and 1 <= len(values) <= 8,
+        type(values) is list and 1 <= len(values) <= limit,
         "bounded_explicit_cell_poses_required",
     )
     poses = {}

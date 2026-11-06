@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "XFCN T200030-20-R / C55380739",
+  "drawing_part_number": "T200030-20-R",
+  "drawing_url": "https://atta.szlcsc.com/upload/public/pdf/source/20260817/7901499E264CB461C1F9CC4DEB2E95EE.pdf",
+  "drawing_sha256": "f26bd5a4b8534233d14380f03e99137ba792984bb2a0aa5fd7b542d891b92a47",
+  "drawing_revision": "A1, 2026-07-04",
+  "dimensions_mm": {"length": [19.7, 20.3], "width": [2.8, 3.2], "height": [1.8, 2.2]},
+  "material": "Manufacturer drawing: T2(Y2) red copper, tin plated; no numeric conductivity or current rating supplied.",
+  "mount": "flat_smt_reinforcement",
+  "catalog_current_a": null,
+  "standoff_min_mm": 0,
+  "unrelated_copper_underbody_permitted": false,
+  "provisional_land_mm": [20.8, 3.7],
+  "provisional_courtyard_mm": [21.5, 4.2],
+  "land_basis": "Engineering allocation beyond maximum body dimensions, NOT manufacturer land/paste qualification. Default drawing tolerances apply: 6-30mm +/-0.3; 0-6mm +/-0.2.",
+  "assembly_process_qualified": false,
+  "footprint": "XFCN_T200030-20-R_REINFORCEMENT_PROVISIONAL",
+  "inventory_snapshot_utc": "2026-11-06",
+  "inventory": {
+    "jlc_china_url": "https://www.jlc-smt.com/lcsc/detail/C55380739.html",
+    "jlc_china_indexed_stock": 2000,
+    "jlc_china_indexed_cny_at_1": 1.366,
+    "jlc_china_indexed_cny_at_50": 1.071,
+    "direct_live_inventory_refresh_succeeded": false,
+    "global_jlc_assembly_stock_confirmed": false,
+    "assembly_fees_included": false
+  }
+}

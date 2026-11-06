@@ -85,9 +85,21 @@ def rating_screen(part, authority):
 
 def screen_native(board, part, candidate, *, net, clearance, mechanical_margin_nm, deadline):
     """Real lands/fills/holes, not track centerlines or a uniform stack gap."""
+    body,lands=placed_shapes(part,candidate)
+    result,data=screen_geometry(board,body,lands,candidate,net=net,clearance=clearance,
+        mechanical_margin_nm=mechanical_margin_nm,deadline=deadline)
+    result.update(nominal_height_mm=part['height_nm']/1e6,
+                  nominal_underside_mm=part['underside_nm']/1e6)
+    return result,data
+
+
+def screen_geometry(board, body, lands, candidate, *, net, clearance,
+                    mechanical_margin_nm, deadline):
+    """Shared rejection checks for supplied real land and body polygons."""
     from shapely.geometry import box, mapping
     pcbnew,quiet=_native()
-    body,lands=placed_shapes(part,candidate)
+    require(1<=len(lands)<=2 and all(s.is_valid and not s.is_empty for s in [body,*lands]),
+            'valid_bounded_conductor_polygons_required')
     face={'F.Cu':pcbnew.F_Cu,'B.Cu':pcbnew.B_Cu}[candidate['face']]
     require(type(mechanical_margin_nm) is int and 0<mechanical_margin_nm<=5_000_000,
             'explicit_positive_bounded_mechanical_margin_required')
@@ -101,7 +113,8 @@ def screen_native(board, part, candidate, *, net, clearance, mechanical_margin_n
                 for g in gaps.values()),'finite_bounded_source_land_clearance_required')
     gaps={n:g/1e6 for n,g in gaps.items()}
     hole_gap=max(0,board.GetDesignSettings().m_HoleClearance)/1e6
-    area=body.union(lands[0]).union(lands[1])
+    area=body
+    for land in lands:area=area.union(land)
     radius=max(margin,hole_gap,max(gaps.values(),default=0),2.0)
     left,top,right,bottom=area.bounds
     # A polygonized circular buffer is inscribed between arc vertices. Use
@@ -123,7 +136,7 @@ def screen_native(board, part, candidate, *, net, clearance, mechanical_margin_n
         row=dict(uuid=str(item.m_Uuid.AsString()),kind=item.GetClass(),net=str(item.GetNetname()))
         if item.GetClass()=='PAD':row.update(reference=item.GetParentFootprint().GetReference(),pin=item.GetNumber())
         return row
-    conflicts=[];contacts=[[],[]];holes=[];bodies=[];missing=[];copper=[];drills=[]
+    conflicts=[];contacts=[[] for _ in lands];holes=[];bodies=[];missing=[];copper=[];drills=[]
     def check_hole(item,protruding_lead):
         shape=polygon(item,True);gap=body.distance(shape);drills.append(shape)
         if protruding_lead and (gap<margin or body.intersects(shape)):
@@ -190,20 +203,19 @@ def screen_native(board, part, candidate, *, net, clearance, mechanical_margin_n
     edge=max(0,board.GetDesignSettings().m_CopperEdgeClearance)/1e6
     inside=substrate.covers(body) and all(substrate.buffer(-edge).covers(land) for land in lands)
     tick()
-    result=dict(id=candidate['id'],face=candidate['face'],ends_nm=candidate['ends_nm'],
+    result=dict(id=candidate['id'],face=candidate['face'],
                 land_conflicts=conflicts,same_net_land_contacts=contacts,
                 source_copper_touches_both_feet=all(contacts),
                 nearby_holes_or_leads=holes,same_face_body_reservations=bodies,unknown=missing,
                 body_and_lands_inside_board=inside,
                 land_clearance_screen_ok=not conflicts and not missing and inside,
                 nominal_mechanical_screen_ok=not holes and not bodies and not missing and inside,
-                nominal_height_mm=part['height_nm']/1e6,
-                nominal_underside_mm=part['underside_nm']/1e6,
                 mechanical_allocation_mm=margin,
                 scope='base/netclass land-clearance and nominal mechanical rejection screen',
                 custom_rule_DRC_run=False,lead_geometry_basis='native drill envelopes; solder unknown',
                 mechanical_fit_qualified=False,added_assembly_height_known=False,
                 current_connection_qualified=False,release_authority=False)
+    if 'ends_nm' in candidate:result['ends_nm']=candidate['ends_nm']
     data=dict(body=mapping(body),lands=[mapping(s) for s in lands],
               copper=[dict(shape=mapping(s.intersection(near)),**row) for s,row in copper],
               drills=[mapping(s) for s in drills],

@@ -1,0 +1,223 @@
+{
+  "schema": 1,
+  "carrier": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/atx-24pin-rev3/board.kicad_pcb",
+    "sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+    "poses": [
+      {
+        "reference": "J3",
+        "at_nm": [
+          60349999,
+          77400000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C7",
+        "at_nm": [
+          65000000,
+          69500000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C9",
+        "at_nm": [
+          10550000,
+          48000000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "R54",
+        "at_nm": [
+          12800000,
+          48625000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J6C",
+        "at_nm": [
+          67000000,
+          20159899
+        ],
+        "rotation_deg": 270
+      }
+    ]
+  },
+  "cover": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/hub-standard-rev2/board.kicad_pcb",
+    "sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+    "poses": [
+      {
+        "reference": "C37",
+        "at_nm": [
+          73500000,
+          49600000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "J_KVM",
+        "at_nm": [
+          60100000,
+          5750000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C_bulk1",
+        "at_nm": [
+          40500000,
+          53000000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "F5",
+        "at_nm": [
+          62300000,
+          10500000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "D7",
+        "at_nm": [
+          55000000,
+          10400000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "R28",
+        "at_nm": [
+          53900000,
+          12700000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C32",
+        "at_nm": [
+          45850000,
+          50300000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J2",
+        "at_nm": [
+          11710000,
+          7790000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J3",
+        "at_nm": [
+          11710000,
+          24690000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J4",
+        "at_nm": [
+          11710000,
+          41590000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J5",
+        "at_nm": [
+          11710000,
+          58490000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "J6C",
+        "at_nm": [
+          19000000,
+          10359899
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "F3",
+        "at_nm": [
+          18310000,
+          35600000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C19",
+        "at_nm": [
+          16882599,
+          31207299
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C20",
+        "at_nm": [
+          17328399,
+          46460800
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "R7",
+        "at_nm": [
+          16500000,
+          54000000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C21",
+        "at_nm": [
+          17046896,
+          58903300
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "R8",
+        "at_nm": [
+          16500000,
+          56500000
+        ],
+        "rotation_deg": 90
+      }
+    ]
+  },
+  "contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  },
+  "edge_ports": [
+    {
+      "side": "cover",
+      "reference": "J_KVM",
+      "footprint": "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal",
+      "pad_pair": [
+        "1",
+        "5"
+      ],
+      "exit_normal": "left",
+      "mouth_offset_nm": 6250000,
+      "mouth_width_nm": 11900000,
+      "allowed_edges": [
+        "top",
+        "right",
+        "bottom"
+      ],
+      "evidence": "JST PH side-entry drawing https://www.jst-mfg.com/product/pdf/eng/ePH.pdf; embedded native pad1-to-pad5 row. No mating-plug/wire/tool clearance qualification."
+    }
+  ]
+}
