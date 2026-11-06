@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-06T08:33:27Z",
+  "goal_status": "active",
+  "status": "second_divider_received_private_checkpoint_only",
+  "reviewed_selector": {
+    "path": "checkpoints/current.json",
+    "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+    "changed": false
+  },
+  "atx": {
+    "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+    "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+    "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/compact-receipt.json",
+    "opens": 0,
+    "native_drc_errors": 0,
+    "warnings": 94,
+    "parent_warnings": 92,
+    "trace_craft_before_after": [43, 43],
+    "current_fault_objects_before_after": [2, 2],
+    "connectivity_partition_count_before_after": [90, 90],
+    "non_ground_zone_count_preserved_exactly": 42,
+    "new_vias": 0,
+    "outline_unchanged": true,
+    "nominal_board_size_mm": [78.0, 87.5],
+    "new_xy_compaction_demonstrated_this_slice": false
+  },
+  "hub": {
+    "path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "changed_this_slice": false
+  },
+  "paired_stack": {
+    "contract": "beta/assembly/hub-atx-stack.json",
+    "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/paired-stack-screen.json",
+    "receipt_sha256": "8a41e705f66c1b5708ce47bc937317de40e8a18f2e2cbcb4c9a4a191bdcdc959",
+    "scope": "declared_body_contact_hardware_and_vent_screen_not_guaranteed_physical_fit",
+    "ok": true,
+    "body_checks": 391,
+    "minimum_reported_margin_mm": 0.3,
+    "assembled_z_qualified": false
+  },
+  "shared_fixes": [
+    {
+      "commit": "b6186c5c",
+      "purpose": "Source-owned monitor-divider supply role without reducing rail current authority",
+      "regression": "regression-monitor-priority-expanded-scout.xml",
+      "passed": 620
+    },
+    {
+      "commit": "a523c724",
+      "purpose": "Atomic route insertion and rejection of duplicate native identities across item kinds",
+      "regression": "regression-cell-atomic-expanded-final.xml",
+      "passed": 105
+    },
+    {
+      "commit": "6dcb8caa",
+      "purpose": "Literal source preservation during independent macro replay without normalizing the actual candidate",
+      "regressions": ["regression-macro-literal.xml", "regression-macro-replay-expanded-final.xml"],
+      "passed": [19, 114]
+    }
+  ],
+  "remaining": [
+    "Repack the third divider pair R59/R69 and FB2 while retaining source-owned rated connections.",
+    "Construct source-bound bus-bar schematic, joints and electrical transport; catalog current alone is not qualification.",
+    "Obtain indispensable bar and assembly tolerance, current/thermal and installed-cost evidence before claiming usable qualification.",
+    "Receive a genuinely smaller matched X/Y outline and unchanged complete assembled Z; nominal compaction alternatives have not passed.",
+    "Close inherited current-model debts and independently check the fully routed final candidate."
+  ],
+  "bar_installed": false,
+  "current_qualified": false,
+  "fab_ready": false,
+  "release_authority": false
+}

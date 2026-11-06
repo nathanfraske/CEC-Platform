@@ -1,0 +1,23 @@
+{
+  "kind": "place_cell",
+  "native_macro": true,
+  "poses": [
+    {"reference": "R57", "at_nm": [28600000, 58700000], "rotation_deg": 180},
+    {"reference": "R58", "at_nm": [28600000, 59800000], "rotation_deg": 180}
+  ],
+  "routes": [],
+  "vias": [],
+  "allow_locked_footprint_uuids": [],
+  "allow_locked_track_uuids": [
+    "622cc4fd-7c18-4412-817c-8c6245ac9868",
+    "696584d9-e143-4658-b00a-9e5625fc3b27",
+    "cf5a91b2-78b3-482b-baca-67567f8b16a7",
+    "f2fa3f85-645c-4cc2-8391-142d5a3e8555"
+  ],
+  "allow_locked_transport_uuids": [
+    "6185c50e-8d5b-4cd7-a683-9befa38fce39",
+    "6caa8386-5465-43ac-98a5-f18154ca838d",
+    "73f6f3bc-f537-4a51-b0ee-8a680570afdd"
+  ],
+  "reference_group_uuids": []
+}

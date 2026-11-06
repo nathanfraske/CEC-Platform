@@ -8,7 +8,7 @@ import cec_current_debt as current,cec_native_drc_runner as drc
 import cec_additive_route_receiving as syntax
 import cec_native_partition_pair as partitions,cec_cell_macro_requests as compiler
 import cec_complete_cell_receiving as cell
-ap=argparse.ArgumentParser();ap.add_argument('folder');args=ap.parse_args();R=Path(args.folder).resolve();B=R/'board.kicad_pcb';plan=json.loads((R/'route-plan.json').read_text());S=Path(plan['source']);op=plan['operation'];record=json.loads((R/'construction.json').read_text())['changes'][0];out={}
+ap=argparse.ArgumentParser();ap.add_argument('folder');args=ap.parse_args();R=Path(args.folder).resolve();plan=json.loads((R/'route-plan.json').read_text());B=Path(plan.get('candidate',str(R/'board.kicad_pcb')));S=Path(plan['source']);op=plan['operation'];record=json.loads((R/'construction.json').read_text())['changes'][0];out={}
 def save(name,call):
  try:out[name]=call()
  except Exception as e:out[name]={'ok':False,'error':str(e)}
