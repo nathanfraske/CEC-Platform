@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "observed_at": "2026-11-06T04:53:03-06:00",
+  "status": "primary-source dimensional and catalog screen only; not application qualified",
+  "scope": "Three low-profile solid-metal zero-ohm jumper families; no CAD, BOM, schematic or manufacturing changes",
+  "requirements": {
+    "operating_current_A": 12,
+    "routing_margin": 1.25,
+    "screen_current_A": 15,
+    "foreign_bus_width_mm": 3.230592,
+    "clearance_each_side_mm": 0.2,
+    "minimum_land_clear_span_mm": 3.630592,
+    "installed_height_limit_mm": 2,
+    "installed_height_verified": false
+  },
+  "existing_hardware_reference": {
+    "mpn": "SSCF-M2-5-A2",
+    "manufacturer": "Accu",
+    "url": "https://www.accu.co.uk/metric-cap-head-screws/3791-SSCF-M2-5-A2",
+    "head_height_nominal_mm": 2,
+    "head_height_tolerance_mm": {"plus": 0, "minus": 0.14},
+    "head_height_range_mm": [1.86, 2.0],
+    "qualification_boundary": "Part-head dimension only, not a complete assembled-stack height guarantee; existing MPN identity supplied by root stack-contract review"
+  },
+  "candidates": [
+    {
+      "manufacturer": "Vishay Dale",
+      "mpn": "WSL251200000ZEA9",
+      "manufacturer_url": "https://www.vishay.com/en/product/30192/",
+      "drawing_url": "https://www.vishay.com/docs/30192/wsl-9.pdf",
+      "drawing_revision": "24-Aug-2026, document 30192, pages 1-2 visually inspected",
+      "material": "Solid copper strip, solderable terminations, high-temperature coating",
+      "dimensions_mm": {
+        "length": {"nominal": 6.35, "tolerance": 0.254},
+        "width": {"nominal": 3.18, "tolerance": 0.254},
+        "body_height": {"nominal": 0.635, "tolerance": 0.254, "maximum": 0.889},
+        "end_termination_length": {"nominal": 0.762, "tolerance": 0.254},
+        "recommended_pad_length": 1.65,
+        "recommended_pad_width": 3.68,
+        "recommended_inner_land_gap": 4.06
+      },
+      "catalog_electrical": {
+        "current_A": 200,
+        "power_at_70C_W": 8,
+        "resistance_max_ohm": 0.0002,
+        "nominal_TCR_ppm_per_K": 3900,
+        "qualification_boundary": "Manufacturer catalog rating and derating, not this PCB, solder-joint, crossing-insulation or thermal qualification"
+      },
+      "inferences": {
+        "body_height_head_minimum_delta_mm": 0.971,
+        "delta_formula": "1.86 - 0.889; part body only, not installed height or guaranteed solder/process allowance",
+        "worst_dimension_end_metal_gap_mm": 4.064,
+        "metal_gap_formula": "(6.35-0.254)-2*(0.762+0.254); geometric inference, not underside dielectric permission",
+        "reference_loss_at_15A_W": 0.045,
+        "loss_boundary": "15^2 * 0.0002 at stated resistance reference; temperature dependence and complete-path thermal behavior remain unqualified"
+      },
+      "procurement": {
+        "url": "https://www.digikey.com/en/products/detail/vishay-dale/WSL251200000ZEA9/7423221",
+        "observed_date": "2026-11-06",
+        "source_freshness": "Primary distributor page reported crawled today",
+        "in_stock_quantity": 0,
+        "expected_quantity": 2000,
+        "expected_stock_date": "2027-03-15",
+        "manufacturer_standard_lead_weeks": 53,
+        "currency": "USD",
+        "displayed_cut_tape_unit_prices": [{"quantity": 1, "unit_price": 1.81}, {"quantity": 100, "unit_price": 0.8342}],
+        "displayed_reel_unit_price": {"quantity": 2000, "unit_price": 0.53181},
+        "price_exclusions": "Shipping, tax, tariff, optional Digi-Reel fee and assembly",
+        "lcsc_jlc_exact_mpn_verified": false,
+        "mouser_stock_claim_used": false
+      },
+      "screen_result": "Best dimensional shortlist, not an authorized cross-under bridge",
+      "unknowns": ["Guaranteed installed height including solder and board/process variation", "Underside coating coverage, thickness and dielectric withstand", "Minimum underside clearance or manufacturer authorization for unrelated copper underneath", "Board lands, joints and complete-path temperature qualification", "Immediate stocked low-quantity global supply and native JLC assembly availability/fee"]
+    },
+    {
+      "manufacturer": "Bourns",
+      "mpn": "CSS2H-3920C-000",
+      "drawing_url": "https://www.bourns.com/docs/product-datasheets/css2h-3920.pdf",
+      "source_pages": "Electrical table page 1; dimensional and recommended-land drawing page 2 visually inspected",
+      "material": "Tinned copper; C-000 is the exact zero-ohm variant, not the R/K resistive-alloy variants",
+      "dimensions_mm": {
+        "length": {"nominal": 10, "tolerance": 0.3},
+        "width": {"nominal": 5.2, "tolerance": 0.3},
+        "body_height_maximum": 0.93,
+        "drawing_Y_maximum": 0.43,
+        "recommended_inner_land_gap": 6.2,
+        "recommended_pad_length": 2.7,
+        "recommended_pad_width": 6.2
+      },
+      "catalog_electrical": {"current_A": 160, "rating_temperature_C": 70, "temperature_is": "terminal temperature, not ambient", "resistance_ohm_less_than": 0.0002},
+      "procurement": {
+        "url": "https://www.digikey.com/en/products/detail/bourns-inc/CSS2H-3920C-000/27507456",
+        "retrieved_date": "2026-11-06",
+        "source_freshness": "Distributor result reported crawled two months ago; not fresh inventory confirmation",
+        "displayed_stock_quantity": 0,
+        "displayed_minimum_quantity": 6000,
+        "displayed_unit_price_USD": 0.67658,
+        "displayed_lead_weeks": 10,
+        "small_quantity_availability_verified": false,
+        "lcsc_jlc_exact_mpn_verified": false
+      },
+      "screen_result": "Dimensional shortlist only; broad lands and unproved underside limit usefulness",
+      "unknowns": ["Minimum underside standoff: a maximum Y dimension is not a minimum clearance guarantee", "Public permission or dielectric isolation for foreign-net copper below conductive body", "Guaranteed installed height", "Application current, joints, lands and thermal qualification", "Fresh small-quantity inventory and JLC assembly availability/fee"]
+    }
+  ],
+  "bounded_exclusions": [
+    {
+      "manufacturer": "Bourns",
+      "mpn": "CSS2H-2512C-000",
+      "drawing_url": "https://www.bourns.com/docs/product-datasheets/css2h-2512.pdf",
+      "catalog_current_A_at_70C_terminal": 100,
+      "body_height_max_mm": 0.78,
+      "recommended_land_gap_mm": 3.4,
+      "reason": "Recommended land gap is less than 3.630592 mm; no custom undersized-land qualification assumed",
+      "jlc_url": "https://jlcpcb.com/partdetail/BOURNS-CSS2H_2512C000/C6158347",
+      "jlc_observation": "Exact MPN listing confirmed; indexed two-week-old snapshot showed zero stock, pre-order minimum 8, estimated USD1.2783 each; not fresh inventory or assembly-fee confirmation"
+    },
+    {
+      "manufacturer": "KOA Speer",
+      "mpn": "TLRZ2BTTD",
+      "manufacturer_url": "https://www.koaspeer.com/products/resistors/current-sense-shunt-resistors-low-resistance/metal-plate/tlrz/",
+      "catalog_url": "https://www.koaspeer.com/pdfs/KOA_2026FullCatalog_Linked.pdf",
+      "rating_url": "https://www.koaspeer.com/pdfs/CurrentSenseSalesSheet8_5_25.pdf",
+      "body_length_mm": {"nominal": 3.2, "tolerance": 0.1, "maximum": 3.3},
+      "body_height_mm": {"nominal": 0.5, "tolerance": 0.05},
+      "catalog_current_A": 50,
+      "rating_terminal_temperature_max_C": 105,
+      "reason": "Even entire maximum body length is shorter than required 3.630592 mm bridge span",
+      "lcsc_identity_url": "https://www.lcsc.com/product-detail/C2479239.html",
+      "procurement_boundary": "Exact listing identity observed; no fresh inventory/price assertion needed for geometrically excluded part"
+    },
+    {"family": "Vishay WSL3637", "reason": "The investigated example is a four-terminal finite-resistance current-sense resistor, not an established zero-ohm jumper; not substituted for WSL2512...9"}
+  ],
+  "global_boundaries": [
+    "Two independent series crossings each carry full path current; no parallel-sharing assumption",
+    "Zero ohm means finite bounded resistance, not zero heat",
+    "Coating or solder mask is not assumed qualified underbody insulation",
+    "No proposed topology, native routing, complete Z-height, current path, solder-joint or production qualification is claimed",
+    "No new family beyond these three was searched; MJP catalog assets remain distinct and unchanged"
+  ]
+}

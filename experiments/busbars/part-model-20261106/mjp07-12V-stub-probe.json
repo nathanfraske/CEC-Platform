@@ -1,0 +1,162 @@
+{
+  "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+  "target_net": "/SENSE12V_HI",
+  "amps": 12,
+  "geometry_margin": 1.25,
+  "rows": [
+    {
+      "name": "lowerFCu",
+      "a_nm": [
+        18349999,
+        77400000
+      ],
+      "z_nm": [
+        30900000,
+        63620000
+      ],
+      "width_nm": 3230592,
+      "endpoint_foreign_clearance_hits": [
+        {
+          "uuid": "3d9e192f-ecfa-4f5f-ac8e-0f3fc89962fd",
+          "net": "+5VSB",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "85ae8117-7b4d-4cbd-8efb-a4bea608196b",
+          "net": "+5VSB",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "19d0903e-7bf1-406d-91da-a5c6214f29c0",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "fabea14e-e4c5-4a4c-9e20-77b29d629498",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "e03dcf3e-5e17-4318-99b8-fff84d1d3a96",
+          "net": "+5V_SYS",
+          "kind": "PCB_VIA"
+        },
+        {
+          "uuid": "a55456cd-d2fc-548b-a325-3290023e4bdc",
+          "net": "+5V_MAIN",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "59a281cf-6e17-48fe-9543-82aa870150f5",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "1821561c-8f57-56d4-9465-25d14fef9d87",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "18bf3d14-8f40-5b96-91a6-af50691ac4ac",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "4efc0c21-74da-5581-b2db-5685289fa51f",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "7a7a1833-daed-50b0-aadc-c3805f9bcd9e",
+          "net": "+5V_SYS",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "86219d13-5009-5f07-9f07-115efa3a01e2",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "4bab6549-7e66-59e6-8ce4-de607cc8c466",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PCB_VIA"
+        },
+        {
+          "uuid": "548a7832-7c7c-5b36-86ac-082bbc31a062",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PCB_VIA"
+        },
+        {
+          "uuid": "bac505b9-2680-4f09-b6a8-ba5069f86aa1",
+          "net": "+5V_MAIN",
+          "kind": "PAD"
+        },
+        {
+          "uuid": "d615c225-5499-4a9e-bfa0-72c5c837120f",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PAD"
+        },
+        {
+          "uuid": "d4151e77-d142-4306-a65d-35d3ab7e2d63",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "kind": "PAD"
+        },
+        {
+          "uuid": "7d4a8997-bcf8-4b5d-817b-e1e4cd32ee9e",
+          "net": "+5V_SYS",
+          "kind": "PAD"
+        },
+        {
+          "uuid": "e75d07fe-33a0-4660-af37-459ba51d5b4f",
+          "net": "GND",
+          "kind": "PAD"
+        },
+        {
+          "uuid": "fe8e3b00-f1fa-4066-936d-0da576c599fc",
+          "net": "+5V_SYS",
+          "kind": "PAD"
+        }
+      ],
+      "guarded_route_found": false,
+      "elapsed_s": 0.12590186400484527
+    },
+    {
+      "name": "upperFCu",
+      "a_nm": [
+        18600000,
+        36000000
+      ],
+      "z_nm": [
+        30900000,
+        45840000
+      ],
+      "width_nm": 3230592,
+      "endpoint_foreign_clearance_hits": [
+        {
+          "uuid": "521e34c1-06a8-4eb4-9d65-464d5aac296d",
+          "net": "+3V3",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "9beb811f-7aeb-5da9-9820-69a84624714d",
+          "net": "+3V3",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+          "net": "+3V3",
+          "kind": "PCB_TRACK"
+        },
+        {
+          "uuid": "cdab927e-f90b-408b-9b29-1a83ee0e6510",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "kind": "PCB_TRACK"
+        }
+      ],
+      "guarded_route_found": false,
+      "elapsed_s": 0.10654938300285721
+    }
+  ],
+  "source_board_mutated": false,
+  "admitted": false
+}

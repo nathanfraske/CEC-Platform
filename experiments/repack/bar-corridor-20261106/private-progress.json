@@ -1,23 +1,23 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T10:10:00Z",
+  "recorded_at_utc": "2026-11-06T11:04:50Z",
   "goal_status": "active",
-  "status": "private_corrective_bypass_routed_and_received_shorter_bar_construction_pending",
-  "latest_slice": "experiments/repack/bar-corridor-20261106/corrective-bypass-slice-closeout.json",
-  "next_geometry_diagnosis": "experiments/repack/bar-corridor-20261106/c53-next-slice-diagnosis.json",
+  "status": "private_vbus_shortcut_received_bar_upper_feed_and_physical_qualification_pending",
+  "latest_slice": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
+  "next_geometry_diagnosis": "experiments/busbars/part-model-20261106/endpoint-first-20261106/feed-probe.json",
   "reviewed_selector": {
     "path": "checkpoints/current.json",
     "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
     "changed": false
   },
   "atx": {
-    "path": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
-    "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
-    "receipt": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/receiving-v1.json",
+    "path": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+    "sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+    "receipt": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
     "last_routed_parent": {
-      "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
-      "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
-      "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/compact-receipt.json"
+      "path": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+      "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+      "receipt": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/receiving-v1.json"
     },
     "consistency_changes": {
       "mount_library_satellite_pads_normalized": 8,
@@ -36,8 +36,11 @@
     "current_fault_objects_before_after": [2, 2],
     "connectivity_partition_count_before_after": [90, 90],
     "non_ground_zone_count_preserved_exactly": 42,
-    "new_vias_this_operation": 1,
-    "retired_exclusive_vias_this_operation": 1,
+    "new_vias_this_operation": 0,
+    "retired_exclusive_vias_this_operation": 0,
+    "vbus_route_length_before_after_mm": [16.236753236814714, 7.8384776310850235],
+    "vbus_route_length_decrease_percent": 51.72386057261558,
+    "receiver_regressions_passed_this_slice": 247,
     "outline_unchanged": true,
     "nominal_board_size_mm": [78.0, 87.5],
     "new_xy_compaction_demonstrated_this_slice": false
@@ -50,8 +53,8 @@
   "paired_stack": {
     "contract": "beta/assembly/hub-atx-stack.json",
     "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
-    "receipt": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/receiving-v1.json",
-    "receipt_sha256": "713f15579f54fa84f9ba8379d4cecea33677a8c9ca28aa10c248e944a84f567e",
+    "receipt": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
+    "receipt_sha256": "939b002baea197537fba8f24608a3e430650cf638527b1997a5519357eac503a",
     "scope": "declared_body_contact_hardware_and_vent_screen_not_guaranteed_physical_fit",
     "ok": true,
     "body_checks": 391,
@@ -79,7 +82,9 @@
     }
   ],
   "remaining": [
-    "Prefer the shorter front MJP-0.7 trial to the longer MJP-1.0 corridor; nominal screening avoids third-divider/FB2 moves, but no bar is installed.",
+    "The shorter front MJP-0.7 nominal pocket failed full-width endpoint access. Endpoint-first screening found a right-front MJP-1.0 position at (71,69.3), with a lower feed but no upper full-current feed. No bar is installed; do not spend more waves on the failed nominal pocket.",
+    "The VBUS shortcut frees the upper right-front landing while cutting 51.72 percent of that source chain length. It is independently received, with unchanged 0 errors, 0 opens, 94 warnings and all 16 physical Kelvin leg observations preserved.",
+    "Low-profile Vishay WSL251200000ZEA9 and Bourns CSS2H-3920C-000 are only dimensional shortlist candidates; underside dielectric/standoff, installed height, real stock and assembly cost remain unqualified. No crossing underneath is authorized from coating language alone.",
     "C9's missing U6 IN2 bypass is now repaired and routed at (11,48,270), with a wholly contained same-process Ground via. Preserve its independent receiving while moving later cells.",
     "Resolve a truly feasible C53 pocket or a different bar corridor first: 100 coarse/targeted trials and 46 lower-left trials found no native-clear local pocket. Lower-left pads hit C37's actual vent polygon. The remote proposed pocket exceeds existing locality. Do not implement unused relocation adapters or bypass these guards.",
     "C27's clearance move lengthened its Ground return from 0 to 0.605002 mm, within the original 0.8 mm bound. Do not claim whole-chain PI improvement; shorten it later if an equally safe pocket exists.",

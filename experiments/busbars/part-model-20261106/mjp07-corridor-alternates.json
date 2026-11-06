@@ -1,0 +1,1917 @@
+{
+  "schema": 1,
+  "scope": "FINITE_READ_ONLY_12V_CORRIDOR_SCOUT_NOT_SYS_PORT_REASSIGNMENT",
+  "target_native_net": "/SENSE12V_HI",
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+      "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "nominal_part_definition": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp07-source-fixture/CEC_MJP07_Prototype.pretty/Mac8_MJP_0p7_NOMINAL_PROTOTYPE.kicad_mod",
+    "sha256": "b079cb01e1d3b7ac8078db4483e24f056613bc227b2b60a2f652d5756c6fedb8"
+  },
+  "poses": [
+    {
+      "pose_mm": [
+        23.2,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        21.955,
+        44.595,
+        24.445,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        22.3,
+        45.14,
+        24.099999999999998,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C25",
+          "uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "courtyard_overlap_mm2": 1.483199999999994,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.5681249999999922,
+          "source_courtyard_mm": [
+            23.725,
+            62.805,
+            25.675,
+            66.195
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 4.212021449999992,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 3.509999999999987,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            23.2,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "2d967a6d-3110-4c0a-b465-20728fcd7872",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            },
+            {
+              "uuid": "74a75a06-a200-478d-8ecb-d451935b453b",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            },
+            {
+              "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+              "net": "GND",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            23.2,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.038523,
+                60.030626
+              ]
+            },
+            {
+              "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                19.8,
+                44.4
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        22.0,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        20.755,
+        44.595,
+        23.245,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        21.1,
+        45.14,
+        22.9,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C55",
+          "uuid": "021b766f-0649-48ed-8508-36831e5e95ca",
+          "courtyard_overlap_mm2": 0.7605000000000022,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.08774999999999653,
+          "source_courtyard_mm": [
+            17.755,
+            47.025,
+            21.145,
+            48.975
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 1.8720214499999988,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.1992714499999957,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            22.0,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "2d967a6d-3110-4c0a-b465-20728fcd7872",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            },
+            {
+              "uuid": "74a75a06-a200-478d-8ecb-d451935b453b",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            22.0,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "f24778c4-cb5f-402a-8e40-a8125b10d4ea",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                21.0,
+                46.5
+              ]
+            },
+            {
+              "uuid": "fc438acf-f774-4fbe-8325-c3ff300f7951",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                18.5,
+                46.5
+              ]
+            },
+            {
+              "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                19.8,
+                44.4
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 6.944651638484277,
+          "nominal_body_area_mm2": 4.077030378447357
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        24.2,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        22.955,
+        44.595,
+        25.445,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        23.3,
+        45.14,
+        25.099999999999998,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C25",
+          "uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "courtyard_overlap_mm2": 3.5431999999999895,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 2.0831249999999857,
+          "source_courtyard_mm": [
+            23.725,
+            62.805,
+            25.675,
+            66.195
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 4.855499999999993,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 3.509999999999987,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            24.2,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "befb7703-8bb0-4cc2-ab0d-f62d774f3d51",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            },
+            {
+              "uuid": "2d967a6d-3110-4c0a-b465-20728fcd7872",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            },
+            {
+              "uuid": "b271adc1-72c2-4459-9a7b-a16c7c662979",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                60.0
+              ]
+            },
+            {
+              "uuid": "74a75a06-a200-478d-8ecb-d451935b453b",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                64.5
+              ]
+            },
+            {
+              "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+              "net": "GND",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            24.2,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.038523,
+                60.030626
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        25.5,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        24.255,
+        44.595,
+        26.745,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        24.6,
+        45.14,
+        26.4,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C25",
+          "uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "courtyard_overlap_mm2": 2.9251999999999967,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.628624999999992,
+          "source_courtyard_mm": [
+            23.725,
+            62.805,
+            25.675,
+            66.195
+          ]
+        },
+        {
+          "ref": "C21",
+          "uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "courtyard_overlap_mm2": 3.118833900000005,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.9492838999999966,
+          "source_courtyard_mm": [
+            25.82499,
+            51.855002,
+            27.77499,
+            55.245002
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 2.768978549999996,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 2.0962285499999926,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        },
+        {
+          "ref": "C52",
+          "uuid": "c5c87ea1-e77c-4fd5-9f42-ef21535d0fdd",
+          "courtyard_overlap_mm2": 1.6471000000000022,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.5893610000000018,
+          "source_courtyard_mm": [
+            25.5219,
+            59.358201,
+            26.4319,
+            61.168201
+          ]
+        },
+        {
+          "ref": "R55",
+          "uuid": "e48edaaa-faec-4a7f-88e1-fac626caac05",
+          "courtyard_overlap_mm2": 0.018500000000002906,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.0,
+          "source_courtyard_mm": [
+            26.735,
+            55.775,
+            27.665,
+            57.625
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            25.5,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "befb7703-8bb0-4cc2-ab0d-f62d774f3d51",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            },
+            {
+              "uuid": "1ba6567c-bf98-43c7-b0e1-2f9afadfb835",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.0,
+                63.0
+              ]
+            },
+            {
+              "uuid": "85ae8117-7b4d-4cbd-8efb-a4bea608196b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "b271adc1-72c2-4459-9a7b-a16c7c662979",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                60.0
+              ]
+            },
+            {
+              "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+              "net": "GND",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            25.5,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "f8254114-f9e4-4898-971b-d39f4afa2e98",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                25.7213,
+                43.8126
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        27.0,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        25.755,
+        44.595,
+        28.245,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        26.1,
+        45.14,
+        27.9,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "R58",
+          "uuid": "621a30b4-dc9b-4a7d-b845-b6af5cb10d98",
+          "courtyard_overlap_mm2": 0.5301000000000001,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.20924999999999797,
+          "source_courtyard_mm": [
+            27.675,
+            59.335,
+            29.525,
+            60.265
+          ]
+        },
+        {
+          "ref": "R69",
+          "uuid": "74b57347-9a76-44ce-baed-f858453958f0",
+          "courtyard_overlap_mm2": 0.4371000000000021,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.08562512499999908,
+          "source_courtyard_mm": [
+            27.775,
+            63.634999,
+            29.625,
+            64.564999
+          ]
+        },
+        {
+          "ref": "C21",
+          "uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "courtyard_overlap_mm2": 6.610499999999998,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 5.678216099999992,
+          "source_courtyard_mm": [
+            25.82499,
+            51.855002,
+            27.77499,
+            55.245002
+          ]
+        },
+        {
+          "ref": "C52",
+          "uuid": "c5c87ea1-e77c-4fd5-9f42-ef21535d0fdd",
+          "courtyard_overlap_mm2": 1.2251890000000012,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.6007389999999961,
+          "source_courtyard_mm": [
+            25.5219,
+            59.358201,
+            26.4319,
+            61.168201
+          ]
+        },
+        {
+          "ref": "R57",
+          "uuid": "d0181fa5-a6a8-4522-8a04-3a73f08a4dfd",
+          "courtyard_overlap_mm2": 0.5301000000000001,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.20924999999999797,
+          "source_courtyard_mm": [
+            27.675,
+            58.235,
+            29.525,
+            59.165
+          ]
+        },
+        {
+          "ref": "FB2",
+          "uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "courtyard_overlap_mm2": 1.2869999999999975,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.6142499999999942,
+          "source_courtyard_mm": [
+            27.585,
+            60.440001,
+            30.975,
+            62.390001
+          ]
+        },
+        {
+          "ref": "R55",
+          "uuid": "e48edaaa-faec-4a7f-88e1-fac626caac05",
+          "courtyard_overlap_mm2": 1.7205000000000008,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.7205000000000008,
+          "source_courtyard_mm": [
+            26.735,
+            55.775,
+            27.665,
+            57.625
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            27.0,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "6904b22d-caf6-47b1-9c06-6f1a49dbf222",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                28.19,
+                64.1
+              ]
+            },
+            {
+              "uuid": "1ba6567c-bf98-43c7-b0e1-2f9afadfb835",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.0,
+                63.0
+              ]
+            },
+            {
+              "uuid": "85ae8117-7b4d-4cbd-8efb-a4bea608196b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "b271adc1-72c2-4459-9a7b-a16c7c662979",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                23.0,
+                60.0
+              ]
+            },
+            {
+              "uuid": "06ecf84d-31f4-4c19-b148-8b2fd0c70628",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                28.1,
+                63.0
+              ]
+            },
+            {
+              "uuid": "d9206c40-b3f1-4c5c-84e4-b46ec7d671ac",
+              "net": "GND",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                28.19,
+                64.099999
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            27.0,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "f8254114-f9e4-4898-971b-d39f4afa2e98",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                25.7213,
+                43.8126
+              ]
+            },
+            {
+              "uuid": "cdab927e-f90b-408b-9b29-1a83ee0e6510",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.2,
+                42.8
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        30.9,
+        54.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.655,
+        44.595,
+        32.145,
+        64.865
+      ],
+      "nominal_body_XY_mm": [
+        30.0,
+        45.14,
+        31.799999999999997,
+        64.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "FB2",
+          "uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "courtyard_overlap_mm2": 2.573999999999995,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.9012499999999986,
+          "source_courtyard_mm": [
+            27.585,
+            60.440001,
+            30.975,
+            62.390001
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.9,
+            63.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "3d9e192f-ecfa-4f5f-ac8e-0f3fc89962fd",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "85ae8117-7b4d-4cbd-8efb-a4bea608196b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "fabea14e-e4c5-4a4c-9e20-77b29d629498",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                65.4916
+              ]
+            },
+            {
+              "uuid": "1821561c-8f57-56d4-9465-25d14fef9d87",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                64.4506
+              ]
+            },
+            {
+              "uuid": "4efc0c21-74da-5581-b2db-5685289fa51f",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0,
+                63.9
+              ]
+            },
+            {
+              "uuid": "7a7a1833-daed-50b0-aadc-c3805f9bcd9e",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.45,
+                63.9
+              ]
+            },
+            {
+              "uuid": "86219d13-5009-5f07-9f07-115efa3a01e2",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.67,
+                65.23
+              ]
+            },
+            {
+              "uuid": "548a7832-7c7c-5b36-86ac-082bbc31a062",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.3,
+                64.6
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.9,
+            45.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "521e34c1-06a8-4eb4-9d65-464d5aac296d",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0275,
+                43.1
+              ]
+            },
+            {
+              "uuid": "9beb811f-7aeb-5da9-9820-69a84624714d",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                46.155
+              ]
+            },
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                46.155
+              ]
+            },
+            {
+              "uuid": "cdab927e-f90b-408b-9b29-1a83ee0e6510",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.2,
+                42.8
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        30.9,
+        53.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.655,
+        43.595,
+        32.145,
+        63.865
+      ],
+      "nominal_body_XY_mm": [
+        30.0,
+        44.14,
+        31.799999999999997,
+        63.31999999999999
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "FB2",
+          "uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "courtyard_overlap_mm2": 2.573999999999995,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.9012499999999986,
+          "source_courtyard_mm": [
+            27.585,
+            60.440001,
+            30.975,
+            62.390001
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.9,
+            62.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "3d9e192f-ecfa-4f5f-ac8e-0f3fc89962fd",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "85ae8117-7b4d-4cbd-8efb-a4bea608196b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.5,
+                63.0
+              ]
+            },
+            {
+              "uuid": "19d0903e-7bf1-406d-91da-a5c6214f29c0",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.23,
+                61.897316
+              ]
+            },
+            {
+              "uuid": "e03dcf3e-5e17-4318-99b8-fff84d1d3a96",
+              "net": "+5V_SYS",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.23,
+                61.747316
+              ]
+            },
+            {
+              "uuid": "1821561c-8f57-56d4-9465-25d14fef9d87",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                64.4506
+              ]
+            },
+            {
+              "uuid": "4efc0c21-74da-5581-b2db-5685289fa51f",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0,
+                63.9
+              ]
+            },
+            {
+              "uuid": "7a7a1833-daed-50b0-aadc-c3805f9bcd9e",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.45,
+                63.9
+              ]
+            },
+            {
+              "uuid": "fe8e3b00-f1fa-4066-936d-0da576c599fc",
+              "net": "+5V_SYS",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.23,
+                61.415001
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.9,
+            44.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "521e34c1-06a8-4eb4-9d65-464d5aac296d",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0275,
+                43.1
+              ]
+            },
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                46.155
+              ]
+            },
+            {
+              "uuid": "71cabda9-16b7-4214-b813-820682d4f286",
+              "net": "/I2C_SCL",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.395,
+                43.7375
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        30.9,
+        55.73,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.655,
+        45.595,
+        32.145,
+        65.865
+      ],
+      "nominal_body_XY_mm": [
+        30.0,
+        46.14,
+        31.799999999999997,
+        65.32
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "R59",
+          "uuid": "3dae1719-7f28-4b2d-8b8e-d74f60c00a1d",
+          "courtyard_overlap_mm2": 1.7204999999999844,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.5948249999999853,
+          "source_courtyard_mm": [
+            30.255,
+            64.935,
+            32.105,
+            65.865
+          ]
+        },
+        {
+          "ref": "FB2",
+          "uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "courtyard_overlap_mm2": 2.573999999999995,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 1.9012499999999986,
+          "source_courtyard_mm": [
+            27.585,
+            60.440001,
+            30.975,
+            62.390001
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.9,
+            64.62
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "fabea14e-e4c5-4a4c-9e20-77b29d629498",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                65.4916
+              ]
+            },
+            {
+              "uuid": "b728866f-c429-491d-9097-01d2bb43cdde",
+              "net": "+5V_SYS",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                65.4916
+              ]
+            },
+            {
+              "uuid": "a55456cd-d2fc-548b-a325-3290023e4bdc",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.69,
+                65.4
+              ]
+            },
+            {
+              "uuid": "2b938cba-5b3d-4866-bee1-15ba266cb16d",
+              "net": "+5V_MAIN",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0,
+                65.8
+              ]
+            },
+            {
+              "uuid": "59a281cf-6e17-48fe-9543-82aa870150f5",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.67,
+                65.4
+              ]
+            },
+            {
+              "uuid": "1821561c-8f57-56d4-9465-25d14fef9d87",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                29.8994,
+                64.4506
+              ]
+            },
+            {
+              "uuid": "4efc0c21-74da-5581-b2db-5685289fa51f",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0,
+                63.9
+              ]
+            },
+            {
+              "uuid": "7a7a1833-daed-50b0-aadc-c3805f9bcd9e",
+              "net": "+5V_SYS",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.45,
+                63.9
+              ]
+            },
+            {
+              "uuid": "86219d13-5009-5f07-9f07-115efa3a01e2",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.67,
+                65.23
+              ]
+            },
+            {
+              "uuid": "fd95c6e3-959f-5cdf-8fd4-a9befb7f6c43",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0,
+                65.71
+              ]
+            },
+            {
+              "uuid": "548a7832-7c7c-5b36-86ac-082bbc31a062",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.3,
+                64.6
+              ]
+            },
+            {
+              "uuid": "bac505b9-2680-4f09-b6a8-ba5069f86aa1",
+              "net": "+5V_MAIN",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.69,
+                65.4
+              ]
+            },
+            {
+              "uuid": "d615c225-5499-4a9e-bfa0-72c5c837120f",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "kind": "PAD",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.67,
+                65.4
+              ]
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.9,
+            46.84
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "521e34c1-06a8-4eb4-9d65-464d5aac296d",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.0275,
+                43.1
+              ]
+            },
+            {
+              "uuid": "8da4f809-38a6-50b8-8207-385a6abffe93",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                47.555
+              ]
+            },
+            {
+              "uuid": "9beb811f-7aeb-5da9-9820-69a84624714d",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                46.155
+              ]
+            },
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.055,
+                46.155
+              ]
+            },
+            {
+              "uuid": "cdab927e-f90b-408b-9b29-1a83ee0e6510",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                26.2,
+                42.8
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        23.2,
+        54.73,
+        0
+      ],
+      "native_courtyard_mm": [
+        13.065,
+        53.485,
+        33.335,
+        55.975
+      ],
+      "nominal_body_XY_mm": [
+        13.61,
+        53.83,
+        32.79,
+        55.629999999999995
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C21",
+          "uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "courtyard_overlap_mm2": 3.432003899999999,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 2.7592539000000014,
+          "source_courtyard_mm": [
+            25.82499,
+            51.855002,
+            27.77499,
+            55.245002
+          ]
+        },
+        {
+          "ref": "R56",
+          "uuid": "b45c902f-366c-4b85-af5b-ddc66e53de4e",
+          "courtyard_overlap_mm2": 0.18600000000000258,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.0,
+          "source_courtyard_mm": [
+            28.635,
+            55.775,
+            29.565,
+            57.625
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 5.593499999999996,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 4.423949999999976,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        },
+        {
+          "ref": "R55",
+          "uuid": "e48edaaa-faec-4a7f-88e1-fac626caac05",
+          "courtyard_overlap_mm2": 0.18600000000000258,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.0,
+          "source_courtyard_mm": [
+            26.735,
+            55.775,
+            27.665,
+            57.625
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            14.31,
+            54.73
+          ],
+          "foreign_hits": []
+        },
+        {
+          "at_mm": [
+            32.09,
+            54.73
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "2e0d4820-7277-4813-8923-62d70578c5b4",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.84999,
+                55.250001
+              ]
+            },
+            {
+              "uuid": "336abde7-0cbb-4024-8924-bc62365f6e97",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.54474,
+                55.0
+              ]
+            },
+            {
+              "uuid": "3fafc484-a1b7-47c5-9df3-44e6443ab764",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.54474,
+                55.0
+              ]
+            },
+            {
+              "uuid": "4f00faed-b4d0-4981-af01-c1fa70011b40",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.473156,
+                55.11185
+              ]
+            },
+            {
+              "uuid": "7cb32499-f200-4e00-8122-4e5e31b4ca1a",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.84999,
+                55.16711
+              ]
+            },
+            {
+              "uuid": "85ba29e5-2a45-437e-b8c4-aee1f68f8148",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                32.5,
+                55.0
+              ]
+            },
+            {
+              "uuid": "8bad8513-c483-4f85-88b3-b646671bdffd",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.90525,
+                55.11185
+              ]
+            },
+            {
+              "uuid": "a24bc32b-c0c4-450d-b15f-3c0820015191",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.5,
+                55.085006
+              ]
+            },
+            {
+              "uuid": "aa22d066-4e54-4523-94b7-8ef529e9ce8b",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                30.84999,
+                55.250001
+              ]
+            },
+            {
+              "uuid": "a1cf4953-a304-4cfb-b1db-afb189a7166f",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                25.7213,
+                48.8931
+              ]
+            },
+            {
+              "uuid": "2c638be6-895d-4b31-ace7-6d608428d6f9",
+              "net": "+5V_MAIN",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                31.0219,
+                54.1937
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 18.798198500390864,
+          "nominal_body_area_mm2": 12.644775027708697
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        27.0,
+        54.73,
+        0
+      ],
+      "native_courtyard_mm": [
+        16.865,
+        53.485,
+        37.135,
+        55.975
+      ],
+      "nominal_body_XY_mm": [
+        17.41,
+        53.83,
+        36.59,
+        55.629999999999995
+      ],
+      "same_face_courtyard_conflicts": [
+        {
+          "ref": "C21",
+          "uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "courtyard_overlap_mm2": 3.432003899999999,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 2.7592539000000014,
+          "source_courtyard_mm": [
+            25.82499,
+            51.855002,
+            27.77499,
+            55.245002
+          ]
+        },
+        {
+          "ref": "R56",
+          "uuid": "b45c902f-366c-4b85-af5b-ddc66e53de4e",
+          "courtyard_overlap_mm2": 0.18600000000000258,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.0,
+          "source_courtyard_mm": [
+            28.635,
+            55.775,
+            29.565,
+            57.625
+          ]
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "courtyard_overlap_mm2": 5.593499999999996,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 4.423949999999976,
+          "source_courtyard_mm": [
+            22.284989,
+            54.325,
+            25.674989,
+            56.275
+          ]
+        },
+        {
+          "ref": "R55",
+          "uuid": "e48edaaa-faec-4a7f-88e1-fac626caac05",
+          "courtyard_overlap_mm2": 0.18600000000000258,
+          "nominal_metal_vs_existing_courtyard_XY_overlap_mm2": 0.0,
+          "source_courtyard_mm": [
+            26.735,
+            55.775,
+            27.665,
+            57.625
+          ]
+        }
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            18.11,
+            54.73
+          ],
+          "foreign_hits": []
+        },
+        {
+          "at_mm": [
+            35.89,
+            54.73
+          ],
+          "foreign_hits": [
+            {
+              "uuid": "817483fa-e334-43b1-a65d-d62e87cc30e9",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                35.0,
+                57.0
+              ]
+            },
+            {
+              "uuid": "0efa60e4-4565-4e60-bb68-f35213822e46",
+              "net": "/FOUR-RAIL PRECISION + FAST SENSING/THRESH",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                35.25,
+                53.25
+              ]
+            },
+            {
+              "uuid": "48c58d53-eb50-4a58-aeee-0387e2128747",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                35.4,
+                52.4
+              ]
+            },
+            {
+              "uuid": "8ca33f58-84dc-40cd-a449-777cf3ad7d0a",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                36.8,
+                53.8
+              ]
+            },
+            {
+              "uuid": "fb462507-29c6-46e1-9708-698b5342a0d3",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_VIA",
+              "clearance_mm": 0.2,
+              "at_mm": [
+                36.8,
+                54.0
+              ]
+            }
+          ]
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "court_area_mm2": 9.336198500390866,
+          "nominal_body_area_mm2": 5.804775027708707
+        },
+        {
+          "ref": "C1",
+          "court_area_mm2": 0.0,
+          "nominal_body_area_mm2": 0.0
+        }
+      ]
+    }
+  ],
+  "actual_12V_terminals": [
+    {
+      "ref": "J3",
+      "pin": "10",
+      "uuid": "bc8c166e-0d12-4ee3-8928-ccde9f3f409f",
+      "at_mm": [
+        22.549999,
+        77.4
+      ],
+      "drill_mm": [
+        1.8,
+        1.8
+      ]
+    },
+    {
+      "ref": "J3",
+      "pin": "11",
+      "uuid": "b5c3d7cd-d0a8-4d9b-b8a0-4b8d9835ec2a",
+      "at_mm": [
+        18.349999,
+        77.4
+      ],
+      "drill_mm": [
+        1.8,
+        1.8
+      ]
+    },
+    {
+      "ref": "U10",
+      "pin": "10",
+      "uuid": "306f95c3-df03-5fa4-becd-d61ed99e61ac",
+      "at_mm": [
+        48.685001,
+        32.637599
+      ],
+      "drill_mm": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "ref": "RS1",
+      "pin": "1",
+      "uuid": "001f3ae4-171c-43dc-b30a-1c97e7ddb0d0",
+      "at_mm": [
+        51.685001,
+        34.400099
+      ],
+      "drill_mm": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "ref": "U612V1",
+      "pin": "3",
+      "uuid": "60ff05d5-0841-5a83-b862-eb3c75b05f62",
+      "at_mm": [
+        56.635001,
+        32.575099
+      ],
+      "drill_mm": [
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "source_current_domain": {
+    "net": "/SENSE12V_HI",
+    "configured_net": "/SENSE12V_HI",
+    "binding": {
+      "configured_net": "/SENSE12V_HI",
+      "amps": 12.0,
+      "actual_net": "/SENSE12V_HI",
+      "override_keys": [
+        "/SENSE12V_HI"
+      ],
+      "design_current_net": "/SENSE12V_HI",
+      "missing_refs": [],
+      "duplicate_refs": [],
+      "source_refs": [
+        "J3"
+      ],
+      "sink_refs": [
+        "RS1"
+      ],
+      "off_net_required_refs": [],
+      "resolution": "exact_name"
+    },
+    "amps": 12.0,
+    "source_refs": [
+      "J3"
+    ],
+    "sink_refs": [
+      "RS1"
+    ],
+    "authority_refs": [
+      "J3",
+      "RS1"
+    ],
+    "missing_refs": [],
+    "off_net_candidate_refs": [],
+    "absent_candidate_refs": [],
+    "declared_source_refs": [
+      "J3"
+    ],
+    "declared_sink_refs": [
+      "RS1"
+    ],
+    "complete": true,
+    "source": "thermal_source_sink_override"
+  },
+  "source_current_contract": {
+    "current_authority": {
+      "amps": 12.0,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/SENSE12V"
+    },
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "required_by_layer_nm": {
+      "0": 3230592,
+      "4": 38703504,
+      "6": 38703504,
+      "8": 38703504,
+      "10": 38703504,
+      "2": 3230592
+    },
+    "release_authority": false,
+    "barrel_capacity_qualified": false
+  },
+  "Kelvin_obligation": "Same /SENSE12V_HI force leg J3.10/11 to RS1.1 only. Preserve RS1.2 /SENSE12V_LO to TB1 and U10 HI/LO Kelvin branch identity; no shunt bypass or repartition/current-sharing inference.",
+  "previous_conditional_stack_bound": {
+    "gain_X_mm": 2,
+    "gain_Y_mm": 0,
+    "baseline_declared_size_mm": [
+      89.585,
+      93.09
+    ],
+    "conditional_trim_size_mm": [
+      87.585,
+      93.09
+    ],
+    "new_additional_gain_proved_mm": 0
+  },
+  "qualification": {
+    "source_qualified": false,
+    "current_qualified": false,
+    "installed_Z_qualified": false,
+    "routed_candidate": false,
+    "outline_gain_proved": false
+  },
+  "limits": "Native courts and native FCu pad/track/via clearance only; no saved-fill clearance or actual assembly receiving with nominal bar. Metal XY versus existing courtyard is classification, not permission for under-bar components or court waivers."
+}

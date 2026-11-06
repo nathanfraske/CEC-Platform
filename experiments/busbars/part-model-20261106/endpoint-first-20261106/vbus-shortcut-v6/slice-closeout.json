@@ -1,0 +1,233 @@
+{
+  "schema": 1,
+  "status": "private_native_shortcut_received_not_released",
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+  "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "candidate_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "independent_nonregression_received": true,
+  "accepted_original_stages": [
+    "fresh_exact_planar_source_cut",
+    "ground_returns",
+    "whole_current_nonregression",
+    "tracecraft",
+    "paired_signal_nonregression",
+    "saved_matched_stack",
+    "source_frozen_native_drc",
+    "candidate_frozen_native_drc"
+  ],
+  "route_length": {
+    "before_mm": 16.236753236814714,
+    "after_mm": 7.8384776310850235,
+    "decrease_mm": 8.39827560572969,
+    "decrease_percent": 51.72386057261558
+  },
+  "frozen_native_before_after": [
+    {
+      "errors": 0,
+      "warnings": 94,
+      "opens": 0
+    },
+    {
+      "errors": 0,
+      "warnings": 94,
+      "opens": 0
+    }
+  ],
+  "full_current_authority_preserved": true,
+  "current_fault_objects_before_after": [
+    2,
+    2
+  ],
+  "tracecraft_before_after": [
+    43,
+    43
+  ],
+  "force_sense_strict_preservation": {
+    "schema": 1,
+    "comparison": "same_scope_contact_preservation_v1",
+    "same_evidence": true,
+    "comparison_complete": true,
+    "errors": [],
+    "declared_count_changes": [],
+    "full_kelvin_qualification": false,
+    "kelvin_isolation_qualified": null,
+    "release_authority": false,
+    "physical_differences": [],
+    "clipped_isolation": {
+      "schema": 1,
+      "comparison": "same_scope_clipped_isolation_v1",
+      "same_evidence": true,
+      "comparison_complete": true,
+      "differences": [],
+      "errors": [],
+      "ignored_diagnostic_changes": [
+        {
+          "path": "/details/0/native/elapsed_s",
+          "before": 0.433683,
+          "after": 0.434857
+        },
+        {
+          "path": "/details/1/native/elapsed_s",
+          "before": 0.405832,
+          "after": 0.410705
+        },
+        {
+          "path": "/details/2/native/elapsed_s",
+          "before": 0.898229,
+          "after": 0.901802
+        },
+        {
+          "path": "/details/3/native/elapsed_s",
+          "before": 1.12352,
+          "after": 1.138095
+        },
+        {
+          "path": "/details/4/native/elapsed_s",
+          "before": 0.831843,
+          "after": 0.83954
+        },
+        {
+          "path": "/details/5/native/elapsed_s",
+          "before": 0.828568,
+          "after": 0.876931
+        },
+        {
+          "path": "/details/6/native/elapsed_s",
+          "before": 0.630037,
+          "after": 0.624244
+        },
+        {
+          "path": "/details/7/native/elapsed_s",
+          "before": 0.501663,
+          "after": 0.501825
+        },
+        {
+          "path": "/details/8/native/elapsed_s",
+          "before": 0.417447,
+          "after": 0.426919
+        },
+        {
+          "path": "/details/9/native/elapsed_s",
+          "before": 0.403247,
+          "after": 0.414483
+        },
+        {
+          "path": "/details/10/native/elapsed_s",
+          "before": 0.836621,
+          "after": 0.840791
+        },
+        {
+          "path": "/details/11/native/elapsed_s",
+          "before": 0.82622,
+          "after": 0.841207
+        },
+        {
+          "path": "/details/12/native/elapsed_s",
+          "before": 0.928673,
+          "after": 0.912679
+        },
+        {
+          "path": "/details/13/native/elapsed_s",
+          "before": 1.161213,
+          "after": 1.093305
+        },
+        {
+          "path": "/details/14/native/elapsed_s",
+          "before": 0.650738,
+          "after": 0.649233
+        },
+        {
+          "path": "/details/15/native/elapsed_s",
+          "before": 0.505916,
+          "after": 0.49493
+        }
+      ],
+      "full_kelvin_qualification": false,
+      "kelvin_isolation_qualified": null,
+      "release_authority": false,
+      "max_nodes_per_input": 262144,
+      "max_depth": 64,
+      "difference_limit": 64,
+      "difference_count": 0,
+      "differences_truncated": false,
+      "coverage_before": {
+        "ok": true,
+        "status": "verified",
+        "expected": 16,
+        "checked": 16,
+        "passed": 16,
+        "failed": 0,
+        "unknown": 0,
+        "unresolved_inputs": 0
+      },
+      "coverage_after": {
+        "ok": true,
+        "status": "verified",
+        "expected": 16,
+        "checked": 16,
+        "passed": 16,
+        "failed": 0,
+        "unknown": 0,
+        "unresolved_inputs": 0
+      },
+      "reason": "same_scope_evidence_equal"
+    },
+    "reason": "same_scope_physical_evidence_preserved"
+  },
+  "field_blockers_before_after": [
+    0,
+    0
+  ],
+  "regression_tests_passed": 247,
+  "evidence": {
+    "construction.json": "9b12a168fef02c3508a3d3364fa92f3a8417df580d0b51a99fe712d0264afe83",
+    "whole-board-receiving.json": "8c1bd118f7a2f195415ba2dbdc46c6c90513a6f004a5e8baaf9a92e14e79374b",
+    "field-receiving-v2.json": "d35704ce1f44cd5717c5452d909d564dc7eb4a687084f061e6c9d8dc26b4cfb5",
+    "source-field-v2.json": "aa2b74293f74cbd494ae60e1355f7dea93d5925357239753ea076a9d41b86a4d",
+    "candidate-field-v2.json": "9539ebffa3c382f50cc20638fc26fa9690a693396fff8135980f87f10f1f39bb",
+    "sense-sharded-v1/receipt.json": "ef24b1242c9d64a290e16a71afc8e1b35916474ce15eb5e9c3c9c010a13449db",
+    "sense-sharded-v1/source/assembled.json": "637cc5eefa65b8ddc1e37378bd4a984e52a38c959125223c67c03a5e9707f0e8",
+    "sense-sharded-v1/candidate/assembled.json": "67787c2b953433d8da70403bcd5acb6eddee8572b92f0e6ef304219f574feeb4",
+    "regressions/result.json": "f19a0c4d32209721bec40c3646c6c6c7f99af0ea2cd19682cf535b83cc579866",
+    "visual-review/sources.json": "61eff716cd2443a7b0eb26a91acf083ca3864a398162c942141ecaecf6521a27",
+    "visual-review/before-after.png": "2fb4f3cd60a74246b67e472592e590e817da96f35d7e9e9e27d8732bb0c9d8a5"
+  },
+  "timeout_resolution": {
+    "monolithic_kelvin_failed": true,
+    "repeated_monolithic_retry": false,
+    "replacement": "Existing exact 16-leg sharded replays, independently bounded under ten seconds; full fresh coverage join, strict physical comparison.",
+    "field_combined_chain_failed": true,
+    "replacement_field": "Separate successful exact-cut receipt and whole actual saved source/candidate field workers with the same source/code epoch; exact Ground refill replay."
+  },
+  "board_outline_mm": [
+    78,
+    87.5
+  ],
+  "board_outline_changed": false,
+  "placements_changed": false,
+  "new_vias": 0,
+  "retired_vias": 0,
+  "bar_installed": false,
+  "xy_compaction_this_slice_mm": [
+    0,
+    0
+  ],
+  "reviewed_selector": {
+    "path": "/home/codex/src/CEC-Platform/checkpoints/current.json",
+    "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+    "changed": false
+  },
+  "routing_admitted": false,
+  "current_qualified": false,
+  "thermal_qualified": false,
+  "assembled_z_qualified": false,
+  "fab_ready": false,
+  "release_authority": false,
+  "remaining": [
+    "Complete a real source-qualified bar topology, joints and full-current upper feed.",
+    "Short coated power jumpers are dimensional candidates only: underside isolation, installed height and usable procurement remain unqualified.",
+    "Prove actual X/Y reduction and no assembled Z increase; no new size reduction demonstrated here.",
+    "Resolve inherited current/thermal and manufacturing qualification before release."
+  ]
+}

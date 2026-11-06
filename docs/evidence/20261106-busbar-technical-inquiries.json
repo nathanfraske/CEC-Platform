@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "status": "DRAFT_NOT_SENT",
+  "purchase_authority": false,
+  "recipient_authorization": "Technical-contact authorization requested separately; no outbound communication performed.",
+  "project_context": {
+    "scope": "Proposed source-to-shunt 12V bus on a compact stacked PCB assembly",
+    "continuous_current_A": 12,
+    "retained_routing_margin": 1.25,
+    "interpretation": "Existing conductor sizing uses 15A after margin. This is not a claim of measured load, catalog derating, or contact qualification.",
+    "candidate_parts": ["Mac8 MJP-0.7-T", "Mac8 MJP-1.0-T"],
+    "quantity_for_comparison_only": "Please quote sample/cut-tape availability and a 100-board, one-bar-per-board comparison; no committed production quantity or order.",
+    "PCB": "Six-layer, nominal 1.6mm, filled/capped process under review. Full final fabrication and assembly specifications will be supplied for approval before ordering.",
+    "stack": "Nominal 22mm interboard gap; selected footprint must preserve the existing complete outer height. Backside installation is only an alternative under investigation, not approved."
+  },
+  "manufacturer_inquiry": {
+    "recipient": "Mac8 technical support or an authenticated authorized distributor; exact contact not yet selected",
+    "subject": "Technical limits and sample availability: MJP-0.7-T / MJP-1.0-T at 12A continuous",
+    "questions": [
+      "Please provide the current released mechanical drawings and dimensional/coplanarity/bend tolerances. We need maximum installed top height and minimum underside clearance, including specified seating and solder thickness, not tape/reel cavity dimensions.",
+      "Please confirm MJP-0.7-T is phosphor bronze and MJP-1.0-T is copper, the exact alloy/conductivity or DC resistance limit, and equivalence between bulk and reel parts. A distributor's MJP-1.0-T metadata lists bronze, unlike the catalog.",
+      "For the 20A catalog rating, what are the ambient, temperature rise, cooling, duty, PCB copper/lands, solder alloy and test fixture? Is there a derating curve or application guidance for 12A continuously in an enclosed stack with our retained 1.25 conductor-sizing margin?",
+      "Please provide contact/solder-joint resistance or applicable limits, recommended land dimensions beyond the 2mm minimum, paste/stencil and reflow guidance, and relevant thermal-cycling qualification. Enlarged 3.5mm copper lands with separately designed paste are being considered, not yet qualified.",
+      "Please quote traceable samples or cut tape and full reels separately, with lead time, destination/assembler delivery options, and feeder leader/trailer requirements. This is a technical/quotation request only, not a purchase order."
+    ]
+  },
+  "assembler_inquiry": {
+    "recipient": "JLCPCB assembly technical support; exact contact not yet selected",
+    "subject": "Feasibility and itemized quote only: consigned Mac8 formed power jumper",
+    "questions": [
+      "Can you accept the exact MJP-0.7-T (32mm tape, 700/reel) and/or MJP-1.0-T (44mm tape, 700/reel)? Is either already available through your supported native/consignment inventory?",
+      "Confirm feeder/nozzle, placement accuracy, paste/stencil, reflow compatibility, solder fillet/void acceptance and inspection for this formed metal conductor. Do your assembly constraints permit enlarged copper lands and a separately specified paste pattern?",
+      "What installed maximum top height, minimum underside clearance, seating/coplanarity and board-bow limits can be guaranteed for this exact process? Nominal-only placement is insufficient to guarantee unchanged assembly height.",
+      "If an underside placement is proposed, can it be attached and inspected without disturbing the existing top-side SMT/THT assembly? State any new setup, retention, selective/manual solder or inspection requirements; this alternative has not been selected.",
+      "For a comparison of 100 boards with one bar each, quote setup, per-part placement, required overage, consignment/handling/customs, inspection and unused inventory terms separately. Clarify the applicable overseas fee schedule rather than combining generic website figures. Please also quote the sample/prototype minimum. No order or shipment is authorized."
+    ]
+  },
+  "evidence_to_attach_if_contact_authorized": [
+    "Manufacturer's public MJP drawing URL",
+    "A labeled nominal placement/land concept only after a viable route is selected",
+    "Selected fabrication stack and a redacted assembly envelope once confirmed"
+  ],
+  "do_not_send_without_separate_need": ["Entire repository", "Account credentials", "Unrelated PCB design files", "Unverified production quantity or delivery commitments"],
+  "required_response_storage": "Record original response, sender identity, date, exact MPN/drawing revision/process, applicable limits and scope; a quote is not current/thermal qualification."
+}
