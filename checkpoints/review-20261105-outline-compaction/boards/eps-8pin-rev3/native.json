@@ -1,0 +1,977 @@
+{
+    "$schema": "https://schemas.kicad.org/drc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-11-05T19:19:02",
+    "ignored_checks": [
+        {
+            "description": "Footprint has no courtyard defined",
+            "key": "missing_courtyard"
+        },
+        {
+            "description": "Track endpoint not centered on via",
+            "key": "track_not_centered_on_via"
+        },
+        {
+            "description": "Tuning profile track geometries",
+            "key": "tuning_profile_track_geometries"
+        },
+        {
+            "description": "Footprint doesn't match symbol's footprint filters",
+            "key": "footprint_filters_mismatch"
+        },
+        {
+            "description": "Footprint component type doesn't match footprint pads",
+            "key": "footprint_type_mismatch"
+        }
+    ],
+    "included_severities": [
+        "error",
+        "warning",
+        "exclusion"
+    ],
+    "kicad_version": "10.0.5",
+    "schematic_parity": [],
+    "source": "board.kicad_pcb",
+    "unconnected_items": [],
+    "violations": [
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [GND] on F.Cu, length 0.2751 mm",
+                    "pos": {
+                        "x": 74.6534,
+                        "y": 26.3513
+                    },
+                    "uuid": "616f9c3f-63f0-498a-a3b8-f4cf1a8675b3"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [GND] on F.Cu, length 0.1250 mm",
+                    "pos": {
+                        "x": 13.4,
+                        "y": 10.0875
+                    },
+                    "uuid": "6fb27622-e219-43b4-801d-de397877f020"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [GND] on F.Cu, length 0.4422 mm",
+                    "pos": {
+                        "x": 58.412699,
+                        "y": 28.3294
+                    },
+                    "uuid": "700a7dbd-43fa-45a9-b6ec-e46fd4ff050b"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [GND] on F.Cu, length 1.6052 mm",
+                    "pos": {
+                        "x": 77.0596,
+                        "y": 23.67
+                    },
+                    "uuid": "83331cbe-a8bc-421f-ae08-7994747fb057"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [+3V3] on F.Cu, length 0.0336 mm",
+                    "pos": {
+                        "x": 18.9,
+                        "y": 11.8
+                    },
+                    "uuid": "be959fc5-1fe5-43b9-8b22-b788802e2280"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [+3V3] on F.Cu, length 0.4610 mm",
+                    "pos": {
+                        "x": 64.95,
+                        "y": 25.251
+                    },
+                    "uuid": "f2256cc2-51cd-45ff-9bc8-014f4bd135b1"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [/I2C_SDA] on F.Cu, length 0.7645 mm",
+                    "pos": {
+                        "x": 68.1098,
+                        "y": 26.8922
+                    },
+                    "uuid": "5c3a0195-7e55-445f-bf28-0932fc951d41"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [/I2C_SDA] on F.Cu, length 19.4970 mm",
+                    "pos": {
+                        "x": 34.2148,
+                        "y": 34.4311
+                    },
+                    "uuid": "e545b66e-99d1-4130-91fb-e48f234d89c6"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [/CAN_TX] on F.Cu, length 0.9899 mm",
+                    "pos": {
+                        "x": 73.6,
+                        "y": 20.3
+                    },
+                    "uuid": "327ef2f5-fb37-49f5-ae1e-638b5abf298f"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Track has unconnected end",
+            "items": [
+                {
+                    "description": "Track [/THRESH] on F.Cu, length 0.4868 mm",
+                    "pos": {
+                        "x": 76.7056,
+                        "y": 22.7205
+                    },
+                    "uuid": "ccd55cd2-d512-4bdf-a906-2553bdff7318"
+                }
+            ],
+            "severity": "warning",
+            "type": "track_dangling"
+        },
+        {
+            "description": "Via is not connected or connected on only one layer",
+            "items": [
+                {
+                    "description": "Via [/USB-C SERVICE INGRESS/U4_PR1] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 16.8,
+                        "y": 17.5
+                    },
+                    "uuid": "f933e852-e1b6-4bc9-a121-dc0cf5a16654"
+                }
+            ],
+            "severity": "warning",
+            "type": "via_dangling"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uuid": "45175661-2a53-46dc-a745-2b3afd0fd79a"
+                },
+                {
+                    "description": "Segment of J_IN1 on F.Silkscreen",
+                    "pos": {
+                        "x": 27.416598,
+                        "y": -12.208699
+                    },
+                    "uuid": "a72e76dc-d862-4e3e-8bcc-1bb03abab397"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uuid": "45175661-2a53-46dc-a745-2b3afd0fd79a"
+                },
+                {
+                    "description": "Segment of J_IN1 on F.Silkscreen",
+                    "pos": {
+                        "x": 46.872998,
+                        "y": 1.558101
+                    },
+                    "uuid": "95349a19-eb01-4538-8d1c-d06408ce6afb"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 88.0,
+                        "y": 0.0
+                    },
+                    "uuid": "5df6611b-f875-4c75-aa82-84f8dc5753e8"
+                },
+                {
+                    "description": "Segment of J1 on F.Silkscreen",
+                    "pos": {
+                        "x": 87.57,
+                        "y": 5.63
+                    },
+                    "uuid": "58cfb33f-4603-4582-a8e6-67889b776a24"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 88.0,
+                        "y": 0.0
+                    },
+                    "uuid": "5df6611b-f875-4c75-aa82-84f8dc5753e8"
+                },
+                {
+                    "description": "Segment of J1 on F.Silkscreen",
+                    "pos": {
+                        "x": 91.1,
+                        "y": 21.68
+                    },
+                    "uuid": "cd95145c-30b8-4dc6-a75a-204fefc9050c"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uuid": "45175661-2a53-46dc-a745-2b3afd0fd79a"
+                },
+                {
+                    "description": "Segment of J_IN2 on F.Silkscreen",
+                    "pos": {
+                        "x": 49.126998,
+                        "y": -12.208699
+                    },
+                    "uuid": "eaeffe50-4c04-5818-a157-60a07161a33d"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Silkscreen clipped by board edge",
+            "items": [
+                {
+                    "description": "Segment on Edge.Cuts",
+                    "pos": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "uuid": "45175661-2a53-46dc-a745-2b3afd0fd79a"
+                },
+                {
+                    "description": "Segment of J_IN2 on F.Silkscreen",
+                    "pos": {
+                        "x": 68.583398,
+                        "y": 1.558101
+                    },
+                    "uuid": "330f4de2-dabc-5404-89b6-1d9462a80587"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_edge_clearance"
+        },
+        {
+            "description": "Footprint 'RUX0012A' does not match copy in library 'cec-Package_DFN_QFN'",
+            "items": [
+                {
+                    "description": "Footprint U4",
+                    "pos": {
+                        "x": 23.0238,
+                        "y": 16.534199
+                    },
+                    "uuid": "d12fac72-3aff-4e18-89b1-2ef0a735fc87"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of R3",
+                    "pos": {
+                        "x": 69.716869,
+                        "y": 28.0314
+                    },
+                    "uuid": "31c7f9bf-5935-4ade-8a4c-45f732d08df3"
+                },
+                {
+                    "description": "Polygon of U11 on F.Silkscreen",
+                    "pos": {
+                        "x": 70.2,
+                        "y": 27.39
+                    },
+                    "uuid": "f377394f-d2f0-50fb-b04c-c4892088f9c8"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of U11 on F.Silkscreen",
+                    "pos": {
+                        "x": 70.79,
+                        "y": 30.41
+                    },
+                    "uuid": "2cfae4e0-fd57-5ec0-9c2a-9fbd6a94490b"
+                },
+                {
+                    "description": "Reference field of TB24",
+                    "pos": {
+                        "x": 71.125,
+                        "y": 30.823726
+                    },
+                    "uuid": "97f7ef1d-5e30-5dd4-9212-1850c140042f"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of U11 on F.Silkscreen",
+                    "pos": {
+                        "x": 74.01,
+                        "y": 30.41
+                    },
+                    "uuid": "2931d10a-0f4a-5c13-889d-026210cb9da4"
+                },
+                {
+                    "description": "Reference field of TB24",
+                    "pos": {
+                        "x": 71.125,
+                        "y": 30.823726
+                    },
+                    "uuid": "97f7ef1d-5e30-5dd4-9212-1850c140042f"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of C31",
+                    "pos": {
+                        "x": 72.4647,
+                        "y": 24.2914
+                    },
+                    "uuid": "2785fdfa-0578-4fa6-a769-41639f155b86"
+                },
+                {
+                    "description": "Segment of U31 on F.Silkscreen",
+                    "pos": {
+                        "x": 71.0972,
+                        "y": 23.7714
+                    },
+                    "uuid": "55bce8bd-ab95-5f62-89f5-f0921e44fcf1"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of C11",
+                    "pos": {
+                        "x": 77.605,
+                        "y": 29.270342
+                    },
+                    "uuid": "8ac1e684-6fbd-4f20-aeab-cf163929fed3"
+                },
+                {
+                    "description": "Polygon of D3 on F.Silkscreen",
+                    "pos": {
+                        "x": 77.325,
+                        "y": 29.3125
+                    },
+                    "uuid": "ea3010cc-c74a-50ec-945a-314defcd2f5f"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of C31",
+                    "pos": {
+                        "x": 72.4647,
+                        "y": 24.2914
+                    },
+                    "uuid": "2785fdfa-0578-4fa6-a769-41639f155b86"
+                },
+                {
+                    "description": "Pad 5 [+3V3] of U31 on F.Cu",
+                    "pos": {
+                        "x": 73.1447,
+                        "y": 24.3814
+                    },
+                    "uuid": "fe397620-f256-5441-af35-2a94fe730309"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R3",
+                    "pos": {
+                        "x": 69.716869,
+                        "y": 28.0314
+                    },
+                    "uuid": "31c7f9bf-5935-4ade-8a4c-45f732d08df3"
+                },
+                {
+                    "description": "Pad 2 [+3V3] of U11 on F.Cu",
+                    "pos": {
+                        "x": 70.2,
+                        "y": 28.3
+                    },
+                    "uuid": "5fb3f915-017a-5794-958d-0fe20d569d48"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R3",
+                    "pos": {
+                        "x": 69.716869,
+                        "y": 28.0314
+                    },
+                    "uuid": "31c7f9bf-5935-4ade-8a4c-45f732d08df3"
+                },
+                {
+                    "description": "Pad 3 [unconnected-(U11-~{Alert}-Pad3)] of U11 on F.Cu",
+                    "pos": {
+                        "x": 70.2,
+                        "y": 28.8
+                    },
+                    "uuid": "268523c9-a175-58e4-928f-d842676ece58"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R3",
+                    "pos": {
+                        "x": 69.716869,
+                        "y": 28.0314
+                    },
+                    "uuid": "31c7f9bf-5935-4ade-8a4c-45f732d08df3"
+                },
+                {
+                    "description": "Pad 1 [GND] of U11 on F.Cu",
+                    "pos": {
+                        "x": 70.2,
+                        "y": 27.8
+                    },
+                    "uuid": "383d1bb3-35b3-5df9-8a53-85bab3e53233"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of C31",
+                    "pos": {
+                        "x": 72.4647,
+                        "y": 24.2914
+                    },
+                    "uuid": "2785fdfa-0578-4fa6-a769-41639f155b86"
+                },
+                {
+                    "description": "Pad 1 [/DETC2] of U31 on F.Cu",
+                    "pos": {
+                        "x": 70.8697,
+                        "y": 24.3814
+                    },
+                    "uuid": "33a1adfb-f475-50d0-9d80-d1af631665d5"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Circle of U1 on F.Silkscreen",
+                    "pos": {
+                        "x": 42.4169,
+                        "y": 18.9902
+                    },
+                    "uuid": "263314c8-f918-479d-be21-468f08adc725"
+                },
+                {
+                    "description": "Pad 2 [GND] of C3 on F.Cu",
+                    "pos": {
+                        "x": 42.4669,
+                        "y": 19.4502
+                    },
+                    "uuid": "57f6409c-d14a-4045-b16b-90dc6fad867c"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of TB21",
+                    "pos": {
+                        "x": 60.275,
+                        "y": 36.475
+                    },
+                    "uuid": "a6e49b25-9440-52b3-bb49-ab3a5dcba9f2"
+                },
+                {
+                    "description": "PTH pad 1 [/SENSEC2_LO] of TB22",
+                    "pos": {
+                        "x": 60.625,
+                        "y": 37.6
+                    },
+                    "uuid": "6e4e2812-a71f-54d9-a3ea-6050018cb707"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of TB21",
+                    "pos": {
+                        "x": 60.275,
+                        "y": 36.475
+                    },
+                    "uuid": "a6e49b25-9440-52b3-bb49-ab3a5dcba9f2"
+                },
+                {
+                    "description": "PTH pad 1 [/SENSEC2_LO] of TB21",
+                    "pos": {
+                        "x": 58.375,
+                        "y": 37.6
+                    },
+                    "uuid": "3d9efac9-ed7f-5449-8b96-b0767a660afb"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of TB23",
+                    "pos": {
+                        "x": 52.525,
+                        "y": 36.475
+                    },
+                    "uuid": "23d34e22-6123-54d3-9b2e-4b59238b4609"
+                },
+                {
+                    "description": "PTH pad 1 [/SENSEC2_LO] of TB21",
+                    "pos": {
+                        "x": 52.875,
+                        "y": 37.6
+                    },
+                    "uuid": "27976b5a-4f71-563e-a253-0a8e3a17c595"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of TB23",
+                    "pos": {
+                        "x": 52.525,
+                        "y": 36.475
+                    },
+                    "uuid": "23d34e22-6123-54d3-9b2e-4b59238b4609"
+                },
+                {
+                    "description": "PTH pad 1 [GND] of TB23",
+                    "pos": {
+                        "x": 50.625,
+                        "y": 37.6
+                    },
+                    "uuid": "9c3ebbc3-3554-560d-952f-831dcc2ca5d8"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of C11",
+                    "pos": {
+                        "x": 77.605,
+                        "y": 29.270342
+                    },
+                    "uuid": "8ac1e684-6fbd-4f20-aeab-cf163929fed3"
+                },
+                {
+                    "description": "Pad 1 [/USB_D_P] of D3 on F.Cu",
+                    "pos": {
+                        "x": 77.885,
+                        "y": 29.0
+                    },
+                    "uuid": "fb37b0fb-e8f9-5435-bef9-b51d85f4f7a2"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of C11",
+                    "pos": {
+                        "x": 77.605,
+                        "y": 29.270342
+                    },
+                    "uuid": "8ac1e684-6fbd-4f20-aeab-cf163929fed3"
+                },
+                {
+                    "description": "Pad 2 [GND] of D3 on F.Cu",
+                    "pos": {
+                        "x": 78.835,
+                        "y": 29.0
+                    },
+                    "uuid": "f4c7b341-25d9-5661-ac6f-ffd27f627ef6"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Segment of J5 on F.Silkscreen",
+                    "pos": {
+                        "x": 82.13,
+                        "y": 33.15
+                    },
+                    "uuid": "2ef50bda-2a88-4267-8f0d-ca36d6e1b608"
+                },
+                {
+                    "description": "PTH pad S1 [GND] of J5",
+                    "pos": {
+                        "x": 82.38,
+                        "y": 33.82
+                    },
+                    "uuid": "349b922c-4b57-4a5a-b9e9-fbd2200ecc79"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R16",
+                    "pos": {
+                        "x": 25.453797,
+                        "y": 16.2642
+                    },
+                    "uuid": "fdcdbbcc-969f-40b8-8d4b-83a2462a1526"
+                },
+                {
+                    "description": "Pad 11 [/USB-C SERVICE INGRESS/U4_SS] of U4 on F.Cu",
+                    "pos": {
+                        "x": 24.173798,
+                        "y": 16.284199
+                    },
+                    "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R16",
+                    "pos": {
+                        "x": 25.453797,
+                        "y": 16.2642
+                    },
+                    "uuid": "fdcdbbcc-969f-40b8-8d4b-83a2462a1526"
+                },
+                {
+                    "description": "Pad 12 [GND] of U4 on F.Cu",
+                    "pos": {
+                        "x": 24.173798,
+                        "y": 15.784198
+                    },
+                    "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of R16",
+                    "pos": {
+                        "x": 25.453797,
+                        "y": 16.2642
+                    },
+                    "uuid": "fdcdbbcc-969f-40b8-8d4b-83a2462a1526"
+                },
+                {
+                    "description": "Pad 10 [/USB-C SERVICE INGRESS/U4_ILIM] of U4 on F.Cu",
+                    "pos": {
+                        "x": 24.173798,
+                        "y": 16.784199
+                    },
+                    "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [GND] of TB23",
+                    "pos": {
+                        "x": 45.125,
+                        "y": 37.6
+                    },
+                    "uuid": "79d26faf-17d3-5879-a076-34d1eff4255b"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [GND] of TB14",
+                    "pos": {
+                        "x": 42.875,
+                        "y": 37.6
+                    },
+                    "uuid": "4515507c-a151-4bdd-8c94-3e1f744f3c81"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [GND] of TB14",
+                    "pos": {
+                        "x": 37.375,
+                        "y": 37.6
+                    },
+                    "uuid": "de21d877-192e-4272-a390-5faeec035b9b"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [/SENSEC2_LO] of TB21",
+                    "pos": {
+                        "x": 58.375,
+                        "y": 37.6
+                    },
+                    "uuid": "3d9efac9-ed7f-5449-8b96-b0767a660afb"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [GND] of TB23",
+                    "pos": {
+                        "x": 50.625,
+                        "y": 37.6
+                    },
+                    "uuid": "9c3ebbc3-3554-560d-952f-831dcc2ca5d8"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "PCB text 'CEC board  6L JLC06162H-3313' on B.Silkscreen",
+                    "pos": {
+                        "x": 48.0,
+                        "y": 37.0
+                    },
+                    "uuid": "8fc2a8af-7cd5-49f8-ad74-2e88c108df35"
+                },
+                {
+                    "description": "PTH pad 1 [/SENSEC2_LO] of TB21",
+                    "pos": {
+                        "x": 52.875,
+                        "y": 37.6
+                    },
+                    "uuid": "27976b5a-4f71-563e-a253-0a8e3a17c595"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        }
+    ]
+}

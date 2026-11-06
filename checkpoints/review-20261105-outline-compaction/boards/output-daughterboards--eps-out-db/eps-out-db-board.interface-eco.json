@@ -1,0 +1,373 @@
+{
+  "admission_ok": false,
+  "affected_nets": [
+    "+12V",
+    "GND"
+  ],
+  "copper_unchanged": false,
+  "design_rule_hashes": {
+    ".kicad_dru": "a54889e0f8eb6495bdc05fe5de11f3873a3118e2ed0ecdd675f82e0f7e70452c",
+    ".kicad_pro": "2173f4305be6548686086735d1e2e07cab23ea9b75d08216842d0fe82de7d2bc"
+  },
+  "inherited_route_invalidation": true,
+  "input": "/home/codex/src/CEC-Platform/build/daughter-rebuild-source-backup-20260920/0/eps-out-db-board.kicad_pcb",
+  "input_sha256": "7ad815181d17634bf6a588da9c3fc61e6a652a0864bdd8cb47bd1f58c4434d98",
+  "local_copper_rebuilt": true,
+  "moved": {},
+  "native_drc": {
+    "errors": 0,
+    "opens": 0,
+    "path": "/home/codex/src/CEC-Platform/build/daughter-rebuild-production-20260920/eps-db/drc.json",
+    "sha256": "578a572dff1e388ed7a3a651006dcef1e8eb2e328bbdf7f5d6a34604e4f38a7b",
+    "warnings": 14
+  },
+  "outline_unchanged": true,
+  "output": "/home/codex/src/CEC-Platform/beta/output-daughterboards/eps-out-db/eps-out-db-board.kicad_pcb",
+  "output_sha256": "e0984d8dae6c7a8a999c8ffd74f141d91eb91a0fc77eb7c485523e6f99a7ff1e",
+  "prior_geometry_eco": {
+    "admission_ok": false,
+    "affected_nets": [
+      "+12V",
+      "GND"
+    ],
+    "copper_unchanged": true,
+    "design_rule_hashes": {
+      ".kicad_dru": "a54889e0f8eb6495bdc05fe5de11f3873a3118e2ed0ecdd675f82e0f7e70452c",
+      ".kicad_pro": "2173f4305be6548686086735d1e2e07cab23ea9b75d08216842d0fe82de7d2bc"
+    },
+    "inherited_route_invalidation": false,
+    "input": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/2/eps-out-db-board.kicad_pcb",
+    "input_sha256": "dc74d88b608caa503b60a2e92c1ef862f2d92b1d73f52d7e60acef60a6740621",
+    "moved": {
+      "J11": {
+        "after": [
+          26.75,
+          15.4,
+          0.0
+        ],
+        "before": [
+          24.5,
+          15.4,
+          0.0
+        ]
+      },
+      "J13": {
+        "after": [
+          11.25,
+          15.4,
+          0.0
+        ],
+        "before": [
+          10.5,
+          15.4,
+          0.0
+        ]
+      },
+      "J14": {
+        "after": [
+          19.0,
+          15.4,
+          0.0
+        ],
+        "before": [
+          17.5,
+          15.4,
+          0.0
+        ]
+      }
+    },
+    "note": "Nominal mating ECO preview, not a routed/admitted board.",
+    "outline_change": {
+      "after_mm": [
+        0.0,
+        0.0,
+        30.25,
+        18.5
+      ],
+      "before_mm": [
+        0.0,
+        0.0,
+        28.0,
+        18.5
+      ],
+      "explicit": true
+    },
+    "outline_unchanged": false,
+    "output": "/home/codex/src/CEC-Platform/beta/output-daughterboards/eps-out-db/eps-out-db-board.kicad_pcb",
+    "output_sha256": "7ad815181d17634bf6a588da9c3fc61e6a652a0864bdd8cb47bd1f58c4434d98",
+    "publication_group": "/home/codex/src/CEC-Platform/build/parent-owned-mating-source-backup-20260920/publication.json",
+    "release_authority": false,
+    "required_next_stages": [
+      "mechanical_clearance",
+      "placement_admission",
+      "power_corridor_rebuild",
+      "routing",
+      "full_drc"
+    ],
+    "route_authority_invalidated": true,
+    "schema": 1,
+    "stale_copper": [
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "0156a8f5-6260-4105-963f-33f9004043e2"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "1d8c3765-bd9a-477e-83fc-48c74d043018"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "2aeb0eb7-0615-4c46-8fc9-0ce6c2b01cda"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "c2a9a7ef-2e0a-4e60-a568-7fd86d840045"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "d2202032-c0d5-4459-bbbd-31faa407dfbb"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "d4aacf25-0eaf-4e2b-a7aa-1258f7d6cb34"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "d5a9ee31-7e0e-4c5f-bc9f-81f2889df7f0"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "f6517c31-2274-4b13-980a-cd034839318e"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "1a9c0519-8492-44c8-83f8-4add55abbb01"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "1e658bee-6e09-4684-b48f-347cf8da6654"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "250c1a2c-1caf-47d9-93d4-fbd7a3573bf3"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "36a7ef7d-cde0-49e5-b4d1-712d4271504a"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "436fbc78-d92c-417f-9183-5bf7aed2098b"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "6617cd69-ec20-42cb-94ed-75622009096d"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "6d354211-548d-40fe-8642-c59e6862437c"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "+12V",
+        "uuid": "76377750-3f8a-42fe-9dd2-6eac4dfc3a94"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "000fb0f7-86f4-4ffa-a09b-538bd8d20dc1"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "7b281beb-a69e-4fbe-b45d-180a21db0299"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "84d873ca-523c-46e1-838e-ef79f482b77e"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "afe181bb-8d69-41d7-a4c0-dfb7b54a91de"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "b1ae2eee-0cc3-4b2f-aebc-083093bd3b78"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "b332d02c-6741-4aa7-9fca-e59f0f5a5c55"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "c124b288-36d4-4c99-9c7d-3282aef17107"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "+12V",
+        "uuid": "f89a2af4-0459-4c9d-9e8a-a7a1bc80f53f"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "067059c4-95dd-4155-b172-4af1eaa63726"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "1655d134-ef97-4e36-8f30-3dcafdab1565"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "71ef2615-37e1-40f3-b984-7976491228e5"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "84e9e17d-7b05-41b9-81e7-f33f62ad6671"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "c86fb399-9d43-4821-8606-3a6c582d99ba"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "d4704d66-a06c-4969-9a2a-157726dd76e7"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "e040404f-1b89-43e4-9960-437f8936a947"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "edb49028-5c85-4164-8bbc-6867fc93e200"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "4af1a4b9-edcb-430e-bbd7-388995ed3193"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "52481f63-90eb-4cb4-b5b5-d670b0a4eeb9"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "a2474ee2-9963-4d27-a06c-28350de88d17"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "bfa26534-c718-4549-80dc-634157208fd2"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "ce6285f4-2912-4f9f-ac54-2ccfdcb5fe4f"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "dce75d55-963c-40b5-b885-beb11dc8065e"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "ee974bbb-cd2c-4fee-adb1-4657f003a452"
+      },
+      {
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "uuid": "ff29accb-d78a-4a4c-914c-c0a467c46193"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "15094639-3345-4e14-a401-86d5483ddbd0"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "28a5d74e-178e-42e4-a599-7b524c52a9fc"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "6448afd2-1b3a-420b-ab63-34286ae03fd8"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "b58baa11-f2dd-4011-b3e2-2d02a03ac861"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "cc787e5d-1d29-41ea-aa7f-f5c0ad55fbb6"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "daefad42-46a6-49e2-b9d5-5561d962a3f8"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "f6843701-3124-4fbf-b1b7-0cb7b82a37c9"
+      },
+      {
+        "kind": "PCB_TRACK",
+        "net": "GND",
+        "uuid": "f8ed95ef-0705-4f61-ab38-80ca4223de76"
+      },
+      {
+        "kind": "ZONE",
+        "net": "+12V",
+        "uuid": "86ca9ada-517f-47ba-8a23-536164b81bfd"
+      },
+      {
+        "kind": "ZONE",
+        "net": "GND",
+        "uuid": "62815908-b0ee-4199-a192-6f15869261d8"
+      }
+    ],
+    "unrelated_footprints_unchanged": true
+  },
+  "release_authority": false,
+  "required_next_stages": [
+    "electrothermal_revalidation",
+    "mated_fit_and_key_qualification",
+    "release_review"
+  ],
+  "route_authority_invalidated": true,
+  "schema": 1,
+  "unrelated_footprints_unchanged": true,
+  "publication_group": "/home/codex/src/CEC-Platform/build/daughter-rebuild-source-backup-20260920/publication.json"
+}

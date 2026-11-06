@@ -185,15 +185,25 @@ guides from printed silk; references and functional markings are preserved.
   inferred. Full current, Kelvin, field, pair, assembly and native checks still
   apply. Use this to recover unused return-plane space, not to claim a smaller
   PCB outline.
-* `outline_trim`: move one explicitly named edge of an existing four-segment
-  rectangle inward. The other objects, hole/part positions, power copper and
+* `outline_trim`: move one explicitly named outer edge inward, either on a
+  four-segment rectangle or a bounded orthogonal perimeter whose selected
+  straight edge joins two native quarter-circle corners. Rounded trims
+  translate those corners without changing their radii and shorten the two
+  neighboring straight sides; unrelated recesses and internal footprint
+  cutouts remain literal. The other objects, hole/part positions, power copper and
   zone outlines/settings remain literal; only existing Ground fill may be
   clipped within the changed-edge strip and its source clearance setback.
-  Saved receiving checks the exact three updated edge primitives, conservative
+  Saved receiving checks the exact three (rectangle) or five (rounded) updated edge primitives, conservative
   native material and valid closed occupied-face courtyard envelopes, no added Ground material and no remote
-  Ground removal. Native/physical checks remain mandatory. This bounded tier
-  does not move mounting interfaces, support complex/cutout outlines or
-  establish washer, mating or thermal qualification.
+  Ground removal. Rounded clipping uses only the native removed laminate
+  expanded by source copper clearance plus a received 10 um guard, with
+  1 um offset chord error. Signed native rings verify cutouts without relying
+  on KiCad's whole-poly self-intersection flag for valid hole sets. Source
+  joints admit at most 2 nm adjacency, with no snapping. Native/physical
+  checks remain mandatory: straight-edge envelopes alone cannot qualify a
+  translated rounded corner. This bounded tier does not move mounting
+  interfaces, alter cutouts, handle arbitrary curved outlines or establish
+  washer, mating or thermal qualification.
 
 The November 5 compaction/refinement pass exercises both new actors on actual
 checkpoint boards and ordinary cleanup on four distinct main boards. See
@@ -353,8 +363,9 @@ smaller outline. Compare actual saved width, height and laminate area against
 the parent; tighter-looking contents alone are not a board-size reduction.
 Evaluate the complete mating assembly, including connector access, mounting
 hardware and opposing bodies, before counting perimeter space as removable.
-The current outline actor covers only a conservative inward trim of one edge
-of an existing rectangle. Coordinated hole/interface moves and complex
+The current outline actor covers a conservative inward trim of one edge
+of an existing rectangle or supported rounded orthogonal perimeter, with
+internal cutouts preserved. Coordinated hole/interface moves and arbitrary
 outlines still need tools receiving the complete changed mechanical and
 electrical scope. This is a tooling gap, not a restriction on the user's
 authorization to compact the boards. A plane fill following the
