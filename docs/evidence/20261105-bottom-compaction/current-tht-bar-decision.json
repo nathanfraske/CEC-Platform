@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "scope": "Bounded read-only scout of current paired-closed-v2; no placement or electrical admission",
+  "carrier_sha256": "b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1",
+  "cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "native_evidence": "docs/evidence/20261105-bottom-compaction/current-bar-scout-native.json",
+  "declared_envelope_mm": {"bounds": [0, -1.295, 89.585, 91.795], "size": [89.585, 93.09], "basis": "Existing complete declared envelope; includes design allocations/courtyards, excludes cables/plugs/hardware/service access; not supplier-qualified package"},
+  "geometry": {
+    "bottom_limiting_body": {"side": "carrier", "ref": "J3", "max_y_mm": 91.795},
+    "right_limiting_bodies": {"side": "cover", "refs": ["J2", "J3", "J5"], "max_carrier_x_mm": 89.585},
+    "top_limiting_bodies": {"side": "carrier", "refs": ["TB1", "TB2"], "min_y_mm": -1.295},
+    "left_limiting_laminate_x_mm": 0,
+    "conclusion": "Retiring the bottom 12V copper loop alone cannot reduce declared assembled Y: J3 body remains lower than laminate. Bar does not move the right/top limiting connector bodies. Actual X benefit would require retiring/repacking the complete left 12V trunk and trimming laminate, not merely its bottom excursion.",
+    "left_trunk": {"uuid": "2da4471e-2417-5dcb-85d3-ef0a1cb30272", "net": "/SENSE12V_HI", "layer": "B.Cu", "width_mm": 3.230592, "endpoints_mm": [[2.2, 36], [2.2, 79.1]], "length_mm": 43.1},
+    "prospective_whole_corridor_endpoints_mm": [[18.6, 36], [18.349999, 77.4]],
+    "prospective_endpoints_note": "These are actual existing 12V anchor/J3.11 coordinates, NOT approved new bar terminals. Separation exceeds41.4mm; shortlisted low-cost staples are too short. The straight inward corridor also crosses C37's preserved native vent guard, UUID cdb78967-3235-44b9-962b-6ce7aa574142: point(18.458,59.5) is strictly inside it. New through slots, rated lands/stubs and complete native/paired receiving would be required; an outward bar cannot claim unchangedZ.",
+    "prospective_bottom_only_endpoints_mm": [[2.2, 79.1], [18.349999, 77.4]],
+    "bottom_only_note": "Separation16.239mm; no assembled-Y benefit with stationaryJ3. Any inward bar reaching the J3.11 terminal enters J3's native body reservation x5.954999..68.544999,y69.555..91.795. Existing1.8mm round terminal drill is not permission to insert a staple slot or add a second lead; outward tails/joints lack unchanged-Z proof."
+  },
+  "new_primary_source_shortlist": [
+    {"part": "IHI14307-S", "manufacturer_url": "https://ihiconnectors.com/IHI-PCB-Shunts-and-Jumpers.html", "manufacturer_catalog": "THT solid copper/tin; overall11.7x3.5x6.8mm,5.1mm penetration; contextual31-60A range", "manufacturer_linked_supplier_url": "https://lugsdirect.com/14307-30AMP-Shunt-Jumper-PCB-Staple-THT-and-SMT.htm", "supplier_price_usd_at_1": 0.15, "decision": "New cheap actualTHT family, but overall length alone is below16.239mm bottom bypass and41.4mm whole-corridor endpoints. Not a viable direct replacement; no pitch or underbody clearance invented."},
+    {"part": "IHI14259", "manufacturer_url": "https://ihiconnectors.com/IHI-PCB-Shunts-and-Jumpers.html", "manufacturer_catalog": "THT solid copper/tin,19.3x9.5x6.4mm overall,4.7mm penetration; contextual60-116A range", "manufacturer_linked_supplier_url": "https://lugsdirect.com/14259-(75-115A-AMP)-Shunt-Jumper-PCB-Staple-THT-and-SMT.htm", "supplier_price_usd_at_1": 0.82, "decision": "Too short for complete41.4mm corridor. May physically span bottom-only distance subject to unverified pitch/slots, but this buys no assembledY and requires large new lands under/nearJ3. No native placement success claimed."}
+  ],
+  "current_qualification_missing": {
+    "primary_source": "https://lugsdirect.com/PDF%20Documents/IHI-PCB-BUS-STAPLE-AMPACITY-GUIDELINES.pdf",
+    "manufacturer_conditions": "Ratings are based on bare copper in free air. Actual heat rise depends on PCB copper and cable sizes; application heat-rise and solder-joint cycle testing are required.",
+    "required_evidence": ["Source-bound soldered joint/slot/barrel capacity for the actual12A path and1.25 geometry margin, not catalog bar current alone", "Guaranteed installed body/underside and tail/solder/seating tolerances proving complete assembledZ does not increase", "Exact land/slot pitch and process tolerances before legal native all-layer obstruction screening", "A different concrete topology that removes a globally limiting body/corridor, not a nominally smaller laminate hidden behindJ3"]
+  },
+  "decision": "No demonstrated source-qualified low-costTHT bar plus layout satisfies additional assembledXY reduction and unchanged completeZ. Geometry already defeats bottom-only replacement; external process/current/Z evidence additionally prevents qualification. This is a bounded shortlist result, not proof that all custom bars are impossible.",
+  "native_board_mutated": false,
+  "catalog_rating_credited_to_terminal_or_barrel": false,
+  "current_qualified": false,
+  "assembled_z_unchanged_proven": false,
+  "release_authority": false
+}

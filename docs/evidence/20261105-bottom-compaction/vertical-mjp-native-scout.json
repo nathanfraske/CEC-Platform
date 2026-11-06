@@ -1,0 +1,2458 @@
+{
+  "schema": 1,
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+      "sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "vertical-24.5-40.5",
+      "face": "F.Cu",
+      "land_conflicts": [
+        {
+          "uuid": "036b2454-99aa-4db5-92cd-7eaf15f1f9c2",
+          "kind": "PAD",
+          "net": "+5V_SYS",
+          "reference": "C25",
+          "pin": "1",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.030000000000001137,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "e8936a1b-a248-4ed2-8952-f819dee00278",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "74a75a06-a200-478d-8ecb-d451935b453b",
+          "kind": "PCB_VIA",
+          "net": "+5VSB",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.190311690991384,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "bdeacc19-7237-4ced-be18-91b64317c858",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "77d9e965-374f-4285-ab5f-c6790da2ae81",
+          "kind": "PCB_TRACK",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.10881700000000194,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "ddfd03e7-bfa5-5305-9bfd-72221a3277c9",
+          "kind": "PCB_VIA",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "ddfd03e7-bfa5-5305-9bfd-72221a3277c9",
+          "kind": "PCB_VIA",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "kind": "ZONE",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "9a2a4b43-86a0-4079-813f-dec80842cae4",
+          "kind": "ZONE",
+          "net": "+5VSB",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        }
+      ],
+      "same_net_land_contacts": [
+        [],
+        []
+      ],
+      "source_copper_touches_both_feet": false,
+      "nearby_holes_or_leads": [
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "body_gap_mm": 0.0,
+          "nominal_body_projection_overlap": true,
+          "protrusion_height_known": false
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "body_gap_mm": 0.0,
+          "nominal_body_projection_overlap": true,
+          "protrusion_height_known": false
+        }
+      ],
+      "same_face_body_reservations": [
+        {
+          "reference": "C25",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C53",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.1219000000000001
+        }
+      ],
+      "unknown": [],
+      "body_and_lands_inside_board": true,
+      "land_clearance_screen_ok": false,
+      "nominal_mechanical_screen_ok": false,
+      "mechanical_allocation_mm": 0.25,
+      "scope": "base/netclass land-clearance and nominal mechanical rejection screen",
+      "custom_rule_DRC_run": false,
+      "lead_geometry_basis": "native drill envelopes; solder unknown",
+      "mechanical_fit_qualified": false,
+      "added_assembly_height_known": false,
+      "current_connection_qualified": false,
+      "release_authority": false,
+      "ends_nm": [
+        [
+          24500000,
+          40500000
+        ],
+        [
+          24500000,
+          65900000
+        ]
+      ],
+      "nominal_height_mm": 2.3,
+      "nominal_underside_mm": 1.8,
+      "body_xy": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              25.4,
+              39.8
+            ],
+            [
+              25.4,
+              66.6
+            ],
+            [
+              23.6,
+              66.6
+            ],
+            [
+              23.6,
+              39.8
+            ],
+            [
+              25.4,
+              39.8
+            ]
+          ]
+        ]
+      },
+      "lands_xy": [
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                25.5,
+                39.5
+              ],
+              [
+                25.5,
+                41.5
+              ],
+              [
+                23.5,
+                41.5
+              ],
+              [
+                23.5,
+                39.5
+              ],
+              [
+                25.5,
+                39.5
+              ]
+            ]
+          ]
+        },
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                25.5,
+                64.9
+              ],
+              [
+                25.5,
+                66.9
+              ],
+              [
+                23.5,
+                66.9
+              ],
+              [
+                23.5,
+                64.9
+              ],
+              [
+                25.5,
+                64.9
+              ]
+            ]
+          ]
+        }
+      ],
+      "same_face_owners": [
+        {
+          "reference": "C25",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "pose_mm": [
+            24.7,
+            64.5,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "036b2454-99aa-4db5-92cd-7eaf15f1f9c2",
+              "net": "+5V_SYS",
+              "at_mm": [
+                24.7,
+                65.45
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+              "net": "GND",
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "pose_mm": [
+            25.0,
+            37.3,
+            0.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "e7a37d31-a98c-4e91-8a50-6864c6270df4",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                37.3
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "c482e23a-f8f5-42b9-ac52-7e670f8cea90",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                37.3
+              ]
+            },
+            {
+              "pin": "3",
+              "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                39.84
+              ]
+            },
+            {
+              "pin": "4",
+              "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                39.84
+              ]
+            },
+            {
+              "pin": "5",
+              "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                42.38
+              ]
+            },
+            {
+              "pin": "6",
+              "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                42.38
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C53",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "pose_mm": [
+            23.979989,
+            55.3,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "63430b53-02e3-49b3-9963-990134283437",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "at_mm": [
+                24.929989,
+                55.3
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "6b5f51aa-4079-4b0b-9b6e-f24e894858ad",
+              "net": "GND",
+              "at_mm": [
+                23.029989,
+                55.3
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.1219000000000001,
+          "footprint_uuid": "c5c87ea1-e77c-4fd5-9f42-ef21535d0fdd",
+          "pose_mm": [
+            25.9769,
+            60.263201,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "at_mm": [
+                25.9769,
+                60.743201
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "efc707ff-8a77-45e4-a06f-f7d284366a78",
+              "net": "GND",
+              "at_mm": [
+                25.9769,
+                59.783201
+              ]
+            }
+          ]
+        }
+      ],
+      "opposing_body_checks": [
+        {
+          "ref": "J6P",
+          "height_max_mm": 8.709,
+          "nominal_vertical_margin_mm": 9.991,
+          "nominal_reject": false,
+          "overlap_mm2": 8.108999999999979
+        }
+      ],
+      "nominal_opposing_body_rejects": [],
+      "clearance_basis": "Explicit0.2mm nominal rejection assumption only; NOT custom-rule clearance acceptance",
+      "stub_endpoints_mm": {
+        "upper": [
+          [
+            18.6,
+            36
+          ],
+          [
+            24.5,
+            40.5
+          ]
+        ],
+        "lower": [
+          [
+            24.5,
+            65.9
+          ],
+          [
+            18.349999,
+            77.4
+          ]
+        ]
+      },
+      "stub_copper_not_constructed_or_received": true
+    },
+    {
+      "id": "vertical-26-41",
+      "face": "F.Cu",
+      "land_conflicts": [
+        {
+          "uuid": "036b2454-99aa-4db5-92cd-7eaf15f1f9c2",
+          "kind": "PAD",
+          "net": "+5V_SYS",
+          "reference": "C25",
+          "pin": "1",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "4",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.06320438135562957,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "4",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.16030267784699354,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "e8936a1b-a248-4ed2-8952-f819dee00278",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "bdeacc19-7237-4ced-be18-91b64317c858",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "ddfd03e7-bfa5-5305-9bfd-72221a3277c9",
+          "kind": "PCB_VIA",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "ddfd03e7-bfa5-5305-9bfd-72221a3277c9",
+          "kind": "PCB_VIA",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.14999999999999858,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "kind": "ZONE",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        }
+      ],
+      "same_net_land_contacts": [
+        [],
+        []
+      ],
+      "source_copper_touches_both_feet": false,
+      "nearby_holes_or_leads": [
+        {
+          "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "3",
+          "body_gap_mm": 0.0,
+          "nominal_body_projection_overlap": true,
+          "protrusion_height_known": false
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "body_gap_mm": 0.0,
+          "nominal_body_projection_overlap": true,
+          "protrusion_height_known": false
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "body_gap_mm": 0.14000000000000057,
+          "nominal_body_projection_overlap": false,
+          "protrusion_height_known": false
+        }
+      ],
+      "same_face_body_reservations": [
+        {
+          "reference": "C25",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C21",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C53",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        }
+      ],
+      "unknown": [],
+      "body_and_lands_inside_board": true,
+      "land_clearance_screen_ok": false,
+      "nominal_mechanical_screen_ok": false,
+      "mechanical_allocation_mm": 0.25,
+      "scope": "base/netclass land-clearance and nominal mechanical rejection screen",
+      "custom_rule_DRC_run": false,
+      "lead_geometry_basis": "native drill envelopes; solder unknown",
+      "mechanical_fit_qualified": false,
+      "added_assembly_height_known": false,
+      "current_connection_qualified": false,
+      "release_authority": false,
+      "ends_nm": [
+        [
+          26000000,
+          41000000
+        ],
+        [
+          26000000,
+          66400000
+        ]
+      ],
+      "nominal_height_mm": 2.3,
+      "nominal_underside_mm": 1.8,
+      "body_xy": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              26.9,
+              40.3
+            ],
+            [
+              26.9,
+              67.1
+            ],
+            [
+              25.1,
+              67.1
+            ],
+            [
+              25.1,
+              40.3
+            ],
+            [
+              26.9,
+              40.3
+            ]
+          ]
+        ]
+      },
+      "lands_xy": [
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                27.0,
+                40.0
+              ],
+              [
+                27.0,
+                42.0
+              ],
+              [
+                25.0,
+                42.0
+              ],
+              [
+                25.0,
+                40.0
+              ],
+              [
+                27.0,
+                40.0
+              ]
+            ]
+          ]
+        },
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                27.0,
+                65.4
+              ],
+              [
+                27.0,
+                67.4
+              ],
+              [
+                25.0,
+                67.4
+              ],
+              [
+                25.0,
+                65.4
+              ],
+              [
+                27.0,
+                65.4
+              ]
+            ]
+          ]
+        }
+      ],
+      "same_face_owners": [
+        {
+          "reference": "C25",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "pose_mm": [
+            24.7,
+            64.5,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "036b2454-99aa-4db5-92cd-7eaf15f1f9c2",
+              "net": "+5V_SYS",
+              "at_mm": [
+                24.7,
+                65.45
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+              "net": "GND",
+              "at_mm": [
+                24.7,
+                63.55
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C21",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "pose_mm": [
+            26.79999,
+            53.550002,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "04a8b81a-ce56-4a4e-bb72-67f54bf05325",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+              "at_mm": [
+                26.79999,
+                54.500002
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "23f97a35-a056-4f57-8cb1-97cb938eade0",
+              "net": "GND",
+              "at_mm": [
+                26.79999,
+                52.600002
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "pose_mm": [
+            25.0,
+            37.3,
+            0.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "e7a37d31-a98c-4e91-8a50-6864c6270df4",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                37.3
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "c482e23a-f8f5-42b9-ac52-7e670f8cea90",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                37.3
+              ]
+            },
+            {
+              "pin": "3",
+              "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                39.84
+              ]
+            },
+            {
+              "pin": "4",
+              "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                39.84
+              ]
+            },
+            {
+              "pin": "5",
+              "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                42.38
+              ]
+            },
+            {
+              "pin": "6",
+              "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                42.38
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C53",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "pose_mm": [
+            23.979989,
+            55.3,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "63430b53-02e3-49b3-9963-990134283437",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "at_mm": [
+                24.929989,
+                55.3
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "6b5f51aa-4079-4b0b-9b6e-f24e894858ad",
+              "net": "GND",
+              "at_mm": [
+                23.029989,
+                55.3
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "c5c87ea1-e77c-4fd5-9f42-ef21535d0fdd",
+          "pose_mm": [
+            25.9769,
+            60.263201,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "at_mm": [
+                25.9769,
+                60.743201
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "efc707ff-8a77-45e4-a06f-f7d284366a78",
+              "net": "GND",
+              "at_mm": [
+                25.9769,
+                59.783201
+              ]
+            }
+          ]
+        }
+      ],
+      "opposing_body_checks": [
+        {
+          "ref": "R38",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "DL3",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "J6P",
+          "height_max_mm": 8.709,
+          "nominal_vertical_margin_mm": 9.991,
+          "nominal_reject": false,
+          "overlap_mm2": 7.20899999999998
+        }
+      ],
+      "nominal_opposing_body_rejects": [],
+      "clearance_basis": "Explicit0.2mm nominal rejection assumption only; NOT custom-rule clearance acceptance",
+      "stub_endpoints_mm": {
+        "upper": [
+          [
+            18.6,
+            36
+          ],
+          [
+            26,
+            41
+          ]
+        ],
+        "lower": [
+          [
+            26,
+            66.4
+          ],
+          [
+            18.349999,
+            77.4
+          ]
+        ]
+      },
+      "stub_copper_not_constructed_or_received": true
+    },
+    {
+      "id": "vertical-27-41.5",
+      "face": "F.Cu",
+      "land_conflicts": [
+        {
+          "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "4",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.1599999999999966,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "4",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+          "kind": "PAD",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "reference": "J6P",
+          "pin": "5",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.14999999999999858,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "e8936a1b-a248-4ed2-8952-f819dee00278",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "913fccfb-6a94-42da-ae63-25f7b0ec5a38",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "bdeacc19-7237-4ced-be18-91b64317c858",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "2d3291f7-1aa3-49e8-a377-5dc5e8d2a97e",
+          "kind": "PCB_TRACK",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.11438700000000068,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "cdab927e-f90b-408b-9b29-1a83ee0e6510",
+          "kind": "PCB_TRACK",
+          "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.11438700000000068,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "kind": "ZONE",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        }
+      ],
+      "same_net_land_contacts": [
+        [],
+        []
+      ],
+      "source_copper_touches_both_feet": false,
+      "nearby_holes_or_leads": [
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "reference": "J6P",
+          "pin": "6",
+          "body_gap_mm": 0.0,
+          "nominal_body_projection_overlap": true,
+          "protrusion_height_known": false
+        }
+      ],
+      "same_face_body_reservations": [
+        {
+          "reference": "R58",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.20999000000000123
+        },
+        {
+          "reference": "R69",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C21",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "FB2",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        }
+      ],
+      "unknown": [],
+      "body_and_lands_inside_board": true,
+      "land_clearance_screen_ok": false,
+      "nominal_mechanical_screen_ok": false,
+      "mechanical_allocation_mm": 0.25,
+      "scope": "base/netclass land-clearance and nominal mechanical rejection screen",
+      "custom_rule_DRC_run": false,
+      "lead_geometry_basis": "native drill envelopes; solder unknown",
+      "mechanical_fit_qualified": false,
+      "added_assembly_height_known": false,
+      "current_connection_qualified": false,
+      "release_authority": false,
+      "ends_nm": [
+        [
+          27000000,
+          41500000
+        ],
+        [
+          27000000,
+          66900000
+        ]
+      ],
+      "nominal_height_mm": 2.3,
+      "nominal_underside_mm": 1.8,
+      "body_xy": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              27.9,
+              40.8
+            ],
+            [
+              27.9,
+              67.6
+            ],
+            [
+              26.1,
+              67.6
+            ],
+            [
+              26.1,
+              40.8
+            ],
+            [
+              27.9,
+              40.8
+            ]
+          ]
+        ]
+      },
+      "lands_xy": [
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                28.0,
+                40.5
+              ],
+              [
+                28.0,
+                42.5
+              ],
+              [
+                26.0,
+                42.5
+              ],
+              [
+                26.0,
+                40.5
+              ],
+              [
+                28.0,
+                40.5
+              ]
+            ]
+          ]
+        },
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                28.0,
+                65.9
+              ],
+              [
+                28.0,
+                67.9
+              ],
+              [
+                26.0,
+                67.9
+              ],
+              [
+                26.0,
+                65.9
+              ],
+              [
+                28.0,
+                65.9
+              ]
+            ]
+          ]
+        }
+      ],
+      "same_face_owners": [
+        {
+          "reference": "R58",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.20999000000000123,
+          "footprint_uuid": "621a30b4-dc9b-4a7d-b845-b6af5cb10d98",
+          "pose_mm": [
+            28.57499,
+            59.515,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "at_mm": [
+                28.57499,
+                60.025
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "813bbdca-8aa6-43aa-894f-edc184c5bf84",
+              "net": "GND",
+              "at_mm": [
+                28.57499,
+                59.005
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "R69",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "74b57347-9a76-44ce-baed-f858453958f0",
+          "pose_mm": [
+            28.7,
+            64.099999,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "d4151e77-d142-4306-a65d-35d3ab7e2d63",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "at_mm": [
+                29.21,
+                64.099999
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "d9206c40-b3f1-4c5c-84e4-b46ec7d671ac",
+              "net": "GND",
+              "at_mm": [
+                28.19,
+                64.099999
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C21",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "pose_mm": [
+            26.79999,
+            53.550002,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "04a8b81a-ce56-4a4e-bb72-67f54bf05325",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+              "at_mm": [
+                26.79999,
+                54.500002
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "23f97a35-a056-4f57-8cb1-97cb938eade0",
+              "net": "GND",
+              "at_mm": [
+                26.79999,
+                52.600002
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "J6P",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "pose_mm": [
+            25.0,
+            37.3,
+            0.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "e7a37d31-a98c-4e91-8a50-6864c6270df4",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                37.3
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "c482e23a-f8f5-42b9-ac52-7e670f8cea90",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                37.3
+              ]
+            },
+            {
+              "pin": "3",
+              "uuid": "a6c1f08f-9f07-4f7b-94c2-5356c7562733",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                39.84
+              ]
+            },
+            {
+              "pin": "4",
+              "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                39.84
+              ]
+            },
+            {
+              "pin": "5",
+              "uuid": "f48d269b-ca70-44d2-bcb9-c5f30166ce1b",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                25.0,
+                42.38
+              ]
+            },
+            {
+              "pin": "6",
+              "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+              "net": "GND",
+              "at_mm": [
+                27.54,
+                42.38
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "C52",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "c5c87ea1-e77c-4fd5-9f42-ef21535d0fdd",
+          "pose_mm": [
+            25.9769,
+            60.263201,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "at_mm": [
+                25.9769,
+                60.743201
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "efc707ff-8a77-45e4-a06f-f7d284366a78",
+              "net": "GND",
+              "at_mm": [
+                25.9769,
+                59.783201
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "FB2",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "pose_mm": [
+            29.28,
+            61.415001,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "fe8e3b00-f1fa-4066-936d-0da576c599fc",
+              "net": "+5V_SYS",
+              "at_mm": [
+                30.23,
+                61.415001
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "50d9d12c-ff57-4f69-bf05-05769b632f0c",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                28.33,
+                61.415001
+              ]
+            }
+          ]
+        }
+      ],
+      "opposing_body_checks": [
+        {
+          "ref": "R_ILIM3",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "DL3",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 2.9605499999999747
+        },
+        {
+          "ref": "R37",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "J6P",
+          "height_max_mm": 8.709,
+          "nominal_vertical_margin_mm": 9.991,
+          "nominal_reject": false,
+          "overlap_mm2": 6.3089999999999815
+        }
+      ],
+      "nominal_opposing_body_rejects": [],
+      "clearance_basis": "Explicit0.2mm nominal rejection assumption only; NOT custom-rule clearance acceptance",
+      "stub_endpoints_mm": {
+        "upper": [
+          [
+            18.6,
+            36
+          ],
+          [
+            27,
+            41.5
+          ]
+        ],
+        "lower": [
+          [
+            27,
+            66.9
+          ],
+          [
+            18.349999,
+            77.4
+          ]
+        ]
+      },
+      "stub_copper_not_constructed_or_received": true
+    },
+    {
+      "id": "vertical-30.6-41.5",
+      "face": "F.Cu",
+      "land_conflicts": [
+        {
+          "uuid": "bac505b9-2680-4f09-b6a8-ba5069f86aa1",
+          "kind": "PAD",
+          "net": "+5V_MAIN",
+          "reference": "R59",
+          "pin": "1",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.18000000000000682,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "d615c225-5499-4a9e-bfa0-72c5c837120f",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+          "reference": "R59",
+          "pin": "2",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.18000000000000682,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "4eca8854-bca0-4bdb-98b3-f5a9df406e27",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "ada6234c-5470-45b4-bf0d-75c9a2327ffc",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "e8936a1b-a248-4ed2-8952-f819dee00278",
+          "kind": "PCB_TRACK",
+          "net": "+3V3",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "bdeacc19-7237-4ced-be18-91b64317c858",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "fabea14e-e4c5-4a4c-9e20-77b29d629498",
+          "kind": "PCB_TRACK",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.16971500000001072,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "b728866f-c429-491d-9097-01d2bb43cdde",
+          "kind": "PCB_VIA",
+          "net": "+5V_SYS",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.10840000000000316,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "a55456cd-d2fc-548b-a325-3290023e4bdc",
+          "kind": "PCB_TRACK",
+          "net": "+5V_MAIN",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.17837404951534302,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "2b938cba-5b3d-4866-bee1-15ba266cb16d",
+          "kind": "PCB_VIA",
+          "net": "+5V_MAIN",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.11231016184087633,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "907b27b8-2225-47db-91ab-93d691e15292",
+          "kind": "PCB_VIA",
+          "net": "/HUB LINK + CAN + STACK/DETECT",
+          "foot": 1,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "907b27b8-2225-47db-91ab-93d691e15292",
+          "kind": "PCB_VIA",
+          "net": "/HUB LINK + CAN + STACK/DETECT",
+          "foot": 1,
+          "kind_of_conflict": "drill_under_smt_land",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.25
+        },
+        {
+          "uuid": "fd95c6e3-959f-5cdf-8fd4-a9befb7f6c43",
+          "kind": "PCB_TRACK",
+          "net": "+5V_MAIN",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.17349037555437904,
+          "required_gap_mm": 0.2
+        },
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "kind": "ZONE",
+          "net": "/SENSE5V_HI",
+          "foot": 2,
+          "kind_of_conflict": "other_net_land_clearance",
+          "measured_gap_mm": 0.0,
+          "required_gap_mm": 0.2
+        }
+      ],
+      "same_net_land_contacts": [
+        [],
+        []
+      ],
+      "source_copper_touches_both_feet": false,
+      "nearby_holes_or_leads": [],
+      "same_face_body_reservations": [
+        {
+          "reference": "R59",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "R69",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.07499999999999929
+        },
+        {
+          "reference": "R56",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.1099899999999998
+        },
+        {
+          "reference": "R57",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "FB2",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        },
+        {
+          "reference": "R55",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0
+        }
+      ],
+      "unknown": [],
+      "body_and_lands_inside_board": true,
+      "land_clearance_screen_ok": false,
+      "nominal_mechanical_screen_ok": false,
+      "mechanical_allocation_mm": 0.25,
+      "scope": "base/netclass land-clearance and nominal mechanical rejection screen",
+      "custom_rule_DRC_run": false,
+      "lead_geometry_basis": "native drill envelopes; solder unknown",
+      "mechanical_fit_qualified": false,
+      "added_assembly_height_known": false,
+      "current_connection_qualified": false,
+      "release_authority": false,
+      "ends_nm": [
+        [
+          30600000,
+          41500000
+        ],
+        [
+          30600000,
+          66900000
+        ]
+      ],
+      "nominal_height_mm": 2.3,
+      "nominal_underside_mm": 1.8,
+      "body_xy": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              31.5,
+              40.8
+            ],
+            [
+              31.5,
+              67.6
+            ],
+            [
+              29.7,
+              67.6
+            ],
+            [
+              29.7,
+              40.8
+            ],
+            [
+              31.5,
+              40.8
+            ]
+          ]
+        ]
+      },
+      "lands_xy": [
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                31.6,
+                40.5
+              ],
+              [
+                31.6,
+                42.5
+              ],
+              [
+                29.6,
+                42.5
+              ],
+              [
+                29.6,
+                40.5
+              ],
+              [
+                31.6,
+                40.5
+              ]
+            ]
+          ]
+        },
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                31.6,
+                65.9
+              ],
+              [
+                31.6,
+                67.9
+              ],
+              [
+                29.6,
+                67.9
+              ],
+              [
+                29.6,
+                65.9
+              ],
+              [
+                31.6,
+                65.9
+              ]
+            ]
+          ]
+        }
+      ],
+      "same_face_owners": [
+        {
+          "reference": "R59",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "3dae1719-7f28-4b2d-8b8e-d74f60c00a1d",
+          "pose_mm": [
+            31.18,
+            65.4,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "bac505b9-2680-4f09-b6a8-ba5069f86aa1",
+              "net": "+5V_MAIN",
+              "at_mm": [
+                31.69,
+                65.4
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "d615c225-5499-4a9e-bfa0-72c5c837120f",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "at_mm": [
+                30.67,
+                65.4
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "R69",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.07499999999999929,
+          "footprint_uuid": "74b57347-9a76-44ce-baed-f858453958f0",
+          "pose_mm": [
+            28.7,
+            64.099999,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "d4151e77-d142-4306-a65d-35d3ab7e2d63",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+              "at_mm": [
+                29.21,
+                64.099999
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "d9206c40-b3f1-4c5c-84e4-b46ec7d671ac",
+              "net": "GND",
+              "at_mm": [
+                28.19,
+                64.099999
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "R56",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.1099899999999998,
+          "footprint_uuid": "b45c902f-366c-4b85-af5b-ddc66e53de4e",
+          "pose_mm": [
+            32.07499,
+            56.265,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "at_mm": [
+                32.07499,
+                56.775
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "1fcfb2a7-956d-4a87-8a40-387b4997b373",
+              "net": "GND",
+              "at_mm": [
+                32.07499,
+                55.755
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "R57",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "d0181fa5-a6a8-4522-8a04-3a73f08a4dfd",
+          "pose_mm": [
+            30.08499,
+            59.525,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+              "net": "+5VSB",
+              "at_mm": [
+                30.59499,
+                59.525
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "d458f7b4-688e-4868-8686-3bcf2b4898c3",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "at_mm": [
+                29.57499,
+                59.525
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "FB2",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "pose_mm": [
+            29.28,
+            61.415001,
+            180.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "fe8e3b00-f1fa-4066-936d-0da576c599fc",
+              "net": "+5V_SYS",
+              "at_mm": [
+                30.23,
+                61.415001
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "50d9d12c-ff57-4f69-bf05-05769b632f0c",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "at_mm": [
+                28.33,
+                61.415001
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "R55",
+          "basis": "native_courtyard",
+          "measured_gap_mm": 0.0,
+          "footprint_uuid": "e48edaaa-faec-4a7f-88e1-fac626caac05",
+          "pose_mm": [
+            30.82499,
+            57.785,
+            90.0
+          ],
+          "pads": [
+            {
+              "pin": "1",
+              "uuid": "7475104c-b608-4514-9095-e89dfd7d7005",
+              "net": "+5VSB",
+              "at_mm": [
+                30.82499,
+                58.295
+              ]
+            },
+            {
+              "pin": "2",
+              "uuid": "b2b2b674-192b-4c55-9373-f1670b4f6f20",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "at_mm": [
+                30.82499,
+                57.275
+              ]
+            }
+          ]
+        }
+      ],
+      "opposing_body_checks": [
+        {
+          "ref": "DL2",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 4.099549999999993
+        },
+        {
+          "ref": "C30",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.11602500000000072
+        },
+        {
+          "ref": "C22",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.09327499999999887
+        },
+        {
+          "ref": "C31",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 1.5515499999999927
+        },
+        {
+          "ref": "C23",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "C26",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        },
+        {
+          "ref": "C10",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 4.277500000000012
+        },
+        {
+          "ref": "U11",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.596204110000004
+        },
+        {
+          "ref": "DL3",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 8.261999999999984
+        },
+        {
+          "ref": "R37",
+          "height_max_mm": 3.0,
+          "nominal_vertical_margin_mm": 15.7,
+          "nominal_reject": false,
+          "overlap_mm2": 0.2092509300000006
+        },
+        {
+          "ref": "J6P",
+          "height_max_mm": 8.709,
+          "nominal_vertical_margin_mm": 9.991,
+          "nominal_reject": false,
+          "overlap_mm2": 0.0
+        }
+      ],
+      "nominal_opposing_body_rejects": [],
+      "clearance_basis": "Explicit0.2mm nominal rejection assumption only; NOT custom-rule clearance acceptance",
+      "stub_endpoints_mm": {
+        "upper": [
+          [
+            18.6,
+            36
+          ],
+          [
+            30.6,
+            41.5
+          ]
+        ],
+        "lower": [
+          [
+            30.6,
+            66.9
+          ],
+          [
+            18.349999,
+            77.4
+          ]
+        ]
+      },
+      "stub_copper_not_constructed_or_received": true
+    }
+  ],
+  "leftmost_non12v_nonground_material": [
+    {
+      "uuid": "113a8327-9dec-5a52-aa0d-a34193c128ec",
+      "ref": "FID3",
+      "pin": "",
+      "net": "",
+      "kind": "PAD",
+      "bounds_mm": [
+        3.0,
+        84.5,
+        4.0,
+        85.5
+      ]
+    },
+    {
+      "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+      "net": "/SENSE3V3_HI",
+      "kind": "FILLED_ZONE",
+      "layer": "B.Cu",
+      "bounds_mm": [
+        4.198,
+        38.273,
+        72.471,
+        79.671
+      ]
+    },
+    {
+      "uuid": "3ace9012-8691-4de3-be94-98946715204b",
+      "net": "/SENSE3V3_HI",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        4.204886,
+        39.282238,
+        14.417763,
+        45.817763
+      ]
+    },
+    {
+      "uuid": "e8ae802e-223d-4792-aa23-8e06299434b5",
+      "net": "/SENSE3V3_HI",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        4.204886,
+        39.282238,
+        10.740411,
+        56.067763
+      ]
+    },
+    {
+      "uuid": "4847c8fb-dd99-5192-bcb0-78af6fd14c79",
+      "ref": "FID1",
+      "pin": "",
+      "net": "",
+      "kind": "PAD",
+      "bounds_mm": [
+        4.5,
+        22.0,
+        5.5,
+        23.0
+      ]
+    },
+    {
+      "uuid": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+      "net": "/SENSE3V3_HI",
+      "kind": "FILLED_ZONE",
+      "layer": "B.Cu",
+      "bounds_mm": [
+        5.931,
+        72.154,
+        13.379,
+        79.602
+      ]
+    },
+    {
+      "uuid": "97e88707-e4ef-4c30-af4e-724ee6e7d22d",
+      "net": "/SENSE3V3_HI",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        5.932238,
+        49.532238,
+        12.467763,
+        78.690705
+      ]
+    },
+    {
+      "uuid": "5c1c6766-9a73-43fb-8528-378ff7ca4890",
+      "net": "/SENSE3V3_HI",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        7.882238,
+        38.282238,
+        15.417763,
+        45.817763
+      ]
+    },
+    {
+      "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+      "ref": "J3",
+      "pin": "",
+      "net": "",
+      "kind": "PAD",
+      "bounds_mm": [
+        8.049999,
+        80.0,
+        11.249999,
+        83.2
+      ]
+    },
+    {
+      "uuid": "278bc5d9-6b20-4816-9ccb-85960582aaed",
+      "net": "/SENSE3V3_HI",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        8.882238,
+        38.282238,
+        21.617763,
+        44.817763
+      ]
+    },
+    {
+      "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+      "ref": "C9",
+      "pin": "1",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "kind": "PAD",
+      "bounds_mm": [
+        9.825,
+        46.55,
+        11.275,
+        47.55
+      ]
+    },
+    {
+      "uuid": "c3d781c3-fd04-4865-b0d1-23b073a604dc",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        10.45,
+        46.95,
+        10.650001,
+        47.340001
+      ]
+    },
+    {
+      "uuid": "d16d0db8-1510-5094-bdb2-fe7752d0e01a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        10.45,
+        47.14,
+        10.950001,
+        47.640001
+      ]
+    },
+    {
+      "uuid": "863e21ec-f97a-53f3-b083-5a214912793a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        10.75,
+        47.44,
+        13.400001,
+        47.640001
+      ]
+    },
+    {
+      "uuid": "d4dde8a5-2926-4737-acdc-452ddf76cc6a",
+      "ref": "R70",
+      "pin": "1",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "kind": "PAD",
+      "bounds_mm": [
+        11.1172,
+        13.82,
+        11.6572,
+        14.46
+      ]
+    },
+    {
+      "uuid": "f855cdf9-261d-50eb-a518-fc5ce0ca8a31",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        11.2872,
+        4.4,
+        21.127201,
+        14.240001
+      ]
+    },
+    {
+      "uuid": "19b72a21-fd9a-4eca-8a49-234863e73e00",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "kind": "PCB_VIA",
+      "bounds_mm": [
+        11.6,
+        48.5,
+        12.200001,
+        49.100001
+      ]
+    },
+    {
+      "uuid": "260484da-9029-4624-bbe7-634592e0db1f",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        11.8,
+        48.4,
+        12.000001,
+        48.900001
+      ]
+    },
+    {
+      "uuid": "91e5654b-6559-5f14-b242-20fc9412b04e",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        11.8,
+        48.015,
+        12.385001,
+        48.600001
+      ]
+    },
+    {
+      "uuid": "52b91698-cdb7-5b09-9443-0df514bd5415",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "kind": "PCB_TRACK",
+      "bounds_mm": [
+        11.8,
+        48.7,
+        12.100001,
+        48.900001
+      ]
+    }
+  ],
+  "projected_dimensions_before": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        89.585,
+        91.795
+      ],
+      "size_mm": [
+        89.585,
+        93.09
+      ],
+      "bounding_area_mm2": 8339.46765
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "not_current_or_assembly_or_release_qualified": true,
+  "board_mutated": false
+}

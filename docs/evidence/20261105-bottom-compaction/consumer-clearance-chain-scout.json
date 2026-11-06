@@ -1,0 +1,49 @@
+{
+  "schema":1,
+  "scope":"Saved existing-tool typed allocation repath followed by separate native TB4 bank construction; private source-bound chain, not release",
+  "initial_source":{"path":"experiments/repack/top-output-current-20261106/consolidated12-v1/carrier/board.kicad_pcb","sha256":"acf35631915c62f60e75a314f1d04469c8fc16647ddefc8c4ad3d4fb18c28dac"},
+  "group_repath":{
+    "candidate":"experiments/repack/top-output-current-20261106/consumer-clearance-v1/carrier/board.kicad_pcb",
+    "sha256":"04656aabaf05e8481602aa8e1f849d705654ecb98d0ec70525bbe71dc85ae7a8",
+    "private_constructor":"experiments/repack/top-output-current-20261106/consumer_clearance_scout.py",
+    "existing_shared_tool":"scripts/cec_consumer_group_reconstruction.py",
+    "retired_uuid":"c93d67eb-c8c0-5624-bc60-7d19ff1d740f",
+    "group_uuid":"8dee5c85-2ff2-45c3-88c9-ff7458ea0d13",
+    "root_anchor_budget_exclusive_island_and_single_tap_preserved":true,
+    "source_width_nm":477639,"layer":"B.Cu",
+    "points_nm":[[22770300,13979700],[25750000,11000000],[26050000,11000000],[28400000,8650000],[28400000,8350000],[29250000,7500000]],
+    "saved_receiver":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-v1/receiver.json","ok":true,"complete":true,"errors":[]},
+    "native_DRC":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-v1/native-drc.json","errors":0,"opens":0,"reporting_runner_complete":true},
+    "current_debt":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-v1/current.json","ok":true,"complete":true,"before_fault_objects":5,"after_fault_objects":5,"new_faults":[],"worsened_faults":[],"current_qualified":false}
+  },
+  "bank025_refusal":{
+    "operation":"collect.py TB4 B.Cu bank_collector chamfer250000nm",
+    "output_directory":"experiments/repack/top-output-current-20261106/consumer-clearance-bank025-v1",
+    "construction_succeeded":false,
+    "reason":"foreign_native_copper_inside_proposed_outline: c5d5e667-6543-5279-adaa-fe429a67959e PCB_TRACK +5V_MAIN",
+    "warning":"Directory contains source-family copy/request from failed construction, not an accepted bank candidate."
+  },
+  "bank060":{
+    "source_sha256":"04656aabaf05e8481602aa8e1f849d705654ecb98d0ec70525bbe71dc85ae7a8",
+    "candidate":"experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+    "sha256":"1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3",
+    "operation":{"kind":"bank_collector","reference":"TB4","layer":"B.Cu","chamfer_nm":600000,"support_track_uuids":[]},
+    "zone_uuid":"b228685f-810b-596a-9464-5c6a8f116346",
+    "saved_power_receiver":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/received.json","ok":true,"complete":true,"errors":[]},
+    "native_DRC":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/native-drc.json","errors":0,"opens":0,"reporting_runner_complete":true},
+    "current_debt":{"path":"experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/current.json","ok":true,"complete":true,"before_fault_objects":5,"after_fault_objects":2,"new_faults":[],"worsened_faults":[],"remaining_domain":"/SENSE5VSB_LO","current_qualified":false},
+    "actual_saved_fill_clearance_to_all_BCu_members_of_original_allocation_group":{
+      "method":"Native filled-zone polygon versus each native B.Cu group-track polygon, outside polygon approximation1nm",
+      "minimum_mm":0.34788687621840564,
+      "minimum_track_uuid":"0e6d8610-4c22-57fd-87a2-73d20ef2a9bf",
+      "next_minimum_mm":0.3478878715505917,
+      "offset_diagonal_gap_mm":0.4117186219592431,
+      "margin_above_0p2mm_minimum_mm":0.14788687621840564,
+      "note":"This is substantial modeled geometric headroom, not a physical manufacturing/whole-path qualification."
+    }
+  },
+  "shared_code_or_gates_modified":false,
+  "draft_typed_group_prohibition_weakened":false,
+  "source_boards_modified":false,
+  "current_qualified":false,"routing_admitted":false,"release_authority":false
+}

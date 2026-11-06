@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "scope": "PRIVATE_READ_ONLY_INDEPENDENT_SAVED_BOARD_VERIFICATION",
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pcb",
+      "sha256": "b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+      "sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "field_policy": {
+    "before_ok": true,
+    "after_ok": true,
+    "before_blockers": 0,
+    "after_blockers": 0,
+    "new_blockers": []
+  },
+  "outline": {
+    "exact_unchanged": true,
+    "bounds_mm": [
+      0.0,
+      0.0,
+      78.0,
+      87.5
+    ],
+    "size_mm": [
+      78,
+      87.5
+    ]
+  },
+  "c37_full_guard": {
+    "all_filled_copper_exact_disjoint": true,
+    "filled_zones_checked": 16,
+    "native_hits": 0,
+    "method": "integer boundary intersections and rational winding; integer bounding boxes for disjoint broadphase"
+  },
+  "paired_native_assembly": {
+    "ok": true,
+    "body_checks": 391,
+    "failed_body_checks": 0,
+    "minimum_reported_margin_mm": 0.3000000000000007,
+    "missing": [],
+    "contact_groups": 3,
+    "contacts_ok": true,
+    "hardware_ok": true,
+    "vertical_ok": true,
+    "vent_reservations": [
+      {
+        "ref": "C37",
+        "copper_hits": [],
+        "native_rule_covers": true,
+        "ok": true,
+        "receiver": "carrier"
+      },
+      {
+        "ref": "C1",
+        "copper_hits": [],
+        "native_rule_covers": true,
+        "ok": true,
+        "receiver": "carrier"
+      }
+    ]
+  },
+  "footprint_reservations": {
+    "ok": true,
+    "findings": [],
+    "rule_count": 3,
+    "scope": "native-footprint-reservations-only-not-route-or-release"
+  },
+  "authority_unchanged": true,
+  "reports": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-fields.json",
+      "sha256": "4586e6035be78890328e619d555ba161db4ae5c3277bc69fca28b92cc50f1c9e"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-fields-before.json",
+      "sha256": "dc202678c30f44be0e878add84e59dd09793d83511e7172b3ef7e05c683fc71c"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-fields-after.json",
+      "sha256": "5474ea49a558a979c0fa5d24537ae6e538bd460d6843e5e35e452331644abbb9"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-mechanical.json",
+      "sha256": "5eb4da730bd5e25b39b1fa3280d0c2b6d9ef0a0c463f5785d110b3863b9ec247"
+    }
+  ],
+  "current_topology_receiving_delegated_not_repeated": true,
+  "thermal_run": false,
+  "board_mutations": false,
+  "current_or_release_qualified": false
+}

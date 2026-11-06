@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "scope": "Read-only prospective inward bar with rated stubs; not a drop-in bottom-loop replacement",
+  "authority": {
+    "carrier": "experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+    "carrier_sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3",
+    "cover": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "native_measurements": "docs/evidence/20261105-bottom-compaction/vertical-mjp-native-scout.json"
+  },
+  "part": {
+    "id": "Mac8 MJP-1.0",
+    "profile": "experiments/busbars/mac8-mjp-1.0-nominal.json",
+    "manufacturer_drawing": "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+    "pitch_mm": 25.4,
+    "nominal_body_mm": [26.8, 1.8, 2.3],
+    "nominal_underside_mm": 1.8,
+    "catalog_current_a": 20,
+    "basis": "Existing nominal manufacturer profile. Not guaranteed assembled Z, joint current, or custom-rule DRC authority."
+  },
+  "requested_x24_to27_band": {
+    "explicit_poses_mm": [[[24.5, 40.5], [24.5, 65.9]], [[26, 41], [26, 66.4]], [[27, 41.5], [27, 66.9]]],
+    "result": "All reject the current ATX J6P housing and native PTH pads/lead projections at the upper end; not just a few small components.",
+    "J6P_native_courtyard_bounds_mm": [23.235, 35.535, 29.315, 44.145],
+    "obligation": "Relocation of this fixed mating connector requires coordinated Hub J6P and complete power/ground/contact receiving, not a unilateral small-part move."
+  },
+  "prospective_alternate": {
+    "face": "F.Cu",
+    "feet_mm": [[30.6, 41.5], [30.6, 66.9]],
+    "nominal_body_bounds_mm": [29.7, 40.8, 31.5, 67.6],
+    "land_bounds_mm": [[29.6, 40.5, 31.6, 42.5], [29.6, 65.9, 31.6, 67.9]],
+    "mechanical_margin_mm": 0.25,
+    "upper_stub_source_anchor_mm": [18.6, 36],
+    "lower_stub_existing_terminal_mm": [18.349999, 77.4],
+    "terminal_uuid": "b5c3d7cd-d0a8-4d9b-b8a0-4b8d9835ec2a",
+    "same_face_repack_owners": ["R59", "R69", "R56", "R57", "FB2", "R55"],
+    "same_face_repack_cost": "Six small resistive/filter owners, including source-mux monitor/control networks. Actual UUIDs, original poses, pad UUID/net authority are in native measurements. No new poses or legal routes yet constructed.",
+    "native_lead_projection_rejects": [],
+    "native_keepout_or_missing_geometry_rejects": [],
+    "C37_guard_intersection": false,
+    "opposing_body_nominal_rejects": [],
+    "smallest_reported_opposing_nominal_vertical_margin_mm": 9.991,
+    "upper_land_routing_obligations": ["+3V3 tracks4eca8854-bca0-4bdb-98b3-f5a9df406e27,ada6234c-5470-45b4-bf0d-75c9a2327ffc,e8936a1b-a248-4ed2-8952-f819dee00278", "DETECT via907b27b8-2225-47db-91ab-93d691e15292 needs explicit qualified-process relocation"],
+    "lower_land_routing_obligations": ["Rated /SENSE5V_HI trackbdeacc19-7237-4ced-be18-91b64317c858 and saved fill4298863e-593a-4614-93d4-b005e5fa434e occupy land; reroute/current preservation required, no cut waiver", "Local+5V_SYS and+5V_MAIN tracks/vias and R59 pads require explicit source-owned redraws"],
+    "rated_stub_obligations": "Existing12V anchor/trunk are B.Cu while proposed bar is F.Cu. Both land access and full 12A source-domain current with1.25 margin must be proven, including any required two-face connection. The lower stub through interleaved J3 rail topology is NOT demonstrated; nominal bar clearance alone cannot establish it.",
+    "status": "USEFUL_PROSPECTIVE_LAYOUT_CELL_WITH_SIX_SMALL_OWNER_REPACK_AND_RATED_COPPER_WORK_NOT_NATIVE_PASS"
+  },
+  "global_x_opportunity": {
+    "condition": "Retire/reconnect the complete left /SENSE12V_HI bus, not merely its bottom excursion; preserve source keepouts, Ground/current/terminal evidence and exact closed native outline receiving.",
+    "next_atx_non12v_nonground_copper": {"ref": "FID3", "min_x_mm": 3.0},
+    "next_rated_copper": {"net": "/SENSE3V3_HI", "zone_uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b", "min_x_mm": 4.198},
+    "other_native_tracks_or_vias_left_of2p3mm": 0,
+    "FID3_courtyard_min_x_mm": 2.252494,
+    "unchanged_cover_projected_laminate_min_x_mm": 2.0,
+    "cover_C1_declared_body_min_carrier_x_mm": 2.85,
+    "prospective_carrier_left_trim_mm": 2.0,
+    "declared_assembled_x_before_mm": 89.585,
+    "conditional_declared_assembled_x_after_mm": 87.585,
+    "declared_assembled_y_unchanged_mm": 93.09,
+    "limit": "More than2mm global X saving requires a coordinated cover right-edge trim too. Shrinking carrier alone beyond x2 cannot improve global X further because unchanged reflected cover laminate remains at x2. These dimensions are declared-envelope screening, not guaranteed real body/cable package."
+  },
+  "unknowns_not_waived": ["Guaranteed assembled bar maximum height/minimum underside, seating, solder and tolerances; complete-Z-neutral status remains unknown", "Application thermal and solder-joint/current/process qualification", "Native legal rated stubs and source terminal/current/Kelvin preservation", "Paired native DRC and assembly after six-owner redraw and any trim"],
+  "boards_modified": false,
+  "nominal_mechanical_success_claimed": false,
+  "current_qualified": false,
+  "complete_Z_unchanged_proven": false,
+  "release_authority": false
+}

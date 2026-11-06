@@ -1,0 +1,1013 @@
+{
+  "source": "experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pcb",
+  "sha256": "b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1",
+  "domains": {
+    "/SENSE12V_LO": {
+      "contract": {
+        "net": "/SENSE12V_LO",
+        "amps": 12,
+        "profile": "jlcpcb_6l_pofv_high_current",
+        "rise_c": 30,
+        "geometry_margin": 1.25,
+        "current_authority": {
+          "amps": 12,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "/SENSE12V"
+        },
+        "required_by_layer_mm": {
+          "F.Cu": 3.2305914619680833,
+          "In1.Cu": 38.70350353131239,
+          "In2.Cu": 38.70350353131239,
+          "In3.Cu": 38.70350353131239,
+          "In4.Cu": 38.70350353131239,
+          "B.Cu": 3.2305914619680833
+        },
+        "routing_layers": [
+          "F.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "B.Cu"
+        ],
+        "minimum_track_width_mm": 38.70350353131239,
+        "authority_refs": [
+          "RS1",
+          "TB1"
+        ],
+        "source": "current_domain_ipc2221_worst_routing_layer"
+      },
+      "project": {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Power",
+        "pcb_color": "rgb(220, 80, 20)",
+        "priority": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.2,
+        "tuning_profile": "",
+        "via_diameter": 0.9,
+        "via_drill": 0.5,
+        "wire_width": 6,
+        "dimension_contract": {
+          "schema": 1,
+          "role": "branch",
+          "source": "experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pro",
+          "class": "Power",
+          "board_limits_mm": {
+            "track_width": 0.2,
+            "via_diameter": 0.5,
+            "via_drill": 0.3,
+            "annular": 0.1
+          },
+          "current": null
+        }
+      },
+      "terminal": {
+        "reference": "TB1",
+        "uuid": "46085e1c-4ee0-4338-a5dd-1bc1966d3415",
+        "footprint": "<pcbnew.LIB_ID; proxy of <Swig Object of type 'LIB_ID *' at 0x7975f0b36bb0> >",
+        "value": "XFCN T34069",
+        "description": "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.",
+        "pads": [
+          {
+            "uuid": "2c93f209-df8d-472a-b313-314086c76024",
+            "number": "1",
+            "net": "/SENSE12V_LO",
+            "position_nm": [
+              37315000,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "7ea2301f-a230-4740-9d51-c008a8f1bcaa",
+            "number": "1",
+            "net": "/SENSE12V_LO",
+            "position_nm": [
+              42815000,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "4515507c-a151-4bdd-8c94-3e1f744f3c81",
+            "number": "1",
+            "net": "/SENSE12V_LO",
+            "position_nm": [
+              37315000,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "de21d877-192e-4272-a390-5faeec035b9b",
+            "number": "1",
+            "net": "/SENSE12V_LO",
+            "position_nm": [
+              42815000,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          }
+        ]
+      },
+      "shunt": {
+        "reference": "RS1",
+        "pads": [
+          {
+            "uuid": "001f3ae4-171c-43dc-b30a-1c97e7ddb0d0",
+            "number": "1",
+            "net": "/SENSE12V_HI",
+            "position_nm": [
+              51685001,
+              34400099
+            ]
+          },
+          {
+            "uuid": "28d157c1-b1d1-4c3d-b719-79e87a8b4ee0",
+            "number": "2",
+            "net": "/SENSE12V_LO",
+            "position_nm": [
+              51685001,
+              28475099
+            ]
+          }
+        ]
+      }
+    },
+    "/SENSE3V3_LO": {
+      "contract": {
+        "net": "/SENSE3V3_LO",
+        "amps": 20,
+        "profile": "jlcpcb_6l_pofv_high_current",
+        "rise_c": 30,
+        "geometry_margin": 1.25,
+        "current_authority": {
+          "amps": 20,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "/SENSE3V3"
+        },
+        "required_by_layer_mm": {
+          "F.Cu": 6.535522532164526,
+          "In1.Cu": 78.2976189903335,
+          "In2.Cu": 78.2976189903335,
+          "In3.Cu": 78.2976189903335,
+          "In4.Cu": 78.2976189903335,
+          "B.Cu": 6.535522532164526
+        },
+        "routing_layers": [
+          "F.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "B.Cu"
+        ],
+        "minimum_track_width_mm": 78.2976189903335,
+        "authority_refs": [
+          "RS3",
+          "TB4"
+        ],
+        "source": "current_domain_ipc2221_worst_routing_layer"
+      },
+      "project": {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Power",
+        "pcb_color": "rgb(220, 80, 20)",
+        "priority": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.2,
+        "tuning_profile": "",
+        "via_diameter": 0.9,
+        "via_drill": 0.5,
+        "wire_width": 6,
+        "dimension_contract": {
+          "schema": 1,
+          "role": "branch",
+          "source": "experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pro",
+          "class": "Power",
+          "board_limits_mm": {
+            "track_width": 0.2,
+            "via_diameter": 0.5,
+            "via_drill": 0.3,
+            "annular": 0.1
+          },
+          "current": null
+        }
+      },
+      "terminal": {
+        "reference": "TB4",
+        "uuid": "fb880dbc-4b15-4b33-a122-46b6eb9d677f",
+        "footprint": "<pcbnew.LIB_ID; proxy of <Swig Object of type 'LIB_ID *' at 0x7975f0b36f70> >",
+        "value": "XFCN T34069",
+        "description": "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.",
+        "pads": [
+          {
+            "uuid": "d1f38808-b411-5e70-865d-c29759e66a6b",
+            "number": "1",
+            "net": "/SENSE3V3_LO",
+            "position_nm": [
+              21314999,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "9db432ac-2bc8-551d-9cae-9a8c15b22518",
+            "number": "1",
+            "net": "/SENSE3V3_LO",
+            "position_nm": [
+              26814999,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "0a5e1382-5f10-5f00-9de6-00082bfceadf",
+            "number": "1",
+            "net": "/SENSE3V3_LO",
+            "position_nm": [
+              21314999,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "44654fbb-6d31-579a-8457-40d1e0c4c641",
+            "number": "1",
+            "net": "/SENSE3V3_LO",
+            "position_nm": [
+              26814999,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          }
+        ]
+      },
+      "shunt": {
+        "reference": "RS3",
+        "pads": [
+          {
+            "uuid": "86729f54-f99d-40ef-b933-b67d0b29acf9",
+            "number": "1",
+            "net": "/SENSE3V3_HI",
+            "position_nm": [
+              62200000,
+              50462500
+            ]
+          },
+          {
+            "uuid": "713aa7f3-ef43-4b0d-86bb-6a82a1f169bb",
+            "number": "2",
+            "net": "/SENSE3V3_LO",
+            "position_nm": [
+              62200000,
+              44537500
+            ]
+          }
+        ]
+      }
+    },
+    "/SENSE5VSB_LO": {
+      "contract": {
+        "net": "/SENSE5VSB_LO",
+        "amps": 3,
+        "profile": "jlcpcb_6l_pofv_high_current",
+        "rise_c": 30,
+        "geometry_margin": 1.25,
+        "current_authority": {
+          "amps": 3,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "/SENSE5VSB"
+        },
+        "required_by_layer_mm": {
+          "F.Cu": 0.47736927907636145,
+          "In1.Cu": 5.7190343613477115,
+          "In2.Cu": 5.7190343613477115,
+          "In3.Cu": 5.7190343613477115,
+          "In4.Cu": 5.7190343613477115,
+          "B.Cu": 0.47736927907636145
+        },
+        "routing_layers": [
+          "F.Cu",
+          "In2.Cu",
+          "In3.Cu",
+          "B.Cu"
+        ],
+        "minimum_track_width_mm": 5.7190343613477115,
+        "authority_refs": [
+          "RS4",
+          "TB5"
+        ],
+        "source": "current_domain_ipc2221_worst_routing_layer"
+      },
+      "project": {
+        "bus_width": 12,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Power",
+        "pcb_color": "rgb(220, 80, 20)",
+        "priority": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.2,
+        "tuning_profile": "",
+        "via_diameter": 0.9,
+        "via_drill": 0.5,
+        "wire_width": 6,
+        "dimension_contract": {
+          "schema": 1,
+          "role": "branch",
+          "source": "experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pro",
+          "class": "Power",
+          "board_limits_mm": {
+            "track_width": 0.2,
+            "via_diameter": 0.5,
+            "via_drill": 0.3,
+            "annular": 0.1
+          },
+          "current": null
+        }
+      },
+      "terminal": {
+        "reference": "TB5",
+        "uuid": "6f2cc079-ff1f-47e9-a1dd-0989f0cb25bd",
+        "footprint": "<pcbnew.LIB_ID; proxy of <Swig Object of type 'LIB_ID *' at 0x7975f0b36df0> >",
+        "value": "XFCN T34069",
+        "description": "XFCN T34069 / LCSC C481452 threaded side-face PCB soldering terminal, M3, 40 A manufacturer rating, four THT legs. The supplied screw and washer clamp an external conductor against the threaded terminal face; all four solder legs are one electrical node. Main-PCB hole pattern is pinned from the LCSC/EasyEDA package and must be sample-verified before release because the manufacturer drawing does not dimension that land pattern.",
+        "pads": [
+          {
+            "uuid": "0ee1a8ee-9b64-57dc-948a-3c5274ef0877",
+            "number": "1",
+            "net": "/SENSE5VSB_LO",
+            "position_nm": [
+              45315000,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "afe64fbb-66ff-5ee8-88db-6d2fe5e7b6ed",
+            "number": "1",
+            "net": "/SENSE5VSB_LO",
+            "position_nm": [
+              50815000,
+              7400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "3d9efac9-ed7f-5449-8b96-b0767a660afb",
+            "number": "1",
+            "net": "/SENSE5VSB_LO",
+            "position_nm": [
+              45315000,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          },
+          {
+            "uuid": "27976b5a-4f71-563e-a253-0a8e3a17c595",
+            "number": "1",
+            "net": "/SENSE5VSB_LO",
+            "position_nm": [
+              50815000,
+              2400000
+            ],
+            "size_nm": [
+              3000000,
+              2000000
+            ],
+            "drill_nm": [
+              2000000,
+              1200000
+            ],
+            "layers": [
+              "F.Cu",
+              "GND",
+              "SIG2",
+              "PWR",
+              "GND2",
+              "In5.Cu",
+              "In6.Cu",
+              "In7.Cu",
+              "In8.Cu",
+              "In9.Cu",
+              "In10.Cu",
+              "In11.Cu",
+              "In12.Cu",
+              "In13.Cu",
+              "In14.Cu",
+              "In15.Cu",
+              "In16.Cu",
+              "In17.Cu",
+              "In18.Cu",
+              "In19.Cu",
+              "In20.Cu",
+              "In21.Cu",
+              "In22.Cu",
+              "In23.Cu",
+              "In24.Cu",
+              "In25.Cu",
+              "In26.Cu",
+              "In27.Cu",
+              "In28.Cu",
+              "In29.Cu",
+              "In30.Cu",
+              "B.Cu"
+            ]
+          }
+        ]
+      },
+      "shunt": {
+        "reference": "RS4",
+        "pads": [
+          {
+            "uuid": "94d43d68-7874-42fa-8585-925f6ae165a6",
+            "number": "1",
+            "net": "+5VSB",
+            "position_nm": [
+              38200000,
+              50462500
+            ]
+          },
+          {
+            "uuid": "fc4a949a-7f1f-4845-911c-c29071e54b32",
+            "number": "2",
+            "net": "/SENSE5VSB_LO",
+            "position_nm": [
+              38200000,
+              44537500
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "audit_scope": "Read-only exact native source/current authority diagnostic; no board, gate or current edits.",
+  "model": {
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "vendor_stackup": "JLC06162H-3313",
+    "outer_copper_mm": 0.07,
+    "inner_copper_mm": 0.0152,
+    "rise_c": 30,
+    "outer_k": 0.048,
+    "inner_k": 0.024,
+    "formula": "I_design = I_sustained * 1.25. A_mil2=(I_design/(k*30^0.44))^(1/0.725). width_mm=A_mil2/(thickness_mm/0.0254)*0.0254.",
+    "inner_to_outer_required_width_ratio": 11.980315055910578,
+    "inner_width_interpretation": "78.297619 mm is the unchanged 25 A internal-layer IPC inverse at 15.2 um copper, not 78 A, not a new current, not an instruction to lower gates or fit that width literally. The stale 2oz outer/1oz inner comment in cec_slab_pour.py must not override live cec_fab_profile.py authority."
+  },
+  "integral_terminal_metal": {
+    "native_part_contract": "All three terminals are the same XFCN T34069 four-legged component. Native footprint description explicitly states all four solder legs are one electrical node; four native land numbers are each1, not four independent pins.",
+    "checker_scope": "cec_current_topology.authority_connectivity and cec_force_current._item_key/_components identify pads by reference, number, XY and UUID, then use KiCad copper connectivity. No same-reference/same-pad-number virtual component-metal union was found in these paths. Thus a same-pad-number remote land disconnected in the rated PCB counterfactual is reported separately.",
+    "interpretation": "This is a conservative PCB copper-only landing requirement, not a faithful integral metal circuit/thermal model of the terminal. It is not authority to waive the failure, credit arbitrary inter-leg sharing, divide aggregate current by4 or claim terminal/joint qualification.",
+    "qualification_status": "docs/standard-xfcn-terminal-qualification-status.json remains PROTOTYPE_BLOCKED; incoming samples, electrothermal screen, representative electrical coupon and THT process gates are not passed."
+  },
+  "outer_strategy": {
+    "kind": "Bounded manually authored native copper collector screen, not a complete force-route proposal",
+    "net": "/SENSE3V3_LO",
+    "layer": "B.Cu",
+    "width_nm": 6535524,
+    "points_nm": [
+      [
+        23500000,
+        4900000
+      ],
+      [
+        24500000,
+        4900000
+      ]
+    ],
+    "all_four_native_TB4_pad_contacts": true,
+    "native_pad_contact_areas_mm2": [
+      2.238229,
+      2.017999,
+      2.238229,
+      2.017999
+    ],
+    "native_pad_track_via_conflicts_below_0_2mm": [],
+    "top_edge_margin_mm": 1.6322380000000005,
+    "front_face_rejected_because": [
+      "57641862-c875-50cf-b89f-3e69125afbb1 /ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "f855cdf9-261d-50eb-a518-fc5ce0ca8a31 /ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK"
+    ],
+    "not_proven": [
+      "All hole/NPTH clearances and source custom rules",
+      "Refilled same-net/other-net zones and continuous return field",
+      "Full RS3.2-to-terminal 25A conductor, layer transfers, terminal barrels, solder/joints, thermal environment",
+      "Native source current width admission and Kelvin separation after reconstruction"
+    ],
+    "strategy": "Use exact70um F/B requirements for authored outer geometry; retain declared25A aggregate authority and make all physical terminal pad1 lands natively connected to a rated collector. A B collector can remove the two underwidth top-leg links from the inner routing obligation. Do not claim that collector alone qualifies the existing inner source-to-terminal force trunk or terminal metal/barrel sharing."
+  },
+  "source_evidence": [
+    {
+      "path": "scripts/cec_fab_profile.py",
+      "lines": "27-80,124-148",
+      "role": "Exact active copper thickness and IPC inverse"
+    },
+    {
+      "path": "scripts/cec_route_dimensions.py",
+      "lines": "162-179",
+      "role": "Current geometry margin applied once"
+    },
+    {
+      "path": "scripts/cec_current_topology.py",
+      "lines": "285-352,631-688",
+      "role": "Per-face contracts and physical terminal connectivity"
+    },
+    {
+      "path": "scripts/cec_force_current.py",
+      "lines": "280-314,405-491",
+      "role": "No implicit terminal metal or via/zone ampacity credit"
+    },
+    {
+      "path": "lib/vendor/Connector_Screw.pretty/XFCN_T34069_THT_M3_40A.kicad_mod",
+      "lines": "1-6",
+      "role": "Explicit common-node four-leg part identity"
+    },
+    {
+      "path": "docs/standard-xfcn-terminal-integration-handoff-2026-08-12.md",
+      "role": "Prototype part and sample qualification contract, historical sourcing not live stock proof"
+    },
+    {
+      "path": "docs/standard-xfcn-terminal-qualification-status.json",
+      "role": "Unpassed sample/electrothermal/process qualification gates"
+    },
+    {
+      "path": "docs/evidence/20261105-bottom-compaction/clean-parent-current-diagnostic.json",
+      "role": "Exact inherited7thintracks+3domain failure inventory, no waiver"
+    }
+  ],
+  "boards_modified": false,
+  "gates_modified": false,
+  "current_qualified": false,
+  "release_authority": false
+}

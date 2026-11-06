@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "status": "PRIVATE_NATIVE_CLOSED_PAIR_CURRENT_DEBT_REDUCED_NOT_RELEASED",
+  "carrier": {
+    "path": "experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+    "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+    "native_errors": 0,
+    "opens": 0,
+    "outline_mm": [78, 87.5],
+    "outline_changed_in_this_slice": false,
+    "current_width_fault_objects_original": 10,
+    "current_width_fault_objects_after_12v_collector": 5,
+    "current_width_fault_objects_after_3v3_collector": 2,
+    "remaining_current_net": "/SENSE5VSB_LO",
+    "remaining_current_faults_note": "One domain failure plus one unembedded 0.8 mm PWR bridge; not two independent routes. Width checking is not zone-neck, barrel, electrothermal or release qualification."
+  },
+  "cover": {
+    "path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "unchanged_in_this_slice": true,
+    "native_errors": 0,
+    "opens": 0
+  },
+  "checks": {
+    "typed_consumer_reconstruction_and_saved_bank_receivers": "complete and pass",
+    "source_consumer_budget_and_single_physical_tap": "unchanged and independently replayed",
+    "source_12v_outline_and_saved_fill": "wholly retained, all four old narrow links embedded",
+    "affected_12v_kelvin_copper_cuts": "source and candidate both complete and pass",
+    "field_policy_blockers_before_after": [0, 0],
+    "paired_assembly_body_checks": 391,
+    "paired_assembly_failed_body_checks": 0,
+    "full_c37_guard_saved_filled_copper": "exactly disjoint",
+    "native_outline": "exactly unchanged",
+    "generic_pad_grid_focused_tests_passed": 197,
+    "cross_board_geometry_replay_boards": 9,
+    "existing_row_geometry_cases_exactly_unchanged": 64,
+    "new_complete_grid_cases": 8,
+    "pcie2_fresh_native_errors_opens": [0, 0]
+  },
+  "visuals": [
+    "C:/Users/Admin/Documents/CEC-Board-Reviews/top-terminal-current-20261106/12v-collector/before-after.png",
+    "C:/Users/Admin/Documents/CEC-Board-Reviews/top-terminal-current-20261106/3v3-final/before-after.png"
+  ],
+  "bus_bar": {
+    "installed": false,
+    "qualified": false,
+    "prospective_profile": "Mac8 MJP-1.0 inward F.Cu",
+    "prospective_feet_mm": [[30.6, 41.5], [30.6, 66.9]],
+    "evidence": "docs/evidence/20261105-bottom-compaction/vertical-mjp-prospective-decision.json",
+    "conditional_assembled_x_reduction_mm": 2,
+    "realized_additional_reduction_mm": 0,
+    "requires": [
+      "Repack six small component owners and rebuild the upper/lower land conductors",
+      "Prove the full 15 A design path, including existing-face access and interleaved input-connector stub",
+      "Retire the actual full left 12 V trunk only after independent electrical admission",
+      "Verify guaranteed installed heights, seating and solder tolerances and complete assembled Z",
+      "Confirm application-current conditions and obtainable quantity/assembly pricing"
+    ]
+  },
+  "next": [
+    "Resolve the 5VSB shunt-side outer escape using the exact I2C/EN/DETECT obstruction records; do not repeat unbounded global searches or paint an undersized bridge as a pour to conceal it.",
+    "Construct the explicit prospective inward bar cell and repack its actual blockers, with saved typed current/placement/paired checks before claiming any footprint gain.",
+    "Complete native electrothermal, all affected current/return and manufacturing checks before promoting either private replacement."
+  ],
+  "reviewed_incumbents_unchanged": true,
+  "checkpoint_selector_unchanged": true,
+  "assembly_sample_qualified": false,
+  "complete_assembled_z_qualified": false,
+  "current_thermal_qualified": false,
+  "release_authority": false
+}

@@ -1,0 +1,1663 @@
+{
+  "status": "bounded_search_no_complete_path",
+  "source": "experiments/repack/top-output-current-20261106/consolidated12-v1/carrier/board.kicad_pcb",
+  "source_sha256": "acf35631915c62f60e75a314f1d04469c8fc16647ddefc8c4ad3d4fb18c28dac",
+  "width_nm": 477370,
+  "clearance_nm": 200000,
+  "current_authority": {
+    "amps": 3,
+    "margin_included": false,
+    "geometry_margin": 1.25,
+    "source": "board_design_basis",
+    "pattern": "/SENSE5VSB"
+  },
+  "no_board_writes": true,
+  "no_new_barrels": true,
+  "no_source_cuts": true,
+  "current_qualified": false,
+  "release_authority": false,
+  "partial_BCu_route": [
+    [
+      50815000,
+      7400000
+    ],
+    [
+      51000000,
+      7400000
+    ],
+    [
+      51000000,
+      8000000
+    ],
+    [
+      54000000,
+      11000000
+    ],
+    [
+      54000000,
+      19000000
+    ],
+    [
+      58000000,
+      23000000
+    ],
+    [
+      58000000,
+      24000000
+    ],
+    [
+      68000000,
+      24000000
+    ],
+    [
+      74000000,
+      30000000
+    ]
+  ],
+  "partial_route_warning": "Reaches only arbitrary waypoint (74,30), not shunt. Initial adjacent 90 degree launch also requires geometry.path cleanup before construction. Not accepted or stageable.",
+  "reverse_BCu": {
+    "source": "experiments/repack/top-output-current-20261106/consolidated12-v1/carrier/board.kicad_pcb",
+    "source_sha256": "acf35631915c62f60e75a314f1d04469c8fc16647ddefc8c4ad3d4fb18c28dac",
+    "case": 2,
+    "net": "/SENSE5VSB_LO",
+    "layer": "B.Cu",
+    "width_nm": 477370,
+    "clearance_nm": 200000,
+    "start_nm": [
+      39967767,
+      41469733
+    ],
+    "end_nm": [
+      50815000,
+      7400000
+    ],
+    "points_nm": null,
+    "native_guard_blocks": {},
+    "protected_same_net_leaf_hits": [],
+    "native_track_rule_area_hits": [],
+    "search_diagnostics": {
+      "observed_segment_refusals": {
+        "scope": "observed_proposals_not_exhaustive_path_or_min_cut_proof",
+        "net": "/SENSE5VSB_LO",
+        "layer": "B.Cu",
+        "sample_limit": 6,
+        "events": {
+          "foreign_copper_or_hole": 1298
+        },
+        "samples": [
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41469733
+            ],
+            "end_nm": [
+              39967767,
+              18247233
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "/SENSE12V_HI",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "track",
+                "net": "+3V3",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39,
+                  36.2
+                ],
+                "to_mm": [
+                  41.2,
+                  34
+                ],
+                "width_mm": 0.2,
+                "uuid": "6abb77b4-527b-451f-8dc9-981348e816f9",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39.2991,
+                  20.7991
+                ],
+                "to_mm": [
+                  39.5,
+                  21
+                ],
+                "width_mm": 0.2,
+                "uuid": "16062c52-4964-4f68-8db5-53ee9c414684",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  40.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  40.5,
+                  40.5
+                ],
+                "to_mm": [
+                  37.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39.5,
+                  21
+                ],
+                "to_mm": [
+                  41.5,
+                  21
+                ],
+                "width_mm": 0.2,
+                "uuid": "cc7beb9a-3701-47c0-a3ec-0813033ca331",
+                "contact": "clearance"
+              }
+            ]
+          },
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41469733
+            ],
+            "end_nm": [
+              50815000,
+              30622500
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "/SENSE12V_HI",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "via",
+                "net": "GND",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  46.701846,
+                  35.560754
+                ],
+                "diameter_mm": 0.5,
+                "uuid": "3bf1a3ba-1197-495b-af4e-31d7a5adbe17",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  40.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  40.5,
+                  40.5
+                ],
+                "to_mm": [
+                  37.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+                "contact": "clearance"
+              },
+              {
+                "kind": "via",
+                "net": "/SENSE12V_HI",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  43.20461,
+                  38.5582
+                ],
+                "diameter_mm": 3.530592,
+                "uuid": "d1b329e0-bf27-447b-92eb-99c80bfb6972",
+                "contact": "clearance"
+              }
+            ]
+          },
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41469733
+            ],
+            "end_nm": [
+              50815000,
+              41469733
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "patch:+5V_MAIN",
+                "layer": "B.Cu",
+                "uuid": "965adccb-e150-491f-98f4-3232ff329d80",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "via",
+                "net": "GND",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  43.1933,
+                  42.05
+                ],
+                "diameter_mm": 0.6,
+                "uuid": "6d78d870-3402-4631-9810-8b99da9db051",
+                "contact": "clearance"
+              },
+              {
+                "kind": "via",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  42.8,
+                  41
+                ],
+                "diameter_mm": 0.6,
+                "uuid": "88d87d6d-e122-4ac6-942e-ce4750f1d048",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  40.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  41.641421,
+                  41.358579
+                ],
+                "width_mm": 0.2,
+                "uuid": "50f17002-b441-4248-a8f3-e6a0e0f87625",
+                "contact": "clearance"
+              }
+            ]
+          },
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41469733
+            ],
+            "end_nm": [
+              39967767,
+              7400000
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "/SENSE12V_HI",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "track",
+                "net": "+3V3",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39,
+                  36.2
+                ],
+                "to_mm": [
+                  41.2,
+                  34
+                ],
+                "width_mm": 0.2,
+                "uuid": "6abb77b4-527b-451f-8dc9-981348e816f9",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39.2991,
+                  20.7991
+                ],
+                "to_mm": [
+                  39.5,
+                  21
+                ],
+                "width_mm": 0.2,
+                "uuid": "16062c52-4964-4f68-8db5-53ee9c414684",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  40.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  40.5,
+                  40.5
+                ],
+                "to_mm": [
+                  37.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+                "contact": "clearance"
+              }
+            ]
+          },
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41469733
+            ],
+            "end_nm": [
+              39967767,
+              6900000
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "/SENSE12V_HI",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "track",
+                "net": "+3V3",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39,
+                  36.2
+                ],
+                "to_mm": [
+                  41.2,
+                  34
+                ],
+                "width_mm": 0.2,
+                "uuid": "6abb77b4-527b-451f-8dc9-981348e816f9",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  39.2991,
+                  20.7991
+                ],
+                "to_mm": [
+                  39.5,
+                  21
+                ],
+                "width_mm": 0.2,
+                "uuid": "16062c52-4964-4f68-8db5-53ee9c414684",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  41.358579,
+                  41.358579
+                ],
+                "to_mm": [
+                  40.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+                "contact": "clearance"
+              },
+              {
+                "kind": "track",
+                "net": "/I2C_SDA",
+                "layer": "B.Cu",
+                "locked": true,
+                "from_mm": [
+                  40.5,
+                  40.5
+                ],
+                "to_mm": [
+                  37.5,
+                  40.5
+                ],
+                "width_mm": 0.2,
+                "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+                "contact": "clearance"
+              }
+            ]
+          },
+          {
+            "reason": "foreign_copper_or_hole",
+            "phase": "canonical_or_channel",
+            "start_nm": [
+              39967767,
+              41969733
+            ],
+            "end_nm": [
+              50815000,
+              41969733
+            ],
+            "width_nm": 477370,
+            "clearance_nm": 200000,
+            "native_blockers": [
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "patch:+5V_MAIN",
+                "layer": "B.Cu",
+                "uuid": "965adccb-e150-491f-98f4-3232ff329d80",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "zone",
+                "net": "+5V_MAIN",
+                "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                "layer": "B.Cu",
+                "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+                "contact": "zone_clearance"
+              },
+              {
+                "kind": "via",
+                "net": "GND",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  43.1933,
+                  42.05
+                ],
+                "diameter_mm": 0.6,
+                "uuid": "6d78d870-3402-4631-9810-8b99da9db051",
+                "contact": "clearance"
+              },
+              {
+                "kind": "via",
+                "net": "+5V_MAIN",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  48.9,
+                  42.0375
+                ],
+                "diameter_mm": 0.9,
+                "uuid": "06f3d52e-928e-49a7-a4ff-3b4b37c001d0",
+                "contact": "clearance"
+              },
+              {
+                "kind": "via",
+                "net": "+5V_MAIN",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  51.5,
+                  42.0375
+                ],
+                "diameter_mm": 0.9,
+                "uuid": "2f439cb2-4ed1-4876-8670-ffe83362cbae",
+                "contact": "clearance"
+              },
+              {
+                "kind": "via",
+                "net": "+5V_MAIN",
+                "layer": "B.Cu",
+                "locked": true,
+                "at_mm": [
+                  50.2,
+                  42.0375
+                ],
+                "diameter_mm": 0.9,
+                "uuid": "828d0d88-6909-4d1c-bd86-df370842733d",
+                "contact": "clearance"
+              }
+            ]
+          }
+        ],
+        "release_authority": false
+      },
+      "maze_tiers": [
+        {
+          "grid_mm": 1.5,
+          "path_found": false,
+          "path_accepted": false,
+          "same_deadline": false,
+          "same_outer_deadline": true,
+          "no_path_proof": false,
+          "remaining_tiers": 4,
+          "tier_lease_s": 2.3433857780037215,
+          "outer_deadline_monotonic": 34445.901952161,
+          "tier_deadline_monotonic": 34438.871794827006,
+          "native_endpoint_check": {
+            "diagnostic_scope": "bounded_search_telemetry_only",
+            "lattice_constructed": true,
+            "no_path_proof": false,
+            "automatic_ripup_authorized": false,
+            "release_authority": false,
+            "native_endpoint_caps": [
+              {
+                "endpoint": "start",
+                "at_nm": [
+                  39967767,
+                  41469733
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              },
+              {
+                "endpoint": "end",
+                "at_nm": [
+                  50815000,
+                  7400000
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              }
+            ],
+            "lattice_axis_counts": [
+              39,
+              55
+            ],
+            "stop": "bounded_lattice_exhausted_not_global_no_path",
+            "search_counts": {
+              "expanded_states": 33,
+              "tested_hops": 60,
+              "clear_hops": 16,
+              "blocked_hops": 44,
+              "blocked_straight_runs": 0
+            },
+            "nearest_expanded_point": {
+              "point_nm": [
+                40500000,
+                41469733
+              ],
+              "target_distance_mm": 35.59699329566036
+            },
+            "blocked_frontier": [
+              {
+                "start_nm": [
+                  40500000,
+                  41469733
+                ],
+                "end_nm": [
+                  42000000,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 33.74154312848316,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  39967767,
+                  41469733
+                ],
+                "end_nm": [
+                  41467767,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 33.88448424349377,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  39000000,
+                  41469733
+                ],
+                "end_nm": [
+                  40500000,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.16411469204623,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40500000,
+                  42000000
+                ],
+                "end_nm": [
+                  42000000,
+                  40500000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.253674620396566,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  38467767,
+                  41469733
+                ],
+                "end_nm": [
+                  39967767,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.328559122800044,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  39967767,
+                  42000000
+                ],
+                "end_nm": [
+                  41467767,
+                  40500000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.39448741813561,
+                "refusal_stage": "native_foreign_shape_guard"
+              }
+            ],
+            "elapsed_s": 0.022649047001323197
+          }
+        },
+        {
+          "grid_mm": 1.5,
+          "path_found": false,
+          "path_accepted": false,
+          "same_deadline": false,
+          "same_outer_deadline": true,
+          "no_path_proof": false,
+          "remaining_tiers": 3,
+          "tier_lease_s": 3.1167548643352347,
+          "outer_deadline_monotonic": 34445.901952161,
+          "tier_deadline_monotonic": 34439.66844243233,
+          "native_endpoint_check": {
+            "diagnostic_scope": "bounded_search_telemetry_only",
+            "lattice_constructed": true,
+            "no_path_proof": false,
+            "automatic_ripup_authorized": false,
+            "release_authority": false,
+            "native_endpoint_caps": [
+              {
+                "endpoint": "start",
+                "at_nm": [
+                  39967767,
+                  41469733
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              },
+              {
+                "endpoint": "end",
+                "at_nm": [
+                  50815000,
+                  7400000
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              }
+            ],
+            "lattice_axis_counts": [
+              95,
+              109
+            ],
+            "stop": "bounded_lattice_exhausted_not_global_no_path",
+            "search_counts": {
+              "expanded_states": 3003,
+              "tested_hops": 1807,
+              "clear_hops": 1501,
+              "blocked_hops": 306,
+              "blocked_straight_runs": 0
+            },
+            "nearest_expanded_point": {
+              "point_nm": [
+                40267767,
+                41069733
+              ],
+              "target_distance_mm": 35.28307022139057
+            },
+            "blocked_frontier": [
+              {
+                "start_nm": [
+                  40500000,
+                  41469733
+                ],
+                "end_nm": [
+                  42000000,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 33.74154312848316,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40500000,
+                  41569733
+                ],
+                "end_nm": [
+                  42000000,
+                  40069733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 33.83808031332878,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40500000,
+                  41669733
+                ],
+                "end_nm": [
+                  42000000,
+                  40169733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 33.93463755355712,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40500000,
+                  41769733
+                ],
+                "end_nm": [
+                  42000000,
+                  40269733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.03121467845791,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40500000,
+                  41869733
+                ],
+                "end_nm": [
+                  42000000,
+                  40369733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.1278115192183,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  39000000,
+                  41469733
+                ],
+                "end_nm": [
+                  40500000,
+                  39969733
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 34.16411469204623,
+                "refusal_stage": "native_foreign_shape_guard"
+              }
+            ],
+            "elapsed_s": 0.16338838799856603
+          },
+          "endpoint_detail_grid_mm": 0.1
+        },
+        {
+          "grid_mm": 0.2,
+          "path_found": false,
+          "path_accepted": false,
+          "same_deadline": false,
+          "same_outer_deadline": true,
+          "no_path_proof": false,
+          "remaining_tiers": 2,
+          "tier_lease_s": 4.593273631500779,
+          "outer_deadline_monotonic": 34445.901952161,
+          "tier_deadline_monotonic": 34441.3086785295,
+          "native_endpoint_check": {
+            "diagnostic_scope": "bounded_search_telemetry_only",
+            "lattice_constructed": true,
+            "no_path_proof": false,
+            "automatic_ripup_authorized": false,
+            "release_authority": false,
+            "native_endpoint_caps": [
+              {
+                "endpoint": "start",
+                "at_nm": [
+                  39967767,
+                  41469733
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              },
+              {
+                "endpoint": "end",
+                "at_nm": [
+                  50815000,
+                  7400000
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              }
+            ],
+            "lattice_axis_counts": [
+              191,
+              302
+            ],
+            "stop": "bounded_lattice_exhausted_not_global_no_path",
+            "search_counts": {
+              "expanded_states": 1179,
+              "tested_hops": 733,
+              "clear_hops": 589,
+              "blocked_hops": 144,
+              "blocked_straight_runs": 0
+            },
+            "nearest_expanded_point": {
+              "point_nm": [
+                40400000,
+                41200000
+              ],
+              "target_distance_mm": 35.368237516166964
+            },
+            "blocked_frontier": [
+              {
+                "start_nm": [
+                  40400000,
+                  41200000
+                ],
+                "end_nm": [
+                  40600000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.11845988935164,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40200000,
+                  41200000
+                ],
+                "end_nm": [
+                  40400000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.17715487358237,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40400000,
+                  41200000
+                ],
+                "end_nm": [
+                  40400000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.17715487358237,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40000000,
+                  41200000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40200000,
+                  41200000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40400000,
+                  41200000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              }
+            ],
+            "elapsed_s": 0.09417806699639186
+          }
+        },
+        {
+          "grid_mm": 0.1,
+          "path_found": false,
+          "path_accepted": false,
+          "same_deadline": true,
+          "same_outer_deadline": true,
+          "no_path_proof": false,
+          "remaining_tiers": 1,
+          "tier_lease_s": 9.092270170003758,
+          "outer_deadline_monotonic": 34445.901952161,
+          "tier_deadline_monotonic": 34445.901952161,
+          "native_endpoint_check": {
+            "diagnostic_scope": "bounded_search_telemetry_only",
+            "lattice_constructed": true,
+            "no_path_proof": false,
+            "automatic_ripup_authorized": false,
+            "release_authority": false,
+            "native_endpoint_caps": [
+              {
+                "endpoint": "start",
+                "at_nm": [
+                  39967767,
+                  41469733
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              },
+              {
+                "endpoint": "end",
+                "at_nm": [
+                  50815000,
+                  7400000
+                ],
+                "tested_widths_nm": [
+                  477370
+                ],
+                "native_foreign_cap_clear": true
+              }
+            ],
+            "lattice_axis_counts": [
+              365,
+              592
+            ],
+            "stop": "bounded_lattice_exhausted_not_global_no_path",
+            "search_counts": {
+              "expanded_states": 3763,
+              "tested_hops": 2135,
+              "clear_hops": 1881,
+              "blocked_hops": 254,
+              "blocked_straight_runs": 0
+            },
+            "nearest_expanded_point": {
+              "point_nm": [
+                40300000,
+                41100000
+              ],
+              "target_distance_mm": 35.30234021987777
+            },
+            "blocked_frontier": [
+              {
+                "start_nm": [
+                  40300000,
+                  41100000
+                ],
+                "end_nm": [
+                  40400000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.17715487358237,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40200000,
+                  41100000
+                ],
+                "end_nm": [
+                  40300000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.20689172591071,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40300000,
+                  41100000
+                ],
+                "end_nm": [
+                  40300000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.20689172591071,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40100000,
+                  41100000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40200000,
+                  41100000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              },
+              {
+                "start_nm": [
+                  40300000,
+                  41100000
+                ],
+                "end_nm": [
+                  40200000,
+                  41000000
+                ],
+                "width_nm": 477370,
+                "target_distance_mm": 35.236887277397244,
+                "refusal_stage": "native_foreign_shape_guard"
+              }
+            ],
+            "elapsed_s": 0.20277657200495014
+          }
+        }
+      ]
+    },
+    "elapsed_s": 0.6324558899941621,
+    "direct_obstruction_witness": [
+      {
+        "kind": "zone",
+        "net": "/SENSE12V_HI",
+        "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+        "layer": "B.Cu",
+        "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+        "contact": "zone_clearance"
+      },
+      {
+        "kind": "zone",
+        "net": "+5V_MAIN",
+        "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+        "layer": "B.Cu",
+        "uuid": "98278ca1-71c9-4cdf-9ad2-1d60ccbac013",
+        "contact": "zone_clearance"
+      },
+      {
+        "kind": "via",
+        "net": "+3V3",
+        "layer": "B.Cu",
+        "locked": true,
+        "at_mm": [
+          45,
+          24
+        ],
+        "diameter_mm": 0.6,
+        "uuid": "08e62831-de03-4292-ad69-49020e9a94e0",
+        "contact": "clearance"
+      },
+      {
+        "kind": "via",
+        "net": "/I2C_SDA",
+        "layer": "B.Cu",
+        "locked": true,
+        "at_mm": [
+          43.810001,
+          28.237599
+        ],
+        "diameter_mm": 0.6,
+        "uuid": "8e34c148-d698-449e-b03e-c855a2e92c2e",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/I2C_SDA",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          43.5221,
+          27.5
+        ],
+        "to_mm": [
+          45.3217,
+          29.2996
+        ],
+        "width_mm": 0.2,
+        "uuid": "1cd0ead4-4dc3-583e-9776-135d65a8d18f",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/I2C_SDA",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          41.358579,
+          41.358579
+        ],
+        "to_mm": [
+          40.5,
+          40.5
+        ],
+        "width_mm": 0.2,
+        "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/I2C_SDA",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          43.572402,
+          28
+        ],
+        "to_mm": [
+          43.810001,
+          28.237599
+        ],
+        "width_mm": 0.2,
+        "uuid": "a60b9693-cd09-4ee7-bb28-3718420a3314",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/I2C_SDA",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          40.5,
+          40.5
+        ],
+        "to_mm": [
+          37.5,
+          40.5
+        ],
+        "width_mm": 0.2,
+        "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/USB_D_P",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          40.675002,
+          29.658412
+        ],
+        "to_mm": [
+          44.807844,
+          33.791254
+        ],
+        "width_mm": 0.2,
+        "uuid": "35981970-d8de-4702-8dec-54434fd54a97",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/USB_D_N",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          40.274998,
+          29.824099
+        ],
+        "to_mm": [
+          44.642157,
+          34.191258
+        ],
+        "width_mm": 0.2,
+        "uuid": "3f606d61-a902-4b4e-b530-d55ea781e328",
+        "contact": "clearance"
+      },
+      {
+        "kind": "via",
+        "net": "/SENSE12V_HI",
+        "layer": "B.Cu",
+        "locked": true,
+        "at_mm": [
+          43.20461,
+          38.5582
+        ],
+        "diameter_mm": 3.530592,
+        "uuid": "d1b329e0-bf27-447b-92eb-99c80bfb6972",
+        "contact": "clearance"
+      },
+      {
+        "kind": "track",
+        "net": "/SENSE12V_HI",
+        "layer": "B.Cu",
+        "locked": true,
+        "from_mm": [
+          39.6,
+          38.3
+        ],
+        "to_mm": [
+          41.4,
+          38.3
+        ],
+        "width_mm": 3.230592,
+        "uuid": "3f6c90fc-8584-44fa-b5d0-6e63dd8ff8a5",
+        "contact": "clearance"
+      }
+    ],
+    "source_unchanged": true,
+    "no_board_writes": true,
+    "no_new_barrels": true,
+    "current_authority": {
+      "amps": 3,
+      "margin_included": false,
+      "geometry_margin": 1.25,
+      "source": "board_design_basis",
+      "pattern": "/SENSE5VSB"
+    },
+    "current_qualified": false,
+    "release_authority": false,
+    "frontier_witnesses": [
+      {
+        "start_nm": [
+          40300000,
+          41100000
+        ],
+        "end_nm": [
+          40400000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              41.358579,
+              41.358579
+            ],
+            "to_mm": [
+              40.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+            "contact": "clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      {
+        "start_nm": [
+          40200000,
+          41100000
+        ],
+        "end_nm": [
+          40300000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              41.358579,
+              41.358579
+            ],
+            "to_mm": [
+              40.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+            "contact": "clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      {
+        "start_nm": [
+          40300000,
+          41100000
+        ],
+        "end_nm": [
+          40300000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              41.358579,
+              41.358579
+            ],
+            "to_mm": [
+              40.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+            "contact": "clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      {
+        "start_nm": [
+          40100000,
+          41100000
+        ],
+        "end_nm": [
+          40200000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      {
+        "start_nm": [
+          40200000,
+          41100000
+        ],
+        "end_nm": [
+          40200000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      },
+      {
+        "start_nm": [
+          40300000,
+          41100000
+        ],
+        "end_nm": [
+          40200000,
+          41000000
+        ],
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/I2C_SDA",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              40.5,
+              40.5
+            ],
+            "to_mm": [
+              37.5,
+              40.5
+            ],
+            "width_mm": 0.2,
+            "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+            "contact": "clearance"
+          }
+        ]
+      }
+    ],
+    "diagnostic_lists_are_bounded_samples": true
+  },
+  "conclusion": "Reverse existing shunt via search exhausts bounded 0.1mm lattice rapidly. Its nearest northward frontier is specifically blocked by I2C_SDA tracks ac7eebd7 and 4bafe5d7. These are candidates for regional ordinary signal repath, not a global minimum cut proof. Existing SENSE12V_HI power region and +5V_MAIN region remain larger obstacles beyond this boundary."
+}

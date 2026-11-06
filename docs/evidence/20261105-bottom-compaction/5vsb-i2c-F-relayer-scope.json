@@ -1,0 +1,940 @@
+{
+  "source": "experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+  "sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3",
+  "net": "/I2C_SDA",
+  "endpoints_nm": [
+    [
+      35732931,
+      42267068
+    ],
+    [
+      42800000,
+      41000000
+    ]
+  ],
+  "existing_endpoint_vias": [
+    {
+      "uuid": "207818e2-700b-4c67-b972-a5a4b31c4df2",
+      "at_nm": [
+        35732931,
+        42267068
+      ],
+      "top": "F.Cu",
+      "bottom": "B.Cu",
+      "drill_nm": 300000
+    },
+    {
+      "uuid": "88d87d6d-e122-4ac6-942e-ce4750f1d048",
+      "at_nm": [
+        42800000,
+        41000000
+      ],
+      "top": "F.Cu",
+      "bottom": "B.Cu",
+      "drill_nm": 300000
+    }
+  ],
+  "segments": [
+    {
+      "uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+      "start_nm": [
+        40500000,
+        40500000
+      ],
+      "end_nm": [
+        37500000,
+        40500000
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+      "start_nm": [
+        41358579,
+        41358579
+      ],
+      "end_nm": [
+        40500000,
+        40500000
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "8c185d57-4563-4d77-8eb4-102369d651fa",
+      "start_nm": [
+        37500000,
+        40500000
+      ],
+      "end_nm": [
+        36000000,
+        42000000
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "50f17002-b441-4248-a8f3-e6a0e0f87625",
+      "start_nm": [
+        41358579,
+        41358579
+      ],
+      "end_nm": [
+        41641421,
+        41358579
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "a3ea934c-4041-43f0-b0dd-bd8d1fcfd2b1",
+      "start_nm": [
+        36000000,
+        42000000
+      ],
+      "end_nm": [
+        36000000,
+        42160241
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "535fdc68-882f-44e9-839d-59a8287216b9",
+      "start_nm": [
+        36000000,
+        42160241
+      ],
+      "end_nm": [
+        35893173,
+        42267068
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "745547a9-daf9-4360-a9b0-20fd2c92638c",
+      "start_nm": [
+        42000000,
+        41000000
+      ],
+      "end_nm": [
+        41641421,
+        41358579
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "18c7ac2d-f314-455d-8e43-d1dca87d8f9d",
+      "start_nm": [
+        35893173,
+        42267068
+      ],
+      "end_nm": [
+        35732931,
+        42267068
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "a3b0c580-70de-4dc9-b2ae-41b676d5dc00",
+      "start_nm": [
+        42800000,
+        41000000
+      ],
+      "end_nm": [
+        42000000,
+        41000000
+      ],
+      "width_nm": 200000
+    }
+  ],
+  "layer_screens": [
+    {
+      "layer": "SIG2",
+      "foreign_hits": [
+        {
+          "source_uuid": "8c185d57-4563-4d77-8eb4-102369d651fa",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "SIG2",
+              "locked": false,
+              "from_mm": [
+                36.4,
+                42
+              ],
+              "to_mm": [
+                36.4,
+                43
+              ],
+              "width_mm": 0.2,
+              "uuid": "27041f8d-9820-4126-9093-3df434496ca1",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "SIG2",
+              "locked": false,
+              "from_mm": [
+                35.4,
+                41
+              ],
+              "to_mm": [
+                36.4,
+                42
+              ],
+              "width_mm": 0.2,
+              "uuid": "b51a4377-41db-46da-b5c5-5cee1c6f46e8",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "SIG2",
+              "locked": true,
+              "from_mm": [
+                35.827271,
+                39.441771
+              ],
+              "to_mm": [
+                37.6355,
+                41.25
+              ],
+              "width_mm": 0.2,
+              "uuid": "3ae48c0d-5fd3-4836-bb65-532db8ba44f4",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "a3ea934c-4041-43f0-b0dd-bd8d1fcfd2b1",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "SIG2",
+              "locked": false,
+              "from_mm": [
+                35.4,
+                41
+              ],
+              "to_mm": [
+                36.4,
+                42
+              ],
+              "width_mm": 0.2,
+              "uuid": "b51a4377-41db-46da-b5c5-5cee1c6f46e8",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "535fdc68-882f-44e9-839d-59a8287216b9",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "SIG2",
+              "locked": false,
+              "from_mm": [
+                35.4,
+                41
+              ],
+              "to_mm": [
+                36.4,
+                42
+              ],
+              "width_mm": 0.2,
+              "uuid": "b51a4377-41db-46da-b5c5-5cee1c6f46e8",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "layer": "PWR",
+      "foreign_hits": [
+        {
+          "source_uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+          "blockers": [
+            {
+              "kind": "zone",
+              "net": "/SENSE5VSB_LO",
+              "name": "patch:/SENSE5VSB_LO",
+              "layer": "PWR",
+              "uuid": "a6c38bb1-372c-4473-a987-2632a98d8f23",
+              "contact": "zone_clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                38.3,
+                40
+              ],
+              "to_mm": [
+                38.5,
+                40.2
+              ],
+              "width_mm": 0.2,
+              "uuid": "b9ae1207-e87f-4751-afc2-231a8a966e46",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                38.5,
+                41.25
+              ],
+              "to_mm": [
+                38.5,
+                40.2
+              ],
+              "width_mm": 0.2,
+              "uuid": "d38d00fd-abdc-4696-a968-0de5c52dda5a",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE5VSB_LO",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                39.967767,
+                20.55
+              ],
+              "to_mm": [
+                39.967767,
+                41.469733
+              ],
+              "width_mm": 1.5,
+              "uuid": "64a5ebb5-5e50-436c-861c-c63b10d83f6f",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE5VSB_LO",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                39.967767,
+                41.469733
+              ],
+              "to_mm": [
+                39.967767,
+                42.769733
+              ],
+              "width_mm": 1.5,
+              "uuid": "c0ac2629-6672-4ccc-9c79-207024e149ba",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                37.4355,
+                40.75
+              ],
+              "to_mm": [
+                37.6355,
+                40.95
+              ],
+              "width_mm": 0.2,
+              "uuid": "20dd8375-1fbe-492c-b5da-5e796fc3921b",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                32.45,
+                40.75
+              ],
+              "to_mm": [
+                37.4355,
+                40.75
+              ],
+              "width_mm": 0.2,
+              "uuid": "c6091abb-d566-4a4d-9433-8892d10a87e0",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+          "blockers": [
+            {
+              "kind": "zone",
+              "net": "/SENSE5VSB_LO",
+              "name": "patch:/SENSE5VSB_LO",
+              "layer": "PWR",
+              "uuid": "a6c38bb1-372c-4473-a987-2632a98d8f23",
+              "contact": "zone_clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "4046b988-5c60-4d19-8916-8c92832436d4",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                42.258579,
+                42.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "5dc40c21-f941-4a2c-ac37-1e81742aa0d5",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.858579,
+                40.741421
+              ],
+              "width_mm": 0.2,
+              "uuid": "de240633-012d-470d-b2d3-41c759b3ff63",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/SENSE5VSB_LO",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                39.967767,
+                20.55
+              ],
+              "to_mm": [
+                39.967767,
+                41.469733
+              ],
+              "width_mm": 1.5,
+              "uuid": "64a5ebb5-5e50-436c-861c-c63b10d83f6f",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "8c185d57-4563-4d77-8eb4-102369d651fa",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                36.4,
+                42
+              ],
+              "to_mm": [
+                36,
+                41.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "363b5372-c875-4d1d-a952-c2ecf4101066",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                38.3,
+                42
+              ],
+              "to_mm": [
+                36.4,
+                42
+              ],
+              "width_mm": 0.2,
+              "uuid": "e4dfb9e0-a588-4ff5-927e-0b0c55ea1f9f",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                36,
+                41.6
+              ],
+              "to_mm": [
+                35,
+                41.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "f539c81b-bdaf-409c-bcab-ce08919999b7",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                37.4355,
+                40.75
+              ],
+              "to_mm": [
+                37.6355,
+                40.95
+              ],
+              "width_mm": 0.2,
+              "uuid": "20dd8375-1fbe-492c-b5da-5e796fc3921b",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "PWR",
+              "locked": true,
+              "from_mm": [
+                32.45,
+                40.75
+              ],
+              "to_mm": [
+                37.4355,
+                40.75
+              ],
+              "width_mm": 0.2,
+              "uuid": "c6091abb-d566-4a4d-9433-8892d10a87e0",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "50f17002-b441-4248-a8f3-e6a0e0f87625",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "4046b988-5c60-4d19-8916-8c92832436d4",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                42.258579,
+                42.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "5dc40c21-f941-4a2c-ac37-1e81742aa0d5",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.858579,
+                40.741421
+              ],
+              "width_mm": 0.2,
+              "uuid": "de240633-012d-470d-b2d3-41c759b3ff63",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "a3ea934c-4041-43f0-b0dd-bd8d1fcfd2b1",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                36.4,
+                42
+              ],
+              "to_mm": [
+                36,
+                41.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "363b5372-c875-4d1d-a952-c2ecf4101066",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "535fdc68-882f-44e9-839d-59a8287216b9",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                36.4,
+                42
+              ],
+              "to_mm": [
+                36,
+                41.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "363b5372-c875-4d1d-a952-c2ecf4101066",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "745547a9-daf9-4360-a9b0-20fd2c92638c",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "4046b988-5c60-4d19-8916-8c92832436d4",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.858579,
+                40.741421
+              ],
+              "to_mm": [
+                41.858579,
+                40.458579
+              ],
+              "width_mm": 0.2,
+              "uuid": "421575bd-dec1-402f-939f-b44fddda7151",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                42.258579,
+                42.058579
+              ],
+              "to_mm": [
+                41.541421,
+                41.341421
+              ],
+              "width_mm": 0.2,
+              "uuid": "5dc40c21-f941-4a2c-ac37-1e81742aa0d5",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.858579,
+                40.741421
+              ],
+              "width_mm": 0.2,
+              "uuid": "de240633-012d-470d-b2d3-41c759b3ff63",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "a3b0c580-70de-4dc9-b2ae-41b676d5dc00",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.858579,
+                40.741421
+              ],
+              "to_mm": [
+                41.858579,
+                40.458579
+              ],
+              "width_mm": 0.2,
+              "uuid": "421575bd-dec1-402f-939f-b44fddda7151",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "layer": "PWR",
+              "locked": false,
+              "from_mm": [
+                41.541421,
+                41.058579
+              ],
+              "to_mm": [
+                41.858579,
+                40.741421
+              ],
+              "width_mm": 0.2,
+              "uuid": "de240633-012d-470d-b2d3-41c759b3ff63",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "layer": "F.Cu",
+      "foreign_hits": [
+        {
+          "source_uuid": "ac7eebd7-cf4c-4a57-af8e-613f5e1cab7a",
+          "blockers": [
+            {
+              "kind": "zone",
+              "net": "/SENSE5VSB_LO",
+              "name": "patch:/SENSE5VSB_LO",
+              "layer": "F.Cu",
+              "uuid": "fe5140fc-3edf-487d-a042-5cb68da1b88a",
+              "contact": "zone_clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "4bafe5d7-27ad-4ff8-9b8a-8496c9a8918c",
+          "blockers": [
+            {
+              "kind": "zone",
+              "net": "/SENSE5VSB_LO",
+              "name": "patch:/SENSE5VSB_LO",
+              "layer": "F.Cu",
+              "uuid": "fe5140fc-3edf-487d-a042-5cb68da1b88a",
+              "contact": "zone_clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "F.Cu",
+              "locked": false,
+              "from_mm": [
+                41.55,
+                42.2
+              ],
+              "to_mm": [
+                41.55,
+                40.235
+              ],
+              "width_mm": 0.2,
+              "uuid": "2d159e3d-3bd0-41a2-81e4-8cb005dcec21",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "8c185d57-4563-4d77-8eb4-102369d651fa",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/ATX INTERPOSER + CONTROL SIGNALS/NEG12V_DIV",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                35,
+                41.6
+              ],
+              "to_mm": [
+                36,
+                41.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "2a479ebc-f0ed-41b9-9958-9c8a962a3255",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/ATX INTERPOSER + CONTROL SIGNALS/NEG12V_DIV",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                36,
+                41.6
+              ],
+              "to_mm": [
+                37.4,
+                43
+              ],
+              "width_mm": 0.2,
+              "uuid": "ac3218fb-6f3a-4a50-8a95-28b68ec51262",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "50f17002-b441-4248-a8f3-e6a0e0f87625",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "F.Cu",
+              "locked": false,
+              "from_mm": [
+                41.55,
+                42.2
+              ],
+              "to_mm": [
+                41.55,
+                40.235
+              ],
+              "width_mm": 0.2,
+              "uuid": "2d159e3d-3bd0-41a2-81e4-8cb005dcec21",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "a3ea934c-4041-43f0-b0dd-bd8d1fcfd2b1",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/ATX INTERPOSER + CONTROL SIGNALS/NEG12V_DIV",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                36,
+                41.6
+              ],
+              "to_mm": [
+                37.4,
+                43
+              ],
+              "width_mm": 0.2,
+              "uuid": "ac3218fb-6f3a-4a50-8a95-28b68ec51262",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "535fdc68-882f-44e9-839d-59a8287216b9",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/ATX INTERPOSER + CONTROL SIGNALS/NEG12V_DIV",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                36,
+                41.6
+              ],
+              "to_mm": [
+                37.4,
+                43
+              ],
+              "width_mm": 0.2,
+              "uuid": "ac3218fb-6f3a-4a50-8a95-28b68ec51262",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "source_uuid": "745547a9-daf9-4360-a9b0-20fd2c92638c",
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/3V3 REGULATOR + MCU/EN",
+              "layer": "F.Cu",
+              "locked": false,
+              "from_mm": [
+                41.55,
+                42.2
+              ],
+              "to_mm": [
+                41.55,
+                40.235
+              ],
+              "width_mm": 0.2,
+              "uuid": "2d159e3d-3bd0-41a2-81e4-8cb005dcec21",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "searched_layer": "F.Cu",
+  "source_declared_signal_layers": [
+    "F.Cu",
+    "In2.Cu",
+    "B.Cu"
+  ],
+  "proposed_points_nm": null,
+  "no_board_writes": true
+}
