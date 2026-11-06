@@ -466,6 +466,27 @@ splices zone nodes only; a wholesale command-line save is not trusted to retain
 board fabrication properties. New-only output directories and source checks
 before construction and completion prevent accidental source replacement.
 
+Draft schema 5 adds `zone_redraws` with explicit `carrier`/`cover` lists. Each
+entry selects an existing zone UUID and integer-nanometre `polygon_nm`; a
+hole-bearing source also requires explicit `holes_nm` with exactly the source
+hole count. Only ungrouped, named-net, solid-filled copper zones with full pad
+connections and one linear outline are supported. New contours must be simple,
+bounded and cardinal/45-degree; holes must be strictly interior and disjoint.
+The complete batch is validated before mutation. Native net/layers, clearance,
+priority, pad connection and other process settings stay intact. Any nonempty
+zone edit requires `--refill`; stale saved fill cannot be presented as its result.
+This is construction, not proof of current capacity, clearances or qualification.
+Bar land screens run before subsequent zone edits and explicitly do not certify
+the final edited/refilled copper. Typed consumer-allocation tracks remain
+protected: use their existing independently received reconstruction owner,
+not ordinary draft redraw/retirement to erase or reinterpret a current budget.
+
+The November 5 zone-edit regression record is
+`docs/evidence/20261105-bottom-compaction/regression.xml`: 920 passing tests,
+including 40 dedicated zone-edit cases. The private bottom-repack experiments
+are not accepted board replacements. Their intermediate DRC reports and source
+hashes remain separate from `checkpoints/current.json`.
+
 Reproduce the first connected paired step with `PYTHONPATH=src:scripts python3
 -m cec_pipeline.drafts --request
 docs/evidence/20261105-connected-repack/j6c-connected.json --directory

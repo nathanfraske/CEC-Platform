@@ -145,6 +145,68 @@ def _copy_vias(board, edits, identity):
     return records
 
 
+def _redraw_zones(board, edits):
+    """Replace explicit simple solid-zone outlines, preserving native settings."""
+    from shapely.geometry import Polygon
+    pcbnew,quiet=_native()
+    require(type(edits) is list and len(edits)<=32,'bounded_explicit_draft_zone_redraws')
+    zones={str(z.m_Uuid.AsString()):z for z in board.Zones()}
+    require(len(zones)==len(list(board.Zones())),'unique_source_draft_zones_required')
+    prepared=[];seen=set()
+    def ring(raw):
+        require(type(raw) is list and 3<=len(raw)<=128,'bounded_explicit_zone_polygon_required')
+        points=[geometry.point(p) for p in raw]
+        require(len({tuple(p) for p in points})==len(points),'unique_unclosed_zone_vertices_required')
+        require(all(geometry.heading(a,b) for a,b in zip(points,points[1:]+points[:1])),
+                'canonical_zone_polygon_edges_required')
+        polygon=Polygon(points)
+        require(polygon.is_valid and not polygon.is_empty and polygon.area>0,
+                'simple_nonzero_zone_polygon_required')
+        return points
+    for edit in edits:
+        require(type(edit) is dict and set(edit) in ({'uuid','polygon_nm'},
+                {'uuid','polygon_nm','holes_nm'}),'exact_draft_zone_fields')
+        key=edit['uuid']
+        require(type(key) is str and key in zones and key not in seen,'unique_existing_draft_zone')
+        seen.add(key);zone=zones[key];outline=zone.Outline()
+        require(not zone.GetIsRuleArea() and bool(str(zone.GetNetname()))
+                and zone.GetFillMode()==pcbnew.ZONE_FILL_MODE_POLYGONS
+                and zone.GetPadConnection()==pcbnew.ZONE_CONNECTION_FULL
+                and not any(g.ContainsItem(zone) for g in board.Groups())
+                and all(pcbnew.IsCopperLayer(layer) for layer in zone.GetLayerSet().Seq())
+                and outline.OutlineCount()==1,
+                'simple_ungrouped_named_solid_copper_zone_required')
+        rawholes=edit.get('holes_nm',[])
+        require(type(rawholes) is list and len(rawholes)<=32
+                and len(rawholes)==outline.HoleCount(0),
+                'explicit_exact_source_zone_hole_count_required')
+        points=ring(edit['polygon_nm']);holes=[ring(h) for h in rawholes]
+        outer=Polygon(points);hole_shapes=[Polygon(h) for h in holes]
+        require(all(outer.contains(h) and outer.boundary.disjoint(h) for h in hole_shapes)
+                and all(a.disjoint(b) for i,a in enumerate(hole_shapes) for b in hole_shapes[i+1:])
+                and Polygon(points,holes).is_valid,'strictly_interior_disjoint_zone_holes_required')
+        original=outline.COutline(0)
+        originals=[original,*[outline.CHole(0,i) for i in range(outline.HoleCount(0))]]
+        require(all(not r.ArcCount() for r in originals),'zone_redraw_is_not_arc_conversion')
+        before=[[original.CPoint(i).x,original.CPoint(i).y] for i in range(original.PointCount())]
+        before_holes=[[[r.CPoint(i).x,r.CPoint(i).y] for i in range(r.PointCount())]
+                      for r in originals[1:]]
+        prepared.append((key,zone,before,points,before_holes,holes))
+    records=[]
+    for key,zone,before,points,before_holes,holes in prepared:
+        zone.UnFill();outline=zone.Outline();outline.RemoveAllContours();outline.NewOutline()
+        for x,y in points:outline.Append(x,y)
+        for index,hole in enumerate(holes):
+            outline.NewHole(0)
+            for x,y in hole:outline.Append(x,y,0,index)
+        records.append(dict(uuid=key,source_polygon_nm=before,polygon_nm=points,
+            source_holes_nm=before_holes,holes_nm=holes,
+            net=str(zone.GetNetname()),layers=[board.GetLayerName(l) for l in zone.GetLayerSet().Seq()],
+            locked=bool(zone.IsLocked()),source_process_preserved=True,
+            refill_required=True,current_qualified=False,routing_admitted=False))
+    return records
+
+
 def stage(request, directory, *, refill=False):
     import cec_force_current as force
     import cec_additive_route_receiving as syntax
@@ -154,10 +216,11 @@ def stage(request, directory, *, refill=False):
 
     fields={'schema','placement','board_hints','redraws','via_moves'}
     require(type(request) is dict and type(request.get('schema')) is int
-            and request['schema'] in (1,2,3,4)
+            and request['schema'] in (1,2,3,4,5)
             and set(request)==fields|({'retired_tracks'} if request['schema']>=2 else set())
                                    |({'flatbars'} if request['schema']>=3 else set())
-                                   |({'via_copies'} if request['schema']==4 else set()),
+                                   |({'via_copies'} if request['schema']>=4 else set())
+                                   |({'zone_redraws'} if request['schema']==5 else set()),
             'exact_paired_draft_request')
     binding=request['placement']
     require(type(binding) is dict and set(binding)=={'path','sha256'},'hash_bound_draft_placement')
@@ -199,6 +262,12 @@ def stage(request, directory, *, refill=False):
         require(all(type(r) is dict and type(r.get('source_uuid')) is str
                     and r['source_uuid'] not in moved for r in via_copies[side]),
                 'draft_via_copy_requires_unmoved_source_prototype')
+    zone_edits=request.get('zone_redraws',{'carrier':[],'cover':[]})
+    require(type(zone_edits) is dict and set(zone_edits)=={'carrier','cover'}
+            and all(type(rows) is list and len(rows)<=32 for rows in zone_edits.values()),
+            'bounded_explicit_paired_zone_redraw_scopes')
+    require(not any(zone_edits.values()) or refill,'draft_zone_redraw_requires_native_refill')
+    zone_records={}
     sources={side:Path(plan[side]['path']).resolve(strict=True) for side in ('carrier','cover')}
     families={side:force._family(path,request['board_hints'][side]) for side,path in sources.items()}
     protected={str(planpath),str(Path(plan['contract']['path']).resolve())}
@@ -230,7 +299,11 @@ def stage(request, directory, *, refill=False):
         cuts=_retire(board,retired[side])
         inserted=[flatbars.construct(board,path,row,board_hint=request['board_hints'][side],
                                     identity=digest(request)+':'+side) for row in bars[side]]
+        for bar in inserted:
+            bar['geometry_screen']['stage_scope']='construction_time_before_later_zone_edits_and_refill'
+            bar['geometry_screen']['final_edited_and_refilled_clearance_proven']=False
         copies=_copy_vias(board,via_copies[side],digest(request)+':'+side)
+        zone_records[side]=_redraw_zones(board,zone_edits[side])
         fill=None
         if refill:
             import cec_zone_fill
@@ -271,6 +344,7 @@ def stage(request, directory, *, refill=False):
         root,old=syntax._nodes(parent);_,fresh=syntax._nodes(raw)
         changed=set(moved)|{r['source_uuid'] for r in edits}
         changed|={r['uuid'] for r in vias}
+        changed|={r['uuid'] for r in zone_records[side]}
         if refill:changed|={str(z.m_Uuid.AsString()) for z in board.Zones() if not z.GetIsRuleArea()}
         added={key for r in edits for key in r['added_uuids']}
         added|={r['footprint_uuid'] for r in inserted}
@@ -293,6 +367,7 @@ def stage(request, directory, *, refill=False):
         raw.unlink()  # Our new, verified IO scratch file; not a source artifact.
         receipt['boards'].append(dict(side=side,path=str(target),source=str(parent),
             source_sha256=plan[side]['sha256'],sha256=repack.inspection.sha(target),
+            zone_redraws=zone_records[side],
             moved_footprint_uuids=moved,redraws=edits,via_moves=vias,retired_tracks=cuts,flatbars=inserted,
             via_copies=copies,
             saved_fills_still_source=not refill,refill_required=not refill,
