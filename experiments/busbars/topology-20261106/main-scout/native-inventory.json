@@ -1,0 +1,271 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "endpoint_screen": [
+    {
+      "at_mm": [
+        4,
+        32.1
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        4,
+        57.5
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        4,
+        60
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        4,
+        80.32
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        4,
+        85.4
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        8,
+        34.6
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        8,
+        60
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [
+        {
+          "uuid": "97e88707-e4ef-4c30-af4e-724ee6e7d22d",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE3V3_HI",
+          "at_mm": [
+            9.2,
+            75.422942
+          ]
+        }
+      ],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        5,
+        60
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [
+        {
+          "uuid": "97e88707-e4ef-4c30-af4e-724ee6e7d22d",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE3V3_HI",
+          "at_mm": [
+            9.2,
+            75.422942
+          ]
+        }
+      ],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        5,
+        85.4
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        20,
+        34.6
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        20,
+        60
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [
+        {
+          "uuid": "6bae995b-213f-49bb-af9b-7daee096b494",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "at_mm": [
+            16.703544,
+            60.525
+          ]
+        }
+      ],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        24,
+        60
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [
+        {
+          "uuid": "a96dde5b-cc36-4157-85a4-22d99c7a06a3",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "at_mm": [
+            25.9769,
+            59.783201
+          ]
+        },
+        {
+          "uuid": "6bae995b-213f-49bb-af9b-7daee096b494",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "at_mm": [
+            16.703544,
+            60.525
+          ]
+        }
+      ],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    },
+    {
+      "at_mm": [
+        24,
+        85.4
+      ],
+      "face": "B.Cu",
+      "square_land_mm": 3.230592,
+      "foreign_native_contacts": [],
+      "saved_fill_clearance_hits": [],
+      "rule_hits": []
+    }
+  ],
+  "outline_adjacent_wide_tracks": [
+    {
+      "uuid": "2da4471e-2417-5dcb-85d3-ef0a1cb30272",
+      "net": "/SENSE12V_HI",
+      "layer": "B.Cu",
+      "width_mm": 3.230592,
+      "start_mm": [
+        2.2,
+        79.1
+      ],
+      "end_mm": [
+        2.2,
+        36.0
+      ]
+    },
+    {
+      "uuid": "33af082a-6b01-54ef-a068-9a27059b3011",
+      "net": "/SENSE12V_HI",
+      "layer": "B.Cu",
+      "width_mm": 3.230592,
+      "start_mm": [
+        8.3,
+        85.2
+      ],
+      "end_mm": [
+        2.2,
+        79.1
+      ]
+    },
+    {
+      "uuid": "7eb2c6ed-1f50-5bf6-b5d2-298bc6f2ac74",
+      "net": "/SENSE12V_HI",
+      "layer": "B.Cu",
+      "width_mm": 3.230592,
+      "start_mm": [
+        18.35,
+        78.25
+      ],
+      "end_mm": [
+        11.4,
+        85.2
+      ]
+    },
+    {
+      "uuid": "938cd8ad-5585-58ee-a6a9-4d9115dc9fef",
+      "net": "/SENSE12V_HI",
+      "layer": "B.Cu",
+      "width_mm": 3.230592,
+      "start_mm": [
+        11.4,
+        85.2
+      ],
+      "end_mm": [
+        8.3,
+        85.2
+      ]
+    },
+    {
+      "uuid": "9c0a3b2a-d397-4062-8dce-e7aa8d0d2693",
+      "net": "/SENSE12V_HI",
+      "layer": "B.Cu",
+      "width_mm": 3.230592,
+      "start_mm": [
+        2.2,
+        36.0
+      ],
+      "end_mm": [
+        18.6,
+        36.0
+      ]
+    }
+  ],
+  "scope": "Finite native BCu endpoint contact screen only; source saved fills/body/paired/tail/current transport require separate proofs. No native save."
+}

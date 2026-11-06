@@ -5,6 +5,7 @@
   "status": "private_vbus_shortcut_received_bar_upper_feed_and_physical_qualification_pending",
   "latest_slice": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
   "next_geometry_diagnosis": "experiments/busbars/part-model-20261106/endpoint-first-20261106/feed-probe.json",
+  "latest_topology_height_decision": "experiments/busbars/topology-20261106/decision.json",
   "reviewed_selector": {
     "path": "checkpoints/current.json",
     "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
@@ -82,6 +83,7 @@
     }
   ],
   "remaining": [
+    "Read the latest topology/height decision first. Existing selected THT tails and screw heads do not establish >=2.3mm below-board clearance for an MJP bar. Two inline backside bars have guarded planar links but are not an accepted no-Z-increase solution; finite one-bar lower feeds remain obstructed. Obtain the prepared manufacturer/assembler technical answers before claiming a usable bar or running further equivalent sweeps.",
     "The shorter front MJP-0.7 nominal pocket failed full-width endpoint access. Endpoint-first screening found a right-front MJP-1.0 position at (71,69.3), with a lower feed but no upper full-current feed. No bar is installed; do not spend more waves on the failed nominal pocket.",
     "The VBUS shortcut frees the upper right-front landing while cutting 51.72 percent of that source chain length. It is independently received, with unchanged 0 errors, 0 opens, 94 warnings and all 16 physical Kelvin leg observations preserved.",
     "Low-profile Vishay WSL251200000ZEA9 and Bourns CSS2H-3920C-000 are only dimensional shortlist candidates; underside dielectric/standoff, installed height, real stock and assembly cost remain unqualified. No crossing underneath is authorized from coating language alone.",

@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "status": "No source-qualified existing THT minimum protrusion establishes room for a 2.3 mm nominal bar plus assembly margin",
+  "source_board": {
+    "path": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+    "sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+    "native_thickness_mm": 1.6,
+    "fab_profile": "jlcpcb_6l_pofv_high_current",
+    "vendor_stackup": "JLC06162H-3313"
+  },
+  "assembly_contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "scope": "Placement envelope authority, explicitly not physical release certificate",
+    "inward_gap_mm": [21.5, 22.5],
+    "outward_THT_minimum_protrusion_acceptance_found": false,
+    "note": "Inward connector-body allocations and 22 mm board separation are not outward-tail guarantees"
+  },
+  "pcb_thickness_screen": {
+    "url": "https://jlcpcb.com/capabilities/Capabilities%2C/",
+    "primary_published_tolerance": "Thickness >=1.0 mm: +/-10%",
+    "nominal_mm": 1.6,
+    "general_capability_range_mm": [1.44, 1.76],
+    "qualification_boundary": "Public general manufacturing bound used for conservative dimensional screen, not a released order-specific acceptance certificate; no tighter bound inferred from nominal native stackup"
+  },
+  "families": [
+    {
+      "reference": "J3",
+      "manufacturer": "Molex",
+      "native_mpn": "39291247",
+      "drawing_mpn": "39-29-1247",
+      "engineering_number": "5569-24A1-210",
+      "lcsc": null,
+      "identity_sources": ["Native source-board MPN/manufacturer/datasheet fields", "beta/atx-24pin-rev3/bom/bom.csv"],
+      "product_url": "https://www.molex.com/en-us/products/part-detail/39291247",
+      "manufacturer_drawing_url": "https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/556/5569/039291107_sd.pdf",
+      "inspected_manufacturer_authored_mirror_url": "https://www.official.cz/static/_dokumenty/1/3/0/7/6/39-29-1188_sd.pdf",
+      "drawing": "SD-5569-002 revision M4; page 2 includes exact 39-29-1247 and page 1 supplies common geometry",
+      "inspection": "Both rendered pages visually inspected. Official endpoint resolved as two-page PDF via web tool, but bounded local download failed; mirrored manufacturer drawing used for visual inspection",
+      "seating_plane_to_tail_tip_mm": {"nominal": 3.5, "plus_minus": 0.7, "range": [2.8, 4.2]},
+      "recommended_PCB_thickness_max_mm": 1.78,
+      "full_seated_untrimmed_protrusion_screen_mm": {
+        "at_exact_nominal_PCB": [1.2, 2.6],
+        "at_general_PCB_bounds": [1.04, 2.76],
+        "minimum_formula": "(3.5-0.7)-1.76"
+      },
+      "establishes_2p3mm_plus_margin": false
+    },
+    {
+      "references": ["TB1", "TB2", "TB4", "TB5"],
+      "manufacturer": "XFCN",
+      "mpn": "T34069",
+      "lcsc": "C481452",
+      "native_identity": "XFCN_T34069_THT_M3_40A; source fields bind exact MPN and drawing",
+      "drawing_path": "lib/datasheets/XFCN_T34069_C481452.pdf",
+      "drawing_sha256": "aeb289f999fd47b19452f6d1e189f301dc1e5184af5c60d663a88590313a79c2",
+      "drawing_url": "https://www.lcsc.com/datasheet/C481452.pdf",
+      "drawing_revision": "A1, 2023-11-25; single page visually inspected",
+      "drawing_geometry_mm": {
+        "body_depth_nominal": 5,
+        "overall_depth_to_leg_tip_nominal": 9,
+        "default_tolerance_body": 0.2,
+        "default_tolerance_overall": 0.3
+      },
+      "inferred_shoulder_to_tip_range_mm": [3.5, 4.5],
+      "inference": "Leg length is overall depth minus body depth, not the full 9 mm body dimension: minimum (9-.3)-(5+.2)=3.5 mm",
+      "full_seated_untrimmed_protrusion_screen_mm": {
+        "at_exact_nominal_PCB": [1.9, 2.9],
+        "at_general_PCB_bounds": [1.74, 3.06],
+        "minimum_formula": "(9-.3)-(5+.2)-1.76"
+      },
+      "establishes_2p3mm_plus_margin": false,
+      "qualification_boundary": "Conditional derived geometry only; shoulder seating, incoming terminal drawing/part conformance and post-solder tail retention are not qualified"
+    },
+    {
+      "references": ["TB6", "TB9"],
+      "manufacturer": "XFCN",
+      "mpn": "TTR32100127-0600",
+      "lcsc": "C45384691",
+      "native_identity": "XFCN_TTR32100127-0600_THT_M3_60A; source fields bind exact MPN and drawing",
+      "drawing_path": "lib/datasheets/XFCN_TTR32100127-0600_C45384691.pdf",
+      "drawing_sha256": "225f003c0f0bb488b49bb96fac2477091c8f882ff6da7b9f5db3799f9145b750",
+      "drawing_url": "https://www.lcsc.com/datasheet/C45384691.pdf",
+      "drawing_revision": "A1, 2025-02-19; single page visually inspected",
+      "drawing_geometry_mm": {
+        "body_depth_nominal": 9,
+        "overall_depth_to_leg_tip_nominal": 12.7,
+        "default_tolerance_body": 0.3,
+        "default_tolerance_overall": 0.3
+      },
+      "inferred_shoulder_to_tip_range_mm": [3.1, 4.3],
+      "inference": "Leg projection is 12.7 minus 9 mm, not full 6 mm body height or 12.7 mm total depth; minimum (12.7-.3)-(9+.3)=3.1 mm",
+      "full_seated_untrimmed_protrusion_screen_mm": {
+        "at_exact_nominal_PCB": [1.5, 2.7],
+        "at_general_PCB_bounds": [1.34, 2.86],
+        "minimum_formula": "(12.7-.3)-(9+.3)-1.76"
+      },
+      "establishes_2p3mm_plus_margin": false,
+      "qualification_boundary": "Conditional derived geometry only; source model is a project drawing-envelope, not genuine manufacturer CAD or an installed acceptance certificate"
+    }
+  ],
+  "existing_screw_datum": {
+    "mpn": "SSCF-M2-5-A2",
+    "url": "https://www.accu.co.uk/metric-cap-head-screws/3791-SSCF-M2-5-A2",
+    "head_height_range_mm": [1.86, 2.0],
+    "basis": "2 mm +0/-0.14; existing selected hardware per assembly contract",
+    "establishes_2p3mm_plus_margin": false
+  },
+  "conclusion": {
+    "guaranteed_existing_installed_THT_minimum_at_least_2p3mm": false,
+    "maximum_of_conditional_tail_minima_mm": 1.74,
+    "comparison": "Even assuming untrimmed fully seated parts, all three toleranced tail minima are below 2.3 mm; screw-head part minimum 1.86 mm also below nominal MJP body 2.3 mm",
+    "missing_evidence": ["Released assembly seating and board-thickness acceptance bounds", "No-trim or minimum retained post-process protrusion specification", "Minimum existing assembled outward envelope certified on selected parts/process", "Toleranced installed MJP body height including solder/process margin; 2.3 mm is nominal only"],
+    "not_claimed": ["Existing actual assemblies never have longer tails", "Solder fillets provide a guaranteed minimum envelope", "Full connector body lies below the PCB", "Incoming sample qualifies the full production process", "Bar-body/current/joint/thermal or complete-Z qualification"],
+    "changes": "This evidence JSON only; no CAD, scripts, selected parts or process changes"
+  }
+}

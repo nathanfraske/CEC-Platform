@@ -1,0 +1,553 @@
+{
+  "schema": 1,
+  "scope": "finite_read_only_matched_stack_topology_scout",
+  "source_files": {
+    "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+    "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  },
+  "source_files_unchanged": true,
+  "baseline": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        89.585,
+        91.795
+      ],
+      "size_mm": [
+        89.585,
+        93.09
+      ],
+      "bounding_area_mm2": 8339.46765
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "source_geometry_controllers": [
+    {
+      "side": "ATX",
+      "ref": "J3",
+      "bounds_mm": [
+        5.954999,
+        69.555,
+        68.544999,
+        91.795
+      ],
+      "height_max_mm": 16.0
+    },
+    {
+      "side": "ATX",
+      "ref": "TB1",
+      "bounds_mm": [
+        36.62,
+        -1.295,
+        43.51,
+        8.345
+      ],
+      "height_max_mm": 10.0
+    },
+    {
+      "side": "ATX",
+      "ref": "TB2",
+      "bounds_mm": [
+        28.619999,
+        -1.295,
+        35.509999,
+        8.345
+      ],
+      "height_max_mm": 10.0
+    },
+    {
+      "side": "ATX",
+      "ref": "TB5",
+      "bounds_mm": [
+        44.62,
+        -1.295,
+        51.51,
+        8.345
+      ],
+      "height_max_mm": 10.0
+    },
+    {
+      "side": "ATX",
+      "ref": "TB4",
+      "bounds_mm": [
+        20.619999,
+        -1.295,
+        27.509999,
+        8.345
+      ],
+      "height_max_mm": 10.0
+    },
+    {
+      "side": "Hub",
+      "ref": "J3",
+      "bounds_mm": [
+        71.095,
+        30.905,
+        89.585,
+        46.894999999999996
+      ],
+      "height_max_mm": 13.7
+    },
+    {
+      "side": "Hub",
+      "ref": "J_KVM",
+      "bounds_mm": [
+        19.955,
+        9.295,
+        31.845,
+        16.885
+      ],
+      "height_max_mm": 6.0
+    },
+    {
+      "side": "Hub",
+      "ref": "C37",
+      "bounds_mm": [
+        3.25,
+        50.150000000000006,
+        21.75,
+        68.65
+      ],
+      "height_max_mm": 17.2
+    },
+    {
+      "side": "Hub",
+      "ref": "C1",
+      "bounds_mm": [
+        2.8499999999999943,
+        26.0,
+        21.349999999999994,
+        44.5
+      ],
+      "height_max_mm": 17.2
+    },
+    {
+      "side": "Hub",
+      "ref": "J2",
+      "bounds_mm": [
+        71.095,
+        14.005,
+        89.585,
+        29.995
+      ],
+      "height_max_mm": 13.7
+    },
+    {
+      "side": "Hub",
+      "ref": "J4",
+      "bounds_mm": [
+        71.095,
+        47.80500000000001,
+        89.585,
+        63.795
+      ],
+      "height_max_mm": 13.7
+    },
+    {
+      "side": "Hub",
+      "ref": "J5",
+      "bounds_mm": [
+        71.095,
+        64.705,
+        89.585,
+        80.695
+      ],
+      "height_max_mm": 13.7
+    }
+  ],
+  "edge_classification": {
+    "left": "Copper-limited carrier edge: full-current12VB.Cu forceleg has minimumcopperX0.584704. Mechanical fixed-datum floor currentlyHublaminateX2; nearestdeclaredbodyHubC1X2.85.",
+    "right": "Mechanically controlled by four existing reflectedHubRJ45 mouths atX89.585. Carrier laminate endsX86.49; a frontbar atX71 does not move this bound.",
+    "top": "Mechanically controlled by ATX outputterminal bodies TB1/TB2/TB4/TB5 atY-1.295, not KVM or powercopper.",
+    "bottom": "Mechanically controlled by unchanged-facing ATXJ3 atY91.795, extending4.295 beyond carrierlaminateY87.5. A laminate-only bottom trim gives no installedheight gain.",
+    "mounts": "H1 fixed matched axis atATX18,20.159899 with22mm spacer; no current XY boundary control. Preserve datum and all mating interfaces.",
+    "KVM": "HubJ_KVM is actual right-angle top-edge exit. It is inside current completeXY and does not control top/bottom/right package extent; relocating it alone cannot compact the current declared envelope.",
+    "cans": "C1/C37 do not control overallXY with current laminate/ports fixed. Their tall18.5mm-max bodies and3mm vents constrain ATX local placement and furtherJ3-up movement. Prior common-row arrangements collided with fixedinterfaces and both-boardfunctionalparts."
+  },
+  "layouts": [
+    {
+      "id": "A_endpoint_first_left_clip_2",
+      "component_moves": [],
+      "proposed_outline_operation": "Carrier laminate intersection x>=2 in existing fixed datum; no Hub change.",
+      "conditional_dimensions": {
+        "schema": 1,
+        "complete": true,
+        "laminate": {
+          "bounds_mm": [
+            2.0,
+            0.0,
+            86.49,
+            87.5
+          ],
+          "size_mm": [
+            84.49,
+            87.5
+          ],
+          "bounding_area_mm2": 7392.875
+        },
+        "declared_body_plus_laminate": {
+          "bounds_mm": [
+            2.0,
+            -1.295,
+            89.585,
+            91.795
+          ],
+          "size_mm": [
+            87.585,
+            93.09
+          ],
+          "bounding_area_mm2": 8153.287649999999
+        },
+        "missing": [],
+        "geometry_bases": [
+          "declared_maximum_diameter",
+          "declared_post_width_at_native_pad_centres",
+          "design_allocation",
+          "native_courtyard"
+        ],
+        "exclusions": [
+          "external_cables_and_plugs",
+          "hardware_extents",
+          "tool_and_service_access"
+        ],
+        "scope": "declared-envelope sizing only; not physical-package qualification",
+        "release_authority": false
+      },
+      "source_copper_blockers": [
+        {
+          "uuid": "2da4471e-2417-5dcb-85d3-ef0a1cb30272",
+          "net": "/SENSE12V_HI",
+          "layer": "B.Cu",
+          "width_nm": 3230592,
+          "start_nm": [
+            2200000,
+            79100000
+          ],
+          "end_nm": [
+            2200000,
+            36000000
+          ],
+          "minimum_copper_X_mm": 0.584704
+        },
+        {
+          "uuid": "33af082a-6b01-54ef-a068-9a27059b3011",
+          "net": "/SENSE12V_HI",
+          "layer": "B.Cu",
+          "width_nm": 3230592,
+          "start_nm": [
+            8300000,
+            85200000
+          ],
+          "end_nm": [
+            2200000,
+            79100000
+          ],
+          "minimum_copper_X_mm": 0.584704
+        },
+        {
+          "uuid": "9c0a3b2a-d397-4062-8dce-e7aa8d0d2693",
+          "net": "/SENSE12V_HI",
+          "layer": "B.Cu",
+          "width_nm": 3230592,
+          "start_nm": [
+            2200000,
+            36000000
+          ],
+          "end_nm": [
+            18600000,
+            36000000
+          ],
+          "minimum_copper_X_mm": 0.584704
+        }
+      ],
+      "actual_received_outline": false,
+      "mechanical_interpretation": "Can reduce declared installed width by2 mm because current minimum is carrier laminate x0 while reflected Hub laminate starts x2; must reconstruct the12Vforceleg and reprove original current/clearance/return/partitions. No bar is credited before actual source path receiving."
+    },
+    {
+      "id": "B_additional_RJ_row_plus_1_with_paired_J6C",
+      "component_moves": [
+        {
+          "side": "Hub",
+          "ref": "J2",
+          "at_nm": [
+            11710000,
+            7790000
+          ],
+          "rotation_deg": -90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "J3",
+          "at_nm": [
+            11710000,
+            24690000
+          ],
+          "rotation_deg": -90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "J4",
+          "at_nm": [
+            11710000,
+            41590000
+          ],
+          "rotation_deg": -90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "J5",
+          "at_nm": [
+            11710000,
+            58490000
+          ],
+          "rotation_deg": -90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "J6C",
+          "at_nm": [
+            20000000,
+            10359899
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "C19",
+          "at_nm": [
+            16882599,
+            31207299
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "F3",
+          "at_nm": [
+            18310000,
+            35600000
+          ],
+          "rotation_deg": 0.0
+        },
+        {
+          "side": "Hub",
+          "ref": "C20",
+          "at_nm": [
+            17328399,
+            46460800
+          ],
+          "rotation_deg": 0.0
+        },
+        {
+          "side": "Hub",
+          "ref": "R7",
+          "at_nm": [
+            16790000,
+            49980000
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "C21",
+          "at_nm": [
+            17046896,
+            58903300
+          ],
+          "rotation_deg": 180.0
+        },
+        {
+          "side": "Hub",
+          "ref": "R8",
+          "at_nm": [
+            17239597,
+            56660600
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "D4",
+          "at_nm": [
+            18670800,
+            49380000
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "Hub",
+          "ref": "D5",
+          "at_nm": [
+            19144997,
+            56090000
+          ],
+          "rotation_deg": 90.0
+        },
+        {
+          "side": "ATX",
+          "ref": "J6C",
+          "at_nm": [
+            66000000,
+            20159899
+          ],
+          "rotation_deg": -90.0
+        }
+      ],
+      "all_rotations_and_faces_preserved": true,
+      "paired_body_and_contacts_ok": true,
+      "sameface_courtyard": {
+        "ok": false,
+        "conflicts": [
+          [
+            "D4",
+            "J6D"
+          ],
+          [
+            "R3",
+            "D5"
+          ]
+        ],
+        "missing_selected": [],
+        "missing_unrelated": [
+          "LOGO1"
+        ],
+        "routing_admitted": false,
+        "release_authority": false
+      },
+      "conditional_dimensions_without_left_clip": {
+        "schema": 1,
+        "complete": true,
+        "laminate": {
+          "bounds_mm": [
+            0.0,
+            0.0,
+            86.49,
+            87.5
+          ],
+          "size_mm": [
+            86.49,
+            87.5
+          ],
+          "bounding_area_mm2": 7567.875
+        },
+        "declared_body_plus_laminate": {
+          "bounds_mm": [
+            0.0,
+            -1.295,
+            88.585,
+            91.795
+          ],
+          "size_mm": [
+            88.585,
+            93.09
+          ],
+          "bounding_area_mm2": 8246.37765
+        },
+        "missing": [],
+        "geometry_bases": [
+          "declared_maximum_diameter",
+          "declared_post_width_at_native_pad_centres",
+          "design_allocation",
+          "native_courtyard"
+        ],
+        "exclusions": [
+          "external_cables_and_plugs",
+          "hardware_extents",
+          "tool_and_service_access"
+        ],
+        "scope": "declared-envelope sizing only; not physical-package qualification",
+        "release_authority": false
+      },
+      "conditional_dimensions_with_A_left_clip": {
+        "schema": 1,
+        "complete": true,
+        "laminate": {
+          "bounds_mm": [
+            2.0,
+            0.0,
+            86.49,
+            87.5
+          ],
+          "size_mm": [
+            84.49,
+            87.5
+          ],
+          "bounding_area_mm2": 7392.875
+        },
+        "declared_body_plus_laminate": {
+          "bounds_mm": [
+            2.0,
+            -1.295,
+            88.585,
+            91.795
+          ],
+          "size_mm": [
+            86.585,
+            93.09
+          ],
+          "bounding_area_mm2": 8060.19765
+        },
+        "missing": [],
+        "geometry_bases": [
+          "declared_maximum_diameter",
+          "declared_post_width_at_native_pad_centres",
+          "design_allocation",
+          "native_courtyard"
+        ],
+        "exclusions": [
+          "external_cables_and_plugs",
+          "hardware_extents",
+          "tool_and_service_access"
+        ],
+        "scope": "declared-envelope sizing only; not physical-package qualification",
+        "release_authority": false
+      },
+      "accepted": false,
+      "unresolved_scope": "Moving the first six blocked filter/support parts by1mm createsD4/R7 andD5/R8 conflicts; movingD4/D5 coherently by1mm then reaches fixedHubJ6D andR3. A new matchedJ6D partner plan or different exact local support repack is mandatory. Copper and native surface not reconstructed or admitted."
+    }
+  ],
+  "bar_stack_budget": {
+    "reference": "experiments/busbars/endpoint-first-20261106/right-front-stack-screen.json",
+    "available_installed_height_mm": 7.3,
+    "qualified_max_bar_height": false,
+    "actual_route_or_current_proof": false
+  },
+  "limits": [
+    "Finite authored layouts, not exhaustive optimization.",
+    "No PCB, source scripts, current contract, dimensional tolerance, gap, connector face, or reviewed selector changed.",
+    "Declared body/laminate sizing excludes hardware, external cables/plugs and access.",
+    "No route, newpart, ampacity, thermal, fabrication or release qualification."
+  ],
+  "routing_admitted": false,
+  "release_authority": false
+}

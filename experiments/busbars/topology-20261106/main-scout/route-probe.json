@@ -1,0 +1,263 @@
+{
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "results": [
+    {
+      "name": "upper_source_hook",
+      "found": true,
+      "elapsed_s": 0.031182899001578335,
+      "diagnostics": {},
+      "legs": [
+        {
+          "start_mm": [
+            18.6,
+            36.0
+          ],
+          "end_mm": [
+            7.9,
+            36.0
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            7.9,
+            36.0
+          ],
+          "end_mm": [
+            4.0,
+            32.1
+          ],
+          "width_nm": 3230592
+        }
+      ]
+    },
+    {
+      "name": "middle",
+      "found": true,
+      "elapsed_s": 0.024479038002027664,
+      "diagnostics": {},
+      "legs": [
+        {
+          "start_mm": [
+            4.0,
+            57.5
+          ],
+          "end_mm": [
+            4.0,
+            60.0
+          ],
+          "width_nm": 3230592
+        }
+      ]
+    },
+    {
+      "name": "lower_source_hook",
+      "found": true,
+      "elapsed_s": 0.023208409998915158,
+      "diagnostics": {
+        "observed_segment_refusals": {
+          "scope": "observed_proposals_not_exhaustive_path_or_min_cut_proof",
+          "net": "/SENSE12V_HI",
+          "layer": "B.Cu",
+          "sample_limit": 6,
+          "events": {
+            "foreign_copper_or_hole": 3
+          },
+          "samples": [
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                4000000,
+                80320000
+              ],
+              "end_nm": [
+                6520000,
+                80320000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                4000000,
+                80320000
+              ],
+              "end_nm": [
+                8880000,
+                85200000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                4000000,
+                80320000
+              ],
+              "end_nm": [
+                11400000,
+                80320000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_HI",
+                  "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                  "layer": "B.Cu",
+                  "uuid": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "B.Cu",
+                  "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "B.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    9.2,
+                    75.422942
+                  ],
+                  "to_mm": [
+                    9.2,
+                    52.8
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "97e88707-e4ef-4c30-af4e-724ee6e7d22d",
+                  "contact": "clearance"
+                }
+              ]
+            }
+          ],
+          "release_authority": false
+        }
+      },
+      "legs": [
+        {
+          "start_mm": [
+            4.0,
+            80.32
+          ],
+          "end_mm": [
+            4.0,
+            85.2
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            4.0,
+            85.2
+          ],
+          "end_mm": [
+            11.4,
+            85.2
+          ],
+          "width_nm": 3230592
+        }
+      ]
+    }
+  ],
+  "left_drilled_pads": [
+    {
+      "ref": "J3",
+      "at_mm": [
+        9.649999,
+        81.6
+      ],
+      "drill_mm": [
+        3.2,
+        3.2
+      ],
+      "pad_mm": [
+        3.2,
+        3.2
+      ]
+    },
+    {
+      "ref": "TB6",
+      "at_mm": [
+        9.064999,
+        4.9
+      ],
+      "drill_mm": [
+        2.0,
+        1.5
+      ],
+      "pad_mm": [
+        3.0,
+        2.3
+      ]
+    }
+  ],
+  "scope": "RAM source-hook feasibility; no current transport, body/tail or assembly qualification"
+}
