@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "status": "private_missing_bypass_repaired_and_routed_no_busbar_installed",
+  "goal_status": "active",
+  "reviewed_selector_unchanged_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+  "candidate": {
+    "path": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+    "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+    "source_sha256": "128858194962fda4b19023512efed332ac325aff74cddd6ae941e6695e9503d3",
+    "receipt": "c9-corrective-v4/receiving-v1.json",
+    "receipt_sha256": "713f15579f54fa84f9ba8379d4cecea33677a8c9ca28aa10c248e944a84f567e",
+    "full_experimental_receiving_stages_passed": 16,
+    "all_stage_durations_below_seconds": 10,
+    "opens": 0,
+    "native_drc_errors": 0,
+    "frozen_library_warnings": 94,
+    "nominal_size_mm": [78, 87.5],
+    "new_xy_compaction_demonstrated": false,
+    "bar_installed": false
+  },
+  "source_chain": [
+    {"folder": "c25-reference-repair-v1", "sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91"},
+    {"folder": "c27-retained-v2", "sha256": "67c1c32cfd411faab96e998b6be73bf2e065c939da9457dfe51dc75585594885"},
+    {"folder": "ilm-corridor-v3", "sha256": "128858194962fda4b19023512efed332ac325aff74cddd6ae941e6695e9503d3"},
+    {"folder": "c9-corrective-v4", "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24"}
+  ],
+  "changes": [
+    "C27 shifted 0.555002 mm without retiring existing copper; a source-rated supply extension and local Ground link preserve its assignment. This trades some PI locality for physical room and is not a PI improvement.",
+    "Ordinary ILIM route and its exclusive via were re-routed to clear the corrective C9 pocket; no power role reclassification or part changes.",
+    "C9 moved 0.45 mm towards its actual U6 input. The saved receiver rederives and confirms the previously missing local-ceramic assignment rather than inventing an already-selected bypass.",
+    "Exactly four independently owned C9 supply tracks and one exclusive cap-to-plane Ground via retired. The replacement keeps 0.50 mm copper, 0.30 mm drill, native process, full layer pair and lock; it is wholly contained in the moved pad and preserves both saved Ground reference faces.",
+    "Generic receivers preserve unrelated literal footprint nodes instead of rejecting them merely because native serialization would spell an unchanged number differently. Unrelated normalization remains forbidden."
+  ],
+  "nonregression_against_immediate_source": {
+    "native_partition_count": [90, 90],
+    "trace_craft_issue_count": [43, 43],
+    "current_fault_objects": [2, 2],
+    "new_or_worsened_current_faults": [],
+    "all_original_ground_returns_preserved": true,
+    "new_C9_surface_ground_return_mm": 0,
+    "new_C9_return_limit_mm": 0.8,
+    "paired_electrical_field": "pass",
+    "declared_paired_stack_bodies_and_vents": "pass",
+    "all_non_ground_pour_nodes_literal_unchanged": true
+  },
+  "whole_chain_limitation": {
+    "C27_ground_return_mm": [0, 0.605002],
+    "C27_supply_path_mm": [0.9873, 1.7373],
+    "C27_supply_distance_mm": [1.4695, 1.8074],
+    "C27_stays_within_existing_limits": true,
+    "whole_chain_ground_return_or_PI_improvement_claimed": false
+  },
+  "regression": {
+    "path": "corrective-bypass-regression-final.xml",
+    "tests_passed": 343,
+    "scope": "Missing-role leaf and transition, exact literal receiving, exclusive Ground barrel ownership, retained-contact and boundary ownership; synthetic tests are not current qualification."
+  },
+  "next_blockers": [
+    "C53 is an already-connected additional input capacitor. Its supply pad bridges two departures, and Ground directly touches a barrel: neither an isolated supply nor a linear Ground leaf. Develop exact branch preservation while retaining existing 3.5 mm locality and selected minimum bypasses; scout a genuinely local pocket rather than silently classifying the remote proposed pocket as acceptable.",
+    "C25 needs an explicit true shared-rail reservoir role, not a false U5-local assignment.",
+    "Construct the shorter bus bar and joints, then demonstrate real matched X/Y savings without larger complete Z.",
+    "Current-model debts, component/joint current and thermal data, installed cost and complete assembled tolerances remain unresolved."
+  ],
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "fab_ready": false,
+  "release_authority": false
+}

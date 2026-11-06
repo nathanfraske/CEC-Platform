@@ -143,6 +143,58 @@ def plan_bypass_ground(board,pad_uuid,*,board_hint,timeout_s=10.,moving_owner_re
         max_tracks=8,max_length_mm=8.,board_hint=board_hint,moving_owner_ref=moving_owner_ref)
 
 
+def plan_missing_bypass_supply(board,pad_uuid,*,board_hint,missing_bypass_intent,timeout_s=10.):
+    """Corrective missing-role supply leaf; never a fabricated old assignment."""
+    deadline=time.monotonic()+timeout_s if type(timeout_s)in(int,float) else time.monotonic()
+    q=_plan(board,pad_uuid,role='missing_bypass_supply',timeout_s=timeout_s,
+        max_tracks=8,max_length_mm=8.,board_hint=board_hint,
+        missing_bypass_intent=missing_bypass_intent)
+    q=_rated_small_supply(board,q,board_hint)
+    _tick(deadline)
+    return q
+
+
+def plan_missing_bypass_ground(board,pad_uuid,*,board_hint,missing_bypass_intent,timeout_s=10.):
+    """Corrective missing-role exclusive Ground stub; no barrel ownership."""
+    return _plan(board,pad_uuid,role='missing_bypass_ground',timeout_s=timeout_s,
+        max_tracks=8,max_length_mm=8.,board_hint=board_hint,
+        missing_bypass_intent=missing_bypass_intent)
+
+
+def _missing_bypass_owner(board,pad,board_hint,intent,deadline,*,ground_return):
+    import cec_missing_bypass_repair as repair
+    source=Path(board.GetFileName()).resolve(strict=True)
+    if _binding(board)!=_binding(pcbnew.LoadBoard(str(source))):
+        raise ValueError('missing_bypass_leaf_requires_literal_unchanged_source')
+    role=repair.plan(source,intent,board_hint=board_hint,
+        timeout_s=max(.001,deadline-time.monotonic()))
+    _tick(deadline)
+    if (role.get('scope')!=repair.SCOPE or role.get('complete')is not True
+            or role.get('role_only')is not True or role.get('admitted')is not False
+            or role.get('source')!=str(source)or role.get('source_sha256')!=force._hash(source)
+            or role.get('intent')!=intent or any(role.get(k)is not False
+                for k in ('cut_authority','route_authority','current_authority'))):
+        raise ValueError('fresh_exact_missing_bypass_role_required')
+    req=role['requirement'];expected='GND'if ground_return else req['rail']
+    records=[p for p in role['source_capacitor_ports']if p['uuid']==force._uid(pad)]
+    if (len(records)!=1 or force._uid(pad.GetParentFootprint())!=intent['capacitor_uuid']
+            or pad.GetNetname()!=expected or records[0]['net']!=expected
+            or records[0]['at_nm']!=list(pad.GetPosition())
+            or records[0]['pin']!=pad.GetNumber()
+            or records[0]['layers']!=list(map(int,pad.GetLayerSet().CuStack()))):
+        raise ValueError('exact_missing_bypass_source_capacitor_terminal_required')
+    owner=board.FindFootprintByReference(req['ref'])
+    owner_pad=owner.FindPadByNumber(str(req['pin']))if owner else None
+    if (owner_pad is None or force._uid(owner_pad)!=intent['owner_pad_uuid']
+            or owner_pad.GetNetname()!=req['rail']
+            or list(owner_pad.GetPosition())!=role['source_owner_port']['at_nm']):
+        raise ValueError('stationary_missing_bypass_owner_terminal_required')
+    # Full raw export evidence remains available from repair.plan itself.
+    # Leaf records are repeatedly recompiled and compared as complete values;
+    # use its exact semantic replay policy, not a volatile generated-date hash.
+    return repair._replay_identity(role)
+
+
 def _rated_small_supply(board,q,board_hint):
     import cec_decoupler_cell as cell
     with force._thermal_hint(board_hint):
@@ -268,7 +320,7 @@ def _bypass_supply_owner(board,pad,board_hint,*,ground_return=False):
 
 def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_hint=None,
           moving_owner_ref=None, explicit_shunt_binding=None, source_auxiliary_strap=None,
-          source_ground_class=None):
+          source_ground_class=None,missing_bypass_intent=None):
     if (type(timeout_s) not in (int, float) or not math.isfinite(timeout_s)
             or not 0 < timeout_s <= 10 or type(max_tracks) is not int
             or not 1 <= max_tracks <= 16 or not math.isfinite(max_length_mm)
@@ -293,6 +345,12 @@ def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_h
         raise ValueError('source_ground_class_cannot_retype_another_leaf')
     bypass=_bypass_supply_owner(board,pad,board_hint,ground_return=role=='bypass_ground') \
         if role in ('rated_bypass_supply','bypass_ground') else None
+    missing_bypass=None
+    if role in ('missing_bypass_supply','missing_bypass_ground'):
+        missing_bypass=_missing_bypass_owner(board,pad,board_hint,missing_bypass_intent,deadline,
+            ground_return=role=='missing_bypass_ground')
+    elif missing_bypass_intent is not None:
+        raise ValueError('missing_bypass_intent_cannot_retype_another_leaf')
     explicit_shunt=None
     if role=='explicit_shunt_supply':
         import cec_explicit_shunt_leaf as shunt
@@ -305,7 +363,7 @@ def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_h
     if role=='resistive_monitor':
         import cec_resistive_monitor_branch as taps
         resistive=taps.source_contract(board,pad_uuid,deadline=deadline)
-    typed = bool(explicit_shunt or resistive or bypass or manufacturer and (
+    typed = bool(explicit_shunt or resistive or bypass or missing_bypass or manufacturer and (
         (role == 'measurement' and contract
             and manufacturer['pins'].get(str(pad.GetNumber())) == 'measurement'
             and str(pad.GetNumber()) in contract[1])
@@ -363,7 +421,8 @@ def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_h
     touching = [t for t in material if t.GetNetCode() == pad.GetNetCode()
         and t.IsOnLayer(surface)
         and t.GetEffectiveShape(surface).Collide(pad.GetEffectiveShape(surface), 0)]
-    if role in ('ground_return','source_class_ground','rated_supply','rated_bypass_supply','bypass_ground','explicit_shunt_supply'):
+    if role in ('ground_return','source_class_ground','rated_supply','rated_bypass_supply','bypass_ground',
+            'missing_bypass_supply','missing_bypass_ground','explicit_shunt_supply'):
         # An immediate dogbone barrel may overlap the end of a long land.
         # It is a retained boundary, not a second retireable departure.
         # The exhaustive native-contact walk below still rejects a barrel
@@ -469,12 +528,15 @@ def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_h
             'rated_supply':'source_typed_full_load_rated_supply_leaf',
             'rated_bypass_supply':'source_typed_full_load_rated_bypass_supply_leaf',
             'bypass_ground':'source_typed_thin_bypass_ground_leaf',
+            'missing_bypass_supply':'source_corrective_missing_bypass_full_load_supply_leaf',
+            'missing_bypass_ground':'source_corrective_missing_bypass_thin_ground_leaf',
             'explicit_shunt_supply':'explicit_shunt_source_leaf_retirement_only',
             'scalar_link':'source_typed_exclusive_moved_scalar_link',
             'scalar_input':'source_typed_thin_scalar_input_leaf',
             'resistive_monitor':'source_typed_bounded_resistive_voltage_monitor'}[role],
         pad_uuid=pad_uuid, device=contract[0] if role == 'measurement' else
             'explicit-native-shunt' if explicit_shunt else
+            'source-corrective-missing-bypass' if missing_bypass else
             'source-selected-bypass' if bypass else 'selected-resistive-monitor' if resistive else manufacturer['device_package'],
         owner=pad.GetParentFootprint().GetReference(),
         pin=str(pad.GetNumber()), net=str(pad.GetNetname()), layer=layer, width_nm=width,
@@ -485,6 +547,7 @@ def _plan(board, pad_uuid, *, role, timeout_s, max_tracks, max_length_mm,board_h
         current_authority=False, kelvin_qualified=False)
     if source_ground_class is not None:result['source_ground_class_authority']=source_ground_class
     if bypass:result['source_selected_bypass']=bypass
+    if missing_bypass:result['source_missing_bypass_repair']=missing_bypass
     if source_auxiliary_strap is not None:
         result['separately_owned_source_auxiliary_strap']=source_auxiliary_strap
     if moving_owner_ref is not None:

@@ -86,6 +86,36 @@ def test_selected_cap_cardinal_rotation_does_not_move_owner(setup,tmp_path,quart
     assert op.receive(source,path,proposal,board_hint='synthetic')['ok']
 
 
+@pytest.mark.parametrize('normalize_unselected', [False, True])
+def test_unselected_parts_keep_literal_source_spelling(setup,tmp_path,normalize_unselected):
+    """Native SaveBoard canonicalization grants no unrelated-part write authority."""
+    import cec_additive_route_receiving as syntax
+    import cec_source_retaining_ses_import as raw
+    source,intent,*_=setup
+    board=pcbnew.LoadBoard(str(source))
+    owner_id=force._uid(board.FindFootprintByReference('U1'))
+    _,nodes=syntax._nodes(source)
+    owner=copy.deepcopy(nodes[owner_id])
+    pose=next(n for n in owner if isinstance(n,list) and n and n[0]=='at')
+    pose[1]='10.000000'
+    inventory=raw.inventory(raw.raw_text(source));start,end=inventory[owner_id]
+    text=raw.raw_text(source)
+    raw.write_raw(source,text[:start]+syntax._render(owner)+text[end:])
+    intent['source_sha256']=force._hash(source)
+    proposal=op.plan(source,intent,board_hint='synthetic')
+    target=child(source,tmp_path)
+    if not normalize_unselected:
+        # Only the selected native transformed footprint is written to Source.
+        _,transformed=syntax._nodes(target)
+        inventory=raw.inventory(raw.raw_text(source));start,end=inventory[intent['capacitor_uuid']]
+        text=raw.raw_text(source)
+        raw.write_raw(target,text[:start]+syntax._render(transformed[intent['capacitor_uuid']])+text[end:])
+        assert op.receive(source,target,proposal,board_hint='synthetic')['ok']
+    else:
+        with pytest.raises(ValueError,match='unselected|parts|footprint'):
+            op.receive(source,target,proposal,board_hint='synthetic')
+
+
 @pytest.mark.parametrize('key,value',[('source_sha256','bad'),('requirement_id','wrong'),
     ('capacitor_uuid','wrong'),('owner_pad_uuid','wrong')])
 def test_intent_cannot_select_different_source_identity(setup,key,value):

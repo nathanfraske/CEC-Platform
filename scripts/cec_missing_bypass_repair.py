@@ -217,7 +217,15 @@ def _receive_parts(source, candidate, uid):
     with tempfile.TemporaryDirectory(prefix='cec-missing-role-') as work:
         expected = Path(work)/'expected.kicad_pcb'
         pcbnew.PCB_IO_KICAD_SEXPR().SaveBoard(str(expected), parent)
-        _need(_footprints(expected) == _footprints(candidate),
+        original_parts = _footprints(source)
+        expected_parts = _footprints(expected)
+        candidate_parts = _footprints(candidate)
+        # Native serialization may normalize unrelated numeric lexemes.
+        # Use its rigid transform ONLY for the selected package; all other
+        # source packages must remain literally identical in the candidate.
+        _need(original_parts.keys() == expected_parts.keys() == candidate_parts.keys()
+            and candidate_parts[uid] == expected_parts[uid]
+            and all(candidate_parts[key] == value for key, value in original_parts.items() if key != uid),
             'stationary_owner_and_unchanged_source_electrical_parts_required')
 
 

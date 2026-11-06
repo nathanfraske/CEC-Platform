@@ -1,0 +1,78 @@
+{
+  "result": {
+    "status": "via-in-pad",
+    "distance_mm": 0.3464823227814083,
+    "via_uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+    "fab_profile": "jlcpcb_6l_pofv_high_current",
+    "diameter_mm": 0.5,
+    "drill_mm": 0.3,
+    "contained_off_center": true,
+    "strict_native_full_land_containment": true,
+    "no_added_stub": true,
+    "ordinary_board_floors_unchanged": true,
+    "centre_only_local_rule_borrowed": false,
+    "existing_native_local_pad_rule": null,
+    "local_pofv_qualification": "fully contained same-net SMD POFV",
+    "saved_current_native_return_and_factory_receiving_still_required": true
+  },
+  "refusal": null,
+  "diagnostics": {
+    "schema": 1,
+    "terminal": {
+      "kind": "pad",
+      "ref": "C9",
+      "pad": "2"
+    },
+    "pad_center": {
+      "process_ok": true,
+      "process_reason": "POFV dimensions accepted",
+      "edge_clear": true,
+      "hole_clear": true,
+      "hole_conflicts": [],
+      "copper_admission": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          11.0,
+          48.95
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "B.Cu",
+        "blockers": [
+          {
+            "kind": "zone",
+            "net": "/SENSE3V3_HI",
+            "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+            "layer": "B.Cu",
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "contact": "zone_clearance"
+          },
+          {
+            "kind": "track",
+            "net": "/SENSE3V3_HI",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              7.472648,
+              52.8
+            ],
+            "to_mm": [
+              7.472648,
+              42.55
+            ],
+            "width_mm": 6.535523,
+            "uuid": "e8ae802e-223d-4792-aa23-8e06299434b5",
+            "contact": "clearance"
+          }
+        ]
+      }
+    },
+    "contained_off_center_via": {
+      "proposed": 3,
+      "ordinary_board_floors_unchanged": true,
+      "centre_only_local_rule_borrowed": false,
+      "extra_stub_required": false
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "scope": "source_selected_bypass_pose_receiving",
+  "ok": false,
+  "complete": false,
+  "errors": [
+    "ValueError:received_pose_is_not_exact_native_source_transform"
+  ],
+  "release_authority": false,
+  "power_authority": false,
+  "inherited_debt_qualified": false,
+  "retired_track_uuids": [],
+  "elapsed_s": 0.864318
+}

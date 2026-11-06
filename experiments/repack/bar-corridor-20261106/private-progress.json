@@ -1,17 +1,18 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T09:21:00Z",
+  "recorded_at_utc": "2026-11-06T10:10:00Z",
   "goal_status": "active",
-  "status": "private_consistency_child_received_shorter_bar_construction_pending",
+  "status": "private_corrective_bypass_routed_and_received_shorter_bar_construction_pending",
+  "latest_slice": "experiments/repack/bar-corridor-20261106/corrective-bypass-slice-closeout.json",
   "reviewed_selector": {
     "path": "checkpoints/current.json",
     "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
     "changed": false
   },
   "atx": {
-    "path": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
-    "sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
-    "receipt": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/scope-report.json",
+    "path": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+    "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+    "receipt": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/receiving-v1.json",
     "last_routed_parent": {
       "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
       "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
@@ -34,7 +35,8 @@
     "current_fault_objects_before_after": [2, 2],
     "connectivity_partition_count_before_after": [90, 90],
     "non_ground_zone_count_preserved_exactly": 42,
-    "new_vias": 0,
+    "new_vias_this_operation": 1,
+    "retired_exclusive_vias_this_operation": 1,
     "outline_unchanged": true,
     "nominal_board_size_mm": [78.0, 87.5],
     "new_xy_compaction_demonstrated_this_slice": false
@@ -47,8 +49,8 @@
   "paired_stack": {
     "contract": "beta/assembly/hub-atx-stack.json",
     "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
-    "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/paired-stack-screen.json",
-    "receipt_sha256": "8a41e705f66c1b5708ce47bc937317de40e8a18f2e2cbcb4c9a4a191bdcdc959",
+    "receipt": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/receiving-v1.json",
+    "receipt_sha256": "713f15579f54fa84f9ba8379d4cecea33677a8c9ca28aa10c248e944a84f567e",
     "scope": "declared_body_contact_hardware_and_vent_screen_not_guaranteed_physical_fit",
     "ok": true,
     "body_checks": 391,
@@ -77,8 +79,9 @@
   ],
   "remaining": [
     "Prefer the shorter front MJP-0.7 trial to the longer MJP-1.0 corridor; nominal screening avoids third-divider/FB2 moves, but no bar is installed.",
-    "Repair C9's existing U6 IN2 bypass locality: 3.843979 mm exceeds 3.5 mm. Proposed rotation/pose (10.5,48.5,180) screens at 2.964994 mm with same-face, paired-body and vent clearance; copper routing and independent acceptance remain pending.",
-    "Complete a source-owned corrective missing-bypass transition before relocating C53's additional VBUS bulk. Do not fabricate a source-selected assignment or relax the original locality/current bound.",
+    "C9's missing U6 IN2 bypass is now repaired and routed at (11,48,270), with a wholly contained same-process Ground via. Preserve its independent receiving while moving later cells.",
+    "Relocate C53's additional VBUS bulk through independently owned connected supply and Ground. Existing isolated-supply-only aggregate ownership refuses this real connected case; do not bypass the ownership check.",
+    "C27's clearance move lengthened its Ground return from 0 to 0.605002 mm, within the original 0.8 mm bound. Do not claim whole-chain PI improvement; shorten it later if an equally safe pocket exists.",
     "Represent C25's genuine shared-rail reservoir role explicitly. Its prospective remote pocket cannot be called a U5-local bypass; alternate U5-local pockets overlap existing rated copper or components.",
     "Construct source-bound bus-bar schematic, joints and electrical transport; catalog current alone is not qualification.",
     "Obtain indispensable bar and assembly tolerance, current/thermal and installed-cost evidence before claiming usable qualification.",

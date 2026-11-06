@@ -1,0 +1,168 @@
+{
+  "schema": 1,
+  "scope": "bounded_ordinary_source_delta_receiving",
+  "ok": true,
+  "complete": true,
+  "errors": [],
+  "release_authority": false,
+  "inherited_debt_qualified": false,
+  "power_authority": false,
+  "max_retired_tracks": 32,
+  "exact_redundant_ordinary_cut_only": false,
+  "exclusive_retired_via_ownership": [
+    {
+      "via_uuid": "19b72a21-fd9a-4eca-8a49-234863e73e00",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_contact_track_uuids": [
+        "260484da-9029-4624-bbe7-634592e0db1f",
+        "52b91698-cdb7-5b09-9443-0df514bd5415",
+        "68d5b9bc-1384-4602-b8e0-8f88943ca98e",
+        "91e5654b-6559-5f14-b242-20fc9412b04e"
+      ],
+      "contact_layers": [
+        0,
+        6
+      ],
+      "no_surviving_land_barrel_or_track_contact": true,
+      "all_departures_in_exact_typed_retirement": true,
+      "release_authority": false
+    }
+  ],
+  "redundant_single_face_via_ownership": [],
+  "boundary_restoration": [
+    {
+      "retired_uuids": [
+        "260484da-9029-4624-bbe7-634592e0db1f",
+        "91e5654b-6559-5f14-b242-20fc9412b04e",
+        "94c9e177-7718-547f-ba68-c53389686182"
+      ],
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "retained_qualified_signal_via_contacts": [],
+      "incoming_qualified_signal_via_contacts": [],
+      "external_boundary_count": 1,
+      "anchors_nm": [
+        [
+          12800000,
+          48115000
+        ]
+      ],
+      "restored": true
+    },
+    {
+      "retired_uuids": [
+        "52b91698-cdb7-5b09-9443-0df514bd5415",
+        "68d5b9bc-1384-4602-b8e0-8f88943ca98e"
+      ],
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "retained_qualified_signal_via_contacts": [],
+      "incoming_qualified_signal_via_contacts": [],
+      "external_boundary_count": 1,
+      "anchors_nm": [
+        [
+          15400000,
+          45400000
+        ]
+      ],
+      "restored": true
+    }
+  ],
+  "paired_native_partition_preservation": {
+    "available": true,
+    "preserved": true,
+    "source_component_count": 90,
+    "child_component_count": 90,
+    "native_source_component_count": 90,
+    "native_child_component_count": 90,
+    "reported_parts_contain_comparison_keys_only": true,
+    "overlap_token_count": 48,
+    "intersection_pairs": 64,
+    "exact_positive_native_island_overlap": true,
+    "whole_zone_uuid_connectivity_credit": false,
+    "current_capacity_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false,
+    "independent_delta_pose_current_receiving_still_required": true,
+    "demoted_component_count": 0
+  },
+  "all_prior_native_terminal_partitions_preserved": true,
+  "all_prior_surviving_copper_junctions_preserved": true,
+  "exact_subtract_add_ground_rule_replay": {
+    "schema": 1,
+    "scope": "source_plus_additions_ground_refill_receiving",
+    "ok": true,
+    "complete": true,
+    "release_authority": false,
+    "inherited_debt_qualified": false,
+    "errors": [],
+    "allowed_original_changes": [
+      {
+        "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+        "kind": "existing_ground_fill"
+      },
+      {
+        "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+        "kind": "existing_ground_fill"
+      }
+    ],
+    "replayed_ground_uuids": [
+      "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+      "d973fe53-5c88-47cd-9e60-63dafba1de54"
+    ],
+    "expected_exact_local_rule": {
+      "applicable": true,
+      "written": false,
+      "path": "/tmp/cec-additive-receiving-8das96mg/family/board.kicad_dru",
+      "group": "CEC_LOCAL_POFV_SIGNAL_VIA",
+      "profile": "jlcpcb_6l_pofv_high_current",
+      "min_diameter_mm": 0.3,
+      "min_drill_mm": 0.2,
+      "min_annular_mm": 0.05
+    },
+    "added_native_uuids": [
+      "15a43170-0a45-4792-a73e-963e5c7093da",
+      "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+      "67076073-bd5d-4048-b454-df5ca6d4fe71",
+      "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+      "c73d68b5-5c91-4704-ba04-7bae449aea42"
+    ],
+    "original_power_and_terminal_geometry_exact": true,
+    "original_power_copper_and_supply_anchors_exact": true,
+    "existing_ground_fill_matches_independent_native_replay": true,
+    "exact_object_rule_matches_independent_native_replay": true,
+    "elapsed_s": 4.004932
+  },
+  "source_candidate_and_code_unchanged": true,
+  "retired_track_uuids": [
+    "260484da-9029-4624-bbe7-634592e0db1f",
+    "52b91698-cdb7-5b09-9443-0df514bd5415",
+    "68d5b9bc-1384-4602-b8e0-8f88943ca98e",
+    "91e5654b-6559-5f14-b242-20fc9412b04e",
+    "94c9e177-7718-547f-ba68-c53389686182"
+  ],
+  "retired_via_uuids": [
+    "19b72a21-fd9a-4eca-8a49-234863e73e00"
+  ],
+  "locked_via_scope_used": [
+    "19b72a21-fd9a-4eca-8a49-234863e73e00"
+  ],
+  "added_native_uuids": [
+    "15a43170-0a45-4792-a73e-963e5c7093da",
+    "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+    "67076073-bd5d-4048-b454-df5ca6d4fe71",
+    "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+    "c73d68b5-5c91-4704-ba04-7bae449aea42"
+  ],
+  "locked_scope_used": [
+    "260484da-9029-4624-bbe7-634592e0db1f",
+    "52b91698-cdb7-5b09-9443-0df514bd5415",
+    "68d5b9bc-1384-4602-b8e0-8f88943ca98e",
+    "91e5654b-6559-5f14-b242-20fc9412b04e",
+    "94c9e177-7718-547f-ba68-c53389686182"
+  ],
+  "original_power_pair_sense_and_placement_geometry_exact": true,
+  "elapsed_s": 7.817966
+}
