@@ -1,0 +1,26 @@
+{
+  "scope": "tests/test_agentic_*.py plus force_sense_shards, spice_runners, spice_sanity, thermal_solver_completion",
+  "suites": [
+    {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "766",
+      "time": "77.148",
+      "timestamp": "2026-11-05T21:24:13.573584",
+      "hostname": "DESKTOP-AF2CO1R"
+    }
+  ],
+  "source_sha256": {
+    "src/cec_pipeline/conductors.py": "3446911974d703e881efc6d49284dd401c69db4195bb2b73bcfa0ea93515ff62",
+    "src/cec_pipeline/flatbars.py": "b236f47ab2527191a53cb04b854f38b5eebe29f76428131a70b160dfd0e1c115",
+    "src/cec_pipeline/bridges.py": "7eb8ffda4ef462abec72529351bf87e02921247aa12b05af167cee6ad622f5f2",
+    "src/cec_pipeline/cells.py": "21f29b3eb02bd0e06137861dcd70a47fd50bb118691ccc145f3ef62a75bcb366",
+    "src/cec_pipeline/repack.py": "b23e808508648160213e4843335f935d16f4e5dea2c45bfff922e5023aa258ae",
+    "tests/test_agentic_conductors.py": "67986c04fe2d2b51b279d4abb616c3e71ebc7e42a39733b4dff7c898754bee2d",
+    "tests/test_agentic_flatbars.py": "4dbb126cede51bb3f707c3e799e2c482c56cf1de68aaa8043ab5e8ff9f17a444"
+  },
+  "junit_sha256": "71746850f425c1ac6ea94c7dbc085fbdbdab732818d7f32c9ba43736c274c1a0",
+  "release_authority": false
+}

@@ -130,7 +130,9 @@ def preview(request):
     contract=json.loads(paths[2].read_text())
     require(all(type(row['poses']) is list for row in source_rows[:2]),
             'explicit_preview_pose_lists_required')
-    poses=[normalize_poses(row['poses']) if row['poses'] else {} for row in source_rows[:2]]
+    # Read-only paired stack measurements can cover a connector/filter row.
+    # Connected construction keeps its separate eight-owner bound unchanged.
+    poses=[normalize_poses(row['poses'],limit=32) if row['poses'] else {} for row in source_rows[:2]]
     require(any(poses),'explicit_preview_motion_required')
     pcbnew,quiet=_native()
     boards=[pcbnew.LoadBoard(str(p)) for p in paths[:2]]

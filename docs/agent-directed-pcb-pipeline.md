@@ -416,6 +416,44 @@ by the workbench.
 
 ## Verification
 
+Flat reinforcement trials live in `cec_pipeline.flatbars`, separate from
+raised bridges. A flat soldered bar has no assumed routing tunnel underneath
+it. Its one continuous land is real PCB copper; its metal is never substituted
+into saved PCB fills or credited as a native-net union. Manufacturer maximum
+dimensions, provisional land/courtyard, explicit solder-height allocation and
+both source-hashed board poses are checked together. Actual placed native pad
+polygons must match the analyzed land. Temporary footprints exist only in
+private in-memory boards, never in a promoted review source. Reports check
+native land/drill/rule-area conflicts and the paired stack, but retain unknown
+ampacity, assembly process and routed-board status.
+
+Example: `python3 -m cec_pipeline.flatbars --request
+docs/evidence/20261105-busbar-candidates/atx-3v3-flat-request.json --output
+/outside/repo/flatbar-report.json`. The current mechanically fitting trial is
+**electrically obstructed**, not admitted. Its result must not be summarized
+as a ready board or used to retire the original power conductor. The paired
+read-only preview supports 32 explicitly posed owners per board; the connected
+placement actor still permits only eight. That difference grants no THT
+transport authority.
+
+`cec_pipeline.conductors.solve` is a separate, bounded lumped DC/steady-state
+electrothermal kernel for explicitly declared bar, joint and PCB branches.
+It calculates unequal sharing, temperature-dependent resistance, Joule heat
+and heat rejection, checking electrical and thermal conservation. Distributed
+solder contacts require multiple actual contact branches; two terminal joints
+cannot stand in for an arbitrary continuous solder seam. No default material,
+joint, convection, cooling or ambient parameters are supplied. Floating nodes,
+unphysical values, resistance extrapolation and nonconvergence fail closed.
+Its analytic regression fixtures are **not** board simulation results. This
+kernel is not wired into admission: parameter evidence, native contact binding,
+full assembly Kelvin/bypass checking and independent current receiving remain
+required before it can justify replacing native copper.
+
+The active busbar/compaction checkpoint is
+`docs/evidence/20261105-busbar-candidates/decision.json`. It preserves rejected
+5 V locations as well as the conditional 3V3 option, and distinguishes body
+envelope compaction from unchanged laminate and any unproven busbar benefit.
+
 `tests/test_agentic_*.py` covers geometry, protocol parity, durable campaigns,
 source/cache identities, native connected construction, power construction,
 portable controls and process ownership. Positive native fixtures are exercised

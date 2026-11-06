@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "status": "active_goal_private_engineering_candidates_not_routed",
+  "goal": "Busbar candidates and coordinated ATX/Hub XY compaction, no increase of assembled height; then source-owned routing and polish.",
+  "baseline": "checkpoints/review-20261105-outline-compaction/receipt.json",
+  "current_paired_request": "docs/evidence/20261105-busbar-candidates/paired-request.json",
+  "current_paired_result": "docs/evidence/20261105-busbar-candidates/paired-result.json",
+  "measured_placement": {
+    "before_body_plus_laminate_mm": [
+      89.585,
+      95.09
+    ],
+    "after_body_plus_laminate_mm": [
+      88.585,
+      93.09
+    ],
+    "delta_mm": [
+      -1,
+      -2
+    ],
+    "area_reduction_percent": 3.1960509554013083,
+    "laminate_unchanged_mm": [
+      86.49,
+      89.5
+    ],
+    "interboard_gap_unchanged_mm": [
+      21.5,
+      22.5
+    ],
+    "whole_cable_tool_hardware_envelope_qualified": false,
+    "no_new_outward_components": true,
+    "native_KVM_exit": "top, with F5/D7 nearby; no left edge",
+    "source_PCBS_changed": false,
+    "routing_admitted": false
+  },
+  "busbars": [
+    {
+      "id": "XFCN T200030-20-R / C55380739",
+      "profile": "experiments/busbars/xfcn-20x3x2.json",
+      "role": "inward 3V3 force leg reinforcement trial",
+      "result": "docs/evidence/20261105-busbar-candidates/atx-3v3-flat-result.json",
+      "source_track_uuid": "07de3bfe-67b6-4852-b39c-be976c802185",
+      "native_pose_nm_deg": [
+        69000000,
+        64500000,
+        90
+      ],
+      "body_max_mm": [
+        20.3,
+        3.2,
+        2.2
+      ],
+      "provisional_land_mm": [
+        20.8,
+        3.7
+      ],
+      "provisional_courtyard_mm": [
+        21.5,
+        4.2
+      ],
+      "provisional_installed_height_mm": 2.4,
+      "paired_stack_and_sameface_screen_ok": true,
+      "actual_land_conflict_records": 42,
+      "foreign_nets": [
+        "contains native +3V3 housekeeping supply",
+        "USB VBUS",
+        "THRESH",
+        "5V_SYS_PORT"
+      ],
+      "land_conflict_pad_count": 0,
+      "required_current_with_existing_margin_a": 25,
+      "old_printed_leg_width_mm": 6.535523,
+      "provisional_courtyard_width_mm": 4.2,
+      "local_nominal_corridor_width_difference_mm": 2.335523,
+      "whole_board_XY_saving_credited_to_bar_mm": [
+        0,
+        0
+      ],
+      "current_and_joint_qualification": false,
+      "adopted": false
+    },
+    {
+      "id": "Sinhoo CCS2030030TTJ / C46634558",
+      "profile": "experiments/busbars/sinhoo-30x3x2.json",
+      "role": "inward 5V trial",
+      "result": "docs/evidence/20261105-busbar-candidates/atx-5v-flat-result.json",
+      "required_current_with_existing_margin_a": 25,
+      "adopted": false,
+      "rejections": [
+        "Original y70.15 corridor collides with moved ATX J3 and divider supports; 19 land conflict records.",
+        "Moving to y66 has 97 land conflict records, eleven body reservations, and violates Hub C37 vent allocation by 1.0 mm with solder allowance."
+      ],
+      "supply": "LCSC category listing has stock; direct JLC China assembly stock zero. Do not call it ready JLC stock."
+    }
+  ],
+  "implemented": [
+    "Two toleranced manufacturer-bound provisional native single-land flat-bar footprints; no invented routing tunnel or falsely fused PCB nets.",
+    "Reusable native land/body/drill/keepout screen shared with raised bridges; exact native pad polygon receiving and source-family output protection.",
+    "Paired preview holds connector-row plus nearby support poses, up to 32 owners per board; connected actuator remains capped at eight.",
+    "Separate bounded lumped off-board bar/joint/PCB electrothermal network: calculated current sharing, temperature feedback, KCL/Joule/thermal balance, no default joint/ambient assumptions.",
+    "Explicit source identity and fail-closed results; all reviewed PCBs preserved."
+  ],
+  "next_work": [
+    "Construct a source-owned paired connected repack. Current read-only preview is not a board candidate; THT moves need departure/return ownership beyond existing SMD cell actuator.",
+    "First route the width/height reduction without bars as a reference; bar-driven area saving must be incremental to that baseline.",
+    "For the 3V3 bar, author explicit alternatives for the four affected F.Cu nets and source-owned full-current F/B transitions; keep all force currents/Kelvin boundaries.",
+    "Bind distributed solder/metal/joint network to actual native land contacts and source current contracts, with stated parameter evidence. Current numerical kernel alone is not qualification.",
+    "Qualify land/paste, solder seating, assembly inventory/cost; do not promote provisional footprint into production library or BOM.",
+    "Only promote routed replacements after saved native DRC/opens/current/Kelvin/assembly checks, then polish and show real new boards."
+  ],
+  "unresolved_authority": [
+    "Manufacturer metal drawings lack ampacity and joint/process qualification; no current claim invented.",
+    "Global JLC assembly availability, fees and solder/land process acceptance remain unconfirmed.",
+    "Interboard placement screen is conditional on existing stack allocations; complete assembled max-Z and cable/tool/plug clearance are not physically certified."
+  ],
+  "goal_complete": false,
+  "release_authority": false
+}

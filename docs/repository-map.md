@@ -21,7 +21,7 @@ physical/material receiver tests and immutable controls remain.
 | `lib` | Shared symbols, footprints, part/process data and models |
 | `tests`, `corpus`, `golden` | Regression code and explicit native fixtures; numerical fixture contracts are not hardware ratings |
 | `experiments/legacy_2026` | Dated, provenance-recorded helper source recovered from ignored build output; not the production orchestration API |
-| `experiments/busbars` | Manufacturer-bound nominal part profiles and explicitly provisional footprints; not production BOM/library additions |
+| `experiments/busbars` | Manufacturer-bound nominal or toleranced part profiles and explicitly provisional footprints; not production BOM/library additions |
 | `docs` | Controlled specifications, current workflow documentation and clearly dated historical evidence |
 | `firmware` | Firmware, with its own CI/build workflow |
 | `.cec`, `tmp`, `output`, `out`, `build` | Ignored runtime/build output. Existing historical tracked controls are preserved for compatibility; new source must not be hidden here |
