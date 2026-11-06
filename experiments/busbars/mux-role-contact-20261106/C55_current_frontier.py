@@ -12,6 +12,9 @@ import cec_current_topology as topology
 import cec_fr as fr
 import cec_cell_shared_fork as shared
 import cec_measurement_leaf as leaf
+import cec_macro_cut_components as components
+import cec_cell_macro_requests as compiler
+from cec_native_items import discard_items
 p,_=_native();folder=Path(__file__).parent
 study=json.loads((folder/'geometry.json').read_text());source=ROOT/study['source'];assert force._hash(source)==study['source_sha256']
 b=p.LoadBoard(str(source));tracks={force._uid(t):t for t in b.GetTracks()};pads=[q for fp in b.GetFootprints()for q in fp.Pads()]
@@ -48,10 +51,23 @@ try:
   allow_full_current_supply_width=True,timeout_s=3.)
  fork_result=dict(succeeded=True,proof=fork)
 except ValueError as exc:fork_result=dict(succeeded=False,reason=str(exc))
+private=p.LoadBoard(str(source))
+for ref,pose in poses.items():
+ fp=private.FindFootprintByReference(ref);fp.SetPosition(p.VECTOR2I(*(round(v*1e6)for v in pose[:2])));fp.SetOrientationDegrees(pose[2])
+discard_items(private,[t for t in private.GetTracks()if force._uid(t)in ids])
+extras=[dict(change=dict(uuid=item['source_edge']['uuid'],net=item['source_edge']['net'],
+ source_nm=[item['source_edge']['start_nm'],item['source_edge']['end_nm']]),
+ authority=dict(kind='unchanged_full_current_source_edge',native_source_uuid=item['source_edge']['uuid'],
+ source_plan=item['fresh_full_current_plan']))for item in plans]
+demands,component_rows=components.requests(b,private,extras,set(ids),dict(source_process_barrel_motion=[]),
+ project_contacts=compiler._project_contacts,deadline=time.monotonic()+3.)
 out=dict(source=study['source'],source_sha256=study['source_sha256'],edges=plans,
  exact_native_row_protected_nets=sorted(protected),native_row_incident_dispositions=rows,
  row_retired_target_edges=sorted(set(ids)&set(rp['retired_track_uuids'])),
  U6_IN1_rated_leaf=leaf_result,independently_rederived_existing_U6_IN1_fork=fork_result,
+ diagnostic_existing_full_current_component_projection=dict(requests=demands,components=component_rows,
+  Source_plans_freshly_rederived_not_recovered_failed_compile_packet=True,all_other_Source_copper_retained=True,
+  no_barrel_transport_assumed=True,placement_and_routing_not_admitted=True),
  existing_failed_macro='compile-stationary-ground-v1.json',
  actual_completed_ownership_phase_is_not_a_serialized_cut_receipt=True,
  ownership_or_cut_permission_not_invented=True,board_saved=False,release_authority=False)

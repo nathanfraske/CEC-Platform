@@ -43,7 +43,7 @@
   },
   "next_supply_cut_frontier": {
     "report": "C55-current-frontier.json",
-    "sha256": "f32422303cd651bcdc5b643022340797bc783ab177baac7defa20181523d30b5",
+    "sha256": "72cc6de30877f56309793ad63a6fd91db0b5529747ddb0f122e114c88fd1d751",
     "source_track_uuids": [
       "3dc003d6-1b44-417c-b577-d2f07c6b019c",
       "c42e35af-b735-4271-8006-1280f4c378cd",
@@ -58,6 +58,13 @@
     "existing_geometry_margin": 1.25,
     "native_row_cut_owns_these_edges": false,
     "ordinary_supply_leaf_or_low_power_fork_owns_these_edges": false,
+    "independent_native_component_projection_diagnostic": {
+      "complete_components": 1,
+      "surviving_native_contacts": 6,
+      "full_width_requests": 5,
+      "fresh_plans_not_recovered_failed_compile_receipt": true,
+      "integrated_macro_or_construction_accepted": false
+    },
     "required_integration": "Complete extra-current component projection, with all original pad and retained conductor contacts restored; a completed compile phase is not a serialized cut receipt."
   },
   "physical_observations": {

@@ -1066,6 +1066,3453 @@
     "succeeded": false,
     "reason": "complete_low_power_manufacturer_supply_fork_root_required"
   },
+  "diagnostic_existing_full_current_component_projection": {
+    "requests": {
+      "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c": {
+        "kind": "source_boundary",
+        "net": "+5VSB",
+        "a": {
+          "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "at_nm": [
+            17674990,
+            47775001
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "b": {
+          "native_uuids": [
+            "383c2b53-8347-4f82-90bc-b92925c37fe0"
+          ],
+          "at_nm": [
+            16912495,
+            47862500
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "width_nm": 477370,
+        "exact_additional_macro_component_source_ownership": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "every_surviving_source_component_port_mandatory": true
+      },
+      "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:1": {
+        "kind": "source_boundary",
+        "net": "+5VSB",
+        "a": {
+          "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "at_nm": [
+            17674990,
+            47775001
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "b": {
+          "native_uuids": [
+            "3b8c8393-c787-4e92-a4a5-0fcf232c3f18"
+          ],
+          "at_nm": [
+            16941240,
+            47812501
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "width_nm": 477370,
+        "exact_additional_macro_component_source_ownership": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "every_surviving_source_component_port_mandatory": true
+      },
+      "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:2": {
+        "kind": "source_boundary",
+        "net": "+5VSB",
+        "a": {
+          "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "at_nm": [
+            17674990,
+            47775001
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "b": {
+          "native_uuids": [
+            "e3b3a00a-9091-444a-a36e-16333aacac9b"
+          ],
+          "at_nm": [
+            16937492,
+            47837503
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "width_nm": 477370,
+        "exact_additional_macro_component_source_ownership": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "every_surviving_source_component_port_mandatory": true
+      },
+      "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:3": {
+        "kind": "source_boundary",
+        "net": "+5VSB",
+        "a": {
+          "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "at_nm": [
+            17674990,
+            47775001
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "b": {
+          "pad_uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "at_nm": [
+            18924990,
+            47650000
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "width_nm": 477370,
+        "exact_additional_macro_component_source_ownership": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "every_surviving_source_component_port_mandatory": true
+      },
+      "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:4": {
+        "kind": "source_boundary",
+        "net": "+5VSB",
+        "a": {
+          "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "at_nm": [
+            17674990,
+            47775001
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "b": {
+          "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "at_nm": [
+            20800000,
+            48400000
+          ],
+          "layers": [
+            0
+          ]
+        },
+        "width_nm": 477370,
+        "exact_additional_macro_component_source_ownership": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "every_surviving_source_component_port_mandatory": true
+      }
+    },
+    "components": [
+      {
+        "source_extra_edge_uuids": [
+          "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "6cf405f4-010b-4701-a732-dea89cca3655",
+          "c42e35af-b735-4271-8006-1280f4c378cd",
+          "fadba932-2d71-466c-8fab-c01735590521"
+        ],
+        "net": "+5VSB",
+        "layer_id": 0,
+        "original_authorities": [
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+              ],
+              "original_length_nm": 1400011.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "3dc003d6-1b44-417c-b577-d2f07c6b019c"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16824990,
+                      47725001
+                    ],
+                    [
+                      18225001,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "6cf405f4-010b-4701-a732-dea89cca3655"
+              ],
+              "original_length_nm": 1100000.0,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "6cf405f4-010b-4701-a732-dea89cca3655"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      15674990,
+                      47775001
+                    ],
+                    [
+                      16774990,
+                      47775001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "c42e35af-b735-4271-8006-1280f4c378cd"
+              ],
+              "original_length_nm": 388907.3154390388,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "c42e35af-b735-4271-8006-1280f4c378cd"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      18225001,
+                      47725001
+                    ],
+                    [
+                      18500000,
+                      48000000
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          },
+          {
+            "kind": "unchanged_full_current_source_edge",
+            "native_source_uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "source_plan": {
+              "schema": 1,
+              "scope": "exact_bounded_whole_current_planar_reflow",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "layer_id": 0,
+              "width_nm": 477370,
+              "full_current_floor_nm": 477370,
+              "contract": {
+                "net": "+5VSB",
+                "amps": 3.0,
+                "profile": "jlcpcb_6l_pofv_high_current",
+                "rise_c": 30.0,
+                "geometry_margin": 1.25,
+                "current_authority": {
+                  "amps": 3.0,
+                  "margin_included": false,
+                  "geometry_margin": 1.25,
+                  "source": "board_design_basis",
+                  "pattern": "+5VSB"
+                },
+                "required_by_layer_mm": {
+                  "F.Cu": 0.47736927907636145,
+                  "In1.Cu": 5.7190343613477115,
+                  "In2.Cu": 5.7190343613477115,
+                  "In3.Cu": 5.7190343613477115,
+                  "In4.Cu": 5.7190343613477115,
+                  "B.Cu": 0.47736927907636145
+                },
+                "routing_layers": [
+                  "F.Cu",
+                  "In2.Cu",
+                  "In3.Cu",
+                  "B.Cu"
+                ],
+                "minimum_track_width_mm": 5.7190343613477115,
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "source": "current_domain_ipc2221_worst_routing_layer"
+              },
+              "domain": {
+                "net": "+5VSB",
+                "configured_net": "+5VSB",
+                "binding": {
+                  "configured_net": "+5VSB",
+                  "amps": 3.0,
+                  "actual_net": "+5VSB",
+                  "override_keys": [
+                    "+5VSB"
+                  ],
+                  "design_current_net": "+5VSB",
+                  "missing_refs": [],
+                  "duplicate_refs": [],
+                  "source_refs": [
+                    "J3"
+                  ],
+                  "sink_refs": [
+                    "RS4"
+                  ],
+                  "off_net_required_refs": [],
+                  "resolution": "exact_name"
+                },
+                "amps": 3.0,
+                "source_refs": [
+                  "J3"
+                ],
+                "sink_refs": [
+                  "RS4"
+                ],
+                "authority_refs": [
+                  "J3",
+                  "RS4"
+                ],
+                "missing_refs": [],
+                "off_net_candidate_refs": [],
+                "absent_candidate_refs": [],
+                "declared_source_refs": [
+                  "J3"
+                ],
+                "declared_sink_refs": [
+                  "RS4"
+                ],
+                "complete": true,
+                "source": "thermal_source_sink_override"
+              },
+              "current_domain_kind": "aggregate_source_sink",
+              "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+              "retired_track_uuids": [
+                "fadba932-2d71-466c-8fab-c01735590521"
+              ],
+              "original_length_nm": 70710.67811865476,
+              "max_source_track_mm": 8.0,
+              "max_source_cut_mm": 32.0,
+              "source_boundaries": [
+                {
+                  "retired_uuids": [
+                    "fadba932-2d71-466c-8fab-c01735590521"
+                  ],
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "width_nm": 477370,
+                  "retained_qualified_signal_via_contacts": [],
+                  "incoming_qualified_signal_via_contacts": [],
+                  "external_boundary_count": 2,
+                  "anchors_nm": [
+                    [
+                      16774990,
+                      47775001
+                    ],
+                    [
+                      16824990,
+                      47725001
+                    ]
+                  ],
+                  "restored": true
+                }
+              ],
+              "current_sharing_inferred": false,
+              "source_current_reduced": false,
+              "vias_or_pours_authorized": false,
+              "release_authority": false
+            }
+          }
+        ],
+        "surviving_contacts": [
+          {
+            "source_item_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+            "source_class": "PAD",
+            "source_contact": {
+              "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+              "at_nm": [
+                18500000,
+                48000000
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "c42e35af-b735-4271-8006-1280f4c378cd"
+            ],
+            "projected_literal_ports": [
+              {
+                "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+                "at_nm": [
+                  20800000,
+                  48400000
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "source_item_uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+            "source_class": "PAD",
+            "source_contact": {
+              "pad_uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+              "at_nm": [
+                16924990,
+                47725001
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "6cf405f4-010b-4701-a732-dea89cca3655",
+              "fadba932-2d71-466c-8fab-c01735590521"
+            ],
+            "projected_literal_ports": [
+              {
+                "pad_uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+                "at_nm": [
+                  18924990,
+                  47650000
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "source_item_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+            "source_class": "PAD",
+            "source_contact": {
+              "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+              "at_nm": [
+                15674990,
+                47775001
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "6cf405f4-010b-4701-a732-dea89cca3655"
+            ],
+            "projected_literal_ports": [
+              {
+                "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+                "at_nm": [
+                  17674990,
+                  47775001
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "source_item_uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+            "source_class": "PCB_TRACK",
+            "source_contact": {
+              "native_uuids": [
+                "383c2b53-8347-4f82-90bc-b92925c37fe0"
+              ],
+              "at_nm": [
+                16912495,
+                47862500
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "6cf405f4-010b-4701-a732-dea89cca3655",
+              "fadba932-2d71-466c-8fab-c01735590521"
+            ],
+            "projected_literal_ports": [
+              {
+                "native_uuids": [
+                  "383c2b53-8347-4f82-90bc-b92925c37fe0"
+                ],
+                "at_nm": [
+                  16912495,
+                  47862500
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "source_item_uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+            "source_class": "PCB_TRACK",
+            "source_contact": {
+              "native_uuids": [
+                "3b8c8393-c787-4e92-a4a5-0fcf232c3f18"
+              ],
+              "at_nm": [
+                16941240,
+                47812501
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "6cf405f4-010b-4701-a732-dea89cca3655",
+              "fadba932-2d71-466c-8fab-c01735590521"
+            ],
+            "projected_literal_ports": [
+              {
+                "native_uuids": [
+                  "3b8c8393-c787-4e92-a4a5-0fcf232c3f18"
+                ],
+                "at_nm": [
+                  16941240,
+                  47812501
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "source_item_uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+            "source_class": "PCB_TRACK",
+            "source_contact": {
+              "native_uuids": [
+                "e3b3a00a-9091-444a-a36e-16333aacac9b"
+              ],
+              "at_nm": [
+                16937492,
+                47837503
+              ],
+              "layers": [
+                0
+              ]
+            },
+            "contacting_owned_edge_uuids": [
+              "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "6cf405f4-010b-4701-a732-dea89cca3655",
+              "fadba932-2d71-466c-8fab-c01735590521"
+            ],
+            "projected_literal_ports": [
+              {
+                "native_uuids": [
+                  "e3b3a00a-9091-444a-a36e-16333aacac9b"
+                ],
+                "at_nm": [
+                  16937492,
+                  47837503
+                ],
+                "layers": [
+                  0
+                ]
+              }
+            ]
+          }
+        ],
+        "request_ids": [
+          "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:1",
+          "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:2",
+          "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:3",
+          "macro_boundary:3dc003d6-1b44-417c-b577-d2f07c6b019c:component_port:4"
+        ],
+        "retired_internal_bends_are_not_anchors": true,
+        "all_coincident_ports_need_native_partition_receiving": false,
+        "new_current_or_routing_or_fabrication_authority": false
+      }
+    ],
+    "Source_plans_freshly_rederived_not_recovered_failed_compile_packet": true,
+    "all_other_Source_copper_retained": true,
+    "no_barrel_transport_assumed": true,
+    "placement_and_routing_not_admitted": true
+  },
   "existing_failed_macro": "compile-stationary-ground-v1.json",
   "actual_completed_ownership_phase_is_not_a_serialized_cut_receipt": true,
   "ownership_or_cut_permission_not_invented": true,
