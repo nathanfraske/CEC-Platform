@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "Mac8 MJP-1.0 / MJP-1.0-T",
+  "manufacturer": "Mac8",
+  "drawing": "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+  "mount": "raised_smt",
+  "pitch_nm": 25400000,
+  "body_length_nm": 26800000,
+  "body_width_nm": 1800000,
+  "land_length_nm": 2000000,
+  "land_width_nm": 2000000,
+  "height_nm": 2300000,
+  "underside_nm": 1800000,
+  "catalog_current_a": 20,
+  "dimensions_basis": "nominal_only"
+}

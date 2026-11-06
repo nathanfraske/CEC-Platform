@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "source": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/atx-24pin-rev3/board.kicad_pcb",
+    "sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60"
+  },
+  "board_hint": "atx-24pin-rev3",
+  "part": {
+    "path": "experiments/busbars/mac8-mjp-1.0-nominal.json",
+    "sha256": "5ab087a19cd95f4cde3f2f74fa19aaecfb66247d93d95f3925ca4fabd00c5349"
+  },
+  "source_track_uuid": "70d61afc-3210-4567-a68b-db3813502b5c",
+  "mechanical_margin_nm": 500000,
+  "candidates": [
+    {
+      "id": "Direct over input pin: rejected",
+      "ends_nm": [[18350000, 54000000], [18350000, 79400000]],
+      "face": "B.Cu"
+    },
+    {
+      "id": "Offset between input pins: trial",
+      "ends_nm": [[24650000, 57600000], [24650000, 83000000]],
+      "face": "B.Cu"
+    }
+  ]
+}
