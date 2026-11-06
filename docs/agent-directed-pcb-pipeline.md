@@ -454,6 +454,30 @@ The active busbar/compaction checkpoint is
 5 V locations as well as the conditional 3V3 option, and distinguishes body
 envelope compaction from unchanged laminate and any unproven busbar benefit.
 
+`cec_pipeline.drafts` materializes explicitly authored, source-hashed paired
+engineering drafts for larger coordinated reconstruction, including THT owners.
+This is deliberately **not** a new accepted placement actuator. It keeps the
+review incumbents immutable and cannot promote a draft. Poses, existing-track
+redraws and existing-via translations are explicit bounded inputs; no nets,
+widths, layers, drill dimensions, locks or manufacturing rules are substituted.
+Only the named native nodes are spliced back into the source, with round-trip
+copper and metadata checks. `--refill` uses the native deterministic filler and
+splices zone nodes only; a wholesale command-line save is not trusted to retain
+board fabrication properties. New-only output directories and source checks
+before construction and completion prevent accidental source replacement.
+
+Reproduce the first connected paired step with `PYTHONPATH=src:scripts python3
+-m cec_pipeline.drafts --request
+docs/evidence/20261105-connected-repack/j6c-connected.json --directory
+/new/private/directory --refill`. The durable result is under
+`experiments/repack/j6c-connected-20261105`, **not** `checkpoints/current.json`.
+Both boards have fresh zero-open/zero-error native reports. Hub pair
+nonregression passes; ATX numeric pair metrics improve but its conservative
+receiver still rejects changed inherited reference-coverage debt. Full bus-bar
+construction, current/thermal/assembly receiving, complete coordinated
+placement and further compaction remain open. This step changes neither board
+outline nor assembled Z and earns no bus-bar compaction credit.
+
 `tests/test_agentic_*.py` covers geometry, protocol parity, durable campaigns,
 source/cache identities, native connected construction, power construction,
 portable controls and process ownership. Positive native fixtures are exercised
