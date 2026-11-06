@@ -162,9 +162,19 @@ def test_even_local_extra_ground_removal_is_not_exact_clip(tmp_path):
     # An additional notch adjacent to the new setback is not the independently
     # expected half-plane clip; no agent-selected extra copper loss.
     shape=zone.GetFilledPolysList(pcbnew.F_Cu).CloneDropTriangulation()
-    shape.BooleanSubtract(geom._poly([ring(.7,.2,.71,.3)]))
+    # Derive the notch from actual saved material, not a presumed default
+    # project clearance: KiCad builds can restore different native defaults.
+    box=shape.BBox();x=int(box.GetLeft());y=int(box.GetTop())+100000
+    before_area=geom._area2(shape,time.monotonic()+2.)
+    shape.BooleanSubtract(geom._poly([[[x,y],[x+10000,y],
+                                      [x+10000,y+100000],[x,y+100000]]]))
+    assert geom._area2(shape,time.monotonic()+2.)<before_area
     zone.SetFilledPolysList(pcbnew.F_Cu,shape)
     pcbnew.SaveBoard(str(candidate),board);sync(source,candidate)
+    saved=pcbnew.LoadBoard(str(candidate))
+    saved_zone=next(z for z in saved.Zones() if z.GetNetname()=='GND')
+    assert geom._area2(saved_zone.GetFilledPolysList(pcbnew.F_Cu),
+                       time.monotonic()+2.)<before_area
     with pytest.raises(ValueError,match='exact_source_edge_clip'):receive(values)
 
 
