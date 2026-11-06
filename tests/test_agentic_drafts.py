@@ -154,12 +154,16 @@ def test_native_stage_preserves_source_and_unrelated_ast(tmp_path, monkeypatch, 
     sources = {side: Path(plan[side]['path']) for side in ('carrier', 'cover')}
     before = {side: p.read_bytes() for side, p in sources.items()}
     captured = {}
+    raw_paths = []
     original_save = field._save_field_snapshot
     def save_snapshot(board, path):
+        raw_paths.append(Path(path))
+        assert Path(path).name.startswith('draft-io-')
         captured[Path(path).parent.name] = field._field_snapshot_inventory(board)
         return original_save(board, path)
     monkeypatch.setattr(field, '_save_field_snapshot', save_snapshot)
     receipt = drafts.stage(request, tmp_path / 'new-draft', refill=refill)
+    assert len(set(raw_paths)) == 2 and all(not path.exists() for path in raw_paths)
     assert receipt['complete'] and receipt['source_unchanged']
     assert not receipt['routing_admitted'] and not receipt['release_authority']
     for row in receipt['boards']:

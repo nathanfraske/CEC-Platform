@@ -12,6 +12,7 @@ import argparse
 import json
 from pathlib import Path
 import shutil
+import tempfile
 import uuid
 
 from . import repack, geometry
@@ -145,7 +146,10 @@ def stage(request, directory, *, refill=False):
         parent=sources[side];folder=directory/side;folder.mkdir()
         for path in parent.parent.glob(parent.stem+'.*'):
             if path.is_file():shutil.copy2(path,folder/path.name)
-        target=folder/parent.name;raw=folder/'pose-native.kicad_pcb'
+        target=folder/parent.name
+        with tempfile.NamedTemporaryFile(prefix='draft-io-',suffix='.kicad_pcb',
+                                         dir=folder,delete=False) as scratch:
+            raw=Path(scratch.name)
         field._save_field_snapshot(board,raw)
         # Splice ONLY exact posed owners and explicit redraws. Keep every
         # unrelated source native node intact; no wholesale serialization.
