@@ -1,0 +1,911 @@
+{
+  "source": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+  "source_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "candidate": "experiments/busbars/mux-role-contact-20261106/hub-C37-vent-v1/candidate/board.kicad_pcb",
+  "candidate_sha256": "4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992",
+  "zone_uuid": "fc65fef1-239d-4859-94dd-f827621e549e",
+  "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+  "layer": "F.Cu",
+  "source_fill": {
+    "area_mm2": 20.548774136175204,
+    "bounds_mm": [
+      73.399,
+      33.9,
+      75.802,
+      57.401
+    ],
+    "type": "Polygon",
+    "components": 1
+  },
+  "candidate_fill": {
+    "area_mm2": 20.548774136175204,
+    "bounds_mm": [
+      73.399,
+      33.9,
+      75.802,
+      57.401
+    ],
+    "type": "Polygon",
+    "components": 1
+  },
+  "removed": {
+    "area_mm2": 0.05005000000000051,
+    "bounds_mm": [
+      74.8,
+      46.619748,
+      75.3005,
+      46.9495
+    ],
+    "type": "Polygon",
+    "components": 1,
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            75.288867,
+            46.678231
+          ],
+          [
+            75.244552,
+            46.744552
+          ],
+          [
+            75.178231,
+            46.788867
+          ],
+          [
+            75.119748,
+            46.8005
+          ],
+          [
+            75.119745,
+            46.8005
+          ],
+          [
+            74.849,
+            46.8005
+          ],
+          [
+            74.814352,
+            46.814852
+          ],
+          [
+            74.8,
+            46.8495
+          ],
+          [
+            74.8,
+            46.9495
+          ],
+          [
+            74.814352,
+            46.914852
+          ],
+          [
+            74.849,
+            46.9005
+          ],
+          [
+            75.119745,
+            46.9005
+          ],
+          [
+            75.119748,
+            46.9005
+          ],
+          [
+            75.178231,
+            46.888867
+          ],
+          [
+            75.244552,
+            46.844552
+          ],
+          [
+            75.288867,
+            46.778231
+          ],
+          [
+            75.3005,
+            46.719748
+          ],
+          [
+            75.3005,
+            46.619748
+          ],
+          [
+            75.288867,
+            46.678231
+          ]
+        ]
+      ]
+    }
+  },
+  "added": {
+    "area_mm2": 0.0500499999999987,
+    "bounds_mm": [
+      74.8,
+      38.3505,
+      75.3005,
+      38.680252
+    ],
+    "type": "Polygon",
+    "components": 1,
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            74.8,
+            38.4505
+          ],
+          [
+            74.814352,
+            38.485148
+          ],
+          [
+            74.849,
+            38.4995
+          ],
+          [
+            75.119748,
+            38.4995
+          ],
+          [
+            75.178231,
+            38.511133
+          ],
+          [
+            75.204795,
+            38.528882
+          ],
+          [
+            75.244552,
+            38.555447
+          ],
+          [
+            75.262301,
+            38.582012
+          ],
+          [
+            75.288867,
+            38.621769
+          ],
+          [
+            75.3005,
+            38.680252
+          ],
+          [
+            75.3005,
+            38.580252
+          ],
+          [
+            75.288867,
+            38.521769
+          ],
+          [
+            75.262301,
+            38.482012
+          ],
+          [
+            75.244552,
+            38.455447
+          ],
+          [
+            75.204795,
+            38.428882
+          ],
+          [
+            75.178231,
+            38.411133
+          ],
+          [
+            75.119748,
+            38.3995
+          ],
+          [
+            74.849,
+            38.3995
+          ],
+          [
+            74.814352,
+            38.385148
+          ],
+          [
+            74.8,
+            38.3505
+          ],
+          [
+            74.8,
+            38.4505
+          ]
+        ]
+      ]
+    }
+  },
+  "width_floor_mm": 1.0,
+  "native_zone_local_clearance_nm": 200000,
+  "states": [
+    {
+      "label": "source",
+      "erosion_radius_mm": 0.5000104125358878,
+      "zone_only_eroded": {
+        "area_mm2": 0.08386521099919558,
+        "bounds_mm": [
+          73.89901041253589,
+          34.400010412535885,
+          75.30198958746412,
+          56.90098958746412
+        ],
+        "type": "MultiPolygon",
+        "components": 2
+      },
+      "all_same_net_FCu_actual_union": {
+        "area_mm2": 91.78844927255722,
+        "bounds_mm": [
+          26.149999,
+          12.887,
+          82.742,
+          60.6
+        ],
+        "type": "MultiPolygon",
+        "components": 2
+      },
+      "all_same_net_FCu_eroded": {
+        "area_mm2": 33.16794190629375,
+        "bounds_mm": [
+          26.65000941253589,
+          13.387010412535888,
+          82.24198958746412,
+          60.099989587464115
+        ],
+        "type": "MultiPolygon",
+        "components": 4
+      },
+      "eroded_components": [
+        {
+          "index": 0,
+          "area_mm2": 16.646889454421714,
+          "bounds_mm": [
+            72.40001041253589,
+            47.273310333185464,
+            75.30198958746412,
+            60.099989587464115
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 1,
+          "area_mm2": 16.37672945861945,
+          "bounds_mm": [
+            72.80001041253588,
+            13.387010412535888,
+            82.24198958746412,
+            37.92668966796736
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 2,
+          "area_mm2": 0.07216149662629034,
+          "bounds_mm": [
+            26.65000941253589,
+            48.25000941253589,
+            26.82552713576788,
+            49.049988587464114
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 3,
+          "area_mm2": 0.07216149662629033,
+          "bounds_mm": [
+            27.97447086423212,
+            48.25000941253589,
+            28.14998858746411,
+            49.049988587464114
+          ],
+          "type": "Polygon",
+          "components": 1
+        }
+      ],
+      "terminals": [
+        {
+          "ref": "C37",
+          "pin": "1",
+          "uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.5,
+            56.6
+          ],
+          "land": {
+            "area_mm2": 25.59999999999991,
+            "bounds_mm": [
+              71.9,
+              52.6,
+              75.1,
+              60.6
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 5.650500000000001,
+          "actual_land_copper_contact_area_mm2": 25.474339447954137,
+          "eroded_component_indices": [
+            0
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "C1",
+          "pin": "1",
+          "uuid": "1a9643aa-e06e-4d4d-b1ec-2c2bb7cb53bb",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.9,
+            32.45
+          ],
+          "land": {
+            "area_mm2": 25.600000000000033,
+            "bounds_mm": [
+              72.3,
+              28.45,
+              75.5,
+              36.45
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 1.9004999999999939,
+          "actual_land_copper_contact_area_mm2": 25.600000000000037,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "D1",
+          "pin": "1",
+          "uuid": "d14ed5dc-4f64-57dc-a53e-ebaf5ac24e3a",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            27.399999,
+            48.649999
+          ],
+          "land": {
+            "area_mm2": 4.441342005291994,
+            "bounds_mm": [
+              26.149999,
+              47.749999,
+              28.649999,
+              49.549999
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 46.16195555269514,
+          "actual_land_copper_contact_area_mm2": 4.315681453246222,
+          "eroded_component_indices": [
+            2,
+            3
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "RJ_HOLD",
+          "pin": "1",
+          "uuid": "2a320cd5-0ad3-4ca5-aab2-6020a7634e9e",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            82.24,
+            13.389999
+          ],
+          "land": {
+            "area_mm2": 0.3284951818320027,
+            "bounds_mm": [
+              81.97,
+              13.069999,
+              82.51,
+              13.709999
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 25.649968429796342,
+          "actual_land_copper_contact_area_mm2": 0.3284951818320027,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        }
+      ],
+      "all_net_pads_near_change": [
+        {
+          "ref": "C37",
+          "pin": "2",
+          "uuid": "d2ff8924-cb10-448b-8907-c1e0c9e4f3a9",
+          "net": "GND",
+          "center_mm": [
+            73.5,
+            42.6
+          ],
+          "land": {
+            "area_mm2": 25.59999999999991,
+            "bounds_mm": [
+              71.9,
+              38.6,
+              75.1,
+              46.6
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 0.10050000000000381
+        },
+        {
+          "ref": "C1",
+          "pin": "1",
+          "uuid": "1a9643aa-e06e-4d4d-b1ec-2c2bb7cb53bb",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.9,
+            32.45
+          ],
+          "land": {
+            "area_mm2": 25.600000000000033,
+            "bounds_mm": [
+              72.3,
+              28.45,
+              75.5,
+              36.45
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 1.9004999999999939,
+          "actual_land_copper_contact_area_mm2": 25.600000000000037,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        }
+      ],
+      "changed_region_distance_to_surviving_erosion_mm": 0.40375522588680357,
+      "zone_horizontal_sections": [
+        {
+          "y_mm": 38.4,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.1222616680134,
+                38.4
+              ],
+              [
+                75.802,
+                38.4
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.6797383319866128
+        },
+        {
+          "y_mm": 38.6,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.3005,
+                38.6
+              ],
+              [
+                75.802,
+                38.6
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5015000000000072
+        },
+        {
+          "y_mm": 42.65,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.3005,
+                42.65
+              ],
+              [
+                75.802,
+                42.65
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5015000000000072
+        },
+        {
+          "y_mm": 46.7,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.27432118140558,
+                46.7
+              ],
+              [
+                75.802,
+                46.7
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5276788185944241
+        },
+        {
+          "y_mm": 46.9,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                74.8,
+                46.9
+              ],
+              [
+                75.802,
+                46.9
+              ]
+            ]
+          },
+          "total_copper_width_mm": 1.0020000000000095
+        }
+      ]
+    },
+    {
+      "label": "candidate",
+      "erosion_radius_mm": 0.5000104125358878,
+      "zone_only_eroded": {
+        "area_mm2": 0.08386521099919622,
+        "bounds_mm": [
+          73.89901041253589,
+          34.400010412535885,
+          75.30198958746412,
+          56.90098958746412
+        ],
+        "type": "MultiPolygon",
+        "components": 2
+      },
+      "all_same_net_FCu_actual_union": {
+        "area_mm2": 91.81844927255722,
+        "bounds_mm": [
+          26.149999,
+          12.887,
+          82.742,
+          60.7
+        ],
+        "type": "MultiPolygon",
+        "components": 2
+      },
+      "all_same_net_FCu_eroded": {
+        "area_mm2": 33.097939823786575,
+        "bounds_mm": [
+          26.65000941253589,
+          13.387010412535888,
+          82.24198958746412,
+          60.19998958746412
+        ],
+        "type": "MultiPolygon",
+        "components": 4
+      },
+      "eroded_components": [
+        {
+          "index": 0,
+          "area_mm2": 16.57668945442171,
+          "bounds_mm": [
+            72.40001041253589,
+            47.37331033318545,
+            75.30198958746412,
+            60.19998958746412
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 1,
+          "area_mm2": 16.376927376112278,
+          "bounds_mm": [
+            72.80001041253588,
+            13.387010412535888,
+            82.24198958746412,
+            38.02668966796736
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 2,
+          "area_mm2": 0.07216149662629034,
+          "bounds_mm": [
+            26.65000941253589,
+            48.25000941253589,
+            26.82552713576788,
+            49.049988587464114
+          ],
+          "type": "Polygon",
+          "components": 1
+        },
+        {
+          "index": 3,
+          "area_mm2": 0.07216149662629033,
+          "bounds_mm": [
+            27.97447086423212,
+            48.25000941253589,
+            28.14998858746411,
+            49.049988587464114
+          ],
+          "type": "Polygon",
+          "components": 1
+        }
+      ],
+      "terminals": [
+        {
+          "ref": "C37",
+          "pin": "1",
+          "uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.5,
+            56.7
+          ],
+          "land": {
+            "area_mm2": 25.59999999999991,
+            "bounds_mm": [
+              71.9,
+              52.7,
+              75.1,
+              60.7
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 5.7505000000000015,
+          "actual_land_copper_contact_area_mm2": 25.474339447954137,
+          "eroded_component_indices": [
+            0
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "C1",
+          "pin": "1",
+          "uuid": "1a9643aa-e06e-4d4d-b1ec-2c2bb7cb53bb",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.9,
+            32.45
+          ],
+          "land": {
+            "area_mm2": 25.600000000000033,
+            "bounds_mm": [
+              72.3,
+              28.45,
+              75.5,
+              36.45
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 1.9004999999999939,
+          "actual_land_copper_contact_area_mm2": 25.600000000000037,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "D1",
+          "pin": "1",
+          "uuid": "d14ed5dc-4f64-57dc-a53e-ebaf5ac24e3a",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            27.399999,
+            48.649999
+          ],
+          "land": {
+            "area_mm2": 4.441342005291994,
+            "bounds_mm": [
+              26.149999,
+              47.749999,
+              28.649999,
+              49.549999
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 46.16195555269514,
+          "actual_land_copper_contact_area_mm2": 4.315681453246222,
+          "eroded_component_indices": [
+            2,
+            3
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        },
+        {
+          "ref": "RJ_HOLD",
+          "pin": "1",
+          "uuid": "2a320cd5-0ad3-4ca5-aab2-6020a7634e9e",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            82.24,
+            13.389999
+          ],
+          "land": {
+            "area_mm2": 0.3284951818320027,
+            "bounds_mm": [
+              81.97,
+              13.069999,
+              82.51,
+              13.709999
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 25.649968429796342,
+          "actual_land_copper_contact_area_mm2": 0.3284951818320027,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        }
+      ],
+      "all_net_pads_near_change": [
+        {
+          "ref": "C37",
+          "pin": "2",
+          "uuid": "d2ff8924-cb10-448b-8907-c1e0c9e4f3a9",
+          "net": "GND",
+          "center_mm": [
+            73.5,
+            42.7
+          ],
+          "land": {
+            "area_mm2": 25.59999999999991,
+            "bounds_mm": [
+              71.9,
+              38.7,
+              75.1,
+              46.7
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 0.1004999999999967
+        },
+        {
+          "ref": "C1",
+          "pin": "1",
+          "uuid": "1a9643aa-e06e-4d4d-b1ec-2c2bb7cb53bb",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "center_mm": [
+            73.9,
+            32.45
+          ],
+          "land": {
+            "area_mm2": 25.600000000000033,
+            "bounds_mm": [
+              72.3,
+              28.45,
+              75.5,
+              36.45
+            ],
+            "type": "Polygon",
+            "components": 1
+          },
+          "distance_to_change_mm": 1.9004999999999939,
+          "actual_land_copper_contact_area_mm2": 25.600000000000037,
+          "eroded_component_indices": [
+            1
+          ],
+          "endpoint_support": "Literal native pad intersects the eroded copper component; no expanded/artificial terminal bridge"
+        }
+      ],
+      "changed_region_distance_to_surviving_erosion_mm": 0.4037552189894528,
+      "zone_horizontal_sections": [
+        {
+          "y_mm": 38.4,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                74.8,
+                38.4
+              ],
+              [
+                75.802,
+                38.4
+              ]
+            ]
+          },
+          "total_copper_width_mm": 1.0020000000000095
+        },
+        {
+          "y_mm": 38.6,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.27432075018235,
+                38.6
+              ],
+              [
+                75.802,
+                38.6
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5276792498176519
+        },
+        {
+          "y_mm": 42.65,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.3005,
+                42.65
+              ],
+              [
+                75.802,
+                42.65
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5015000000000072
+        },
+        {
+          "y_mm": 46.7,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.3005,
+                46.7
+              ],
+              [
+                75.802,
+                46.7
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.5015000000000072
+        },
+        {
+          "y_mm": 46.9,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                75.12226166801342,
+                46.9
+              ],
+              [
+                75.802,
+                46.9
+              ]
+            ]
+          },
+          "total_copper_width_mm": 0.6797383319865844
+        }
+      ]
+    }
+  ],
+  "geometric_only": true,
+  "no_barrel_capacity_credit": true,
+  "no_new_authority": true,
+  "board_saved": false,
+  "release_authority": false,
+  "limitations": "Conservative same-face inscribed 1 mm disk corridor. Round-buffer polygon approximation explicitly recorded; failure is not proof that actual current capacity is insufficient. Whole-board cross-face/thermal/current admission remains separate."
+}

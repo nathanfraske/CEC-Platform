@@ -1,0 +1,9 @@
+{
+  "exact_parent_except_named_zone_outline_and_native_fill": true,
+  "candidate_sha256": "a977b5da70742f0e49b28f9a3d7499eb84ab0f9e508ab171d0604c2635832975",
+  "source_sha256": "4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992",
+  "global_current_qualified": false,
+  "thermal_qualified": false,
+  "admitted": false,
+  "release_authority": false
+}

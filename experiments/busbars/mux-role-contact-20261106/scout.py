@@ -48,11 +48,39 @@ def worker():
                     compilation_phase_timeouts_s=[10.]*9,allow_linear_power_stage_reconstruction=True,
                     stationary_ground_barrel_uuids=['8fcb6331-0f3f-403a-ba73-e7a6da00710b'])
                 result['explicit_direct_compiler_options']=options
-                _,packet=compiler.compile(SOURCE,cells.normalize_poses(operation['poses']),**options)
+                frame,packet=compiler.compile(SOURCE,cells.normalize_poses(operation['poses']),**options)
                 transported=None
             else:
                 _,packet,transported=cells.compile_macro(board,operation,'atx-24pin-rev3',enforce_locks=False)
         result.update(status='source_compiled',packet=packet,transported=transported)
+        frame_args=[arg.split('=',1)[1]for arg in sys.argv if arg.startswith('--save-frame=')]
+        if frame_args:
+            import cec_field_coupling as field
+            import cec_additive_route_receiving as additive
+            assert len(frame_args)==1 and '--stationary-ground'in sys.argv
+            name=frame_args[0];assert Path(name).name==name and name.startswith('frame-')
+            folder=WORK/name;assert not folder.exists()
+            def event(action,name,index):
+                print('CEC_PHASE='+json.dumps(dict(event=action,phase=name,index=index,
+                    deadline_monotonic=time.monotonic()+10,explicit_ordered_composition=True)),flush=True)
+            event('start','pre_refill_frame',9)
+            result['pre_refill_barrels']=compiler.pre_refill_barrel_screen(frame,packet,timeout_s=9.)
+            if not result['pre_refill_barrels']['ok']:raise ValueError('native_pre_refill_frame_refused')
+            event('finish','pre_refill_frame',9)
+            event('start','native_refill_and_save',10)
+            result['ground_refilled']=additive._ground_refill(frame)
+            target=force._copy_family(SOURCE,folder)
+            prior=field._field_snapshot_inventory(frame)
+            try:field._save_field_snapshot(frame,target)
+            except Exception:
+                after=field._field_snapshot_inventory(pcbnew.LoadBoard(str(target)))
+                result['failed_frame_save_deltas']=[dict(key=key,before=prior.get(key),after=after.get(key))
+                    for key in sorted(prior.keys()|after.keys(),key=str)if prior.get(key)!=after.get(key)]
+                result['rejected_saved_frame']=str(target)
+                raise
+            result.update(private_incomplete_frame=str(target),frame_sha256=force._hash(target),
+                frame_not_routed_or_admitted=True)
+            event('finish','native_refill_and_save',10)
     except Exception as exc:
         result.update(status='compile_refused',error_type=type(exc).__name__,error=str(exc),traceback=traceback.format_exc())
         # Read-only fault evidence, never a recovered construction packet.
@@ -77,8 +105,10 @@ def main():
     runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(runner)
     args=['--stationary-ground']if '--stationary-ground'in sys.argv else []
     args.extend(arg for arg in sys.argv if arg.startswith('--study='))
-    code,output,reason=runner.bounded_compile([sys.executable,str(Path(__file__).resolve()),'--worker',*args],
-        phases=compiler.compilation_phases([10.]*9))
+    args.extend(arg for arg in sys.argv if arg.startswith('--save-frame='))
+    phases=compiler.compilation_phases([10.]*9)
+    if any(arg.startswith('--save-frame=')for arg in args):phases=(*phases,'pre_refill_frame','native_refill_and_save')
+    code,output,reason=runner.bounded_compile([sys.executable,str(Path(__file__).resolve()),'--worker',*args],phases=phases)
     lines=[v.split('=',1)[1]for v in output.splitlines()if v.startswith('CEC_RESULT=')]
     report=json.loads(lines[0])if code==0 and len(lines)==1 else dict(status='worker_timeout'if reason else 'worker_failed',
         reason=reason,exit_code=code,diagnostic_output=output[-12000:],board_saved=False,accepted=False)

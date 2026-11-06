@@ -54,7 +54,11 @@ def project(ref,at):
     x,y=at[0]-old[0],at[1]-old[1]
     return [new[0]+c*x+s*y,new[1]-s*x+c*y]
 
-mode = argparse.ArgumentParser();mode.add_argument('mode',choices=['geometry','geometry-selected-v2','contacts','landings']);args=mode.parse_args()
+mode = argparse.ArgumentParser();mode.add_argument('mode',choices=['geometry','geometry-selected-v2','geometry-paired-v3','contacts','landings']);args=mode.parse_args()
+if args.mode == 'geometry-paired-v3':
+    poses=json.loads((folder/'C37-coordinated-translation.json').read_text())['ATX_poses']
+    peer=folder/'hub-C37-vent-v1/candidate/board.kicad_pcb'
+    assert force._hash(peer)=='4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992'
 if args.mode == 'geometry-selected-v2':
     poses['C55']=[20900000,46240000,0]
     poses['C51']=source_poses['C51'][:]
@@ -64,7 +68,7 @@ base = dict(schema=1,source=str(source.relative_to(ROOT)),source_sha256=SHA,
     pose_origin_only_old_study=str(old_study.relative_to(ROOT)),old_study_is_not_current_source_proof=True,
     source_copper_retained=True,board_saved=False,transport_or_cut_permission=False,accepted=False,release_authority=False)
 
-if args.mode in ('geometry','geometry-selected-v2'):
+if args.mode in ('geometry','geometry-selected-v2','geometry-paired-v3'):
     pose_board();shapes={};basis={}
     for ref,fp in fps.items():
         try:shapes[ref],basis[ref]=assembly.footprint_planar_envelope(fp)

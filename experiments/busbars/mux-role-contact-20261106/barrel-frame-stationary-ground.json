@@ -1,0 +1,352 @@
+{
+  "mode": "stationary-ground",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "exact_options": {
+    "stationary_ground_barrel_uuids": [
+      "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+      "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+      "7f4e567d-2755-4c6e-a51c-2af6b999bc20",
+      "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+      "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+      "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "c37ec792-b1a4-49b0-a937-7aee674d5d28"
+    ]
+  },
+  "barrels": [
+    {
+      "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "source_nm": [
+        15249990,
+        49100000
+      ],
+      "at_nm": [
+        17249990,
+        49100000
+      ],
+      "okay": false,
+      "diagnostics": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          17.24999,
+          49.1
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "F.Cu",
+        "blockers": [
+          {
+            "kind": "via",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+            "layer": "F.Cu",
+            "locked": true,
+            "at_mm": [
+              16.75,
+              49.5
+            ],
+            "diameter_mm": 0.6,
+            "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+            "contact": "clearance"
+          }
+        ]
+      },
+      "near_pads": [
+        {
+          "ref": "U6",
+          "pin": "5",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb"
+        }
+      ],
+      "owner_proof": {
+        "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+        "source_owner_pad_uuids": [
+          "ced55e46-eed5-4662-9720-b9a8db66c2fb"
+        ],
+        "owner_footprint_uuids": [
+          "dded9240-df64-4347-b612-4934ea4cae3a"
+        ],
+        "translation_nm": [
+          2000000,
+          0
+        ],
+        "actual_source_ownership_basis": "bounded_native_smd_dogbone",
+        "independently_reconstructed_inter_owner_dogbone_uuids": [],
+        "source_local_POFV_reproved": true,
+        "source_process_group_uuids": [
+          "7ed41d1d-f662-45b8-80c0-ec45279d15a0"
+        ],
+        "candidate_local_POFV_reproved": true,
+        "original_barrel_geometry_count_and_relative_owner_seat_preserved": true
+      }
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "source_nm": [
+        16103544,
+        48903553
+      ],
+      "at_nm": [
+        18103544,
+        48903553
+      ],
+      "okay": false,
+      "diagnostics": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          18.103544,
+          48.903553
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "B.Cu",
+        "blockers": [
+          {
+            "kind": "track",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            "layer": "B.Cu",
+            "locked": true,
+            "from_mm": [
+              15.9,
+              47.0
+            ],
+            "to_mm": [
+              21.9,
+              53.0
+            ],
+            "width_mm": 0.47737,
+            "uuid": "04149599-7f30-4653-a351-9d5f2eb6a1e9",
+            "contact": "clearance"
+          }
+        ]
+      },
+      "near_pads": [
+        {
+          "ref": "U6",
+          "pin": "6",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1"
+        }
+      ],
+      "owner_proof": {
+        "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+        "source_owner_pad_uuids": [
+          "6c143a73-fb41-4e82-a0c6-0db516c89fa1"
+        ],
+        "owner_footprint_uuids": [
+          "dded9240-df64-4347-b612-4934ea4cae3a"
+        ],
+        "translation_nm": [
+          2000000,
+          0
+        ],
+        "actual_source_ownership_basis": "bounded_native_smd_dogbone",
+        "independently_reconstructed_inter_owner_dogbone_uuids": [],
+        "source_local_POFV_reproved": true,
+        "source_process_group_uuids": [
+          "7ed41d1d-f662-45b8-80c0-ec45279d15a0"
+        ],
+        "candidate_local_POFV_reproved": true,
+        "original_barrel_geometry_count_and_relative_owner_seat_preserved": true
+      }
+    },
+    {
+      "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+      "net": "GND",
+      "source_nm": [
+        11245000,
+        48705000
+      ],
+      "at_nm": [
+        11245000,
+        48705000
+      ],
+      "okay": true,
+      "diagnostics": {
+        "ok": true,
+        "at_mm": [
+          11.245,
+          48.705
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2
+      },
+      "near_pads": [],
+      "owner_proof": null
+    },
+    {
+      "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+      "net": "GND",
+      "source_nm": [
+        12083990,
+        46405002
+      ],
+      "at_nm": [
+        12083990,
+        46405002
+      ],
+      "okay": false,
+      "diagnostics": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          12.08399,
+          46.405002
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "F.Cu",
+        "blockers": [
+          {
+            "kind": "pad",
+            "ref": "C9",
+            "pad": "1",
+            "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+            "layer": "F.Cu",
+            "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+            "footprint_uuid": "2d002564-8cd0-4212-a921-11630e9b8c35",
+            "contact": "clearance"
+          }
+        ]
+      },
+      "near_pads": [
+        {
+          "ref": "C9",
+          "pin": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "uuid": "5578793c-8793-4a8f-b8df-186dc694a778"
+        }
+      ],
+      "owner_proof": null
+    },
+    {
+      "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+      "net": "GND",
+      "source_nm": [
+        12800000,
+        49135000
+      ],
+      "at_nm": [
+        12800000,
+        49135000
+      ],
+      "okay": true,
+      "diagnostics": {
+        "ok": true,
+        "at_mm": [
+          12.8,
+          49.135
+        ],
+        "diameter_mm": 0.35,
+        "clearance_mm": 0.2
+      },
+      "near_pads": [
+        {
+          "ref": "C9",
+          "pin": "2",
+          "net": "GND",
+          "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd"
+        }
+      ],
+      "owner_proof": null
+    },
+    {
+      "uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+      "net": "GND",
+      "source_nm": [
+        19445406,
+        48954594
+      ],
+      "at_nm": [
+        19445406,
+        48954594
+      ],
+      "okay": false,
+      "diagnostics": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          19.445406,
+          48.954594
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "B.Cu",
+        "blockers": [
+          {
+            "kind": "zone",
+            "net": "/SENSE3V3_HI",
+            "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+            "layer": "B.Cu",
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "contact": "zone_clearance"
+          }
+        ]
+      },
+      "near_pads": [
+        {
+          "ref": "C54",
+          "pin": "2",
+          "net": "GND",
+          "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82"
+        }
+      ],
+      "owner_proof": null
+    },
+    {
+      "uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+      "net": "GND",
+      "source_nm": [
+        13861080,
+        45861093
+      ],
+      "at_nm": [
+        13861080,
+        45861093
+      ],
+      "okay": false,
+      "diagnostics": {
+        "ok": false,
+        "reason": "pad or hole excludes via land",
+        "at_mm": [
+          13.86108,
+          45.861093
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": null,
+        "blockers": [
+          {
+            "kind": "pad",
+            "ref": "C27",
+            "pad": "2",
+            "net": "GND",
+            "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+            "footprint_uuid": "ec1ccb6b-f5ca-43b7-9f56-47ea5f73dffb",
+            "layers": [
+              "F.Cu"
+            ],
+            "contact": "via_land_exclusion"
+          }
+        ]
+      },
+      "near_pads": [
+        {
+          "ref": "C27",
+          "pin": "2",
+          "net": "GND",
+          "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2"
+        }
+      ],
+      "owner_proof": null
+    }
+  ],
+  "count_clear": 2,
+  "count_examined": 7,
+  "provisional_old_cut_inventory_only": true,
+  "fresh_source_compilation_required": true,
+  "no_construction_or_admission": true
+}

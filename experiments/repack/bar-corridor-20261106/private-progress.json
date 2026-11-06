@@ -1,8 +1,19 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T20:42:28Z",
+  "recorded_at_utc": "2026-11-06T21:02:00Z",
   "goal_status": "active",
-  "status": "full_macro_compiles_531_regressions_pass_private_Hub_vent_pose_zero_errors_zero_opens_not_admitted",
+  "status": "generic_group_projection_fixed_247_tests_pass_private_Hub_1mm_bypass_saved_ATX_seven_barrel_conflicts_named",
+  "latest_continuation": "experiments/busbars/mux-role-contact-20261106/pose-refill-closeout.json",
+  "latest_continuation_supersedes_old_current_state_below": true,
+  "latest_private_Hub": {
+    "path": "experiments/busbars/mux-role-contact-20261106/hub-C37-widen-v1/candidate/board.kicad_pcb",
+    "sha256": "a977b5da70742f0e49b28f9a3d7499eb84ab0f9e508ab171d0604c2635832975",
+    "opens": 0, "DRC_errors": 0, "warnings": 166,
+    "native_fullwidth_bypass_mm": 1.0,
+    "native_added_copper_mm2": 6.855771652483865,
+    "reviewed_incumbent_replaced": false,
+    "admitted": false
+  },
   "latest_verification": "experiments/busbars/keystone-verified-20261106/verification.json",
   "historical_blocker_superseded": "The exact JLC Economic/Standard SMT listing and toleranced manufacturer drawing are now available. No supplier inquiry is required merely to establish basic assembly availability. Application geometry and current/thermal receiving remain open.",
   "latest_blocked_audit": "experiments/busbars/keystone-topology-20261106/blocked-audit.json",

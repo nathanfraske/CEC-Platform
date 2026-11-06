@@ -3,7 +3,7 @@
   "ok": false,
   "complete": false,
   "errors": [
-    "ValueError:connected_pose_exact_native_replay_refused:['ValueError:original_native_item_changed:0a18f6b6-26dd-5ffc-9aa1-910bfc79600a']"
+    "ValueError:connected_pose_exact_native_replay_refused:['ValueError:original_native_item_changed:fc65fef1-239d-4859-94dd-f827621e549e']"
   ],
   "moved": [
     {
@@ -34,10 +34,10 @@
     "release_authority": false,
     "inherited_debt_qualified": false,
     "errors": [
-      "ValueError:original_native_item_changed:0a18f6b6-26dd-5ffc-9aa1-910bfc79600a"
+      "ValueError:original_native_item_changed:fc65fef1-239d-4859-94dd-f827621e549e"
     ],
     "allowed_original_changes": [],
-    "elapsed_s": 0.407939
+    "elapsed_s": 0.404562
   },
   "actual_board_hint": "hub-standard-rev2",
   "board_private_only": true
