@@ -4,6 +4,7 @@
   "goal_status": "active",
   "status": "private_corrective_bypass_routed_and_received_shorter_bar_construction_pending",
   "latest_slice": "experiments/repack/bar-corridor-20261106/corrective-bypass-slice-closeout.json",
+  "next_geometry_diagnosis": "experiments/repack/bar-corridor-20261106/c53-next-slice-diagnosis.json",
   "reviewed_selector": {
     "path": "checkpoints/current.json",
     "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
@@ -80,7 +81,7 @@
   "remaining": [
     "Prefer the shorter front MJP-0.7 trial to the longer MJP-1.0 corridor; nominal screening avoids third-divider/FB2 moves, but no bar is installed.",
     "C9's missing U6 IN2 bypass is now repaired and routed at (11,48,270), with a wholly contained same-process Ground via. Preserve its independent receiving while moving later cells.",
-    "Relocate C53's additional VBUS bulk through independently owned connected supply and Ground. Existing isolated-supply-only aggregate ownership refuses this real connected case; do not bypass the ownership check.",
+    "Resolve a truly feasible C53 pocket or a different bar corridor first: 100 coarse/targeted trials and 46 lower-left trials found no native-clear local pocket. Lower-left pads hit C37's actual vent polygon. The remote proposed pocket exceeds existing locality. Do not implement unused relocation adapters or bypass these guards.",
     "C27's clearance move lengthened its Ground return from 0 to 0.605002 mm, within the original 0.8 mm bound. Do not claim whole-chain PI improvement; shorten it later if an equally safe pocket exists.",
     "Represent C25's genuine shared-rail reservoir role explicitly. Its prospective remote pocket cannot be called a U5-local bypass; alternate U5-local pockets overlap existing rated copper or components.",
     "Construct source-bound bus-bar schematic, joints and electrical transport; catalog current alone is not qualification.",
