@@ -1,0 +1,83 @@
+{
+  "available": true,
+  "preserved": true,
+  "source_parts": [
+    [
+      [
+        "pad",
+        "D7",
+        "1",
+        39300001,
+        52300000,
+        "f9af92f0-1d03-5e1b-bd47-fd27f6ded5fa"
+      ],
+      [
+        "pad",
+        "J_KVM",
+        "5",
+        36030001,
+        59550000,
+        "85873a23-5ab8-43be-96fd-19ea7c5b4c0f"
+      ],
+      [
+        "pad",
+        "R21",
+        "1",
+        53400000,
+        7170000,
+        "20530b66-c893-4a85-8293-a738e91ae1dc"
+      ]
+    ]
+  ],
+  "child_parts": [
+    [
+      [
+        "pad",
+        "D7",
+        "1",
+        39300001,
+        52300000,
+        "f9af92f0-1d03-5e1b-bd47-fd27f6ded5fa"
+      ],
+      [
+        "pad",
+        "J_KVM",
+        "5",
+        36030001,
+        59550000,
+        "85873a23-5ab8-43be-96fd-19ea7c5b4c0f"
+      ],
+      [
+        "pad",
+        "R21",
+        "1",
+        53400000,
+        7170000,
+        "20530b66-c893-4a85-8293-a738e91ae1dc"
+      ]
+    ]
+  ],
+  "demoted_parts": [],
+  "source_component_count": 1,
+  "child_component_count": 1,
+  "native_source_component_count": 1,
+  "native_child_component_count": 1,
+  "reported_parts_contain_comparison_keys_only": true,
+  "overlap_token_count": 0,
+  "intersection_pairs": 0,
+  "exact_positive_native_island_overlap": true,
+  "whole_zone_uuid_connectivity_credit": false,
+  "current_capacity_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "independent_delta_pose_current_receiving_still_required": true,
+  "net": "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+  "source_sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc",
+  "candidate_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "terminal_owners": [
+    "D7.1",
+    "J_KVM.5",
+    "R21.1"
+  ],
+  "scope": "Actual native authored-net copper connectivity, including every original/retained track, pad, via and saved zone on this net; no endpoint graph shortcut; terminal partition only, not impedance/current qualification."
+}

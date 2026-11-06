@@ -1,0 +1,623 @@
+{
+  "parent_sha256": "e6194c4d39d1d1a1ebef493ae3666042477b011a8e030ba3d9a323812838f140",
+  "board_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "changed_uuids": [
+    "01bb7733-f1df-403d-bb24-c269bc5fb4ef",
+    "02c5ae01-21b2-4271-bc8f-e84ddd486f7e",
+    "0924272a-37cf-44a2-a015-25434f9b7c4a",
+    "0bbfbac6-19d0-46e9-ac2b-34a9c58751c2",
+    "0e986b78-7107-4f6a-859f-f00b855cb0a4",
+    "0f42bb2e-5926-46f7-b1c7-9e8dd4239e96",
+    "12a7384b-179f-4090-bb1d-be3194024e9f",
+    "1412dd12-c07a-4103-8e1a-919127699963",
+    "14317de5-ac86-57b3-9f5c-8fe3c8132c6a",
+    "14654f5a-fd51-4e97-bb8a-b69bf9662bcb",
+    "18ea38a3-14c7-58c5-86fb-8c42f23f3030",
+    "1b013553-e3d6-5ffa-a093-09218bdf4eb8",
+    "26e3d104-4aa1-5d5c-9dce-9636fb31ad75",
+    "27ea7bdc-eb7a-427a-98e7-565bfea0b76e",
+    "29898897-d7ac-517d-b098-66b23927c145",
+    "298fa18d-6496-4700-b646-c7dfe238da5a",
+    "3864f4a0-5615-4e0f-bec8-47d947ea2a48",
+    "4b63993b-8a5f-4571-a305-dc18b112cada",
+    "4b6e26b3-6a51-4b71-b7ee-3cf8bf322442",
+    "4c02ddb3-4236-4228-9fdf-b76550545020",
+    "4cf58cc9-56e0-4dc1-b4fd-c45773534cdd",
+    "4f078fcd-70e0-49f0-b4ab-853322a92b73",
+    "525ded85-1f05-421b-b479-2fc89cb09eb6",
+    "586ec0b2-7c41-432e-bc85-9ad45f8d7a5b",
+    "5a7b574f-72b1-4717-8c89-66980ab24116",
+    "5b0cd9b1-5622-44cf-99f9-d3f31b2ce318",
+    "5f106c87-4ecd-4c52-9196-62cba07539a8",
+    "613822fe-a2c0-4bec-af0a-c40af7464dac",
+    "699ab0a9-14e0-4e9f-b1dc-2bc7d87db59a",
+    "69dc50b1-5169-44dc-b0ab-1d160219bb1d",
+    "76666c57-e465-4655-bf69-4101fc7da212",
+    "78aba0c5-9bf4-4c09-b3c6-7e880cca1f43",
+    "8ffd1b56-ed91-5530-b8ab-9d0808d3d188",
+    "92ed7125-7a98-4ad8-a322-eb4f4f1bf98b",
+    "9b88f3c5-efe6-4d17-bf73-7f7554f5d5a0",
+    "9c59de3e-4a1f-4d1e-976f-c8366b376ecd",
+    "9dc49538-4c24-4f1a-83a9-e08a88c9d0e1",
+    "a02190a2-e113-539d-a9a8-0c9849ea27f5",
+    "a1c1eb9e-33a0-45e1-aef3-064c6ce063b6",
+    "a4d72197-96d8-4987-9c66-9088705e3e3e",
+    "a807570c-b0f8-4ded-b282-2df5b6e3f34d",
+    "accb6854-45b8-4ca2-8253-64b568dba0e2",
+    "adc4c8c2-bd97-4435-9d97-06295f7eb178",
+    "ae3237a3-f2cc-4578-8913-2f1843101279",
+    "b13f72fa-cced-4d53-ad06-c57a7350f608",
+    "b5b1b35b-f534-48f9-a0ea-8023a5a7f0ca",
+    "c038d53c-133b-4678-9a4e-d73d20b23aa6",
+    "ce39f039-4c3c-44b2-9b13-279b2b7a2710",
+    "d9259e68-8646-5e2c-ac48-1cf564e75bf4",
+    "dfa6c96b-40b3-4e5f-b9fa-8c63ed0c23fa",
+    "e796e1a1-afe7-47ac-a5ca-771656a5c387",
+    "ebea3913-ae0a-4aa8-89b2-9bf043c6b4b9",
+    "ed176acc-364b-4290-a85f-b39524730a50",
+    "ef05dd8a-f5ff-45eb-be46-425064e5f6a9",
+    "f2f6c3d8-bd8c-4378-93b9-05b19edce949",
+    "f787c2de-0342-4fd5-ba98-0b4da0f24845",
+    "fc65fef1-239d-4859-94dd-f827621e549e",
+    "fe5aec0b-a8d4-58a8-b33f-2b9c6630660e"
+  ],
+  "removed_uuids": [
+    "0223c770-b588-531e-94ff-4b1e7c4085ab",
+    "055f2392-0079-4775-a6eb-2e2fadfdf1f1",
+    "07350928-49a6-563a-89c0-14199864c933",
+    "0df1df42-b07f-47ec-a65b-b3863f63bbe1",
+    "0fc9b936-3783-4c86-85fa-04dcb65a13f6",
+    "1981b1e9-bfa3-5e2d-bbc4-e828d53b1a6e",
+    "1b8861f5-e0aa-4620-9099-c6ff4df1c2fe",
+    "268765ab-83b2-4bdb-8c0d-f86ccfefe341",
+    "280b75f8-91e3-4d3c-8a86-73ae87c2042b",
+    "44f69519-cb92-57df-96b2-7dc0ef19339b",
+    "45576be9-7e0a-592e-96ea-0082ef31725d",
+    "4e79818a-1132-4101-bcf1-ebc51f416632",
+    "56f87bec-11c4-5fbc-8687-228af8802d5e",
+    "5cc83967-2cc6-518b-817b-ea9cc9a7a0d5",
+    "5e94af28-0025-5dee-aa09-5f653b98c716",
+    "686d95cc-6a80-4fcb-ad5f-d19ed459bf98",
+    "6d5b0443-ad6e-5440-9220-9684698f9dd3",
+    "73e234b4-5c13-468f-9fc0-7d344edfabfd",
+    "76d49d6a-fdbe-4a60-ad74-df5a8e7fe197",
+    "859409d9-e48d-59c9-a8c1-45dd365bacbb",
+    "8b246539-6895-51b3-aeb1-a345b8f3bc94",
+    "8f26dc5b-02e1-5e1a-9ebf-044ecf55c616",
+    "9b798315-b643-4cb9-9322-f1b90fd747b6",
+    "a43d895e-5592-51a4-b236-0f94414ac6ae",
+    "aab4a844-9b90-55ac-a7f0-bc90393325d1",
+    "b4161b18-0a8f-57e3-b248-f91ea328d088",
+    "b437a58b-8bc1-58e1-a0ef-9ca24f6c8379",
+    "b7049f73-6761-4415-96c4-67ee413cbc22",
+    "b835d47c-794b-54d9-98e6-1dca46a27296",
+    "c2b95db5-850c-5fa2-82d3-ecd8271177bf",
+    "c6e06b64-ec68-56fe-b4cf-b9b9405f3403",
+    "d0cdec1a-4fa9-574f-8cb8-3371b30da821",
+    "d0d37572-80aa-4f57-abd4-bd67a6b2cf49",
+    "d91500fc-2116-4368-9f15-ba738d792db2",
+    "e108514c-b249-4660-a87c-64e18273019a",
+    "e3ab0e4e-4f23-51bb-ada2-c9f432670d82",
+    "e7c8c36a-588a-562a-95af-0f2ccf72b3bc",
+    "e9d173e6-b568-41b3-936b-f0b935dff55f",
+    "f103d021-8604-55c5-8906-fc6d0a705a46",
+    "f314f49c-5e12-44b9-9307-7f6f6e851299",
+    "f4b24c44-60dc-4f6b-80f2-003336f89f15",
+    "f609e128-b348-5ab2-874d-2f90ababfc1d",
+    "f641fd0a-4561-4d50-b6fe-2689fc076ab8"
+  ],
+  "added_uuids": [
+    "040a8c8f-2938-50d6-a253-9f8eb637b6a8",
+    "0515e371-8b8e-566b-9e1a-650ed83ab7d0",
+    "07a4dd85-9897-522c-a8fe-be5b7d6a15f8",
+    "093443c0-2c6e-5abe-81ba-ee022eae7d68",
+    "143cf80f-467a-590c-85e1-005279958995",
+    "153a9b1c-01c4-55e2-99c2-09c838523ab4",
+    "1b50d65f-a379-5df1-bd3f-59f3bc3359eb",
+    "28b8a9d5-45d2-5843-8878-85fec7c1c9ae",
+    "2f2770c6-2bea-5b0a-95ef-ffd181b0361a",
+    "2ff9218e-efa4-5add-a3af-6ba3981e1de5",
+    "3390866c-8fbb-5e36-9d22-7dd28e96b4f9",
+    "40e93501-7e6b-562e-ac0e-4d9520fc74ac",
+    "4595f401-f041-5a6a-973b-576c6b3b38a3",
+    "52b9ec53-dce9-5fbc-9fad-7e46ca0826be",
+    "562c85f4-6ec5-5a5f-9c25-b03ea2990abb",
+    "5daacd52-1755-5535-9287-1e5652de7858",
+    "5e775744-4cd3-544f-9ee7-4356bd86fc9c",
+    "5e9bcdc5-e54c-5102-9d8b-9e257916e6a1",
+    "5fc43580-572f-5784-9e6f-a21dc0470cbe",
+    "615fb2cf-441f-5a91-846f-6f77252be1e3",
+    "67a30bf3-63e6-54ce-b92e-085f7404871d",
+    "7057c092-076b-52f4-8413-2b848688b52a",
+    "70985703-8612-504a-8267-8e37ef3bdfa1",
+    "73ec0fef-8273-5963-917a-77287cf19dd6",
+    "77189e5d-391b-55a6-8afa-6938589326e8",
+    "780517cf-3dab-592b-ba84-6a00e38fbd42",
+    "78c47ed7-e490-5188-8154-e7f461c2e6c8",
+    "79b9f7dc-15c4-591e-b929-16eff6a90fe1",
+    "8377fd87-5ebe-5ca8-bab1-6b23c7bcea50",
+    "87872a6e-db4b-5e1a-93bb-659becfb3308",
+    "8d4b0aa7-98d5-5883-af25-c59ef1516c76",
+    "92055a4c-6545-5db2-8efb-b4c06d9c07d2",
+    "942e13c6-f561-5d27-a876-328381b165a7",
+    "a2b611c9-4c75-52fe-983c-cac405bee609",
+    "a4ad7789-2b8a-5c9f-a00c-b7c018d6af6d",
+    "a92caaf9-f6fc-5894-b2e2-fa958570358f",
+    "ae9f7815-3f03-5263-b45f-01a2084fa06d",
+    "af44ac84-3699-5225-9349-7e648e6e98fb",
+    "b8ba6637-b118-5e6a-8736-7004dd1a9224",
+    "b90dcbc4-a2a4-5c90-82fa-2efbb1038e38",
+    "c2154035-26fc-5731-966f-726d7b980628",
+    "c7201224-e910-57b8-9e0a-b53d2ce7ef70",
+    "d2350795-9c9e-57ca-a122-7789d525c1c1",
+    "d7cb34c3-dc4c-550e-8f19-3f31b7620146",
+    "dbca2bcf-3ab4-5c8a-b276-1992dcf504b2",
+    "df5290a9-bf4e-58b5-8148-74d84cbe4eee",
+    "e1e29049-117b-5edb-9ba0-6e6a48f2a211",
+    "e4b452ba-9fa3-5081-9a34-0ea92d4a7233",
+    "e79311a8-4a13-50ea-8564-5a15d8b73031",
+    "eded3d18-f7bb-585b-af6b-f22d932b9731",
+    "eff8f6ed-e064-5a85-baf8-2ac898f11bf2",
+    "f4707fbd-4e39-50cc-8963-958ba9c2be23",
+    "f619a8e1-2666-5275-9844-50e75433351c"
+  ],
+  "operations": [
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "b13f72fa-cced-4d53-ad06-c57a7350f608",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "width_nm": 200000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          39475000,
+          25435000
+        ],
+        [
+          39475000,
+          25800000
+        ],
+        [
+          40000000,
+          26325000
+        ],
+        [
+          43200000,
+          26325000
+        ],
+        [
+          43475000,
+          26600000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "5a7b574f-72b1-4717-8c89-66980ab24116",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "width_nm": 200000,
+      "layer": "SIG2",
+      "points_nm": [
+        [
+          43475000,
+          26600000
+        ],
+        [
+          43475000,
+          24905000
+        ],
+        [
+          47400000,
+          20980000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "78aba0c5-9bf4-4c09-b3c6-7e880cca1f43",
+      "net": "+3V3",
+      "width_nm": 200000,
+      "layer": "F.Cu",
+      "points_nm": [
+        [
+          65000000,
+          12500000
+        ],
+        [
+          64670000,
+          12830000
+        ],
+        [
+          61425000,
+          12830000
+        ],
+        [
+          61025000,
+          12430000
+        ],
+        [
+          61025000,
+          7725000
+        ],
+        [
+          60800000,
+          7500000
+        ],
+        [
+          60000000,
+          7500000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "f2f6c3d8-bd8c-4378-93b9-05b19edce949",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "width_nm": 200000,
+      "layer": "SIG2",
+      "points_nm": [
+        [
+          41795000,
+          25435000
+        ],
+        [
+          42065000,
+          25435000
+        ],
+        [
+          47200000,
+          20300000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "5e9bcdc5-e54c-5102-9d8b-9e257916e6a1",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "net_authority_pad_uuid": "a2123f15-ab4f-4c14-8bcd-f837f31568f7",
+      "net_authority_reference": "R20.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        47200000,
+        20300000
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "780517cf-3dab-592b-ba84-6a00e38fbd42",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "net_authority_pad_uuid": "a2123f15-ab4f-4c14-8bcd-f837f31568f7",
+      "net_authority_reference": "R20.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        56100000,
+        18700000
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "1b50d65f-a379-5df1-bd3f-59f3bc3359eb",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "net_authority_pad_uuid": "87f1221f-b788-4c64-806c-52c209c13b59",
+      "net_authority_reference": "R19.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        57000000,
+        18900000
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "c7201224-e910-57b8-9e0a-b53d2ce7ef70",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "net_authority_pad_uuid": "87f1221f-b788-4c64-806c-52c209c13b59",
+      "net_authority_reference": "R19.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        47400000,
+        20980000
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "07a4dd85-9897-522c-a8fe-be5b7d6a15f8",
+      "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+      "net_authority_pad_uuid": "5b2ef7b5-b66b-4c44-995d-b5c6698e7983",
+      "net_authority_reference": "R28.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        54200000,
+        12700000
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_pad_owned_via",
+      "uuid": "87872a6e-db4b-5e1a-93bb-659becfb3308",
+      "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+      "net_authority_pad_uuid": "5b2ef7b5-b66b-4c44-995d-b5c6698e7983",
+      "net_authority_reference": "R28.2",
+      "process_prototype_uuid": "75cd976c-99f6-444d-ada4-61885efd6b18",
+      "diameter_nm": 500000,
+      "drill_nm": 250000,
+      "at_nm": [
+        59000000,
+        8136300
+      ],
+      "process_only_not_current_authority": true
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "942e13c6-f561-5d27-a876-328381b165a7",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "width_nm": 200000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          47200000,
+          20300000
+        ],
+        [
+          47200000,
+          18900000
+        ],
+        [
+          47900000,
+          18200000
+        ],
+        [
+          55600000,
+          18200000
+        ],
+        [
+          56100000,
+          18700000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "5fc43580-572f-5784-9e6f-a21dc0470cbe",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "width_nm": 200000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          47400000,
+          20980000
+        ],
+        [
+          46500000,
+          20980000
+        ],
+        [
+          46000000,
+          20480000
+        ],
+        [
+          46000000,
+          18500000
+        ],
+        [
+          46800000,
+          17700000
+        ],
+        [
+          56500000,
+          17700000
+        ],
+        [
+          57000000,
+          18200000
+        ],
+        [
+          57000000,
+          18900000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "dbca2bcf-3ab4-5c8a-b276-1992dcf504b2",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+      "width_nm": 200000,
+      "layer": "SIG2",
+      "points_nm": [
+        [
+          56100000,
+          18700000
+        ],
+        [
+          56600000,
+          18200000
+        ],
+        [
+          56600000,
+          7250000
+        ],
+        [
+          58100000,
+          5750000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "615fb2cf-441f-5a91-846f-6f77252be1e3",
+      "net": "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+      "width_nm": 200000,
+      "layer": "SIG2",
+      "points_nm": [
+        [
+          57000000,
+          18900000
+        ],
+        [
+          57950000,
+          17950000
+        ],
+        [
+          57950000,
+          10200000
+        ],
+        [
+          57850000,
+          10100000
+        ],
+        [
+          57850000,
+          8150000
+        ],
+        [
+          58250000,
+          7750000
+        ],
+        [
+          60100000,
+          5900000
+        ],
+        [
+          60100000,
+          5750000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "92055a4c-6545-5db2-8efb-b4c06d9c07d2",
+      "net": "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+      "width_nm": 200000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          54200000,
+          12700000
+        ],
+        [
+          55000000,
+          12700000
+        ],
+        [
+          57400000,
+          10300000
+        ],
+        [
+          57400000,
+          8900000
+        ],
+        [
+          58163700,
+          8136300
+        ],
+        [
+          59000000,
+          8136300
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "3390866c-8fbb-5e36-9d22-7dd28e96b4f9",
+      "net": "+5VSB",
+      "width_nm": 280000,
+      "layer": "F.Cu",
+      "points_nm": [
+        [
+          45850000,
+          49820000
+        ],
+        [
+          45780000,
+          49750000
+        ],
+        [
+          44820000,
+          49750000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "df5290a9-bf4e-58b5-8148-74d84cbe4eee",
+      "net": "+5VSB",
+      "width_nm": 1000000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          45000000,
+          4500000
+        ],
+        [
+          45000000,
+          9500000
+        ],
+        [
+          52100000,
+          16600000
+        ],
+        [
+          57500000,
+          16600000
+        ],
+        [
+          57900000,
+          17000000
+        ],
+        [
+          59500000,
+          17000000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_track_path",
+      "source_or_added_uuid": "4cf58cc9-56e0-4dc1-b4fd-c45773534cdd",
+      "net": "/KVM_5V_IN",
+      "width_nm": 1000000,
+      "layer": "B.Cu",
+      "points_nm": [
+        [
+          62300000,
+          9037500
+        ],
+        [
+          62300000,
+          10137500
+        ],
+        [
+          66500000,
+          14337500
+        ],
+        [
+          66500000,
+          50000000
+        ],
+        [
+          64000000,
+          52500000
+        ],
+        [
+          51000000,
+          52500000
+        ]
+      ]
+    }
+  ],
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false
+}

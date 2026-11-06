@@ -1,0 +1,105 @@
+{
+  "ok": true,
+  "complete": true,
+  "pairs": [
+    {
+      "pair": [
+        "usb",
+        "/MCU + USB SERVICE PORT/USB_D_P",
+        "/MCU + USB SERVICE PORT/USB_D_N"
+      ],
+      "ok": true,
+      "regressions": [],
+      "inherited_debt": [],
+      "candidate_debt": [],
+      "source_metrics": {
+        "skew_mm": 1.054,
+        "uncoupled_length_mm": 4.794,
+        "vias_p": 2,
+        "vias_n": 2,
+        "reference_coverage_pct": 100.0,
+        "coupled_coverage_pct": 92.2
+      },
+      "candidate_metrics": {
+        "skew_mm": 1.054,
+        "uncoupled_length_mm": 4.794,
+        "vias_p": 2,
+        "vias_n": 2,
+        "reference_coverage_pct": 100.0,
+        "coupled_coverage_pct": 92.2
+      }
+    },
+    {
+      "pair": [
+        "can",
+        "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+        "/CAN + FOUR MODULE PORTS + STACK/CAN_L"
+      ],
+      "ok": true,
+      "regressions": [],
+      "inherited_debt": [],
+      "candidate_debt": [],
+      "source_metrics": {
+        "skew_mm": 2.503,
+        "uncoupled_length_mm": 45.65,
+        "vias_p": 6,
+        "vias_n": 6,
+        "reference_coverage_pct": 100.0,
+        "coupled_coverage_pct": 70.0
+      },
+      "candidate_metrics": {
+        "skew_mm": 2.503,
+        "uncoupled_length_mm": 45.65,
+        "vias_p": 6,
+        "vias_n": 6,
+        "reference_coverage_pct": 100.0,
+        "coupled_coverage_pct": 70.0
+      }
+    }
+  ],
+  "scope": [
+    [
+      "usb",
+      "/MCU + USB SERVICE PORT/USB_D_P",
+      "/MCU + USB SERVICE PORT/USB_D_N"
+    ],
+    [
+      "can",
+      "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "/CAN + FOUR MODULE PORTS + STACK/CAN_L"
+    ]
+  ],
+  "scope_from_native_geometry": true,
+  "changed_track_count": 182,
+  "changed_track_nets": [
+    "+3V3",
+    "+5VSB",
+    "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+    "/HOLD-UP + 3V3 REGULATOR/COMP_THRESH",
+    "/KVM AUXILIARY + RAIL SENSING/AUX_RXC",
+    "/KVM AUXILIARY + RAIL SENSING/AUX_TXC",
+    "/KVM AUXILIARY + RAIL SENSING/KVM_3V3_REF",
+    "/KVM AUXILIARY + RAIL SENSING/KVM_5V_RAW",
+    "/KVM_5V_IN",
+    "/MCU + USB SERVICE PORT/EN",
+    "/PWR_FAIL_INT",
+    "GND"
+  ],
+  "complete_pair_inventory": [
+    [
+      "usb",
+      "/MCU + USB SERVICE PORT/USB_D_P",
+      "/MCU + USB SERVICE PORT/USB_D_N"
+    ],
+    [
+      "can",
+      "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "/CAN + FOUR MODULE PORTS + STACK/CAN_L"
+    ]
+  ],
+  "shared_return_or_terminal_geometry_changed": true,
+  "inherited_legacy_policy_assumptions": true,
+  "continuous_return_proof": false,
+  "physics_qualification": false,
+  "source_policy_path": "/home/codex/src/CEC-Platform/experiments/repack/j6c-connected-20261105/cover/board.kicad_pcb"
+}
