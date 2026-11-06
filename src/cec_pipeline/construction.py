@@ -3,6 +3,7 @@
 from __future__ import annotations
 import json, time, uuid
 from pathlib import Path
+import tempfile
 from .capabilities import CAPABILITIES, MACROS
 from .legacy import ROOT, bootstrap
 
@@ -12,6 +13,22 @@ from . import geometry as design
 
 from .identity import require, digest
 from .native import _native, native_world, visible_delta
+
+
+def _require_exact_merged_copper(board, text):
+    """An AST owner splice must not silently discard authored native copper.
+
+    This is a round-trip invariant, NOT permission to transport any object.
+    Existing source compilers and saved receivers remain the only owners.
+    """
+    import cec_field_coupling as field
+    pcbnew, _quiet = _native()
+    expected = field._field_snapshot_inventory(board)
+    with tempfile.TemporaryDirectory(prefix="cec-connected-merge-") as directory:
+        path = Path(directory) / "merged.kicad_pcb"
+        path.write_text(text)
+        actual = field._field_snapshot_inventory(pcbnew.LoadBoard(str(path)))
+    require(expected == actual, "connected_AST_merge_discarded_native_copper_or_terminal_delta")
 
 
 def _construct_connected(source, candidate, request, board_hint):
@@ -37,7 +54,9 @@ def _construct_connected(source, candidate, request, board_hint):
         record = cells.construct(
             board, operation, board_hint=board_hint, request=request
         )
+        board = record.pop("_native_board", board)
         affected = set(record["affected_footprint_uuids"])
+        affected.update(record.get("transported_source_copper_uuids", []))
         retired = set(record["retired_track_uuids"])
         added = set(record["added_track_uuids"])
     elif kind == "add_connections":
@@ -110,7 +129,9 @@ def _construct_connected(source, candidate, request, board_hint):
             out.append(fresh[key] if key in affected else node)
     out.extend(fresh[key] for key in sorted(added))
     root[1:] = out
-    candidate.write_text(syntax._render(root) + "\n")
+    merged = syntax._render(root) + "\n"
+    _require_exact_merged_copper(board, merged)
+    candidate.write_text(merged)
     return dict(
         changes=[record],
         kinds=[kind],

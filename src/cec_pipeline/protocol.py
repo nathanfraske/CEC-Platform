@@ -147,6 +147,14 @@ for _kind, _props in {
         )
     )
 
+# Preserve the old exact operation contract. The opt-in is a separate closed
+# schema alternative, not a newly mandatory field on all existing requests.
+_old_cell = next(v for v in _OPERATIONS if v["properties"]["kind"]["const"] == "place_cell")
+_OPERATIONS.append(dict(type="object",
+    properties=dict(_old_cell["properties"], native_macro=dict(type="boolean", const=True),
+        allow_locked_transport_uuids=dict(type="array",items=dict(type="string"),maxItems=128,uniqueItems=True)),
+    required=[*_old_cell["required"], "native_macro", "allow_locked_transport_uuids"], additionalProperties=False))
+
 TOOL_PARAMETERS = {
     "boards": {},
     "inspect": {

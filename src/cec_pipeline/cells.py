@@ -242,6 +242,8 @@ def construct(board, operation, *, board_hint, request):
             "allow_locked_track_uuids",
             "max_shift_nm",
             "reference_group_uuids",
+            "native_macro",
+            "allow_locked_transport_uuids",
         }
         and {
             "kind",
@@ -253,12 +255,24 @@ def construct(board, operation, *, board_hint, request):
         <= set(operation),
         "exact_source_cell_operation_fields_required",
     )
-    proposal, moved = plan(board, operation, board_hint)
-    escape.apply_private(board, proposal)
+    require(type(operation.get("native_macro", False)) is bool,
+            "explicit_native_macro_boolean_required")
+    packet = None
+    transported = []
+    if operation.get("native_macro", False):
+        moved = set(normalize_poses(operation["poses"]))
+        projected, packet, transported = compile_macro(board, operation, board_hint)
+        proposal = packet["source_plan"]
+        board = projected
+    else:
+        require("allow_locked_transport_uuids" not in operation,
+                "transport_lock_scope_requires_native_macro")
+        proposal, moved = plan(board, operation, board_hint)
+        escape.apply_private(board, proposal)
     added = emit_connections(
         board, operation["routes"], operation.get("vias", []), identity=digest(request)
     )
-    return dict(
+    result = dict(
         kind="place_cell",
         moved_refs=sorted(moved),
         affected_footprint_uuids=sorted(
@@ -275,6 +289,78 @@ def construct(board, operation, *, board_hint, request):
         source_plan=proposal,
         independent_saved_receiving_required=True,
     )
+    if packet is not None:
+        result.update(native_macro_packet=packet, native_macro_packet_version=1,
+                      transported_source_copper_uuids=transported)
+        # Internal-only native frame; never serialize this object in receipts.
+        result["_native_board"] = board
+        result["source_plan"] = packet["source_plan"]
+        result["retired_track_uuids"] = packet["retired_track_uuids"]
+    return result
+
+
+def compile_macro(board, operation, board_hint, *, enforce_locks=True):
+    """Fresh compiler output owns transport; no caller packet/ID allowlist."""
+    import cec_cell_macro_requests as compiler
+    import cec_control_gate_bias_placement as native
+    import cec_force_current as force
+    import pcbnew
+    import cec_cell_row_rebuild as row
+    require(row._source_binding(board)==row._source_binding(
+        pcbnew.LoadBoard(str(board.GetFileName()))), "native_macro_requires_exact_saved_source")
+    poses = normalize_poses(operation["poses"])
+    footprints = {f.GetReference(): f for f in board.GetFootprints()}
+    require(set(poses) <= footprints.keys(), "cell_source_footprint_missing")
+    moved={ref for ref,target in poses.items() if list(footprints[ref].GetPosition())!=
+           [round(v*1e6)for v in target[:2]] or
+           (footprints[ref].GetOrientationDegrees()-target[2])%360!=0}
+    require(moved,"cell_construction_requires_actual_motion")
+    fp_locks=operation["allow_locked_footprint_uuids"]
+    require(type(fp_locks)is list and len(set(fp_locks))==len(fp_locks)
+            and set(fp_locks)<={force._uid(footprints[r])for r in moved},
+            "exact_moving_footprint_lock_scope_required")
+    require(all(not footprints[r].IsLocked()or force._uid(footprints[r])in fp_locks
+                for r in moved),"locked_cell_owner_not_explicitly_scoped")
+    projected, packet = compiler.compile(
+        board.GetFileName(), poses, board_hint=board_hint,
+        max_shift_mm=operation.get("max_shift_nm", 6_000_000) / 1e6,
+        # Observation and construction compile the SAME positively owned cut
+        # scope. Caller consent is checked per fresh ID below; it must never
+        # choose a different ownership model by being empty/nonempty.
+        timeout_s=10., allow_owned_locked_escapes=True,
+        reference_group_uuids=operation.get("reference_group_uuids", ()),
+        compilation_phase_timeouts_s=(10.,)*8)
+    require(packet.get("schema") == 1 and packet.get("scope") ==
+            "source_typed_complete_native_macro_requests", "typed_native_macro_packet_required")
+    old = {force._uid(t): native._track(board,t) for t in board.GetTracks()}
+    new = {force._uid(t): native._track(projected,t) for t in projected.GetTracks()}
+    retired = set(packet["retired_track_uuids"])
+    require(old.keys() - new.keys() == retired and not new.keys() - old.keys(),
+            "exact_compiler_source_copper_population_required")
+    allowed = set(operation["allow_locked_track_uuids"])
+    raw_allowed=operation["allow_locked_track_uuids"]
+    require(type(raw_allowed)is list and len(raw_allowed)<=256 and len(allowed)==len(raw_allowed)
+            and allowed<=retired,"exact_macro_source_cut_lock_scope_required")
+    require(not enforce_locks or all(not old[u]["locked"] or u in allowed for u in retired),
+            "locked_macro_source_cut_not_explicitly_scoped")
+    transported = sorted(u for u in new if old[u] != new[u])
+    transport = packet["transport"]
+    authorized = set(packet["source_plan"].get("row_plan", {}).get("transformed_track_uuids", []))
+    for name in ("changes", "source_process_barrel_motion",
+                 "explicit_source_typed_ordinary_barrel_motion",
+                 "explicitly_reproved_private_signal_port_reseats",
+                 "explicitly_reproved_private_signal_return_reseats"):
+        authorized.update(q["uuid"] for q in transport.get(name, []))
+    authorized.update(q["uuid"] for q in packet.get(
+        "source_factory_ground_pickups_carried_without_retirement", []))
+    require(set(transported) <= authorized,
+            "native_macro_changed_unowned_source_copper")
+    scope=operation.get("allow_locked_transport_uuids",[])
+    require(type(scope)is list and len(scope)<=128 and len(set(scope))==len(scope)
+            and set(scope)<=set(transported),"exact_native_macro_transport_lock_scope_required")
+    require(not enforce_locks or all(not old[u]["locked"]or u in scope for u in transported),
+            "locked_macro_source_transport_not_explicitly_scoped")
+    return projected, packet, transported
 
 
 def preview(source, operation, board_hint):
@@ -282,6 +368,19 @@ def preview(source, operation, board_hint):
     import cec_cell_escape_replan as escape
 
     parent = pcbnew.LoadBoard(str(source))
+    require(type(operation.get("native_macro", False)) is bool,
+            "explicit_native_macro_boolean_required")
+    if operation.get("native_macro", False):
+        _, packet, transported = compile_macro(parent,operation,board_hint,enforce_locks=False)
+        source_tracks={str(t.m_Uuid.AsString()):t for t in parent.GetTracks()}
+        return dict(ok=True,complete=True,moved_refs=sorted(packet["source_plan"]["poses"]),
+                    retired_track_uuids=packet["retired_track_uuids"],
+                    source_owned_connections=packet["requests"],
+                    native_macro_packet=packet,native_macro_packet_version=1,
+                    transported_source_copper_uuids=transported,
+                    required_locked_transport_uuids=[u for u in transported if source_tracks[u].IsLocked()],
+                    required_locked_cut_uuids=[u for u in packet["retired_track_uuids"] if source_tracks[u].IsLocked()],
+                    route_search_run=False,source_modified=False,release_authority=False)
     proposal, moved = plan(parent, operation, board_hint)
     projected = pcbnew.LoadBoard(str(source))
     escape.apply_private(projected, proposal)
@@ -296,3 +395,22 @@ def preview(source, operation, board_hint):
         source_modified=False,
         release_authority=False,
     )
+
+
+def receive_macro(source, candidate, operation, record, board_hint):
+    """Receipt claims cannot replace fresh compiler and independent receiving."""
+    import pcbnew
+    import cec_complete_macro_cell as receiving
+    require(operation.get("native_macro") is True, "explicit_native_macro_mode_required")
+    _, packet, transported = compile_macro(pcbnew.LoadBoard(str(source)), operation, board_hint)
+    require(record.get("native_macro_packet_version") == 1
+            and record.get("native_macro_packet") == packet
+            and record.get("transported_source_copper_uuids") == transported,
+            "fresh_exact_native_macro_construction_packet_required")
+    return receiving.receive(source,candidate,board_hint=board_hint,timeout_s=10.,
+        max_shift_mm=operation.get("max_shift_nm",6000000)/1e6,
+        allow_owned_locked_escapes=True,
+        reference_group_uuids=operation.get("reference_group_uuids",()),
+        compilation_phase_timeouts_s=(10.,)*8,
+        native_pose_phase_timeouts_s=(10.,)*3,
+        pose_selection_phase_timeouts_s=(10.,)*4)
