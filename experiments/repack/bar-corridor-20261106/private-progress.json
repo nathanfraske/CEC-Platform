@@ -1,8 +1,9 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T11:41:30Z",
-  "goal_status": "active",
-  "status": "private_vbus_shortcut_received_bar_upper_feed_and_physical_qualification_pending",
+  "recorded_at_utc": "2026-11-06T11:48:30Z",
+  "goal_status": "blocked",
+  "status": "blocked_pending_supplier_and_assembler_evidence",
+  "latest_blocked_audit": "experiments/busbars/keystone-topology-20261106/blocked-audit.json",
   "latest_slice": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
   "next_geometry_diagnosis": "experiments/busbars/part-model-20261106/endpoint-first-20261106/feed-probe.json",
   "latest_topology_height_decision": "experiments/busbars/topology-20261106/decision.json",
