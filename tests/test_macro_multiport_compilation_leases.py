@@ -45,10 +45,10 @@ def test_every_named_operation_refuses_expiry_change_and_validation_overrun(monk
     assert lease.index==boundary and not lease.finished
 
 
-@pytest.mark.parametrize('fault',['skip_multiport','skip_composition','early_finish','repeat','nine','seven'])
+@pytest.mark.parametrize('fault',['skip_multiport','skip_composition','early_finish','repeat','ten','seven'])
 def test_no_phase_can_be_omitted_repeated_or_invented(monkeypatch,fault):
-    if fault in('nine','seven'):
-        with pytest.raises(ValueError):compiler._phase_budgets([1]*(9 if fault=='nine'else 7))
+    if fault in('ten','seven'):
+        with pytest.raises(ValueError):compiler._phase_budgets([1]*(10 if fault=='ten'else 7))
         return
     clock=Clock();monkeypatch.setattr(compiler.time,'monotonic',clock)
     lease=compiler._CompilationLeases(1,[1]*8)

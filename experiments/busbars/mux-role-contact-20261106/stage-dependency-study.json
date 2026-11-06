@@ -1,0 +1,521 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "fixed_final_targets": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "cases": [
+    {
+      "name": "C51_first",
+      "final_target_refs": [
+        "C51"
+      ],
+      "courtyard_clashes": [],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            16924990,
+            47725001
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 1.2509996003196804,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            18500000,
+            48000000
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 2.8339559012272932,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      },
+      "paired_ok": true,
+      "paired_violations": [],
+      "C51_source_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_posed_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_all_original_native_terminal_contacts_still_present": true,
+      "retained_C51_Ground_via_process_blocked": false,
+      "retained_C51_Ground_via_process_records": [
+        {
+          "ref": "C51",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "C51_moved_pad_retained_foreign_copper_200um_conflicts": [
+        {
+          "pad": "2",
+          "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": 0
+        }
+      ],
+      "C51_Ground_to_fixed_VBUS_barrel_clearance": {
+        "via_uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+        "at_nm": [
+          16750000,
+          49500000
+        ],
+        "diameter_nm": 600000,
+        "drill_nm": 300000,
+        "source": {
+          "native_max_noncolliding_clearance_nm": 313525,
+          "native_min_colliding_clearance_nm": 313526,
+          "physical_overlap": false
+        },
+        "proposed": {
+          "native_max_noncolliding_clearance_nm": 52169,
+          "native_min_colliding_clearance_nm": 52170,
+          "physical_overlap": false
+        },
+        "required_clearance_nm": 200000
+      },
+      "SS_control_endpoints": {
+        "U6_SS_pad_uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "U6_SS_nm": [
+          14749990,
+          46250002
+        ],
+        "C51_SS_pad_uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "C51_SS_nm": [
+          19075000,
+          49925000
+        ],
+        "direct_mm": 5.675501898519989,
+        "C51_is_timing_control_cap_not_selected_supply_bypass": true,
+        "no_supply_bypass_distance_or_current_credit": true,
+        "SS_route_still_must_rebuild_complete_original_native_contacts": true
+      }
+    },
+    {
+      "name": "C55_after_C51",
+      "final_target_refs": [
+        "C51",
+        "C55"
+      ],
+      "courtyard_clashes": [],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            16924990,
+            47725001
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 1.2509996003196804,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            20800000,
+            48400000
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 5.162978912420716,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      }
+    },
+    {
+      "name": "C54_after_C51",
+      "final_target_refs": [
+        "C51",
+        "C54"
+      ],
+      "courtyard_clashes": [
+        {
+          "refs": [
+            "C54",
+            "C55"
+          ],
+          "intersection_area_mm2": 1.5925000000000002,
+          "intersection_bounds_mm": [
+            18.46999,
+            47.225,
+            19.37999,
+            48.975
+          ],
+          "first_courtyard_bounds_mm": [
+            18.46999,
+            47.225,
+            19.37999,
+            49.035
+          ],
+          "second_courtyard_bounds_mm": [
+            17.755,
+            47.025,
+            21.145,
+            48.975
+          ]
+        }
+      ],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            18924990,
+            47650000
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 3.2524029962476977,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            18500000,
+            48000000
+          ],
+          "U6_IN1_nm": [
+            15674990,
+            47775001
+          ],
+          "direct_mm": 2.8339559012272932,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      }
+    },
+    {
+      "name": "four_part_U6_cell_after_C51",
+      "final_target_refs": [
+        "C51",
+        "U6",
+        "C9",
+        "C27",
+        "R54"
+      ],
+      "courtyard_clashes": [
+        {
+          "refs": [
+            "C55",
+            "U6"
+          ],
+          "intersection_area_mm2": 1.3454805000000052,
+          "intersection_bounds_mm": [
+            17.755,
+            47.025,
+            18.44499,
+            48.975
+          ],
+          "first_courtyard_bounds_mm": [
+            15.55499,
+            45.705,
+            18.44499,
+            49.095
+          ],
+          "second_courtyard_bounds_mm": [
+            17.755,
+            47.025,
+            21.145,
+            48.975
+          ]
+        },
+        {
+          "refs": [
+            "C54",
+            "U6"
+          ],
+          "intersection_area_mm2": 1.6471000000000022,
+          "intersection_bounds_mm": [
+            16.46999,
+            46.340001,
+            17.37999,
+            48.150001
+          ],
+          "first_courtyard_bounds_mm": [
+            15.55499,
+            45.705,
+            18.44499,
+            49.095
+          ],
+          "second_courtyard_bounds_mm": [
+            16.46999,
+            46.340001,
+            17.37999,
+            48.150001
+          ]
+        }
+      ],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            16924990,
+            47725001
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 0.7516648189186453,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            18500000,
+            48000000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 0.8551409533527207,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      }
+    },
+    {
+      "name": "six_part_completion_after_C51",
+      "final_target_refs": [
+        "U6",
+        "C9",
+        "C27",
+        "R54",
+        "C54",
+        "C55",
+        "C51"
+      ],
+      "courtyard_clashes": [],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            18924990,
+            47650000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 1.2562345521442242,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            20800000,
+            48400000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 3.18689680568747,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      }
+    },
+    {
+      "name": "six_part_final_C51_exact_source",
+      "final_target_refs": [
+        "U6",
+        "C9",
+        "C27",
+        "R54",
+        "C54",
+        "C55"
+      ],
+      "courtyard_clashes": [
+        {
+          "refs": [
+            "C51",
+            "C55"
+          ],
+          "intersection_area_mm2": 0.21750000000000352,
+          "intersection_bounds_mm": [
+            19.825,
+            49.4,
+            19.975,
+            50.85
+          ],
+          "first_courtyard_bounds_mm": [
+            19.825,
+            47.655,
+            21.775,
+            51.045
+          ],
+          "second_courtyard_bounds_mm": [
+            17.025,
+            49.4,
+            19.975,
+            50.85
+          ]
+        }
+      ],
+      "IN1_direct_distance_lower_bounds": {
+        "C54": {
+          "cap_SUP_nm": [
+            18924990,
+            47650000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 1.2562345521442242,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        },
+        "C55": {
+          "cap_SUP_nm": [
+            20800000,
+            48400000
+          ],
+          "U6_IN1_nm": [
+            17674990,
+            47775001
+          ],
+          "direct_mm": 3.18689680568747,
+          "source_same_face_full_width_path_limit_mm": 3.5,
+          "direct_is_only_necessary_lower_bound": true
+        }
+      },
+      "paired_ok": true,
+      "paired_violations": [],
+      "C51_source_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_posed_contact_ids": {
+        "1": [
+          "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "bc5b2534-36a3-4c73-b73a-d812fd4aae81"
+        ],
+        "2": [
+          "7f4e567d-2755-4c6e-a51c-2af6b999bc20"
+        ]
+      },
+      "C51_all_original_native_terminal_contacts_still_present": true,
+      "retained_C51_Ground_via_process_blocked": false,
+      "retained_C51_Ground_via_process_records": [
+        {
+          "ref": "C51",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "C51_moved_pad_retained_foreign_copper_200um_conflicts": [],
+      "C51_Ground_to_fixed_VBUS_barrel_clearance": {
+        "via_uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+        "at_nm": [
+          16750000,
+          49500000
+        ],
+        "diameter_nm": 600000,
+        "drill_nm": 300000,
+        "source": {
+          "native_max_noncolliding_clearance_nm": 313525,
+          "native_min_colliding_clearance_nm": 313526,
+          "physical_overlap": false
+        },
+        "proposed": {
+          "native_max_noncolliding_clearance_nm": 313525,
+          "native_min_colliding_clearance_nm": 313526,
+          "physical_overlap": false
+        },
+        "required_clearance_nm": 200000
+      },
+      "SS_control_endpoints": {
+        "U6_SS_pad_uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "U6_SS_nm": [
+          16749990,
+          46250002
+        ],
+        "C51_SS_pad_uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "C51_SS_nm": [
+          19275000,
+          50125000
+        ],
+        "direct_mm": 4.625071350812223,
+        "C51_is_timing_control_cap_not_selected_supply_bypass": true,
+        "no_supply_bypass_distance_or_current_credit": true,
+        "SS_route_still_must_rebuild_complete_original_native_contacts": true
+      }
+    }
+  ],
+  "board_saved": false,
+  "source_copper_retained": true,
+  "cut_or_route_authority": false,
+  "release_authority": false
+}

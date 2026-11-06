@@ -1,0 +1,1735 @@
+{
+  "schema": 1,
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "source_native_binding": "10c97e130dbd77f157b99b73465b523b481fb32406fd80a947989035e091fe4d",
+  "peer": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack": "beta/assembly/hub-atx-stack.json",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "source_poses": {
+    "U6": [
+      14999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      11000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      12563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      12800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      16924990,
+      47245001,
+      90.0
+    ],
+    "C55": [
+      19450000,
+      48000000,
+      0.0
+    ],
+    "C51": [
+      18500000,
+      50125000,
+      180.0
+    ]
+  },
+  "proposed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "pose_origin_only_old_study": "experiments/busbars/reservoir-repack-20261106/geometry-map-derived-seven.json",
+  "old_study_is_not_current_source_proof": true,
+  "source_copper_retained": true,
+  "board_saved": false,
+  "transport_or_cut_permission": false,
+  "accepted": false,
+  "release_authority": false,
+  "native_courtyards": {
+    "U6": {
+      "bounds_mm": [
+        15.55499,
+        45.705,
+        18.44499,
+        49.095
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              18.44499,
+              45.705
+            ],
+            [
+              18.44499,
+              49.095
+            ],
+            [
+              15.55499,
+              49.095
+            ],
+            [
+              15.55499,
+              45.705
+            ],
+            [
+              18.44499,
+              45.705
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "C9": {
+      "bounds_mm": [
+        12.025,
+        46.305,
+        13.975,
+        49.695
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              13.975,
+              46.305
+            ],
+            [
+              13.975,
+              49.695
+            ],
+            [
+              12.025,
+              49.695
+            ],
+            [
+              12.025,
+              46.305
+            ],
+            [
+              13.975,
+              46.305
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "C27": {
+      "bounds_mm": [
+        13.65899,
+        45.345,
+        15.46899,
+        46.255
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              15.46899,
+              45.345
+            ],
+            [
+              15.46899,
+              46.255
+            ],
+            [
+              13.65899,
+              46.255
+            ],
+            [
+              13.65899,
+              45.345
+            ],
+            [
+              15.46899,
+              45.345
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "R54": {
+      "bounds_mm": [
+        14.335,
+        47.7,
+        15.265,
+        49.55
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              15.265,
+              47.7
+            ],
+            [
+              15.265,
+              49.55
+            ],
+            [
+              14.335,
+              49.55
+            ],
+            [
+              14.335,
+              47.7
+            ],
+            [
+              15.265,
+              47.7
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "C54": {
+      "bounds_mm": [
+        18.46999,
+        47.225,
+        19.37999,
+        49.035
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              19.37999,
+              47.225
+            ],
+            [
+              19.37999,
+              49.035
+            ],
+            [
+              18.46999,
+              49.035
+            ],
+            [
+              18.46999,
+              47.225
+            ],
+            [
+              19.37999,
+              47.225
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "C55": {
+      "bounds_mm": [
+        19.825,
+        47.655,
+        21.775,
+        51.045
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              21.775,
+              47.655
+            ],
+            [
+              21.775,
+              51.045
+            ],
+            [
+              19.825,
+              51.045
+            ],
+            [
+              19.825,
+              47.655
+            ],
+            [
+              21.775,
+              47.655
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    },
+    "C51": {
+      "bounds_mm": [
+        16.825,
+        49.2,
+        19.775,
+        50.65
+      ],
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              19.775,
+              49.2
+            ],
+            [
+              19.775,
+              50.65
+            ],
+            [
+              16.825,
+              50.65
+            ],
+            [
+              16.825,
+              49.2
+            ],
+            [
+              19.775,
+              49.2
+            ]
+          ]
+        ]
+      },
+      "basis": "native_courtyard"
+    }
+  },
+  "same_face_courtyard_collisions": [],
+  "near_courtyards": [
+    {
+      "refs": [
+        "R54",
+        "U6"
+      ],
+      "courtyard_gap_mm": 0.2899899999999995
+    },
+    {
+      "refs": [
+        "C54",
+        "U6"
+      ],
+      "courtyard_gap_mm": 0.024999999999998575
+    },
+    {
+      "refs": [
+        "C27",
+        "U6"
+      ],
+      "courtyard_gap_mm": 0.0860000000000003
+    },
+    {
+      "refs": [
+        "C51",
+        "U6"
+      ],
+      "courtyard_gap_mm": 0.10500000000000398
+    },
+    {
+      "refs": [
+        "C27",
+        "C9"
+      ],
+      "courtyard_gap_mm": 0.04999999999999716
+    },
+    {
+      "refs": [
+        "C51",
+        "C54"
+      ],
+      "courtyard_gap_mm": 0.16500000000000625
+    },
+    {
+      "refs": [
+        "C51",
+        "C55"
+      ],
+      "courtyard_gap_mm": 0.05000000000000071
+    }
+  ],
+  "paired_ok": true,
+  "paired_violations": [],
+  "actual_moved_pad_positions": {
+    "U6": [
+      {
+        "uuid": "a021ea00-3f04-4409-b666-0e4fa56f7081",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "1",
+        "at_nm": [
+          16324990,
+          47075002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "a021ea00-3f04-4409-b666-0e4fa56f7081",
+            "1",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            1,
+            1,
+            [
+              1050000,
+              399999
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16324990,
+              47075002
+            ],
+            0.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "2",
+        "at_nm": [
+          16324990,
+          47775001
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+            "2",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+            1,
+            1,
+            [
+              1050000,
+              399999
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16324990,
+              47775001
+            ],
+            0.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "3",
+        "at_nm": [
+          16249989,
+          48550000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "b8968221-5e84-4875-9738-9832ac8552cf",
+            "3",
+            "GND",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16249989,
+              48550000
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "4",
+        "at_nm": [
+          16749990,
+          48550000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+            "4",
+            "GND",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16749990,
+              48550000
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "5",
+        "at_nm": [
+          17249990,
+          48550000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+            "5",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17249990,
+              48550000
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "6",
+        "at_nm": [
+          17749991,
+          48550000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+            "6",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17749991,
+              48550000
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "7",
+        "at_nm": [
+          17674990,
+          47775001
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+            "7",
+            "+5VSB",
+            1,
+            1,
+            [
+              1050000,
+              399999
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17674990,
+              47775001
+            ],
+            0.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "8",
+        "at_nm": [
+          17674990,
+          47075002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+            "8",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            1,
+            1,
+            [
+              1050000,
+              399999
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17674990,
+              47075002
+            ],
+            0.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "bd80c529-9c38-47a7-9b90-531839cabdba",
+        "kind": "PAD",
+        "net": "unconnected-(U6-ST-Pad9)",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "9",
+        "at_nm": [
+          17749991,
+          46250002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "bd80c529-9c38-47a7-9b90-531839cabdba",
+            "9",
+            "unconnected-(U6-ST-Pad9)",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17749991,
+              46250002
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "10",
+        "at_nm": [
+          17249990,
+          46250002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "ffcf5603-1cac-4757-a686-d15975b73a34",
+            "10",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17249990,
+              46250002
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "11",
+        "at_nm": [
+          16749990,
+          46250002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+            "11",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16749990,
+              46250002
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "U6",
+        "pin": "12",
+        "at_nm": [
+          16249989,
+          46250002
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "c4005992-513a-4a89-bf8d-04ce8889113a",
+            "12",
+            "GND",
+            1,
+            1,
+            [
+              599999,
+              200000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              16249989,
+              46250002
+            ],
+            90.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "C9": [
+      {
+        "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C9",
+        "pin": "1",
+        "at_nm": [
+          13000000,
+          47050000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "5578793c-8793-4a8f-b8df-186dc694a778",
+            "1",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+            1,
+            4,
+            [
+              1000000,
+              1450000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              13000000,
+              47050000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C9",
+        "pin": "2",
+        "at_nm": [
+          13000000,
+          48950000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              1000000,
+              1450000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              13000000,
+              48950000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "C27": [
+      {
+        "uuid": "7be02285-9790-4d29-bdca-078813726555",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C27",
+        "pin": "1",
+        "at_nm": [
+          15043990,
+          45800000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "7be02285-9790-4d29-bdca-078813726555",
+            "1",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+            1,
+            4,
+            [
+              560000,
+              620000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              15043990,
+              45800000
+            ],
+            180.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C27",
+        "pin": "2",
+        "at_nm": [
+          14083990,
+          45800000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              560000,
+              620000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              14083990,
+              45800000
+            ],
+            180.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "R54": [
+      {
+        "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "R54",
+        "pin": "1",
+        "at_nm": [
+          14800000,
+          48115000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "aae66316-dfdf-4650-973e-68a837184b16",
+            "1",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+            1,
+            4,
+            [
+              540000,
+              640000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              14800000,
+              48115000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "R54",
+        "pin": "2",
+        "at_nm": [
+          14800000,
+          49135000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "e70dced9-2010-49dc-938d-bbbe340f6d25",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              540000,
+              640000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              14800000,
+              49135000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "C54": [
+      {
+        "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C54",
+        "pin": "1",
+        "at_nm": [
+          18924990,
+          47650000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "4c19101a-0580-4ef1-b1ed-337484922e80",
+            "1",
+            "+5VSB",
+            1,
+            4,
+            [
+              560000,
+              620000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              18924990,
+              47650000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C54",
+        "pin": "2",
+        "at_nm": [
+          18924990,
+          48610000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              560000,
+              620000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              18924990,
+              48610000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "C55": [
+      {
+        "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C55",
+        "pin": "1",
+        "at_nm": [
+          20800000,
+          48400000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+            "1",
+            "+5VSB",
+            1,
+            4,
+            [
+              1000000,
+              1450000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              20800000,
+              48400000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C55",
+        "pin": "2",
+        "at_nm": [
+          20800000,
+          50300000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              1000000,
+              1450000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              20800000,
+              50300000
+            ],
+            270.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ],
+    "C51": [
+      {
+        "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C51",
+        "pin": "1",
+        "at_nm": [
+          19075000,
+          49925000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+            "1",
+            "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+            1,
+            4,
+            [
+              900000,
+              950000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              19075000,
+              49925000
+            ],
+            180.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      },
+      {
+        "uuid": "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+        "kind": "PAD",
+        "net": "GND",
+        "locked": false,
+        "groups": [],
+        "layers": [
+          0
+        ],
+        "ref": "C51",
+        "pin": "2",
+        "at_nm": [
+          17525000,
+          49925000
+        ],
+        "native_pad_identity": {
+          "identity": [
+            "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+            "2",
+            "GND",
+            1,
+            4,
+            [
+              900000,
+              950000
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              0
+            ],
+            [
+              17525000,
+              49925000
+            ],
+            180.0,
+            0.25,
+            "",
+            ""
+          ],
+          "locked": false,
+          "drill_shape": 1,
+          "layers": [
+            0,
+            1,
+            13
+          ]
+        }
+      }
+    ]
+  }
+}

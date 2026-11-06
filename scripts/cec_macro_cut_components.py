@@ -70,11 +70,26 @@ def requests(parent,private,extras,retired,transport,*,project_contacts,deadline
     if len(by_id)!=len(extras) or not by_id.keys()<=retired or not by_id.keys()<=source.keys():
         raise ValueError('unique_positively_owned_additional_cut_edges_required')
     import cec_source_ground_continuation as continuation
-    ground_kinds={'positive_existing_low_power_ground_boundary',continuation.KIND}
+    import cec_linear_stage_ground_boundary as linear_boundary
+    ground_kinds={'positive_existing_low_power_ground_boundary',continuation.KIND,linear_boundary.KIND}
     accepted={'positive_source_ordinary','unchanged_full_current_source_edge'}|ground_kinds
     graph=pcbnew.CONNECTIVITY_DATA()
     for uid,row in by_id.items():
         tick();edge=source[uid];authority=row['authority']
+        if authority.get('kind')==linear_boundary.KIND:
+            if (not linear_boundary.authority_label(authority)
+                    or not linear_boundary.transport_matches(authority,transport)):
+                raise ValueError('independent_linear_stage_boundary_transport_required')
+            proof=authority['source_linear_stage_ground_boundary']
+            cohort=proof['explicit_selected_source_edge_uuids']
+            for peer in cohort:
+                other=by_id.get(peer,{}).get('authority',{})
+                peer_proof=other.get('source_linear_stage_ground_boundary',{})
+                if (other.get('kind')!=linear_boundary.KIND
+                        or peer_proof.get('explicit_selected_source_edge_uuids')!=cohort
+                        or peer_proof.get('source_proposal_sha256')!=proof['source_proposal_sha256']
+                        or peer_proof.get('independent_native_transport')!=proof['independent_native_transport']):
+                    raise ValueError('complete_same_Source_stage_ground_cut_cohort_required')
         continuation_roots=(continuation.ground_root_authorities(authority)
             if authority.get('kind')==continuation.KIND else None)
         if authority.get('kind')==continuation.KIND:

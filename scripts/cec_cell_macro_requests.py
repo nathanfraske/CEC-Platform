@@ -185,9 +185,9 @@ def observe_compilation_phases(callback):
 
 
 def _phase_budgets(value):
-    if (type(value)not in(list,tuple)or len(value)not in(3,4,6,8)
+    if (type(value)not in(list,tuple)or len(value)not in(3,4,6,8,9)
             or any(type(v)not in(int,float)or not math.isfinite(v)or not 0<v<=10 for v in value)):
-        raise ValueError('three_four_six_or_eight_explicit_bounded_macro_compilation_phases_required')
+        raise ValueError('three_four_six_eight_or_nine_explicit_bounded_macro_compilation_phases_required')
     return list(value)
 
 
@@ -199,6 +199,9 @@ def compilation_phases(phase_budgets=None):
     component inventory, each with its own unchanged-input boundary check.
     """
     count=None if phase_budgets is None else len(_phase_budgets(phase_budgets))
+    if count==9:
+        legacy=compilation_phases(phase_budgets[:8])
+        return (legacy[0],'source_contact_ownership',*legacy[1:])
     if count in(4,6,8):
         phases=(*COMPILATION_PHASES[:2],'canonical_boundary_ownership',COMPILATION_PHASES[2])
         if count==8:
@@ -594,6 +597,15 @@ def _ground_boundary_authority(parent,edge,transport,proposal,deadline):
     return _complete_ground_boundary_typer(parent,transport,proposal,deadline)(edge)
 
 
+def _selected_cap_boundary_deadline(deadline):
+    """Respect the narrower child operation without extending its parent."""
+    now=time.monotonic()
+    if (type(deadline)not in(int,float)or not math.isfinite(deadline)
+            or not now<deadline<=now+10.):
+        raise ValueError('bounded_inherited_ground_boundary_deadline_required')
+    return min(deadline,now+9.7)
+
+
 def _complete_ground_boundary_typer(parent,transport,proposal,deadline):
     """Keep legacy typing; extend only two positively rederived cap scopes.
 
@@ -611,7 +623,8 @@ def _complete_ground_boundary_typer(parent,transport,proposal,deadline):
                         'changed_macro_ground_trunk_not_owned_by_cell_cut:')):
                     raise
                 from cec_selected_cap_ground_boundary import ownership
-                try:proof=ownership(parent,proposal,[force._uid(edge)],deadline=deadline)
+                try:proof=ownership(parent,proposal,[force._uid(edge)],
+                    deadline=_selected_cap_boundary_deadline(deadline))
                 except ValueError as fresh_failure:raise original from fresh_failure
                 return proof['extras'][0]['authority']
         finally:legacy.validate_source_inputs()
@@ -619,10 +632,11 @@ def _complete_ground_boundary_typer(parent,transport,proposal,deadline):
 
 
 def _extra_ownership(parent,source,transport,proposal,deadline,held_factory_pickups=(),*,max_edges=8,
-                     max_source_track_mm=8.):
+                     max_source_track_mm=8.,native_transport_options=None):
     """Legacy scopes consume both operations inside their ONE original lease."""
     steps=_extra_ownership_steps(parent,source,transport,proposal,deadline,held_factory_pickups,
-        max_edges=max_edges,max_source_track_mm=max_source_track_mm)
+        max_edges=max_edges,max_source_track_mm=max_source_track_mm,
+        native_transport_options=native_transport_options)
     next(steps)
     return _finish_extra_ownership(steps,deadline)
 
@@ -639,7 +653,7 @@ def _finish_extra_ownership(steps,deadline):
 
 
 def _extra_ownership_steps(parent,source,transport,proposal,deadline,held_factory_pickups=(),*,max_edges=8,
-                     max_source_track_mm=8.):
+                     max_source_track_mm=8.,native_transport_options=None):
     """Two fixed operations, only explicitly composed by eight-stage compile.
 
     The suspended local frame is not an ownership certificate or an input
@@ -659,6 +673,7 @@ def _extra_ownership_steps(parent,source,transport,proposal,deadline,held_factor
     initial=row._source_binding(parent);epoch=force._code_identity()
     family_source=Path(parent.GetFileName()).resolve();family=force._family(family_source,proposal['board_hint'])
     proposal_snapshot=copy.deepcopy(proposal);original_transport=copy.deepcopy(transport);held=copy.deepcopy(held_factory_pickups)
+    original_transport_options=copy.deepcopy(native_transport_options)
     import cec_source_ground_leaf as canonical_ground
     root=canonical_ground.source_nc._root(parent,proposal['board_hint']);canonical_files={};legacy_role_files={}
     if root is not None:
@@ -668,6 +683,7 @@ def _extra_ownership_steps(parent,source,transport,proposal,deadline,held_factor
         if (initial!=row._source_binding(parent)or epoch!=force._code_identity()
                 or family!=force._family(family_source,proposal['board_hint'])
                 or proposal!=proposal_snapshot or transport!=original_transport or held_factory_pickups!=held
+                or native_transport_options!=original_transport_options
                 or any(force._hash(Path(p))!=sha for p,sha in [*canonical_files.items(),*legacy_role_files.items()])):
             raise ValueError('macro_boundary_ownership_live_inputs_changed')
     live={force._uid(t):t for t in parent.GetTracks()}
@@ -740,15 +756,58 @@ def _extra_ownership_steps(parent,source,transport,proposal,deadline,held_factor
         if pending:
             # Original singleton cut/retained-port scope, fresh Source
             # proposal recompile, no supplied proof or union-cut shortcut.
-            from cec_selected_cap_ground_boundary import single_edge_ownerships
             ids=[extras[index]['change']['uuid']for index,_ in pending]
-            try:derived=single_edge_ownerships(parent,proposal,ids,deadline=deadline)
+            try:derived=_pending_ground_ownership(parent,proposal,ids,transport,
+                deadline=_selected_cap_boundary_deadline(deadline),
+                native_transport_options=native_transport_options)
             except ValueError as failure:raise pending[0][1] from failure
             by_uid={q['change']['uuid']:q['authority']for q in derived}
             for index,_ in pending:
                 extras[index]['authority']=by_uid[extras[index]['change']['uuid']]
         return extras
     finally:check()
+
+
+def _pending_ground_ownership(parent,proposal,ids,transport,*,deadline,native_transport_options):
+    """Separate Source-stage contacts from the old selected-cap extension.
+
+    Contact geometry selects a checker, never grants ownership. Each checker
+    rederives its own complete Source, current and literal contact evidence.
+    A power stage never silently becomes a legacy low-power Ground owner.
+    """
+    from cec_selected_cap_ground_boundary import single_edge_ownerships
+    import cec_linear_stage_ground_boundary as linear_boundary
+    live={force._uid(t):t for t in parent.GetTracks()}
+    stage_refs=set(proposal.get('source_linear_power_stages',{}))
+    pads=[p for f in parent.GetFootprints()if f.GetReference()in stage_refs
+        for p in f.Pads()if p.GetNetname()=='GND']
+    selected=[];linear=[]
+    for uid in ids:
+        edge=live[uid];face=int(edge.GetLayer())
+        moving_stage_contact=any(p.IsOnLayer(face)
+            and edge.GetEffectiveShape(face).Collide(p.GetEffectiveShape(face),0)for p in pads)
+        (linear if moving_stage_contact else selected).append(uid)
+    result=[]
+    if linear:
+        if native_transport_options is None:
+            raise ValueError('independent_Source_stage_transport_intents_required')
+        consent=([uid for uid in linear if live[uid].IsLocked()]
+            if proposal.get('allow_owned_locked_escapes')is True else [])
+        # Adjacent changed stage straps are one explicit cut cohort. Prove
+        # every edge together so a peer cut is not fabricated as retained
+        # copper. The component consumer requires the complete same cohort.
+        derived=linear_boundary.ownership(parent,proposal,linear,
+            deadline=_selected_cap_boundary_deadline(deadline),allow_locked_track_uuids=consent,
+            native_transport_options=native_transport_options)['extras']
+        if any(not linear_boundary.transport_matches(q['authority'],transport)for q in derived):
+            raise ValueError('independent_Source_stage_transport_frame_changed')
+        result.extend(derived)
+    if selected:
+        result.extend(single_edge_ownerships(parent,proposal,selected,
+            deadline=_selected_cap_boundary_deadline(deadline)))
+    if len(result)!=len(ids)or {q['change']['uuid']for q in result}!=set(ids):
+        raise ValueError('complete_disjoint_ground_boundary_roles_required')
+    return result
 
 
 def _retained_ground_dogbones(parent,private,transport):
@@ -1114,10 +1173,16 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
     def same_live_inputs():
         return (epoch==force._code_identity()and family==force._family(source,board_hint)
             and parent_binding==row._source_binding(parent))
-    proposal=escape.prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
+    prepare=escape.prepare
+    phase_options={}
+    if len(leases.phases)==9:
+        prepare=escape._prepare_split_source
+        phase_options=dict(deadline=deadline,
+            advance=lambda:leases.advance('source_contact_ownership',same_live_inputs))
+    proposal=prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
         allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
         allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,
-        source_rc_input_prefixes=source_rc_input_prefixes,
+        source_rc_input_prefixes=source_rc_input_prefixes,**phase_options,
         **(dict(aggregate_capacitor_max_shift_mm=aggregate_capacitor_max_shift_mm)
             if aggregate_capacitor_max_shift_mm is not None else {}),
         **(dict(allow_linear_power_stage_reconstruction=True)
@@ -1153,9 +1218,14 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
     # the base cut stays capped at 64, the composite cut at 64+64, and
     # the total constructive request count remains capped at 64.
     boundary_work=({'max_source_track_mm':max_obstacle_track_mm}if max_obstacle_track_mm!=8. else {})
-    if len(leases.phases)in(4,6,8):
+    if allow_linear_power_stage_reconstruction:
+        boundary_work['native_transport_options']=dict(reuse_ground_barrels=reuse_ground_barrels,
+            ordinary_via_poses=ordinary_via_poses,stationary_ground_barrel_uuids=stationary_ground_barrel_uuids,
+            local_signal_port_offsets=local_signal_port_offsets,
+            control_shunt_ground_return_axes=control_shunt_ground_return_axes)
+    if len(leases.phases)in(4,6,8,9):
         deadline=leases.advance('canonical_boundary_ownership',same_live_inputs)
-    if len(leases.phases)==8:
+    if len(leases.phases)in(8,9):
         boundary_steps=_extra_ownership_steps(parent,source,transport,proposal,deadline,retained_pickups,
             max_edges=min(64,8*len(poses)),**boundary_work)
         if next(boundary_steps)!='canonical_ground_multiport_boundary':
@@ -1285,7 +1355,7 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
                 # never omitted merely because another path might reach it.
                 if not found:
                     raise ValueError('fixed_supply_throat_moved_contact_restoration_missing')
-    if len(leases.phases)in(6,8):
+    if len(leases.phases)in(6,8,9):
         deadline=leases.advance('independent_ground_endpoint_obligations',same_live_inputs)
     ground_barrels=[q for q in transport['source_process_barrel_motion'] if old[q['uuid']].GetNetname()=='GND']
     ground_proposal=copy.deepcopy(proposal);ground_proposal['retired_track_uuids']=sorted(retired)
@@ -1294,7 +1364,7 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
         additional_source_ground_cut_rows=[q for q in extras if q.get('authority',{}).get('kind')in
             ('positive_existing_low_power_ground_boundary','positive_source_low_power_ground_continuation')])
     requests.update(cut_ground)
-    if len(leases.phases)in(6,8):
+    if len(leases.phases)in(6,8,9):
         deadline=leases.advance('complete_component_inventory',same_live_inputs)
     import cec_stationary_owner_ground_obligations as stationary_ground
     requests=stationary_ground.merge(requests,

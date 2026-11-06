@@ -674,6 +674,13 @@ class Workbench:
             all(op.get("kind") in CAPABILITIES for op in operations),
             "only_independently_received_construction_kinds_are_exposed",
         )
+        from . import cells
+        for operation in operations:
+            if operation.get("kind") == "place_cell":
+                cells.source_boundary_span_option(operation)
+            else:
+                require("max_source_boundary_span_nm" not in operation,
+                        "source_boundary_span_requires_native_macro")
         require(target_issue_ids is None or type(target_issue_ids) is list
                 and len(target_issue_ids) <= 32
                 and all(type(key) is str and len(key) == 64 for key in target_issue_ids)

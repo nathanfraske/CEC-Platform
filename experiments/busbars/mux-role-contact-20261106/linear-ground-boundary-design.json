@@ -1,0 +1,104 @@
+{
+  "scope": "read_only_minimal_linear_stage_Ground_boundary_integration_design",
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "evidence": [
+    "experiments/busbars/mux-role-contact-20261106/compile-span12-v1.json",
+    "experiments/busbars/mux-role-contact-20261106/contacts.json",
+    "experiments/busbars/mux-role-contact-20261106/landings.json",
+    "fresh native Source/project inspection and complete canonical stage.collect, externally bounded to 10 seconds; 2.06 seconds wall time"
+  ],
+  "observed_blocker": {
+    "error": "changed_macro_ground_boundary_has_unowned_land:b8968221-5e84-4875-9738-9832ac8552cf",
+    "reference_pin": "U6.3",
+    "reason": "legacy _ground_boundary_typer does not own a moving proven linear-stage control land; this is not missing manufacturer identity"
+  },
+  "fresh_source_facts": {
+    "Ground_project_class": "Default",
+    "Ground_authored_track_width_nm": 200000,
+    "native_board_min_track_width_nm": 200000,
+    "width_conclusion": "All inspected U6.3/.4/.12 incident Ground tracks are exactly the current literal Source class floor. No width waiver is needed for these tracks.",
+    "DRU_rules": [
+      "CEC_LOCAL_POFV_SIGNAL_VIA grouped vias: diameter 0.300, drill 0.200, annular 0.050 mm minimum",
+      "CEC_LOCAL_ENDPOINT_NECKDOWN grouped tracks: 0.200 mm minimum"
+    ],
+    "DRU_conclusion": "The inspected Ground ties are ungrouped, so neither grouped exception grants them authority.",
+    "pins": {
+      "3": {"function": "CP2", "canonical_type": "input", "manufacturer_role": "control", "net": "GND", "functional_ground_return": false},
+      "4": {"function": "OV2", "canonical_type": "input", "manufacturer_role": "control", "net": "GND", "functional_ground_return": false},
+      "12": {"function": "GND", "canonical_type": "power_in", "manufacturer_role": "ground", "net": "GND", "functional_ground_return": true}
+    },
+    "incident_tracks": {
+      "3": ["0b418030-3055-4204-9d78-d31bda5ba5f9", "26c27aab-ab75-4f45-b93a-dbbb532a973d", "5aa894fc-70de-4df8-9f7d-0c752203d214"],
+      "4": ["26c27aab-ab75-4f45-b93a-dbbb532a973d"],
+      "12": ["b3634c11-95f9-46f5-bbda-540a1c919c03"]
+    },
+    "all_listed_tracks_locked": true,
+    "all_listed_tracks_ungrouped": true,
+    "barrels": {
+      "72f21f4f-d1e3-487e-afb5-0ca3007fe56c": {
+        "Source_contact_owner": "U6.3",
+        "diameter_drill_nm": [500000, 300000],
+        "original_all_layer_contacts": ["0b418030-3055-4204-9d78-d31bda5ba5f9", "5aa894fc-70de-4df8-9f7d-0c752203d214", "28fb1d19-c582-4c57-aaf1-e0c9341b8a02", "d973fe53-5c88-47cd-9e60-63dafba1de54"],
+        "rigid_projected_axis_nm": [16428239, 49221751]
+      },
+      "c37ec792-b1a4-49b0-a937-7aee674d5d28": {
+        "Source_contact_owner": "U6.12",
+        "diameter_drill_nm": [500000, 300000],
+        "original_all_layer_contacts": ["b3634c11-95f9-46f5-bbda-540a1c919c03", "28fb1d19-c582-4c57-aaf1-e0c9341b8a02", "d973fe53-5c88-47cd-9e60-63dafba1de54"],
+        "rigid_projected_axis_nm": [15861080, 45861093]
+      }
+    },
+    "barrel_inventory_limit": "contacts.json is a read-only actual-contact ledger, not transport, cut, landing or saved-receiver acceptance"
+  },
+  "minimal_integration": [
+    {
+      "module": "scripts/cec_linear_stage_ground_boundary.py",
+      "change": "Reuse the distinct positive_existing_Source_linear_stage_ground_boundary KIND and existing full fresh TPS2121/current/selected-minima derivation. Do not add the owner to low-power aliases.",
+      "keep": "CP2/OV2 remain grounded control inputs; only pin12 remains a functional manufacturer Ground root. Preserve every Source contact and all three full power-domain contracts. The role supplies no Ground ampacity or input/output current allocation."
+    },
+    {
+      "module": "scripts/cec_linear_stage_ground_boundary.py",
+      "change": "Add strict default-empty exact locked-track UUID consent following cec_ground_dead_end_tail. Require every and only selected locked edge; bind unchanged UUID/geometry/net/width/lock state and independently rederive the scope during receiving. Never unlock or acquire adjacent metal.",
+      "keep": "Exact literal Source class width, bounded short surface tracks, positive native typed material roots, unsupported artwork/fill refusals and no arbitrary trunk ownership. Do not use the global low-power width ceiling as a new width exception."
+    },
+    {
+      "module": "scripts/cec_cell_macro_requests.py::_extra_ownership_steps",
+      "change": "When a Ground edge belongs to a freshly proven moving linear stage, batch its exact Source edges through the distinct linear-stage helper rather than legacy _ground_boundary_typer. Keep selected-cap, additional-cap, low-power and continuation families disjoint. Preserve union ownership and singleton independently received cut semantics.",
+      "keep": "A Source failure from the new family must not fall back to a net-name, low-power or generic Ground authority."
+    },
+    {
+      "module": "scripts/cec_cell_macro_requests.py::_project_port and scripts/cec_smd_macro_transport.py::apply",
+      "change": "Compose boundary contact obligations with the separately freshly rederived Source-process barrel motion. A boundary proof must not assert a moved contact is immutable, or grant transport itself. Existing unchanged-barrel-only helper behavior remains a separate strict tier; a transport-aware tier must require the independent exact actual-frame proof, not a boolean waiver.",
+      "keep": "Original barrel UUID, net, padstack/layer IDs, dimensions/count, complete actual Source ownership, same owner/dogbone, actual destination POFV proof and exact projected contact. A same-net nearby barrel or a proposed axis is not a receipt."
+    },
+    {
+      "module": "scripts/cec_cell_ground_cut_boundaries.py::requests and scripts/cec_macro_cut_components.py",
+      "change": "Explicitly rederive the new authority family for its exact cuts and pass it through component/contact restoration composition. Do not only append KIND to the low-power whitelist. Restore every original Ground partition, every detached native boundary and both original filled-plane destinations after refill, including carried barrel ports.",
+      "keep": "Separate .8 mm immediate functional Ground obligations, unchanged Source widths, full native partition receiving and no inferred sharing or barrel capacity. Grounded controls retain their own literal connection obligations without being promoted to current-return roots."
+    }
+  ],
+  "factory_transport_receipt_requirements": [
+    "Fresh source_process_barrel_motion from literal Source and actual posed frame, independently rerun by saved receiving; no trust in contact-study or worker packet booleans.",
+    "source_local_POFV_reproved plus candidate_local_POFV_reproved; exact same Source owner, complete contained land or actual Source dogbone; preserved original geometry/count and approved relative owner seat, or a distinct explicit seat proof.",
+    "All originally contacting tracks and zones remain mandatory. Source-process permission does not prove endpoint connectivity, all-layer clearance, hole spacing, field/current, filled-plane access, Kelvin or native DRC.",
+    "_retained_ground_dogbones may preserve a complete exact factory pickup without retirement only after both actual Source and destination dogbone matching. It must not absorb the shared CP2/OV2 strap or claim unrelated Source edges.",
+    "pre_refill_barrel_screen and full native_pose_screen remain required; followed by exact saved whole-source receiving with current, Ground and force/sense preservation."
+  ],
+  "lease_issue": {
+    "observed": "compile-span12-v1 selected-cap fallback raises selected_cap_ground_inherited_bounded_lease_required before the original unowned-land error is reraised. Linear helper also caps the inherited lease at now+9.7, while compiler phase starts at up to now+10.",
+    "minimal_correction": "Call these existing helpers with min(original_phase_deadline, now+9.7). This tightens their sublease; never extends or resets the ordered phase."
+  },
+  "focused_regressions": [
+    "Actual CP2/OV2 input controls sharing a locked class-width Ground tie are positively typed only under fresh complete Source stage opt-in; both remain non-current control roles.",
+    "Exact locked consent: absent, unrelated, stale geometry, wrong net, duplicate and omitted locked UUID refuse on constructor and fresh receiver.",
+    "A width unequal to the literal Source floor still refuses; missing grouped DRU permission cannot be invented. This c4 case requires no width exception.",
+    "Retain every second track/body contact and full original plane/partition inventory; refuse missing fill, new artwork contact, foreign land or unowned branch.",
+    "Stationary-barrel tier rejects any motion. Transport-composed tier refuses missing/forged/stale receipt, wrong owner, changed diameter/drill/layers/count, wrong seat or missing Source/destination POFV evidence.",
+    "Full saved receiving reruns typed boundary and actual transport independently; neither a compiler prefix nor zero DRC opens authorizes the result."
+  ],
+  "board_edited": false,
+  "production_code_edited": false,
+  "admission_authority": false,
+  "release_authority": false
+}

@@ -163,6 +163,13 @@ for _cell_variant in (_old_cell, _OPERATIONS[-1]):
         required=[*_cell_variant["required"], "allow_linear_power_stage_reconstruction"],
         additionalProperties=False))
 
+# Optional native-only work span; preserve the old closed alternatives and
+# their required fields. Omission retains the original 8-mm compiler default.
+_SOURCE_BOUNDARY_SPAN = dict(type="integer", minimum=1, maximum=32000000, default=8000000)
+for _cell_variant in _OPERATIONS:
+    if _cell_variant["properties"]["kind"]["const"] == "place_cell" and "native_macro" in _cell_variant["properties"]:
+        _cell_variant["properties"]["max_source_boundary_span_nm"] = dict(_SOURCE_BOUNDARY_SPAN)
+
 TOOL_PARAMETERS = {
     "boards": {},
     "inspect": {

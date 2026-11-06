@@ -24,6 +24,17 @@ def linear_stage_option(operation):
     return value
 
 
+def source_boundary_span_option(operation):
+    """Explicit native work reach only; never ownership or current credit."""
+    name = "max_source_boundary_span_nm"
+    value = operation.get(name, 8_000_000)
+    require(type(value) is int and 1 <= value <= 32_000_000,
+            "bounded_explicit_source_boundary_span_required")
+    require(name not in operation or operation.get("native_macro") is True,
+            "source_boundary_span_requires_native_macro")
+    return value
+
+
 def normalize_poses(values, *, limit=8):
     require(type(limit) is int and 1 <= limit <= 32, "bounded_pose_inventory_required")
     require(
@@ -52,6 +63,8 @@ def plan(board, operation, board_hint):
     import cec_cell_escape_replan as escape
 
     linear_stage = linear_stage_option(operation)
+    require("max_source_boundary_span_nm" not in operation,
+            "source_boundary_span_requires_native_macro")
     uid = lambda item: str(item.m_Uuid.AsString())
     poses = normalize_poses(operation["poses"])
     footprints = {fp.GetReference(): fp for fp in board.GetFootprints()}
@@ -261,6 +274,7 @@ def construct(board, operation, *, board_hint, request):
     import cec_cell_escape_replan as escape
 
     linear_stage_option(operation)
+    source_boundary_span_option(operation)
     require(
         not operation.get("vias"),
         "new_barrels_require_add_connections_before_connected_pose_reconstruction",
@@ -280,6 +294,7 @@ def construct(board, operation, *, board_hint, request):
             "native_macro",
             "allow_locked_transport_uuids",
             "allow_linear_power_stage_reconstruction",
+            "max_source_boundary_span_nm",
         }
         and {
             "kind",
@@ -343,6 +358,7 @@ def compile_macro(board, operation, board_hint, *, enforce_locks=True):
     import pcbnew
     import cec_cell_row_rebuild as row
     linear_stage = linear_stage_option(operation)
+    boundary_span = source_boundary_span_option(operation)
     require(row._source_binding(board)==row._source_binding(
         pcbnew.LoadBoard(str(board.GetFileName()))), "native_macro_requires_exact_saved_source")
     poses = normalize_poses(operation["poses"])
@@ -365,8 +381,9 @@ def compile_macro(board, operation, board_hint, *, enforce_locks=True):
         # scope. Caller consent is checked per fresh ID below; it must never
         # choose a different ownership model by being empty/nonempty.
         timeout_s=10., allow_owned_locked_escapes=True,
+        max_obstacle_track_mm=boundary_span / 1e6,
         reference_group_uuids=operation.get("reference_group_uuids", ()),
-        compilation_phase_timeouts_s=(10.,)*8,
+        compilation_phase_timeouts_s=(10.,)*(9 if linear_stage else 8),
         allow_linear_power_stage_reconstruction=linear_stage)
     require(packet.get("schema") == 1 and packet.get("scope") ==
             "source_typed_complete_native_macro_requests", "typed_native_macro_packet_required")
@@ -405,6 +422,7 @@ def preview(source, operation, board_hint):
     import pcbnew
     import cec_cell_escape_replan as escape
 
+    source_boundary_span_option(operation)
     parent = pcbnew.LoadBoard(str(source))
     require(type(operation.get("native_macro", False)) is bool,
             "explicit_native_macro_boolean_required")
@@ -440,6 +458,7 @@ def receive_macro(source, candidate, operation, record, board_hint):
     import pcbnew
     import cec_complete_macro_cell as receiving
     linear_stage = linear_stage_option(operation)
+    boundary_span = source_boundary_span_option(operation)
     require(operation.get("native_macro") is True, "explicit_native_macro_mode_required")
     _, packet, transported = compile_macro(pcbnew.LoadBoard(str(source)), operation, board_hint)
     require(record.get("native_macro_packet_version") == 1
@@ -449,8 +468,9 @@ def receive_macro(source, candidate, operation, record, board_hint):
     return receiving.receive(source,candidate,board_hint=board_hint,timeout_s=10.,
         max_shift_mm=operation.get("max_shift_nm",6000000)/1e6,
         allow_owned_locked_escapes=True,
+        max_obstacle_track_mm=boundary_span / 1e6,
         reference_group_uuids=operation.get("reference_group_uuids",()),
-        compilation_phase_timeouts_s=(10.,)*8,
+        compilation_phase_timeouts_s=(10.,)*(9 if linear_stage else 8),
         native_pose_phase_timeouts_s=(10.,)*3,
         pose_selection_phase_timeouts_s=(10.,)*4,
         allow_linear_power_stage_reconstruction=linear_stage)

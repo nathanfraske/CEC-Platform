@@ -12,7 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 
 import pcbnew
 import cec_cell_row_rebuild as row
@@ -101,21 +101,9 @@ def prepare(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_esca
         raise ValueError('bounded_complete_cell_poses_required')
     aggregate_cap_shift_bound(aggregate_capacitor_max_shift_mm)
     shared_supply_root_pad_uuids=shared_fork.supply_root_ids(shared_supply_root_pad_uuids)
-    import cec_source_device_pinmap as source_pinmap
-    import cec_source_linear_power_stage as source_stage
-    import cec_source_ground_leaf as canonical_source
-    # Observation reuse is an optimization, not a new admission precondition
-    # for an ordinary cell whose opt-in discovers no power stage. Each real
-    # positive stage/capacitor role still independently requires its Source.
-    source_observation = (allow_linear_power_stage_reconstruction
-        and canonical_source.source_nc._root(board,board_hint) is not None)
-    with (force._thermal_hint(board_hint) if allow_linear_power_stage_reconstruction else nullcontext()), \
-            source_pinmap.observation_scope(board,board_hint=board_hint,timeout_s=10.), \
-            (canonical_source.observation_scope(board,board_hint=board_hint,timeout_s=10.)
-                if source_observation else nullcontext()), \
-            (source_stage.observation_scope(board,poses,board_hint=board_hint,
-                reference_group_uuids=reference_group_uuids,
-                enabled=True,timeout_s=10.) if source_observation else nullcontext()):
+    with _source_observations(board,poses,board_hint=board_hint,
+            reference_group_uuids=reference_group_uuids,
+            enabled=allow_linear_power_stage_reconstruction):
         return _prepare_source(board,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
             allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
             allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,
@@ -124,6 +112,64 @@ def prepare(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_esca
             allow_linear_power_stage_reconstruction=allow_linear_power_stage_reconstruction,
             **(dict(shared_supply_root_pad_uuids=shared_supply_root_pad_uuids)
                 if shared_supply_root_pad_uuids else {}))
+
+
+@contextmanager
+def _source_observations(board,poses,*,board_hint,reference_group_uuids=(),enabled=False):
+    import cec_source_device_pinmap as source_pinmap
+    import cec_source_linear_power_stage as source_stage
+    import cec_source_ground_leaf as canonical_source
+    # Observation reuse is an optimization, not a new admission precondition
+    # for an ordinary cell whose opt-in discovers no power stage. Each real
+    # positive stage/capacitor role still independently requires its Source.
+    source_observation = (enabled
+        and canonical_source.source_nc._root(board,board_hint) is not None)
+    with (force._thermal_hint(board_hint) if enabled else nullcontext()), \
+            source_pinmap.observation_scope(board,board_hint=board_hint,timeout_s=10.), \
+            (canonical_source.observation_scope(board,board_hint=board_hint,timeout_s=10.)
+                if source_observation else nullcontext()), \
+            (source_stage.observation_scope(board,poses,board_hint=board_hint,
+                reference_group_uuids=reference_group_uuids,
+                enabled=True,timeout_s=10.) if source_observation else nullcontext()):
+        yield
+
+
+def _finish_source_contacts(steps):
+    """Only this invocation's suspended derivation can finish its contacts."""
+    import inspect
+    if (not inspect.isgenerator(steps)or steps.gi_code is not _prepare_source_steps.__code__
+            or inspect.getgeneratorstate(steps)!=inspect.GEN_SUSPENDED):
+        raise ValueError('fresh_private_Source_role_continuation_required')
+    try:next(steps)
+    except StopIteration as result:return result.value
+    finally:steps.close()
+    raise ValueError('single_Source_role_contact_boundary_required')
+
+
+def _prepare_split_source(board,poses,*,board_hint,deadline,advance,**options):
+    """Two explicit bounded operations; no persisted/caller role admission.
+
+    Close every observation scope before the compiler changes leases. The
+    generator is private, and the entire live input/role frame is rechecked
+    before fresh contact scopes begin. Legacy prepare retains one operation.
+    """
+    import cec_source_role_handoff as handoff
+    if not callable(advance):raise ValueError('ordered_Source_contact_phase_required')
+    steps=_prepare_source_steps(board,poses,board_hint=board_hint,**options)
+    context=dict(board_hint=board_hint,reference_group_uuids=options.get('reference_group_uuids',()),
+        enabled=options.get('allow_linear_power_stage_reconstruction',False))
+    try:
+        with _source_observations(board,poses,**context):role_frame=next(steps)
+        snapshot=handoff.capture(board,poses,board_hint=board_hint,roles=role_frame,
+            options=options,deadline=deadline)
+        contact_deadline=advance()
+        handoff.assert_same(snapshot,board,poses,board_hint=board_hint,roles=role_frame,
+            options=options,deadline=contact_deadline)
+        with _source_observations(board,poses,**context):
+            result=_finish_source_contacts(steps)
+        if time.monotonic()>=contact_deadline:raise ValueError('Source_contact_ownership_deadline')
+        return result
+    finally:steps.close()
 
 
 def _stationary_bypass_owner_context(board, poses, by_cap):
@@ -168,6 +214,22 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
             source_rc_input_prefixes=(),aggregate_capacitor_max_shift_mm=None,
             allow_linear_power_stage_reconstruction=False,shared_supply_root_pad_uuids=()):
     """Derive ownership and ALL changed source contacts before any mutation."""
+    steps=_prepare_source_steps(board,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
+        allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
+        allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,
+        source_rc_input_prefixes=source_rc_input_prefixes,aggregate_capacitor_max_shift_mm=aggregate_capacitor_max_shift_mm,
+        allow_linear_power_stage_reconstruction=allow_linear_power_stage_reconstruction,
+        shared_supply_root_pad_uuids=shared_supply_root_pad_uuids)
+    try:
+        next(steps)
+        return _finish_source_contacts(steps)
+    finally:steps.close()
+
+
+def _prepare_source_steps(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_locked_escapes=False,
+            rebuild_projected_ground=False,allow_octilinear_rotations=False,reference_group_uuids=(),
+            source_rc_input_prefixes=(),aggregate_capacitor_max_shift_mm=None,
+            allow_linear_power_stage_reconstruction=False,shared_supply_root_pad_uuids=()):
     aggregate_cap_shift_bound(aggregate_capacitor_max_shift_mm)
     shared_supply_root_pad_uuids=shared_fork.supply_root_ids(shared_supply_root_pad_uuids)
     if (type(poses) is not dict or not 1 <= len(poses) <= 8
@@ -256,6 +318,16 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
             if any(fresh.get(ref)!=proof for ref,proof in linear_stages.items()):
                 raise ValueError('fresh_coherent_programming_stage_replay_changed')
             linear_stages=fresh
+    # Substantive seam: all Source roles are known, literal native contact
+    # ownership has not begun. No observation context spans this yield.
+    yield dict(binding=binding,prefix_requests=prefix_requests,control_shunts=control_shunts,
+        control_pullups=control_pullups,control_gate_biases=control_gate_biases,
+        programming_resistors=programming_resistors,timing_caps=timing_caps,series_links=series_links,
+        signal_biases=signal_biases,protected=sorted(protected),
+        by_cap={ref:[{key:({'native_pad_uuid':force._uid(value)}
+            if key in ('pad','return_pad')and value is not None else value)
+            for key,value in req.items()}for req in reqs]for ref,reqs in by_cap.items()},
+        stationary_context=stationary_context,additional_caps=additional_caps,linear_stages=linear_stages)
     # A wired bypass may slide without cutting any Source metal. This is a
     # separate positive tier, NOT a relaxed unwired/projected-return test:
     # every original surface contact and every independent full-width
@@ -1053,6 +1125,18 @@ def obligations(source, board, proposal):
 
 
 def _obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
+    # Each independent Source consumer still derives its own role/contact
+    # proof. Reuse only immutable observations within this one bounded
+    # operation; no prepare/frame scope or cached caller proof is carried in.
+    context=(_source_observations(source,proposal['poses'],board_hint=proposal['board_hint'],
+        reference_group_uuids=proposal.get('reference_group_uuids',()),enabled=True)
+        if proposal.get('allow_linear_power_stage_reconstruction')is True else nullcontext())
+    with context:
+        return _derive_obligations(source,board,proposal,
+            composed_supply_fork_tracks=composed_supply_fork_tracks)
+
+
+def _derive_obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
     """Restore external boundaries, not obsolete bends under moved pads."""
     # Only the complete macro compiler uses this internal composition path.
     # Its fresh same-contract union replaces the fork's whole contact tree,
@@ -1662,7 +1746,8 @@ def _typed_macro_ground_scope(request):
         # compiler/receiver still rederive exact ownership and all returns.
         import cec_aggregate_cap_ground_leaf as aggregate_ground
         import cec_wired_aggregate_ground_leaf as wired_ground
-        aggregate_type = next((helper for helper in (aggregate_ground, wired_ground)
+        import cec_linear_stage_ground_boundary as linear_boundary
+        aggregate_type = next((helper for helper in (aggregate_ground, wired_ground,linear_boundary)
             if type(authority) is dict and authority.get('kind') == helper.KIND), None)
         if aggregate_type is not None:
             if not aggregate_type.authority_label(authority):return None

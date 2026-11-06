@@ -74,13 +74,13 @@ def worker():
     print('CEC_RESULT='+json.dumps(result,separators=(',',':')))
 
 
-def bounded_compile(command):
+def bounded_compile(command,*,phases=None):
     """Hard ten-second process deadline per existing ordered compiler phase.
 
     A valid new phase starts a new lease; chatter and repeated phase starts
     never extend one. No native call is interrupted by a Python signal handler.
     """
-    phases=('source_ownership','native_frame_and_cuts','canonical_boundary_ownership',
+    phases=phases or ('source_ownership','native_frame_and_cuts','canonical_boundary_ownership',
         'canonical_ground_multiport_boundary','canonical_boundary_composition',
         'complete_endpoint_obligations','independent_ground_endpoint_obligations',
         'complete_component_inventory')

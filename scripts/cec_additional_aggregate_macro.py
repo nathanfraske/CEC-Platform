@@ -353,7 +353,10 @@ def _requests(parent, child, proposal, roles, deadline):
                     'wired_aggregate_only_separately_owned_supply_cuts')
                 plan = cap.full.plan(parent, Path(proof['source']), board_hint=proposal['board_hint'],
                     retired_track_uuids=[uid], timeout_s=_left(deadline))
-                _need(plan['contract'] == proof['aggregate_contract']
+                # Roles are stable JSON receipts; the native planner still
+                # returns tuple-valued layer/ref inventories. Compare the
+                # same representation, not a weakened subset of the rating.
+                _need(_wire(plan['contract']) == proof['aggregate_contract']
                     and plan['source_sha256'] == proof['source_sha256'],
                     'wired_aggregate_same_full_current_cut_authority_required')
                 current_cuts.append(plan)
