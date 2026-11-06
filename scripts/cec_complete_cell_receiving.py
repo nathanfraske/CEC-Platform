@@ -250,10 +250,18 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
             selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         if additional:
+            # Preflight work selection only. Missing edges are NOT ownership
+            # evidence: full-current roles are rederived here, and the later
+            # complete saved macro replay must own every literal deletion.
+            current_work={}
+            if allow_linear_power_stage_reconstruction:
+                live_ids={force._uid(t)for t in child.GetTracks()}
+                current_work['composed_current_cut_uuids']=[force._uid(t)for t in parent.GetTracks()
+                    if t.GetClass()=='PCB_TRACK'and force._uid(t)not in live_ids]
             aggregate_caps.requests(parent,child,dict(poses=actual,additional_aggregate_capacitors=additional,
                 additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|programming_refs|set(series_links)|set(timing_caps)),
                 board_hint=hint,reference_group_uuids=reference_group_uuids,
-                allow_owned_locked_escapes=True,**stage_options))
+                allow_owned_locked_escapes=True,**stage_options),**current_work)
         refs|=set().union(*passive_roles)
     else:
         lease.advance('source_passive_role_requests')
@@ -501,8 +509,13 @@ def _receive_paths(parent,child,requests,incoming,hint,deadline,*,received_barre
             independent_saved_native_paths=alias_paths))
     if source_proposal is not None and source_proposal.get('additional_aggregate_capacitors'):
         import cec_additional_aggregate_macro as aggregate_caps
+        current_work={}
+        if source_proposal.get('allow_linear_power_stage_reconstruction')is True and source_macro_packet is not None:
+            current_work['composed_current_cut_uuids']=[r['change']['uuid']for r in
+                source_macro_packet['additional_source_boundary_ownership']
+                if r['authority']['kind']=='unchanged_full_current_source_edge']
         observation=aggregate_caps.observe(parent,child,source_proposal,
-            timeout_s=min(10.,max(.001,deadline-time.monotonic())))
+            timeout_s=min(10.,max(.001,deadline-time.monotonic())),**current_work)
         if not observation['complete']or not observation['ok']:
             raise ValueError('saved_Source_additional_aggregate_capacitor_paths_or_returns_refused:'+repr(observation.get('errors')))
         proofs.append(dict(kind='Source_additional_aggregate_capacitor_actual_saved_local_paths_and_returns',

@@ -1124,7 +1124,7 @@ def obligations(source, board, proposal):
     return _obligations(source,board,proposal)
 
 
-def _obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
+def _obligations(source,board,proposal,*,composed_supply_fork_tracks=(),composed_current_cut_uuids=()):
     # Each independent Source consumer still derives its own role/contact
     # proof. Reuse only immutable observations within this one bounded
     # operation; no prepare/frame scope or cached caller proof is carried in.
@@ -1133,10 +1133,11 @@ def _obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
         if proposal.get('allow_linear_power_stage_reconstruction')is True else nullcontext())
     with context:
         return _derive_obligations(source,board,proposal,
-            composed_supply_fork_tracks=composed_supply_fork_tracks)
+            composed_supply_fork_tracks=composed_supply_fork_tracks,
+            composed_current_cut_uuids=composed_current_cut_uuids)
 
 
-def _derive_obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
+def _derive_obligations(source,board,proposal,*,composed_supply_fork_tracks=(),composed_current_cut_uuids=()):
     """Restore external boundaries, not obsolete bends under moved pads."""
     # Only the complete macro compiler uses this internal composition path.
     # Its fresh same-contract union replaces the fork's whole contact tree,
@@ -1435,7 +1436,8 @@ def _derive_obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
     requests.update(signal_bias.requests(source,board,proposal))
     if proposal.get('additional_aggregate_capacitors'):
         import cec_additional_aggregate_macro as aggregate_caps
-        additional_requests=aggregate_caps.requests(source,board,proposal)
+        additional_requests=aggregate_caps.requests(source,board,proposal,
+            **(dict(composed_current_cut_uuids=composed_current_cut_uuids)if composed_current_cut_uuids else {}))
         if requests.keys()&additional_requests.keys():
             raise ValueError('additional_aggregate_obligation_identity_collision')
         requests.update(additional_requests)

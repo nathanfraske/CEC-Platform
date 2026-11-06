@@ -314,7 +314,7 @@ def _incident_cut_requests(parent, child, proposal, proof, plans, retired, posit
     return result
 
 
-def _requests(parent, child, proposal, roles, deadline):
+def _requests(parent, child, proposal, roles, deadline, *, composed_current_cut_uuids=()):
     import cec_source_aggregate_capacitor_cell as cap
     import cec_control_gate_bias_placement as identity
     if not roles: return {}
@@ -402,23 +402,30 @@ def _requests(parent, child, proposal, roles, deadline):
             'ground:' + proof['ground_pad_uuid']: dict(kind='ground', net='GND',
                 a=cap.ports.port(pads[proof['ground_pad_uuid']]), reach_mm=.8, width_nm=proof['ground_width_nm'])}
         if current_cuts:
-            entries.update(_incident_cut_requests(parent,child,proposal,proof,current_cuts,retired,positive,deadline))
+            if composed_current_cut_uuids:
+                import cec_aggregate_current_cut_cohort as cohort
+                entries.update(cohort.requests(parent,child,proposal,proof,current_cuts,retired,
+                    composed_current_cut_uuids,deadline))
+            else:
+                entries.update(_incident_cut_requests(parent,child,proposal,proof,current_cuts,retired,positive,deadline))
         _need(not requests.keys() & entries.keys(), 'duplicate_additional_aggregate_request_identity')
         requests.update(entries)
     return requests
 
 
-def requests(parent, child, proposal):
+def requests(parent, child, proposal, *, composed_current_cut_uuids=()):
     deadline = _deadline(10.)
-    return _requests(parent, child, proposal, _context(parent, child, proposal, deadline), deadline)
+    return _requests(parent, child, proposal, _context(parent, child, proposal, deadline), deadline,
+        composed_current_cut_uuids=composed_current_cut_uuids)
 
 
-def observe(parent, child, proposal, *, timeout_s=10.):
+def observe(parent, child, proposal, *, timeout_s=10., composed_current_cut_uuids=()):
     """Independently rederive intent and observe actual complete saved copper."""
     import cec_source_aggregate_capacitor_cell as cap
     deadline = _deadline(timeout_s)
     roles = _context(parent, child, proposal, deadline)
-    demands = _requests(parent, child, proposal, roles, deadline); rows = {}
+    demands = _requests(parent, child, proposal, roles, deadline,
+        composed_current_cut_uuids=composed_current_cut_uuids); rows = {}
     for ref, proof in roles.items():
         pads = {cap.force._uid(p): p for f in child.GetFootprints() for p in f.Pads()}
         positive = pads[proof['supply_pad_uuid']]; ground = pads[proof['ground_pad_uuid']]

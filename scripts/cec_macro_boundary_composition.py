@@ -249,6 +249,122 @@ def compose_rated_forks(parent,source,proposal,extras,retired,*,deadline):
     return result,records
 
 
+def compose_rated_leaves(parent,source,proposal,requests,extras,*,deadline):
+    """Replace an already-owned rated leaf's retired bend by real ports.
+
+    Every original leaf and selected peer is freshly proved; no missing
+    request, new cut, lower rating or inferred lock consent is introduced.
+    The later native component inventory restores all surviving contacts.
+    """
+    import cec_measurement_leaf as leaves
+    import cec_full_current_planar_reflow as full
+    if (proposal.get('scope')!='source_typed_complete_cell_escape_proposal'
+            or proposal.get('source_native_binding')!=row._source_binding(parent)
+            or type(requests)is not dict or len(requests)>64
+            or type(extras)is not list or len(extras)>64
+            or not time.monotonic()<deadline<=time.monotonic()+10.):
+        raise ValueError('bounded_exact_rated_leaf_composition_required')
+    def left():
+        remaining=deadline-time.monotonic()
+        if remaining<=0:raise ValueError('rated_leaf_composition_deadline')
+        return min(10.,remaining)
+    def stable(value):
+        # Native layer maps use integer keys; prepared receipts use JSON
+        # string keys. Normalize before sorting (10 sorts before 2 only in
+        # the latter). Preserve every key/value, not a rating subset.
+        wire=json.loads(json.dumps(value,allow_nan=False))
+        return json.dumps(wire,sort_keys=True,allow_nan=False)
+    def current(plan):return stable([plan[k]for k in ('current_domain_kind','domain','contract',
+        'net','layer_id','width_nm','full_current_floor_nm')])
+    tracks={force._uid(t):t for t in parent.GetTracks()}
+    by_id={r['change']['uuid']:r for r in extras}
+    base=set(proposal['retired_track_uuids'])
+    if len(by_id)!=len(extras)or not by_id.keys()<=tracks.keys():
+        raise ValueError('unique_literal_rated_leaf_extra_owners_required')
+    remaining=copy.deepcopy(requests);result=copy.deepcopy(extras);records=[]
+    for leaf in proposal.get('rated_supply_leaves',[]):
+        left();key='rated_supply:'+leaf['pad_uuid'];request=remaining.get(key)
+        if request is None:continue
+        targets=set(request.get('b',{}).get('native_uuids',[]));incident=targets&by_id.keys()
+        if not incident:continue
+        own=set(leaf['track_uuids'])
+        if (not own or not own<=base or own&by_id.keys()or not own<=tracks.keys()
+                or request.get('kind')!='source_boundary' or request.get('net')!=leaf['net']
+                or request.get('a',{}).get('pad_uuid')!=leaf['pad_uuid']
+                or request.get('width_nm')!=leaf['width_nm']
+                or stable(request.get('unchanged_full_rail_current_contract'))
+                    !=stable(leaf['unchanged_full_rail_current_contract'])):
+            raise ValueError('exact_existing_rated_leaf_request_and_cut_required')
+        if leaf['scope']=='source_typed_full_load_rated_supply_leaf':
+            fresh=leaves.plan_rated_supply(parent,leaf['pad_uuid'],
+                board_hint=proposal['board_hint'],timeout_s=left())
+        elif leaf['scope']=='source_typed_full_load_rated_bypass_supply_leaf':
+            moving=(leaf['source_selected_bypass']['owner']
+                if 'source_resolved_moving_owner_supply_leaves'in leaf else None)
+            fresh=leaves.plan_rated_bypass_supply(parent,leaf['pad_uuid'],
+                board_hint=proposal['board_hint'],timeout_s=left(),moving_owner_ref=moving)
+        else:raise ValueError('positive_original_rated_leaf_kind_required')
+        if stable(fresh)!=stable(leaf):raise ValueError('rated_leaf_original_Source_owner_changed')
+        baseline=full.plan(parent,source,board_hint=proposal['board_hint'],
+            retired_track_uuids=sorted(own),timeout_s=left())
+        graph=pcbnew.CONNECTIVITY_DATA()
+        for uid in by_id:
+            left();edge=tracks[uid]
+            if (edge.GetClass()=='PCB_TRACK'and edge.GetNetname()==leaf['net']
+                    and int(edge.GetLayer())==leaf['layer']and not graph.Add(edge)):
+                raise ValueError('native_rated_leaf_extra_graph_refused')
+        selected=set(incident)
+        for uid in incident:
+            selected|={force._uid(t)for t in graph.GetConnectedItems(tracks[uid])}&by_id.keys()
+        if len(own|selected)>8:raise ValueError('bounded_eight_edge_rated_leaf_union_required')
+        peer_spans=[]
+        for uid in sorted(selected):
+            left();extra=by_id[uid];authority=extra.get('authority',{});edge=tracks[uid]
+            original_plan=authority.get('source_plan',{})
+            peer=full.plan(parent,source,board_hint=proposal['board_hint'],
+                retired_track_uuids=[uid],timeout_s=left(),
+                max_source_track_mm=original_plan.get('max_source_track_mm',8.),
+                max_source_cut_mm=original_plan.get('max_source_cut_mm',32.))
+            if (authority.get('kind')!='unchanged_full_current_source_edge'
+                    or authority.get('native_source_uuid')!=uid
+                    or stable(authority.get('source_plan'))!=stable(peer)
+                    or current(peer)!=current(baseline)
+                    or extra['change'].get('net')!=edge.GetNetname()
+                    or stable(extra['change'].get('source_nm'))
+                        !=stable([list(edge.GetStart()),list(edge.GetEnd())])):
+                raise ValueError('same_fresh_full_current_rated_leaf_peer_required')
+            peer_spans.append(peer['max_source_track_mm'])
+        combined=full.plan(parent,source,board_hint=proposal['board_hint'],
+            retired_track_uuids=sorted(own|selected),timeout_s=left(),
+            max_source_track_mm=max([baseline['max_source_track_mm'],*peer_spans]))
+        if current(combined)!=current(baseline):raise ValueError('rated_leaf_union_current_changed')
+        at=request['b'].get('at_nm');face=leaf['layer']
+        if (request['b'].get('layers')!=[face]or at!=leaf['points_nm'][-1]
+                or not incident<=set(leaf['boundary_uuids'])
+                or not all(tracks[u].IsOnLayer(face)
+                    and tracks[u].GetEffectiveShape(face).Collide(pcbnew.VECTOR2I(*at),0)for u in incident)):
+            raise ValueError('literal_rated_leaf_peer_join_required')
+        for uid in sorted(own):
+            edge=tracks[uid]
+            result.append(dict(change=dict(uuid=uid,net=str(edge.GetNetname()),
+                source_nm=[list(edge.GetStart()),list(edge.GetEnd())]),
+                authority=dict(kind='unchanged_full_current_source_edge',native_source_uuid=uid,
+                    source_plan=full.plan(parent,source,board_hint=proposal['board_hint'],
+                        retired_track_uuids=[uid],timeout_s=left()))))
+        records.append(dict(original_request_id=key,original_request=copy.deepcopy(request),
+            original_rated_leaf=copy.deepcopy(leaf),fresh_union_source_plan=combined,
+            required_replacement_request_id='macro_boundary:'+min(own),
+            exact_source_edge_endpoint_obligation_composed_not_omitted=True,
+            retirement_set_unchanged=True,no_new_cut_or_current_authority=True))
+        del remaining[key]
+    left()
+    if (len(result)>64 or len({r['change']['uuid']for r in result})!=len(result)
+            or {r['change']['uuid']for r in result}|base!=by_id.keys()|base
+            or proposal['source_native_binding']!=row._source_binding(parent)):
+        raise ValueError('rated_leaf_composition_changed_Source_or_retirement_scope')
+    return remaining,result,records
+
+
 def compose(parent,source,proposal,requests,extras,*,deadline):
     if (proposal.get('scope')!='source_typed_complete_cell_escape_proposal'
             or proposal.get('source_native_binding')!=row._source_binding(parent)

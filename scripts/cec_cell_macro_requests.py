@@ -1296,7 +1296,10 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
     composed_supply_endpoint_contacts=_compose_supply_endpoint_rows(projected,supply_endpoint_cuts)
     requests=escape._obligations(parent,private,projected,
         composed_supply_fork_tracks=[proposal['source_owned_shared_supply_forks'][i]['track_uuids']
-            for i in sorted(composed_supply_forks)])
+            for i in sorted(composed_supply_forks)],
+        **(dict(composed_current_cut_uuids=[r['change']['uuid']for r in extras
+            if r['authority']['kind']=='unchanged_full_current_source_edge'])
+            if allow_linear_power_stage_reconstruction else {}))
     if required_ordinary_nets:
         import cec_macro_ordinary_join_obligations as ordinary_joins
         incoming=ordinary_joins.plan(parent,source,proposal,required_ordinary_nets,
@@ -1305,6 +1308,10 @@ def compile(source,poses,*,board_hint,max_shift_mm=6.,timeout_s=10.,allow_owned_
             raise ValueError('explicit_ordinary_join_net_already_has_macro_restoration_obligations')
         requests.update(incoming)
     requests,extras,composed=composition.compose(parent,source,proposal,requests,extras,deadline=deadline)
+    if allow_linear_power_stage_reconstruction:
+        requests,extras,leaf_composed=composition.compose_rated_leaves(
+            parent,source,proposal,requests,extras,deadline=deadline)
+        composed+=leaf_composed
     requests,retained_composed=_compose_retained_demands(parent,requests,extras,
         board_hint=board_hint,deadline=deadline,source_proposal=proposal)
     composed+=retained_composed
