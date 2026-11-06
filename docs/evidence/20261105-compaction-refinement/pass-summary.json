@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "purpose": "Received compaction and refinement slice for the nine existing PCBs; not manufacturing release",
+  "source_checkpoint": "checkpoints/review-20261105-simulation-refinement/receipt.json",
+  "source_receipt_sha256": "3f3ac1f9adc7ddf4429e081b9927ee1de6a2d1460bdfca4e8650999ab16ebab5",
+  "output_checkpoint": "checkpoints/review-20261105-compaction-refinement/receipt.json",
+  "native_suite_totals": {"opens": 0, "errors": 0, "warnings": 283, "exclusions": 0},
+  "warning_count_changed": false,
+  "selected": [
+    {"board": "pcie-8pin-3port", "job": "71b3a81fcc8a5f4f8b0c777c", "saved_centerline_mm": 1.691228, "change": "DETECT and I2C_SCL redundant detours removed"},
+    {"board": "12vhpwr-standard", "job": "bbe8c08c01704ee5f34b38c8", "saved_centerline_mm": 3.106601, "change": "SB_PWR_STABLE and FAN_TACH V-detours removed"},
+    {"board": "hub-standard-rev2", "job": "2bdb546e1115b6c568dc0856", "saved_centerline_mm": 0.920071, "change": "Two KVM_3V3_REF doglegs simplified"},
+    {"board": "eps-8pin-rev3", "job": "12966116987e9c9ce56a992b", "saved_centerline_mm": 0.709036, "change": "U4_SS softstart dogleg simplified; rejected CAN_TX edit not included"},
+    {"board": "output-daughterboards/eps-out-db", "job": "9f0384db5e5e42f5efda8d1c", "change": "Existing two inner Ground planes extended into unused right-side area", "electrical_screen": "eps-return-screen.json"},
+    {"board": "pcie-8pin-2port", "job": "e76ca6cb6573a7f2d488a8ce", "change": "Left rectangular outline edge moved inward 0.25 mm; Ground clipped only at original edge setback", "before_size_mm": [86.5, 47.6], "after_size_mm": [86.25, 47.6], "area_reduction_mm2": 11.9, "mounting_holes_and_interfaces_moved": false}
+  ],
+  "total_saved_centerline_mm": 6.426936,
+  "meaningful_functional_cell_repacking_completed": false,
+  "untouched_boards": ["atx-24pin-rev3", "output-daughterboards/atx24-out-db", "output-daughterboards/pcie-out-db"],
+  "new_generic_construction": [
+    "ground_plane_extension: immutable-source exact selected-zone native refill, literal foreign geometry, monotonic original Ground and source-component-rooted additions",
+    "outline_trim: one inward edge on a native rectangle, valid closed occupied-face courtyards, exact preserved holes/parts/power and source-clipped Ground"
+  ],
+  "regression_tests": {"passed": 638, "failed": 0, "seconds": 73.61, "new_actor_module_tests": 56, "suite_counts_are_not_additive": true},
+  "rejections_and_lessons": [
+    "A global Ground refill altered distant source copper during the first edge trim; constructor changed to exact source clipping, receiving was not weakened",
+    "A 0.5 mm PCIe2 trim produced eight acute copper wedges at mounting-hole clearances; a separately checked 0.25 mm trim avoids those wedges",
+    "EPS CAN_TX shortening created a new 1.6 mm unshielded parallel interaction with USB_D_N and was rejected despite clean native DRC",
+    "A dangling courtyard stroke or wrong-face courtyard could satisfy the first boundary guard; complete native occupied-face courtyard validation now rejects these",
+    "Ground area/rooting checks alone admitted a synthetic 100 nm neck; independent exact native refill receiving now rejects substituted material",
+    "Functional-cell trials encountered retained route ownership/crossings or worsened decoupling; no unreceived placement or topology move was adopted"
+  ],
+  "next_work": [
+    "Resolve independent EPS and 12VHPWR physical drill-spacing findings without weakening process floors",
+    "Establish missing courtyard and manufacturing-profile evidence before broader compaction",
+    "Use explicit multi-port retained-route ownership for functional cell repacking rather than pose-only moves",
+    "Address failed EPS return thermal screening and validate installed heat paths without invented cooling credit",
+    "Complete factory, copper-artifact, printed-legend, mating, electrical and thermal release checks"
+  ],
+  "fabrication_evidence": "fabrication-screen-summary.json",
+  "release_authority": false,
+  "fab_ready": false
+}

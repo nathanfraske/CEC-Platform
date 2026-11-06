@@ -89,6 +89,14 @@ _VIAS = dict(
 )
 for _kind, _props in {
     "add_connections": dict(routes=_ROUTES, vias=_VIAS),
+    "ground_plane_extension": dict(
+        zone_uuid=dict(type="string", minLength=1),
+        outline_nm=dict(type="array", items=_POINT, minItems=4, maxItems=64),
+    ),
+    "outline_trim": dict(
+        edge_uuid=dict(type="string", minLength=1),
+        position_nm=dict(type="integer", minimum=-2000000000, maximum=2000000000),
+    ),
     "place_cell": dict(
         poses=_POSES,
         reference_group_uuids=dict(type="array", items=dict(type="string", minLength=1), maxItems=8, uniqueItems=True),

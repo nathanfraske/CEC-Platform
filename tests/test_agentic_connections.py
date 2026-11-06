@@ -74,6 +74,12 @@ def test_schema_and_mandatory_receiving_catalog_cannot_drift():
         "kelvin_pair",
         "assembly_pair",
     }
+    assert set(capabilities.CAPABILITIES["ground_plane_extension"]) == {
+        "current_pair", "kelvin_pair", "assembly_pair",
+    }
+    assert set(capabilities.CAPABILITIES["outline_trim"]) == {
+        "current_pair", "kelvin_pair", "assembly_pair",
+    }
 
 
 def test_unqualified_small_barrel_is_refused_without_any_process_waiver(tmp_path):
