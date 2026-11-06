@@ -1,0 +1,30 @@
+{
+  "scope": "actual_source_and_temporary_pose_missing_bypass_role_only",
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+  "source_unchanged": true,
+  "fresh_semantic_replay_passed": true,
+  "raw_generated_export_hash_changed": true,
+  "result": {
+    "scope": "source_canonical_missing_bypass_corrective_role-v1",
+    "complete": true,
+    "ok": true,
+    "role_only": true,
+    "source_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "candidate_sha256": "b90fac2ee10aa22a97212c333b78dcbfcccccc2f1e8857111a065868b1ae0fd7",
+    "repaired_requirement_id": "U6:2:local-ceramic",
+    "source_distance_mm": 3.8439791817985953,
+    "candidate_distance_mm": 2.9649942748850293,
+    "cut_authority": false,
+    "route_authority": false,
+    "current_authority": false,
+    "physical_connectivity_proved": false,
+    "admitted": false
+  },
+  "candidate_persisted": false,
+  "copper_reconnected": false,
+  "native_DRC_executed": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "code_sha256": "0a618684066f2229f9f2b278e422f16794c2c304aaea18af59b1417c13b2d2ca"
+}

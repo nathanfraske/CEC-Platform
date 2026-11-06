@@ -1,21 +1,35 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T08:33:27Z",
+  "recorded_at_utc": "2026-11-06T09:21:00Z",
   "goal_status": "active",
-  "status": "second_divider_received_private_checkpoint_only",
+  "status": "private_consistency_child_received_shorter_bar_construction_pending",
   "reviewed_selector": {
     "path": "checkpoints/current.json",
     "sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
     "changed": false
   },
   "atx": {
-    "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
-    "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
-    "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/compact-receipt.json",
+    "path": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+    "sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "receipt": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/scope-report.json",
+    "last_routed_parent": {
+      "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+      "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+      "receipt": "experiments/repack/bar-corridor-20261106/second-divider-v9/compact-receipt.json"
+    },
+    "consistency_changes": {
+      "mount_library_satellite_pads_normalized": 8,
+      "mount_maximum_coordinate_correction_nm": 2,
+      "mount_full_receiving": "experiments/repack/bar-corridor-20261106/mount-receiving-v2/receiving/receiving.json",
+      "mount_full_receiving_all_gates_passed": true,
+      "annotation_only_nodes_reseated": 6,
+      "annotation_parent_copper_and_footprints_literal_exact": true,
+      "warning_comparison": "Frozen review library: 94 to 94. Current canonical library in full mount receiver: 159 to 159. No introduced native findings in either comparison; no library context mixed within a comparison."
+    },
     "opens": 0,
     "native_drc_errors": 0,
     "warnings": 94,
-    "parent_warnings": 92,
+    "parent_warnings": 94,
     "trace_craft_before_after": [43, 43],
     "current_fault_objects_before_after": [2, 2],
     "connectivity_partition_count_before_after": [90, 90],
@@ -62,7 +76,10 @@
     }
   ],
   "remaining": [
-    "Repack the third divider pair R59/R69 and FB2 while retaining source-owned rated connections.",
+    "Prefer the shorter front MJP-0.7 trial to the longer MJP-1.0 corridor; nominal screening avoids third-divider/FB2 moves, but no bar is installed.",
+    "Repair C9's existing U6 IN2 bypass locality: 3.843979 mm exceeds 3.5 mm. Proposed rotation/pose (10.5,48.5,180) screens at 2.964994 mm with same-face, paired-body and vent clearance; copper routing and independent acceptance remain pending.",
+    "Complete a source-owned corrective missing-bypass transition before relocating C53's additional VBUS bulk. Do not fabricate a source-selected assignment or relax the original locality/current bound.",
+    "Represent C25's genuine shared-rail reservoir role explicitly. Its prospective remote pocket cannot be called a U5-local bypass; alternate U5-local pockets overlap existing rated copper or components.",
     "Construct source-bound bus-bar schematic, joints and electrical transport; catalog current alone is not qualification.",
     "Obtain indispensable bar and assembly tolerance, current/thermal and installed-cost evidence before claiming usable qualification.",
     "Receive a genuinely smaller matched X/Y outline and unchanged complete assembled Z; nominal compaction alternatives have not passed.",

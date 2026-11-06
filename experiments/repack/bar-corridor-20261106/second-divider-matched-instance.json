@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "role": "carrier",
+  "contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  },
+  "members": {
+    "carrier": {
+      "path": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+      "sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9"
+    },
+    "cover": {
+      "path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    }
+  }
+}

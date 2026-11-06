@@ -1,0 +1,246 @@
+{
+  "schema": 1,
+  "source_files": {
+    "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  },
+  "source_unchanged": true,
+  "rows": [
+    {
+      "pose_mm": [
+        10.55,
+        48.0,
+        270.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.8439791817985953,
+      "VBUS_missing": [
+        {
+          "id": "U6:2:local-ceramic",
+          "ref": "U6",
+          "pin": "2",
+          "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "kind": "local-ceramic",
+          "return_rail": "GND",
+          "return_pin": null,
+          "max_mm": 3.5,
+          "source": "TPS2121:IN2",
+          "nearest_ref": "C9",
+          "nearest_mm": 3.8439791817985953
+        }
+      ]
+    },
+    {
+      "pose_mm": [
+        10.91,
+        48.0,
+        270.0
+      ],
+      "same_face_courtyard_hits": [
+        "C27"
+      ],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.4911005643064765,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.0,
+        48.0,
+        270.0
+      ],
+      "same_face_courtyard_hits": [
+        "C27"
+      ],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.403114007802413,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.1,
+        48.0,
+        270.0
+      ],
+      "same_face_courtyard_hits": [
+        "C27"
+      ],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.305478323949652,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.2,
+        48.0,
+        270.0
+      ],
+      "same_face_courtyard_hits": [
+        "C27"
+      ],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.207988302675214,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.0,
+        47.8,
+        270.0
+      ],
+      "same_face_courtyard_hits": [
+        "C27"
+      ],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.4512585168458476,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.0,
+        48.6,
+        270.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C9",
+            "C37"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        }
+      ],
+      "paired_ok": false,
+      "vent_failures": [],
+      "bypass_distance_mm": 3.3273388390876275,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.2,
+        48.6,
+        270.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C9",
+            "C37"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        }
+      ],
+      "paired_ok": false,
+      "vent_failures": [
+        {
+          "ref": "C37",
+          "copper_hits": [
+            "pad:C9.2"
+          ],
+          "native_rule_covers": true,
+          "ok": false
+        }
+      ],
+      "bypass_distance_mm": 3.127489048757965,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        11.3,
+        48.6,
+        270.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C9",
+            "C37"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        }
+      ],
+      "paired_ok": false,
+      "vent_failures": [
+        {
+          "ref": "C37",
+          "copper_hits": [
+            "pad:C9.2"
+          ],
+          "native_rule_covers": true,
+          "ok": false
+        }
+      ],
+      "bypass_distance_mm": 3.0275715928943776,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        10.5,
+        48.6,
+        180.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 2.991018363384117,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        10.5,
+        48.5,
+        180.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 2.964994274885029,
+      "VBUS_missing": []
+    },
+    {
+      "pose_mm": [
+        10.6,
+        48.5,
+        180.0
+      ],
+      "same_face_courtyard_hits": [],
+      "paired_failures": [],
+      "paired_ok": true,
+      "vent_failures": [],
+      "bypass_distance_mm": 2.868134071151661,
+      "VBUS_missing": []
+    }
+  ],
+  "board_saved": false,
+  "routes_checked": false,
+  "current_qualified": false,
+  "release_authority": false
+}

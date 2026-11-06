@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "scope": "EXPERIMENT_ONLY_SOURCE_COMPONENT_NATIVE_SEMANTICS_NOT_APPLICATION_QUALIFICATION",
+  "kicad_version": "10.0.5",
+  "source_inputs_sha256": {
+    "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/CEC_MJP08_Prototype.pretty/Mac8_MJP_0p8_NOMINAL_PROTOTYPE.kicad_mod": "1f8b6eb2ed7682c4357ad6fe87d4dd4c36a8f245c77bfa85424d62e14dec6e7c",
+    "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/actual_provisional_footprint/board.kicad_pcb": "77e62c2a8fe092696657453b43d46f053fe7d43b2f4846205bd7f4064883bf56"
+  },
+  "generated_sha256": {
+    "experiments/busbars/part-model-20261106/mjp08-source-fixture/CEC_MJP08_Prototype_Source.kicad_sym": "fd3a670e6777a395a62428bc104cda6c19204835d7fd62a5a28bbdec479e7b6b",
+    "experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_sch": "29e9f40f1662d92479c94bd85d560349fc7caba584f8174cc4b1424e2d3cdf7a",
+    "experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.net.xml": "1bc4aa1eaab179409a5be9c1036a4e283aa3958a1dd590580a06c5ef91d1dc58",
+    "experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_pcb": "c5c262890b560633a0b2576740f09f9d486a52f0f07dbbcee009f9a72e3db605"
+  },
+  "original_footprint_sha256": "1f8b6eb2ed7682c4357ad6fe87d4dd4c36a8f245c77bfa85424d62e14dec6e7c",
+  "single_logical_passive_pin": true,
+  "profile_sha256": "f8f0c4f44965cf9036eff8ae32c962f980339c54d3561e9888a27371df71fbbd",
+  "material": "phosphor bronze; NOT copper",
+  "symbol_duplicate_pin_numbers_are_jumpers": true,
+  "footprint_duplicate_pad_numbers_are_jumpers": true,
+  "netlist_exported_jumper_value": "1",
+  "netlist_members": [
+    [
+      "BB1",
+      "1"
+    ],
+    [
+      "J1",
+      "1"
+    ],
+    [
+      "J2",
+      "1"
+    ]
+  ],
+  "physical_pad_records": [
+    {
+      "uuid": "1d5181d8-5009-4b73-a1b9-c9b1d48e495a",
+      "number": "1",
+      "at_nm": [
+        12540000,
+        10000000
+      ],
+      "net": "/PWR"
+    },
+    {
+      "uuid": "f95bae2a-12cf-46cc-a3f6-2d0c4aca43a1",
+      "number": "1",
+      "at_nm": [
+        32860000,
+        10000000
+      ],
+      "net": "/PWR"
+    }
+  ],
+  "source_instance_path": "/d5f9db7d-01a5-5433-b2c2-19866cdda255/4b48c99f-7540-5b84-837d-52bdf0864c8e",
+  "native_tracks": 2,
+  "span_PCB_copper_present": false,
+  "physical_PCB_component_count": 2,
+  "physical_PCB_components": [
+    [
+      "0ae22383-cc68-4186-b696-36cfcea4fa09",
+      "1d5181d8-5009-4b73-a1b9-c9b1d48e495a",
+      "dae0d073-623d-4cf5-8757-a3b72f0273f8"
+    ],
+    [
+      "238cae1c-cf16-4747-b5a6-b889110a78a5",
+      "a3b7c291-cf8c-4a69-8dc3-2bb59fe41b3d",
+      "f95bae2a-12cf-46cc-a3f6-2d0c4aca43a1"
+    ]
+  ],
+  "unmodelled_internal_transport_guard": {
+    "/PWR": [
+      {
+        "footprint_uuid": "99606d10-8a33-4abf-a1f0-6445afa0f31f",
+        "reference": "BB1",
+        "mode": "duplicate_pad_numbers",
+        "pad_uuids": [
+          "1d5181d8-5009-4b73-a1b9-c9b1d48e495a",
+          "f95bae2a-12cf-46cc-a3f6-2d0c4aca43a1"
+        ],
+        "pad_numbers": [
+          "1",
+          "1"
+        ],
+        "reason": "component_internal_transport_model_required",
+        "current_qualified": false
+      }
+    ]
+  },
+  "erc": {
+    "$schema": "https://schemas.kicad.org/erc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-11-06T02:52:46",
+    "ignored_checks": [
+      {
+        "description": "Global label only appears once in the schematic",
+        "key": "single_global_label"
+      },
+      {
+        "description": "Four connection points are joined together",
+        "key": "four_way_junction"
+      },
+      {
+        "description": "SPICE model issue",
+        "key": "simulation_model_issue"
+      },
+      {
+        "description": "Assigned footprint doesn't match footprint filters",
+        "key": "footprint_filter"
+      }
+    ],
+    "included_severities": [
+      "error",
+      "warning"
+    ],
+    "kicad_version": "10.0.5",
+    "sheets": [
+      {
+        "path": "/",
+        "uuid_path": "/d5f9db7d-01a5-5433-b2c2-19866cdda255",
+        "violations": []
+      }
+    ],
+    "source": "mjp-source.kicad_sch"
+  },
+  "erc_counts": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "native_drc": {
+    "errors": [],
+    "warnings": [],
+    "opens": 0
+  },
+  "commands": [
+    {
+      "command": [
+        "kicad-cli",
+        "sch",
+        "export",
+        "netlist",
+        "--format",
+        "kicadxml",
+        "--output",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.net.xml",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_sch"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "kicad-cli",
+        "sch",
+        "erc",
+        "--format",
+        "json",
+        "--output",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/erc.json",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_sch"
+      ],
+      "returncode": 0,
+      "stdout": "Found 0 violations\nSaved ERC Report to /home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/erc.json\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "kicad-cli",
+        "sch",
+        "export",
+        "svg",
+        "--output",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/schematic-svg",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_sch"
+      ],
+      "returncode": 0,
+      "stdout": "Plotted to '/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/schematic-svg/mjp-source.svg'.\nDone.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "kicad-cli",
+        "pcb",
+        "drc",
+        "--format",
+        "json",
+        "--output",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/drc.json",
+        "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/mjp-source.kicad_pcb"
+      ],
+      "returncode": 0,
+      "stdout": "Found 0 violations\nFound 0 unconnected items\nSaved DRC Report to /home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/mjp08-source-fixture/drc.json\n",
+      "stderr": ""
+    }
+  ],
+  "native_mapping_method": "fresh CLI XML netlist exact ref/pin membership mapped explicitly into isolated native fixture; no automated GUI update claimed",
+  "limitations": [
+    "one schematic passive pin maps two DISTINCT physical solder-contact UUIDs",
+    "native assembled connectivity is not a PCB-copper-only path or current/FEM transport model",
+    "no native CLI PCB-update command available; automatic symbol-to-footprint jumper transfer not exercised",
+    "20A catalog only; joints, PCB15A path/barrels, tolerances, installedZ and paste process unqualified"
+  ],
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "production_sources_changed": false,
+  "release_authority": false
+}

@@ -1,0 +1,4503 @@
+{
+  "assembly_instance": {
+    "contract": {
+      "path": "beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    },
+    "members": {
+      "carrier": {
+        "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/mount-normalization-v1/candidate/board.kicad_pcb",
+        "sha256": "e227b66e6319645b74c1078d619403bea3596848fc5e178d6d4e8c6a0946bc4e"
+      },
+      "cover": {
+        "path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+        "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+      }
+    },
+    "role": "carrier",
+    "schema": 1
+  },
+  "board": "atx-24pin-rev3",
+  "canonical_board": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_pcb",
+  "canonical_input": false,
+  "declared_current_endpoints": {
+    "bound_nets": [
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+      "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V"
+    ],
+    "current_path_qualified": false,
+    "declaration_count": 4,
+    "neutral": false,
+    "new_current_or_margin_inferred": false,
+    "ok": true,
+    "physical_release": false,
+    "scope": "declared_current_endpoint_source_identity",
+    "thermal_qualified": false,
+    "witnesses": {
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS": {
+        "declaration": {
+          "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows.",
+          "net": "/VBUS",
+          "sinks": [
+            {
+              "footprint": "cec-Package_DFN_QFN:RUX0012A",
+              "mpn": "TPS2121RUXR",
+              "pins": [
+                "2"
+              ],
+              "ref": "U6"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+              "mpn": "MPZ2012S601AT000",
+              "pins": [
+                "2"
+              ],
+              "ref": "FB1"
+            }
+          ]
+        },
+        "existing_current_contract": {
+          "amps": 0.75,
+          "geometry_margin": 1.25,
+          "margin_included": false,
+          "pattern": "/VBUS",
+          "source": "board_design_basis"
+        },
+        "native_endpoints": {
+          "sinks": [
+            {
+              "footprint": "cec-Package_DFN_QFN:RUX0012A",
+              "footprint_uuid": "dded9240-df64-4347-b612-4934ea4cae3a",
+              "mpn": "TPS2121RUXR",
+              "pad_uuids": [
+                "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+              ],
+              "pins": [
+                "2"
+              ],
+              "ref": "U6"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+              "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+              "mpn": "MPZ2012S601AT000",
+              "pad_uuids": [
+                "a41e9ae9-7e80-4a8b-9ab3-d67280583df5"
+              ],
+              "pins": [
+                "2"
+              ],
+              "ref": "FB1"
+            }
+          ]
+        },
+        "new_budget_or_pin_sharing_inferred": false
+      },
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F": {
+        "declaration": {
+          "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: F1 output to FB1 input. The existing service-chain current and margin are unchanged; component hold/trip/current ratings are not substituted for a load or fault-current bound.",
+          "net": "/VBUS_F",
+          "sinks": [
+            {
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+              "mpn": "MPZ2012S601AT000",
+              "pins": [
+                "1"
+              ],
+              "ref": "FB1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Resistor_SMD:R_1206_3216Metric",
+              "mpn": "1206L075/16WR",
+              "pins": [
+                "2"
+              ],
+              "ref": "F1"
+            }
+          ]
+        },
+        "existing_current_contract": {
+          "amps": 0.75,
+          "geometry_margin": 1.25,
+          "margin_included": false,
+          "pattern": "/VBUS_F",
+          "source": "board_design_basis"
+        },
+        "native_endpoints": {
+          "sinks": [
+            {
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+              "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+              "mpn": "MPZ2012S601AT000",
+              "pad_uuids": [
+                "94325c50-0290-4170-9308-4771315908ca"
+              ],
+              "pins": [
+                "1"
+              ],
+              "ref": "FB1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Resistor_SMD:R_1206_3216Metric",
+              "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+              "mpn": "1206L075/16WR",
+              "pad_uuids": [
+                "a972f3c3-a5b6-48f2-855b-ae6587fadcdf"
+              ],
+              "pins": [
+                "2"
+              ],
+              "ref": "F1"
+            }
+          ]
+        },
+        "new_budget_or_pin_sharing_inferred": false
+      },
+      "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW": {
+        "declaration": {
+          "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: USB-C VBUS bank to F1 input. Uses only the pre-existing 0.75 A service-chain conductor basis and its once-applied 125 percent geometry margin; no fuse clamp, equal pin sharing, barrel, inrush, thermal or release qualification is inferred.",
+          "net": "/VBUS_RAW",
+          "sinks": [
+            {
+              "footprint": "cec-Resistor_SMD:R_1206_3216Metric",
+              "mpn": "1206L075/16WR",
+              "pins": [
+                "1"
+              ],
+              "ref": "F1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A",
+              "mpn": "USB4215-03-A",
+              "pins": [
+                "A4",
+                "A9",
+                "B4",
+                "B9"
+              ],
+              "ref": "J5"
+            }
+          ]
+        },
+        "existing_current_contract": {
+          "amps": 0.75,
+          "geometry_margin": 1.25,
+          "margin_included": false,
+          "pattern": "/VBUS_RAW",
+          "source": "board_design_basis"
+        },
+        "native_endpoints": {
+          "sinks": [
+            {
+              "footprint": "cec-Resistor_SMD:R_1206_3216Metric",
+              "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+              "mpn": "1206L075/16WR",
+              "pad_uuids": [
+                "10e4a214-e3d1-4b00-8812-ac21c8594216"
+              ],
+              "pins": [
+                "1"
+              ],
+              "ref": "F1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Connector_USB:USB_C_Receptacle_GCT_USB4215-03-A",
+              "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+              "mpn": "USB4215-03-A",
+              "pad_uuids": [
+                "552311fe-2027-4dd7-8283-67de72ec71b5",
+                "5f8cf630-1181-4dd6-987b-644ac7435976",
+                "acca73e5-e87c-4060-9cbb-3dc0ccb17db3",
+                "ba3fd611-10c5-4268-abc5-3fb10032940e"
+              ],
+              "pins": [
+                "A4",
+                "A9",
+                "B4",
+                "B9"
+              ],
+              "ref": "J5"
+            }
+          ]
+        },
+        "new_budget_or_pin_sharing_inferred": false
+      },
+      "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V": {
+        "declaration": {
+          "basis": "Owner-authorized 1 A sustained negative-12-volt pass-through design basis, 2026-10-17: actual J3 pin 14 to J_SIG1 pin 1. The existing 125 percent conductor geometry margin applies once to the complete path. C22, C23 and R75 are local bypass/divider leaves, not alternate full-current sinks or a basis for reducing the pass-through load. This is not a measured load, PSU source guarantee, connector/barrel capacity, inrush, thermal or release qualification.",
+          "net": "/ATX_NEG12V",
+          "sinks": [
+            {
+              "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical",
+              "mpn": "SSQ-102-03-G-D",
+              "pins": [
+                "1"
+              ],
+              "ref": "J_SIG1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal",
+              "mpn": "39291247",
+              "pins": [
+                "14"
+              ],
+              "ref": "J3"
+            }
+          ]
+        },
+        "existing_current_contract": {
+          "amps": 1.0,
+          "geometry_margin": 1.25,
+          "margin_included": false,
+          "pattern": "/ATX_NEG12V",
+          "source": "board_design_basis"
+        },
+        "native_endpoints": {
+          "sinks": [
+            {
+              "footprint": "cec-Connector_PinSocket_2.54mm:Samtec_SSQ-102-03-G-D_2x02_P2.54mm_Vertical",
+              "footprint_uuid": "421c705c-18a6-4f39-8a9a-fe0a65aca70a",
+              "mpn": "SSQ-102-03-G-D",
+              "pad_uuids": [
+                "e0555d06-3c85-4826-b94e-350df80db3c5"
+              ],
+              "pins": [
+                "1"
+              ],
+              "ref": "J_SIG1"
+            }
+          ],
+          "sources": [
+            {
+              "footprint": "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal",
+              "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+              "mpn": "39291247",
+              "pad_uuids": [
+                "0e1e5bb0-b42d-4687-9d4d-498edfaec001"
+              ],
+              "pins": [
+                "14"
+              ],
+              "ref": "J3"
+            }
+          ]
+        },
+        "new_budget_or_pin_sharing_inferred": false
+      }
+    }
+  },
+  "derived_input_allowed": true,
+  "draft": true,
+  "electrical_source_audit": {
+    "blocker_count": 0,
+    "findings": [
+      {
+        "board": "atx-24pin-rev3",
+        "code": "OVP_DYNAMIC_MARGIN",
+        "message": "CAD proves R59=43200 ohm and R69=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation",
+        "ref": "U5",
+        "severity": "WARN"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "OVP_DYNAMIC_MARGIN",
+        "message": "CAD proves R55=43200 ohm and R56=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes; only 52 mV remains to the 6.0 V absolute maximum, so transient overshoot and trip delay still require analysis and bench validation",
+        "ref": "U6",
+        "severity": "WARN"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "USB_INGRESS_CAPACITANCE",
+        "evidence": {
+          "capacitors": [
+            {
+              "nominal_uf": 0.1,
+              "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "ref": "C52"
+            },
+            {
+              "nominal_uf": 10.0,
+              "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "ref": "C53"
+            },
+            {
+              "nominal_uf": 10.0,
+              "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "ref": "C9"
+            }
+          ],
+          "nominal_uf": 20.099999999999998,
+          "passive_links": [
+            "F1",
+            "FB1"
+          ],
+          "qualified": false
+        },
+        "message": "USB2 sink ingress exposes 20.100 uF nominal (C52, C53, C9) through passive links F1, FB1 before active current limiting; exceeds the 10 uF hard-attach screening budget. Qualify effective capacitance and hot-plug inrush; downstream mux soft-start is not input-cap protection. Source: TI SLVA129, https://www.ti.com/lit/pdf/slva129",
+        "ref": "J5",
+        "severity": "WARN"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "DEVICE_BYPASS_COVERAGE",
+        "message": "schematic provides 16 distinct nominal 100 nF capacitors for all audited device supply requirements; PCB proximity is a separate gate",
+        "ref": "",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "ESP32_REVIEWED_REGULATOR_NETWORK",
+        "message": "ESP32-C6-MINI-1-N4 is fed by the reviewed regulator topology with 17.6 uF nominal distributed capacitance on +3V3",
+        "ref": "U1",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "OVP_WINDOW",
+        "message": "CAD proves R59=43200 ohm and R69=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes",
+        "ref": "U5",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "OVP_WINDOW",
+        "message": "CAD proves R55=43200 ohm and R56=10000 ohm on OV1; TPS2121 rising trip is 5.639 V nominal and 5.287 to 5.948 V at specified extremes",
+        "ref": "U6",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "REGULATOR_CAP_NETWORK",
+        "message": "TLV75533PDRVR nominal input/output capacitor network is inside the reviewed datasheet range",
+        "ref": "U3",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "REGULATOR_LOAD_MARGIN",
+        "message": "reviewed worst-case rail load including 20% margin is 204.838 mA; conservative source capacity is 500 mA (59.0% remaining)",
+        "ref": "",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3",
+        "code": "TPS2121_BYPASS_COVERAGE",
+        "message": "6 TPS2121 IN1/IN2/OUT pins have distinct exact X5R/X7R capacitors; PCB placement proximity remains independently gated",
+        "ref": "",
+        "severity": "INFO"
+      },
+      {
+        "board": "atx-24pin-rev3+hub-standard-rev2",
+        "code": "MEZZ_MATCH",
+        "message": "segmented J6P/J6C/J6D pin roles match across both boards",
+        "ref": "",
+        "severity": "INFO"
+      }
+    ],
+    "ok": true,
+    "reasons": [],
+    "warning_count": 3
+  },
+  "generalization_gate": {
+    "checked_modules": [
+      "scripts/cec_return_plane_preview.py",
+      "scripts/cec_shared_pin_reference.py",
+      "scripts/cec_prefreeze_local_pi.py",
+      "scripts/cec_full_pipeline.py",
+      "scripts/cec_future_congestion.py",
+      "scripts/cec_search_policy.py",
+      "scripts/cec_courtyard_edge.py",
+      "scripts/cec_field_coupling.py",
+      "scripts/cec_field_coupling_repair.py",
+      "scripts/cec_field_transition_return.py",
+      "scripts/cec_route_field_finish.py",
+      "scripts/cec_thermal_contract.py",
+      "scripts/cec_route_preflight.py",
+      "scripts/cec_constraint_ir.py",
+      "scripts/cec_sense_topology.py",
+      "scripts/cec_kelvin_departure.py",
+      "scripts/cec_current_binding.py",
+      "scripts/cec_force_current.py",
+      "scripts/cec_pad_surface_access.py",
+      "scripts/cec_force_sense_evidence.py",
+      "scripts/cec_kelvin_copper_cut.py",
+      "scripts/cec_kelvin_force_separation.py",
+      "scripts/cec_kelvin_branch_repair.py",
+      "scripts/cec_saved_family_repair.py",
+      "scripts/cec_priority_force_dispatch.py",
+      "scripts/cec_terminal_launch_pocket.py",
+      "scripts/cec_pth_return_repair.py",
+      "scripts/cec_fiducial_reuse.py",
+      "scripts/cec_systemd_completion_event.py",
+      "scripts/cec_route_candidate_worker.py",
+      "scripts/cec_hole_index.py",
+      "scripts/cec_fab_native_geometry.py",
+      "scripts/cec_blocker_provenance.py",
+      "scripts/cec_completion_evidence.py",
+      "scripts/cec_final_residual.py",
+      "scripts/cec_decoupler_cell.py",
+      "scripts/cec_return_escape.py",
+      "scripts/cec_endpoint_roadmap.py",
+      "scripts/cec_certified_island_access.py",
+      "scripts/cec_additive_pair_repair.py",
+      "scripts/cec_power_artifact_worker.py",
+      "scripts/cec_power_failure.py",
+      "scripts/cec_local_via_rebuild.py",
+      "scripts/cec_copper_echo.py",
+      "scripts/cec_priority_dependency.py",
+      "scripts/cec_priority_replacement_receipt.py",
+      "scripts/cec_pair_pad_guard.py",
+      "scripts/cec_pair_order_repair.py",
+      "scripts/cec_qualified_escape.py",
+      "scripts/cec_power_guard_geometry.py",
+      "scripts/cec_local_return_feedback.py",
+      "scripts/cec_post_authority_recovery.py",
+      "scripts/cec_reservation_index.py",
+      "scripts/cec_finalist_evidence.py",
+      "scripts/cec_probe_scope.py",
+      "scripts/cec_placement_probe_coverage.py",
+      "scripts/cec_placement_search_domain.py",
+      "scripts/cec_terminal_range.py",
+      "scripts/cec_translation_halfplanes.py",
+      "scripts/cec_placement_dependencies.py",
+      "scripts/cec_placement_relation_guard.py",
+      "scripts/cec_operation_budget.py",
+      "scripts/cec_search_budget.py",
+      "scripts/cec_frozen_placement_domain.py",
+      "scripts/cec_locked_net_ownership.py",
+      "scripts/cec_placement_evidence_identity.py",
+      "scripts/cec_placement_reconstruction.py",
+      "scripts/cec_stage_admission.py",
+      "scripts/cec_pass_review.py",
+      "scripts/cec_placement_checkpoint.py",
+      "scripts/cec_outline_geometry.py",
+      "scripts/cec_outline_compaction.py",
+      "scripts/cec_assembly_access.py",
+      "scripts/cec_assembly_envelope.py",
+      "scripts/cec_assembly_instance.py",
+      "scripts/cec_assembly_cad.py",
+      "scripts/cec_stack_fit_screen.py",
+      "scripts/cec_reservoir_screen.py",
+      "scripts/cec_edge_recess.py",
+      "scripts/cec_placement_geometry.py",
+      "scripts/cec_noncontact_placement.py",
+      "scripts/cec_board_suite.py",
+      "scripts/cec_route_evidence.py",
+      "scripts/cec_probe_evidence.py",
+      "scripts/cec_search_completion.py",
+      "scripts/cec_pair_return_field.py",
+      "scripts/cec_preflight_native_recovery.py",
+      "scripts/cec_mount_patterns.py",
+      "scripts/cec_mating_rows.py",
+      "scripts/cec_interface_eco.py",
+      "scripts/cec_interface_routes.py",
+      "scripts/cec_maze_channels.py",
+      "scripts/cec_hardware_qualification.py",
+      "scripts/cec_output_mount_audit.py",
+      "scripts/cec_board_policy.py",
+      "scripts/cec_rail_geometry.py",
+      "scripts/cec_rail_detour.py",
+      "scripts/cec_transition_landings.py",
+      "scripts/cec_parallel_copper.py",
+      "scripts/cec_rail_transition_search.py",
+      "scripts/cec_construction_feedback.py",
+      "scripts/cec_native_pad_obstacles.py",
+      "scripts/cec_materialized_candidate.py",
+      "scripts/cec_conductor_proposal.py",
+      "scripts/cec_route_dimensions.py",
+      "scripts/cec_dimension_repair.py",
+      "scripts/cec_escape_cell.py",
+      "scripts/cec_native_items.py",
+      "scripts/cec_copper_overlap.py",
+      "scripts/cec_failure_replay.py",
+      "scripts/cec_passes.py",
+      "scripts/cec_cell_packing.py",
+      "scripts/cec_supply_group.py",
+      "scripts/cec_supply_native.py",
+      "scripts/cec_placement_commit.py",
+      "scripts/cec_portal_copper.py",
+      "scripts/cec_portal_feedback.py",
+      "scripts/cec_frozen_copper.py",
+      "scripts/cec_blueprint_ownership.py",
+      "scripts/cec_blueprint_placement.py",
+      "scripts/cec_power_body.py",
+      "scripts/cec_power_local_replay.py",
+      "scripts/cec_power_order.py",
+      "scripts/cec_ranked_frontier.py",
+      "scripts/cec_local_seating.py",
+      "scripts/cec_constraint_seating.py",
+      "scripts/cec_cell_domains.py",
+      "scripts/cec_cell_proposals.py",
+      "scripts/cec_pair_banks.py",
+      "scripts/cec_parallel_links.py",
+      "scripts/cec_edge_packing.py",
+      "scripts/cec_mounting_contract.py",
+      "scripts/cec_placement_route_prefix.py",
+      "scripts/cec_pair_heading_boundary.py",
+      "scripts/cec_critical_checkpoint.py",
+      "scripts/cec_generated_fill_seams.py",
+      "scripts/cec_pth_pair_returns.py",
+      "scripts/cec_local_power_prefix.py",
+      "scripts/cec_power_terminal_access.py",
+      "scripts/cec_distributed_supply.py",
+      "scripts/cec_rated_supply_detour.py",
+      "scripts/cec_measurement_current_branch.py",
+      "scripts/cec_local_branch_access.py",
+      "scripts/cec_ground_reference_access.py"
+    ],
+    "full_pipeline_generic": false,
+    "known_products": [
+      "output-daughterboards/atx24-out-db",
+      "output-daughterboards/pcie-out-db",
+      "output-daughterboards/eps-out-db",
+      "hub-standard-rev2",
+      "12vhpwr-standard",
+      "pcie-8pin-2port",
+      "pcie-8pin-3port",
+      "atx-24pin-rev3",
+      "argb-standard",
+      "eps-8pin-rev3"
+    ],
+    "ok": true,
+    "physical_checked_modules": [
+      "scripts/cec_return_plane_preview.py",
+      "scripts/cec_shared_pin_reference.py",
+      "scripts/cec_prefreeze_local_pi.py",
+      "scripts/cec_full_pipeline.py",
+      "scripts/cec_future_congestion.py",
+      "scripts/cec_search_policy.py",
+      "scripts/cec_courtyard_edge.py",
+      "scripts/cec_field_coupling.py",
+      "scripts/cec_field_coupling_repair.py",
+      "scripts/cec_field_transition_return.py",
+      "scripts/cec_route_field_finish.py",
+      "scripts/cec_thermal_contract.py",
+      "scripts/cec_route_preflight.py",
+      "scripts/cec_constraint_ir.py",
+      "scripts/cec_sense_topology.py",
+      "scripts/cec_kelvin_departure.py",
+      "scripts/cec_current_binding.py",
+      "scripts/cec_force_current.py",
+      "scripts/cec_pad_surface_access.py",
+      "scripts/cec_force_sense_evidence.py",
+      "scripts/cec_kelvin_copper_cut.py",
+      "scripts/cec_kelvin_force_separation.py",
+      "scripts/cec_kelvin_branch_repair.py",
+      "scripts/cec_saved_family_repair.py",
+      "scripts/cec_priority_force_dispatch.py",
+      "scripts/cec_terminal_launch_pocket.py",
+      "scripts/cec_pth_return_repair.py",
+      "scripts/cec_fiducial_reuse.py",
+      "scripts/cec_systemd_completion_event.py",
+      "scripts/cec_route_candidate_worker.py",
+      "scripts/cec_hole_index.py",
+      "scripts/cec_fab_native_geometry.py",
+      "scripts/cec_blocker_provenance.py",
+      "scripts/cec_completion_evidence.py",
+      "scripts/cec_final_residual.py",
+      "scripts/cec_decoupler_cell.py",
+      "scripts/cec_return_escape.py",
+      "scripts/cec_endpoint_roadmap.py",
+      "scripts/cec_certified_island_access.py",
+      "scripts/cec_additive_pair_repair.py",
+      "scripts/cec_power_artifact_worker.py",
+      "scripts/cec_power_failure.py",
+      "scripts/cec_local_via_rebuild.py",
+      "scripts/cec_copper_echo.py",
+      "scripts/cec_priority_dependency.py",
+      "scripts/cec_priority_replacement_receipt.py",
+      "scripts/cec_pair_pad_guard.py",
+      "scripts/cec_pair_order_repair.py",
+      "scripts/cec_qualified_escape.py",
+      "scripts/cec_power_guard_geometry.py",
+      "scripts/cec_local_return_feedback.py",
+      "scripts/cec_post_authority_recovery.py",
+      "scripts/cec_reservation_index.py",
+      "scripts/cec_finalist_evidence.py",
+      "scripts/cec_probe_scope.py",
+      "scripts/cec_placement_probe_coverage.py",
+      "scripts/cec_placement_search_domain.py",
+      "scripts/cec_terminal_range.py",
+      "scripts/cec_translation_halfplanes.py",
+      "scripts/cec_placement_dependencies.py",
+      "scripts/cec_placement_relation_guard.py",
+      "scripts/cec_operation_budget.py",
+      "scripts/cec_search_budget.py",
+      "scripts/cec_frozen_placement_domain.py",
+      "scripts/cec_locked_net_ownership.py",
+      "scripts/cec_placement_evidence_identity.py",
+      "scripts/cec_placement_reconstruction.py",
+      "scripts/cec_stage_admission.py",
+      "scripts/cec_pass_review.py",
+      "scripts/cec_placement_checkpoint.py",
+      "scripts/cec_outline_geometry.py",
+      "scripts/cec_outline_compaction.py",
+      "scripts/cec_assembly_access.py",
+      "scripts/cec_assembly_envelope.py",
+      "scripts/cec_assembly_instance.py",
+      "scripts/cec_assembly_cad.py",
+      "scripts/cec_stack_fit_screen.py",
+      "scripts/cec_reservoir_screen.py",
+      "scripts/cec_edge_recess.py",
+      "scripts/cec_placement_geometry.py",
+      "scripts/cec_noncontact_placement.py",
+      "scripts/cec_board_suite.py",
+      "scripts/cec_route_evidence.py",
+      "scripts/cec_probe_evidence.py",
+      "scripts/cec_search_completion.py",
+      "scripts/cec_pair_return_field.py",
+      "scripts/cec_preflight_native_recovery.py",
+      "scripts/cec_mount_patterns.py",
+      "scripts/cec_mating_rows.py",
+      "scripts/cec_interface_eco.py",
+      "scripts/cec_interface_routes.py",
+      "scripts/cec_maze_channels.py",
+      "scripts/cec_hardware_qualification.py",
+      "scripts/cec_output_mount_audit.py",
+      "scripts/cec_rail_geometry.py",
+      "scripts/cec_rail_detour.py",
+      "scripts/cec_transition_landings.py",
+      "scripts/cec_parallel_copper.py",
+      "scripts/cec_rail_transition_search.py",
+      "scripts/cec_construction_feedback.py",
+      "scripts/cec_native_pad_obstacles.py",
+      "scripts/cec_materialized_candidate.py",
+      "scripts/cec_conductor_proposal.py",
+      "scripts/cec_route_dimensions.py",
+      "scripts/cec_dimension_repair.py",
+      "scripts/cec_escape_cell.py",
+      "scripts/cec_native_items.py",
+      "scripts/cec_copper_overlap.py",
+      "scripts/cec_failure_replay.py",
+      "scripts/cec_passes.py",
+      "scripts/cec_cell_packing.py",
+      "scripts/cec_supply_group.py",
+      "scripts/cec_supply_native.py",
+      "scripts/cec_placement_commit.py",
+      "scripts/cec_portal_copper.py",
+      "scripts/cec_portal_feedback.py",
+      "scripts/cec_frozen_copper.py",
+      "scripts/cec_blueprint_ownership.py",
+      "scripts/cec_blueprint_placement.py",
+      "scripts/cec_power_body.py",
+      "scripts/cec_power_local_replay.py",
+      "scripts/cec_power_order.py",
+      "scripts/cec_ranked_frontier.py",
+      "scripts/cec_local_seating.py",
+      "scripts/cec_constraint_seating.py",
+      "scripts/cec_cell_domains.py",
+      "scripts/cec_cell_proposals.py",
+      "scripts/cec_pair_banks.py",
+      "scripts/cec_parallel_links.py",
+      "scripts/cec_edge_packing.py",
+      "scripts/cec_mounting_contract.py",
+      "scripts/cec_placement_route_prefix.py",
+      "scripts/cec_pair_heading_boundary.py",
+      "scripts/cec_critical_checkpoint.py",
+      "scripts/cec_generated_fill_seams.py",
+      "scripts/cec_pth_pair_returns.py",
+      "scripts/cec_local_power_prefix.py",
+      "scripts/cec_power_terminal_access.py",
+      "scripts/cec_distributed_supply.py",
+      "scripts/cec_rated_supply_detour.py",
+      "scripts/cec_measurement_current_branch.py",
+      "scripts/cec_local_branch_access.py",
+      "scripts/cec_ground_reference_access.py",
+      "scripts/cec_synth_pipeline.py",
+      "scripts/cec_constraints.py",
+      "scripts/cec_fr.py",
+      "scripts/cec_staged_fr.py",
+      "scripts/cec_slab_pour.py",
+      "scripts/cec_pour_plan.py",
+      "scripts/cec_precision_route.py",
+      "scripts/cec_coord_router.py",
+      "scripts/cec_pair_return.py",
+      "scripts/cec_device_bypass.py",
+      "scripts/cec_ground_plane.py",
+      "scripts/cec_fab_repair.py",
+      "scripts/cec_score.py",
+      "scripts/cec_route_quality.py",
+      "scripts/cec_force_lanes.py",
+      "scripts/cec_force_rails.py",
+      "scripts/cec_current_topology.py"
+    ],
+    "physical_engine_generic": false,
+    "physical_violation_count": 23,
+    "physical_violations": [
+      {
+        "kind": "reference_selector",
+        "line": 10234,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 10235,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 641,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 641,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 5958,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9099,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9099,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9100,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9102,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9108,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9065,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9065,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9172,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 311,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 311,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 149,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 149,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 189,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 190,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 206,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 207,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 174,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 174,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      }
+    ],
+    "pipeline_maturity": "generic_core_with_legacy_physical_and_integration_debt",
+    "release_ok": false,
+    "runtime_checked_modules": [
+      "scripts/cec_additional_aggregate_macro.py",
+      "scripts/cec_additive_pair_repair.py",
+      "scripts/cec_additive_portal_compaction.py",
+      "scripts/cec_additive_route_receiving.py",
+      "scripts/cec_address_supply_obligations.py",
+      "scripts/cec_aggregate_cap_ground_leaf.py",
+      "scripts/cec_antenna_edge.py",
+      "scripts/cec_assembly_access.py",
+      "scripts/cec_assembly_cad.py",
+      "scripts/cec_assembly_envelope.py",
+      "scripts/cec_assembly_instance.py",
+      "scripts/cec_auxiliary_attachment_current.py",
+      "scripts/cec_beta_electrical_audit.py",
+      "scripts/cec_blocker_provenance.py",
+      "scripts/cec_blueprint_ownership.py",
+      "scripts/cec_blueprint_placement.py",
+      "scripts/cec_board_geometry.py",
+      "scripts/cec_board_suite.py",
+      "scripts/cec_boarddb.py",
+      "scripts/cec_bypass_ground_portal_events.py",
+      "scripts/cec_bypass_pose_receiving.py",
+      "scripts/cec_bypass_return_reseat.py",
+      "scripts/cec_cell_contact_frontier.py",
+      "scripts/cec_cell_copper_preflight.py",
+      "scripts/cec_cell_domains.py",
+      "scripts/cec_cell_endpoint_groups.py",
+      "scripts/cec_cell_escape_replan.py",
+      "scripts/cec_cell_extract.py",
+      "scripts/cec_cell_ground_cut_boundaries.py",
+      "scripts/cec_cell_macro_requests.py",
+      "scripts/cec_cell_packing.py",
+      "scripts/cec_cell_proposals.py",
+      "scripts/cec_cell_row.py",
+      "scripts/cec_cell_row_rebuild.py",
+      "scripts/cec_cell_shared_fork.py",
+      "scripts/cec_certificate_repair.py",
+      "scripts/cec_certified_island_access.py",
+      "scripts/cec_collector_reconstruction.py",
+      "scripts/cec_collinear_copper.py",
+      "scripts/cec_column_destination_ports.py",
+      "scripts/cec_column_surface_launch.py",
+      "scripts/cec_complete_cell_receiving.py",
+      "scripts/cec_complete_macro_cell.py",
+      "scripts/cec_completion_evidence.py",
+      "scripts/cec_component_internal_connections.py",
+      "scripts/cec_component_jumper_metadata.py",
+      "scripts/cec_conductor_proposal.py",
+      "scripts/cec_connected_address_supply_prefix.py",
+      "scripts/cec_connection_walk.py",
+      "scripts/cec_constraint_ir.py",
+      "scripts/cec_constraint_seating.py",
+      "scripts/cec_constraints.py",
+      "scripts/cec_construction_feedback.py",
+      "scripts/cec_contained_one_face_barrel_retirement.py",
+      "scripts/cec_contained_track_receiving.py",
+      "scripts/cec_control_current_branch.py",
+      "scripts/cec_control_gate_bias_placement.py",
+      "scripts/cec_control_pullup_placement.py",
+      "scripts/cec_control_shunt_ground_return_axes.py",
+      "scripts/cec_control_shunt_placement.py",
+      "scripts/cec_coord_hints.py",
+      "scripts/cec_coord_router.py",
+      "scripts/cec_copper_echo.py",
+      "scripts/cec_copper_overlap.py",
+      "scripts/cec_copper_reuse.py",
+      "scripts/cec_corpus_compile.py",
+      "scripts/cec_courtyard_edge.py",
+      "scripts/cec_critical_checkpoint.py",
+      "scripts/cec_current_binding.py",
+      "scripts/cec_current_debt.py",
+      "scripts/cec_current_topology.py",
+      "scripts/cec_dashboard.py",
+      "scripts/cec_dcir.py",
+      "scripts/cec_declared_current_endpoints.py",
+      "scripts/cec_decoupler_cell.py",
+      "scripts/cec_detached_current_passive_pose.py",
+      "scripts/cec_detached_ordinary_passive_translation.py",
+      "scripts/cec_device_bypass.py",
+      "scripts/cec_device_power_roles.py",
+      "scripts/cec_dfm_check.py",
+      "scripts/cec_dimension_repair.py",
+      "scripts/cec_dispatch.py",
+      "scripts/cec_distributed_supply.py",
+      "scripts/cec_distributed_supply_prefix.py",
+      "scripts/cec_distributed_supply_stage.py",
+      "scripts/cec_dsn_exact_guard_dedupe.py",
+      "scripts/cec_dsn_routing_settings.py",
+      "scripts/cec_edge_packing.py",
+      "scripts/cec_edge_recess.py",
+      "scripts/cec_endpoint_layer_budget.py",
+      "scripts/cec_endpoint_roadmap.py",
+      "scripts/cec_enrolled_pair_signal_view.py",
+      "scripts/cec_escape_cell.py",
+      "scripts/cec_escape_frontier.py",
+      "scripts/cec_escape_pose_frontier.py",
+      "scripts/cec_exact_connection_aliases.py",
+      "scripts/cec_exact_outline_topology.py",
+      "scripts/cec_exact_overlap_receiving.py",
+      "scripts/cec_exact_overlap_stage.py",
+      "scripts/cec_exact_polygon_cover.py",
+      "scripts/cec_exact_reference_length.py",
+      "scripts/cec_existing_local_pofv_pad_rule.py",
+      "scripts/cec_explicit_shunt_leaf.py",
+      "scripts/cec_extractor_eval.py",
+      "scripts/cec_fab_check.py",
+      "scripts/cec_fab_native_geometry.py",
+      "scripts/cec_fab_profile.py",
+      "scripts/cec_fab_repair.py",
+      "scripts/cec_facts.py",
+      "scripts/cec_failure_replay.py",
+      "scripts/cec_fiducial_reuse.py",
+      "scripts/cec_field_coupling.py",
+      "scripts/cec_field_coupling_repair.py",
+      "scripts/cec_field_landing.py",
+      "scripts/cec_field_search.py",
+      "scripts/cec_field_transition_return.py",
+      "scripts/cec_final_residual.py",
+      "scripts/cec_finalist_evidence.py",
+      "scripts/cec_fix_eps_rev3_bom_fields.py",
+      "scripts/cec_fixed_pofv_mobility.py",
+      "scripts/cec_footprint_fields.py",
+      "scripts/cec_force_bypass_terminals.py",
+      "scripts/cec_force_crossface_receiving.py",
+      "scripts/cec_force_current.py",
+      "scripts/cec_force_lanes.py",
+      "scripts/cec_force_rails.py",
+      "scripts/cec_force_sense_evidence.py",
+      "scripts/cec_fr.py",
+      "scripts/cec_fr02.py",
+      "scripts/cec_fr_bounded_transcript.py",
+      "scripts/cec_fresh_wave.py",
+      "scripts/cec_frozen_copper.py",
+      "scripts/cec_frozen_placement_domain.py",
+      "scripts/cec_frozen_pour_void.py",
+      "scripts/cec_frozen_prefix_completion.py",
+      "scripts/cec_frozen_zone_obstacles.py",
+      "scripts/cec_fs_actuator.py",
+      "scripts/cec_full_current_planar_reflow.py",
+      "scripts/cec_full_current_supply_prefix.py",
+      "scripts/cec_full_pipeline.py",
+      "scripts/cec_fullstack.py",
+      "scripts/cec_future_congestion.py",
+      "scripts/cec_future_pin_access.py",
+      "scripts/cec_generalization_gate.py",
+      "scripts/cec_generated_fill_seams.py",
+      "scripts/cec_generated_pickup_retirement.py",
+      "scripts/cec_gnd_fanout.py",
+      "scripts/cec_gpu_amg.py",
+      "scripts/cec_ground_access_completion.py",
+      "scripts/cec_ground_component_join.py",
+      "scripts/cec_ground_dead_end_tail.py",
+      "scripts/cec_ground_elbow_reflow.py",
+      "scripts/cec_ground_local_mesh_entry.py",
+      "scripts/cec_ground_mesh_entry.py",
+      "scripts/cec_ground_package_pad_contacts.py",
+      "scripts/cec_ground_plane.py",
+      "scripts/cec_ground_plane_echo.py",
+      "scripts/cec_ground_reference_access.py",
+      "scripts/cec_ground_reference_reflow.py",
+      "scripts/cec_ground_return_policy.py",
+      "scripts/cec_ground_return_preservation.py",
+      "scripts/cec_ground_return_shortcut.py",
+      "scripts/cec_ground_strap_rebuild.py",
+      "scripts/cec_ground_via_clearance_window.py",
+      "scripts/cec_hardware_qualification.py",
+      "scripts/cec_hole_index.py",
+      "scripts/cec_hub_holdup.py",
+      "scripts/cec_impedance.py",
+      "scripts/cec_inpad_ground_barrel_seats.py",
+      "scripts/cec_interface_eco.py",
+      "scripts/cec_interface_routes.py",
+      "scripts/cec_isolated_measurement_completion.py",
+      "scripts/cec_joint_connection_search.py",
+      "scripts/cec_joint_route_negotiation.py",
+      "scripts/cec_judge_local.py",
+      "scripts/cec_kelvin_branch_repair.py",
+      "scripts/cec_kelvin_copper_cut.py",
+      "scripts/cec_kelvin_departure.py",
+      "scripts/cec_kelvin_force_separation.py",
+      "scripts/cec_ledger.py",
+      "scripts/cec_legend_repair.py",
+      "scripts/cec_linear_stage_ground_entries.py",
+      "scripts/cec_literal_footprint_metadata.py",
+      "scripts/cec_local_branch_access.py",
+      "scripts/cec_local_copper_cell.py",
+      "scripts/cec_local_power_prefix.py",
+      "scripts/cec_local_return_feedback.py",
+      "scripts/cec_local_seating.py",
+      "scripts/cec_local_via_rebuild.py",
+      "scripts/cec_locked_net_ownership.py",
+      "scripts/cec_macro_boundary_composition.py",
+      "scripts/cec_macro_cut_components.py",
+      "scripts/cec_macro_ground_barrel_window.py",
+      "scripts/cec_macro_ground_ingress.py",
+      "scripts/cec_macro_measurement_corridor.py",
+      "scripts/cec_macro_new_ground_dogbone.py",
+      "scripts/cec_macro_obstacle_cuts.py",
+      "scripts/cec_macro_ordinary_join_obligations.py",
+      "scripts/cec_macro_priority_preflight.py",
+      "scripts/cec_macro_priority_reconstruction.py",
+      "scripts/cec_macro_quiet_output.py",
+      "scripts/cec_macro_rc_input_prefix.py",
+      "scripts/cec_macro_supply_departure.py",
+      "scripts/cec_manufacturer_footprint_parity.py",
+      "scripts/cec_manufacturer_land_pattern.py",
+      "scripts/cec_materialized_candidate.py",
+      "scripts/cec_mating_rows.py",
+      "scripts/cec_maze_channels.py",
+      "scripts/cec_measurement_auxiliary_cut.py",
+      "scripts/cec_measurement_current_branch.py",
+      "scripts/cec_measurement_filter_span.py",
+      "scripts/cec_measurement_launch_pruning.py",
+      "scripts/cec_measurement_leaf.py",
+      "scripts/cec_measurement_leaf_bridge.py",
+      "scripts/cec_measurement_route_policy.py",
+      "scripts/cec_measurement_terminal_access.py",
+      "scripts/cec_measurement_terminal_route.py",
+      "scripts/cec_migrate_6layer.py",
+      "scripts/cec_mount_patterns.py",
+      "scripts/cec_mounting_contract.py",
+      "scripts/cec_native_barrel_portals.py",
+      "scripts/cec_native_bus_column.py",
+      "scripts/cec_native_capsule_contact.py",
+      "scripts/cec_native_component_ports.py",
+      "scripts/cec_native_construction_frame.py",
+      "scripts/cec_native_contained_via_events.py",
+      "scripts/cec_native_contour_regions.py",
+      "scripts/cec_native_copper_snapshot.py",
+      "scripts/cec_native_current_capture.py",
+      "scripts/cec_native_drc_inventory.py",
+      "scripts/cec_native_drc_runner.py",
+      "scripts/cec_native_fault_lineage.py",
+      "scripts/cec_native_field_roles.py",
+      "scripts/cec_native_fill_geometry.py",
+      "scripts/cec_native_frontier_splice.py",
+      "scripts/cec_native_frozen_zone_access.py",
+      "scripts/cec_native_ground_span_reflow.py",
+      "scripts/cec_native_isolated_vias.py",
+      "scripts/cec_native_items.py",
+      "scripts/cec_native_layer_masks.py",
+      "scripts/cec_native_library_context.py",
+      "scripts/cec_native_local_subtractive_clip.py",
+      "scripts/cec_native_pad_obstacles.py",
+      "scripts/cec_native_pad_ports.py",
+      "scripts/cec_native_partition_pair.py",
+      "scripts/cec_native_pivot_contacts.py",
+      "scripts/cec_native_placement_context.py",
+      "scripts/cec_native_portal_cpu_portfolio.py",
+      "scripts/cec_native_portal_geometry.py",
+      "scripts/cec_native_pose_prescreen.py",
+      "scripts/cec_native_route_portal.py",
+      "scripts/cec_native_rule_areas.py",
+      "scripts/cec_native_rule_validity.py",
+      "scripts/cec_native_scalar_corner_scope.py",
+      "scripts/cec_native_supply_via_context.py",
+      "scripts/cec_native_track_ports.py",
+      "scripts/cec_native_track_prefix.py",
+      "scripts/cec_native_via_frontier.py",
+      "scripts/cec_native_via_land_context.py",
+      "scripts/cec_native_via_obstruction_stack.py",
+      "scripts/cec_native_via_pad_context.py",
+      "scripts/cec_native_zone_islands.py",
+      "scripts/cec_new_track_body_echo.py",
+      "scripts/cec_noncontact_placement.py",
+      "scripts/cec_normalize_verified_lcsc_parts.py",
+      "scripts/cec_octilinear_corner.py",
+      "scripts/cec_operation_budget.py",
+      "scripts/cec_ordinary_barrel_reseat.py",
+      "scripts/cec_ordinary_corner_collateral.py",
+      "scripts/cec_ordinary_escape_corridor.py",
+      "scripts/cec_ordinary_power_columns.py",
+      "scripts/cec_ordinary_route_receiving.py",
+      "scripts/cec_ordinary_signal_completion.py",
+      "scripts/cec_outline_compaction.py",
+      "scripts/cec_outline_geometry.py",
+      "scripts/cec_output_mount_audit.py",
+      "scripts/cec_overnight_directed.py",
+      "scripts/cec_owner_escape_articulation.py",
+      "scripts/cec_pad_face_launch.py",
+      "scripts/cec_pad_incident_tracks.py",
+      "scripts/cec_pad_surface_access.py",
+      "scripts/cec_pair_access_repair.py",
+      "scripts/cec_pair_axis_miter.py",
+      "scripts/cec_pair_banks.py",
+      "scripts/cec_pair_bend_state.py",
+      "scripts/cec_pair_fallback.py",
+      "scripts/cec_pair_field_search.py",
+      "scripts/cec_pair_fixed_port_shortening.py",
+      "scripts/cec_pair_grid_landing.py",
+      "scripts/cec_pair_heading_boundary.py",
+      "scripts/cec_pair_length_match.py",
+      "scripts/cec_pair_local_reference_refinement.py",
+      "scripts/cec_pair_member_obstacles.py",
+      "scripts/cec_pair_native_layer_order.py",
+      "scripts/cec_pair_order_repair.py",
+      "scripts/cec_pair_pad_guard.py",
+      "scripts/cec_pair_return.py",
+      "scripts/cec_pair_return_field.py",
+      "scripts/cec_pair_ribbon.py",
+      "scripts/cec_pair_semantics.py",
+      "scripts/cec_pair_serial_paths.py",
+      "scripts/cec_pair_skew.py",
+      "scripts/cec_pair_source_reference.py",
+      "scripts/cec_pair_terminal_caps.py",
+      "scripts/cec_paired_route_reconstruction.py",
+      "scripts/cec_parallel_copper.py",
+      "scripts/cec_parallel_links.py",
+      "scripts/cec_part_semantics.py",
+      "scripts/cec_pass_review.py",
+      "scripts/cec_pass_through_current.py",
+      "scripts/cec_passes.py",
+      "scripts/cec_pcb.py",
+      "scripts/cec_pcb_reconcile.py",
+      "scripts/cec_physical_body.py",
+      "scripts/cec_pi_cleanup.py",
+      "scripts/cec_place.py",
+      "scripts/cec_placement_checkpoint.py",
+      "scripts/cec_placement_commit.py",
+      "scripts/cec_placement_dependencies.py",
+      "scripts/cec_placement_evidence_identity.py",
+      "scripts/cec_placement_geometry.py",
+      "scripts/cec_placement_probe_coverage.py",
+      "scripts/cec_placement_reconstruction.py",
+      "scripts/cec_placement_relation_guard.py",
+      "scripts/cec_placement_route_prefix.py",
+      "scripts/cec_placement_search_domain.py",
+      "scripts/cec_placement_session.py",
+      "scripts/cec_placement_station_groups.py",
+      "scripts/cec_policy.py",
+      "scripts/cec_portal_copper.py",
+      "scripts/cec_portal_feedback.py",
+      "scripts/cec_pose_copper_score.py",
+      "scripts/cec_post_authority_recovery.py",
+      "scripts/cec_pour_clearance.py",
+      "scripts/cec_pour_plan.py",
+      "scripts/cec_pourplan.py",
+      "scripts/cec_power_artifact_worker.py",
+      "scripts/cec_power_body.py",
+      "scripts/cec_power_connectivity.py",
+      "scripts/cec_power_contours.py",
+      "scripts/cec_power_failure.py",
+      "scripts/cec_power_guard_geometry.py",
+      "scripts/cec_power_local_replay.py",
+      "scripts/cec_power_order.py",
+      "scripts/cec_power_terminal_access.py",
+      "scripts/cec_precision_route.py",
+      "scripts/cec_preflight_native_recovery.py",
+      "scripts/cec_prefreeze_local_pi.py",
+      "scripts/cec_priority_dependency.py",
+      "scripts/cec_priority_force_dispatch.py",
+      "scripts/cec_priority_recovery.py",
+      "scripts/cec_priority_replacement_receipt.py",
+      "scripts/cec_probe_evidence.py",
+      "scripts/cec_probe_scope.py",
+      "scripts/cec_process_pool.py",
+      "scripts/cec_programming_resistor_placement.py",
+      "scripts/cec_project_policy_seal.py",
+      "scripts/cec_projected_ground_contact.py",
+      "scripts/cec_proposal_receipt_memo.py",
+      "scripts/cec_proposed_collinear_copper.py",
+      "scripts/cec_protector_cell.py",
+      "scripts/cec_protector_cell_receiving.py",
+      "scripts/cec_pth_pair_returns.py",
+      "scripts/cec_pth_return_repair.py",
+      "scripts/cec_qualified_courtyard_restore.py",
+      "scripts/cec_qualified_escape.py",
+      "scripts/cec_quiet_signal_completion.py",
+      "scripts/cec_quiet_signal_requests.py",
+      "scripts/cec_rail_detour.py",
+      "scripts/cec_rail_geometry.py",
+      "scripts/cec_rail_transition_search.py",
+      "scripts/cec_ranked_frontier.py",
+      "scripts/cec_rated_barrel_reseat.py",
+      "scripts/cec_rated_branch_repair.py",
+      "scripts/cec_rated_consumer_scope.py",
+      "scripts/cec_rated_dsn_overlay.py",
+      "scripts/cec_rated_supply_detour.py",
+      "scripts/cec_rated_trace_scope.py",
+      "scripts/cec_rated_wave_context.py",
+      "scripts/cec_received_private_stage.py",
+      "scripts/cec_rectilinear_copper.py",
+      "scripts/cec_redundant_bypass_ground.py",
+      "scripts/cec_redundant_local_ground_return.py",
+      "scripts/cec_reference_ingress.py",
+      "scripts/cec_reference_map_reownership.py",
+      "scripts/cec_regional_fill.py",
+      "scripts/cec_render.py",
+      "scripts/cec_render_diff.py",
+      "scripts/cec_request_wire_identity.py",
+      "scripts/cec_reservation_index.py",
+      "scripts/cec_reserved_corridor_track_scope.py",
+      "scripts/cec_reserved_pour_pose_events.py",
+      "scripts/cec_reservoir_screen.py",
+      "scripts/cec_residual_breadth.py",
+      "scripts/cec_resistive_monitor_branch.py",
+      "scripts/cec_retained_address_ground.py",
+      "scripts/cec_retained_bypass_contact_frame.py",
+      "scripts/cec_retained_fullwidth_supply_contact.py",
+      "scripts/cec_retained_ground_barrel_clearance.py",
+      "scripts/cec_retained_ground_component.py",
+      "scripts/cec_retained_ground_control_port.py",
+      "scripts/cec_retained_pad_barrel_access.py",
+      "scripts/cec_retained_route_reuse.py",
+      "scripts/cec_retained_source_supply_contact.py",
+      "scripts/cec_retained_supply_port.py",
+      "scripts/cec_retained_surface_pad_copper.py",
+      "scripts/cec_return_escape.py",
+      "scripts/cec_return_plane_preview.py",
+      "scripts/cec_rigid_cell_preservation.py",
+      "scripts/cec_rounded_landing.py",
+      "scripts/cec_route_awareness_service.py",
+      "scripts/cec_route_candidate_worker.py",
+      "scripts/cec_route_checkpoint.py",
+      "scripts/cec_route_choice_portfolio.py",
+      "scripts/cec_route_copper_lineage.py",
+      "scripts/cec_route_corner_contacts.py",
+      "scripts/cec_route_debt_resume.py",
+      "scripts/cec_route_dimensions.py",
+      "scripts/cec_route_evidence.py",
+      "scripts/cec_route_field_finish.py",
+      "scripts/cec_route_pair_admission.py",
+      "scripts/cec_route_placement_admission.py",
+      "scripts/cec_route_pose_history.py",
+      "scripts/cec_route_preflight.py",
+      "scripts/cec_route_progress.py",
+      "scripts/cec_route_progress_polish.py",
+      "scripts/cec_route_proposal_guard.py",
+      "scripts/cec_route_quality.py",
+      "scripts/cec_route_scalar_finish.py",
+      "scripts/cec_router.py",
+      "scripts/cec_saved_family_repair.py",
+      "scripts/cec_saved_ground_hierarchy.py",
+      "scripts/cec_scalar_corner_stage.py",
+      "scripts/cec_sch.py",
+      "scripts/cec_sch_gates.py",
+      "scripts/cec_sch_layout.py",
+      "scripts/cec_sch_lint.py",
+      "scripts/cec_score.py",
+      "scripts/cec_search_budget.py",
+      "scripts/cec_search_completion.py",
+      "scripts/cec_search_policy.py",
+      "scripts/cec_seat_stream.py",
+      "scripts/cec_selected_cap_ground_boundary.py",
+      "scripts/cec_sense_auxiliary.py",
+      "scripts/cec_sense_auxiliary_stage.py",
+      "scripts/cec_sense_topology.py",
+      "scripts/cec_sensitive_divider_role.py",
+      "scripts/cec_sensitive_redundant_span.py",
+      "scripts/cec_sensitive_scalar_completion.py",
+      "scripts/cec_sensitive_scalar_corner_stage.py",
+      "scripts/cec_sensitive_scalar_path_reflow.py",
+      "scripts/cec_series_current_domain.py",
+      "scripts/cec_shared_pin_reference.py",
+      "scripts/cec_shunt_endcap_clearance.py",
+      "scripts/cec_shunt_force_landing.py",
+      "scripts/cec_signal_via_clearance_window.py",
+      "scripts/cec_slab_pour.py",
+      "scripts/cec_smd_macro_transport.py",
+      "scripts/cec_snag_compiler.py",
+      "scripts/cec_source_aggregate_capacitor_cell.py",
+      "scripts/cec_source_capacitor_control_ground.py",
+      "scripts/cec_source_connector_feedthrough.py",
+      "scripts/cec_source_current_endpoint_intake.py",
+      "scripts/cec_source_current_pad_ports.py",
+      "scripts/cec_source_current_ports.py",
+      "scripts/cec_source_cut_chain.py",
+      "scripts/cec_source_device_pinmap.py",
+      "scripts/cec_source_divider_ground_span.py",
+      "scripts/cec_source_face_widths.py",
+      "scripts/cec_source_ground_boundary_connection.py",
+      "scripts/cec_source_ground_continuation.py",
+      "scripts/cec_source_ground_endpoint_cut.py",
+      "scripts/cec_source_ground_leaf.py",
+      "scripts/cec_source_guided_ordinary_detour.py",
+      "scripts/cec_source_linear_power_stage.py",
+      "scripts/cec_source_literal_additions.py",
+      "scripts/cec_source_literal_footprint_retention.py",
+      "scripts/cec_source_literal_group_retirement.py",
+      "scripts/cec_source_literal_retirement.py",
+      "scripts/cec_source_mount_stitch_reconcile.py",
+      "scripts/cec_source_netlist_semantics.py",
+      "scripts/cec_source_no_connect.py",
+      "scripts/cec_source_obsolete_supply_barrels.py",
+      "scripts/cec_source_rc_elbow_reflow.py",
+      "scripts/cec_source_reference_group_cardinal_batch.py",
+      "scripts/cec_source_reference_group_transport.py",
+      "scripts/cec_source_registry.py",
+      "scripts/cec_source_retaining_ses_import.py",
+      "scripts/cec_source_rule_ground_boundary.py",
+      "scripts/cec_source_rule_signal_launches.py",
+      "scripts/cec_source_series_link_placement.py",
+      "scripts/cec_source_sideband_monitor_tap.py",
+      "scripts/cec_source_signal_bias_placement.py",
+      "scripts/cec_source_split_supply_input.py",
+      "scripts/cec_source_supply_endpoint_cut.py",
+      "scripts/cec_span_verify.py",
+      "scripts/cec_spice_sanity.py",
+      "scripts/cec_stack_fit_screen.py",
+      "scripts/cec_stage_admission.py",
+      "scripts/cec_staged_fr.py",
+      "scripts/cec_stale_local_ground_via.py",
+      "scripts/cec_stationary_ground_barrel.py",
+      "scripts/cec_stationary_ground_forest.py",
+      "scripts/cec_stationary_owner_ground_obligations.py",
+      "scripts/cec_suite_inspection.py",
+      "scripts/cec_suite_source_audit_cache.py",
+      "scripts/cec_supply_consumer_branch.py",
+      "scripts/cec_supply_group.py",
+      "scripts/cec_supply_native.py",
+      "scripts/cec_support_branch_preservation.py",
+      "scripts/cec_support_cell_topology.py",
+      "scripts/cec_support_craft_gate.py",
+      "scripts/cec_support_field_reflow.py",
+      "scripts/cec_support_motion.py",
+      "scripts/cec_support_pin_aperture.py",
+      "scripts/cec_support_pivot_receiving.py",
+      "scripts/cec_support_pose_rank.py",
+      "scripts/cec_supported_candidates.py",
+      "scripts/cec_surface_supply_path_graph.py",
+      "scripts/cec_swig_guard.py",
+      "scripts/cec_synth_pipeline.py",
+      "scripts/cec_systemd_completion_event.py",
+      "scripts/cec_terminal_launch_pocket.py",
+      "scripts/cec_terminal_overhang.py",
+      "scripts/cec_terminal_range.py",
+      "scripts/cec_thermal2d.py",
+      "scripts/cec_thermal_contract.py",
+      "scripts/cec_thermal_overlay.py",
+      "scripts/cec_thermal_raster_topology.py",
+      "scripts/cec_thermal_scenarios.py",
+      "scripts/cec_thermal_sources.py",
+      "scripts/cec_thermal_terminal_selection.py",
+      "scripts/cec_toolchain.py",
+      "scripts/cec_transition_landings.py",
+      "scripts/cec_translation_context_window.py",
+      "scripts/cec_translation_geometry.py",
+      "scripts/cec_translation_halfplanes.py",
+      "scripts/cec_unassigned_mount_isolation.py",
+      "scripts/cec_verdict_core.py",
+      "scripts/cec_verifier.py",
+      "scripts/cec_via_field_layout.py",
+      "scripts/cec_vision_narrate.py",
+      "scripts/cec_vlm_bakeoff.py",
+      "scripts/cec_wave_intents.py",
+      "scripts/cec_worklog.py",
+      "scripts/cec_zone_endpoint.py",
+      "scripts/cec_zone_fill.py"
+    ],
+    "runtime_module_closure": [
+      "scripts/cec_additional_aggregate_macro.py",
+      "scripts/cec_additive_pair_repair.py",
+      "scripts/cec_additive_portal_compaction.py",
+      "scripts/cec_additive_route_receiving.py",
+      "scripts/cec_address_supply_obligations.py",
+      "scripts/cec_aggregate_cap_ground_leaf.py",
+      "scripts/cec_antenna_edge.py",
+      "scripts/cec_assembly_access.py",
+      "scripts/cec_assembly_cad.py",
+      "scripts/cec_assembly_envelope.py",
+      "scripts/cec_assembly_instance.py",
+      "scripts/cec_auxiliary_attachment_current.py",
+      "scripts/cec_beta_electrical_audit.py",
+      "scripts/cec_beta_manifest.py",
+      "scripts/cec_blocker_provenance.py",
+      "scripts/cec_blueprint_ownership.py",
+      "scripts/cec_blueprint_placement.py",
+      "scripts/cec_board_geometry.py",
+      "scripts/cec_board_policy.py",
+      "scripts/cec_board_suite.py",
+      "scripts/cec_boarddb.py",
+      "scripts/cec_bypass_ground_portal_events.py",
+      "scripts/cec_bypass_pose_receiving.py",
+      "scripts/cec_bypass_return_reseat.py",
+      "scripts/cec_cell_contact_frontier.py",
+      "scripts/cec_cell_copper_preflight.py",
+      "scripts/cec_cell_domains.py",
+      "scripts/cec_cell_endpoint_groups.py",
+      "scripts/cec_cell_escape_replan.py",
+      "scripts/cec_cell_extract.py",
+      "scripts/cec_cell_ground_cut_boundaries.py",
+      "scripts/cec_cell_macro_requests.py",
+      "scripts/cec_cell_packing.py",
+      "scripts/cec_cell_proposals.py",
+      "scripts/cec_cell_row.py",
+      "scripts/cec_cell_row_rebuild.py",
+      "scripts/cec_cell_shared_fork.py",
+      "scripts/cec_certificate_repair.py",
+      "scripts/cec_certified_island_access.py",
+      "scripts/cec_collector_reconstruction.py",
+      "scripts/cec_collinear_copper.py",
+      "scripts/cec_column_destination_ports.py",
+      "scripts/cec_column_surface_launch.py",
+      "scripts/cec_complete_cell_receiving.py",
+      "scripts/cec_complete_macro_cell.py",
+      "scripts/cec_completion_evidence.py",
+      "scripts/cec_component_internal_connections.py",
+      "scripts/cec_component_jumper_metadata.py",
+      "scripts/cec_conductor_proposal.py",
+      "scripts/cec_connected_address_supply_prefix.py",
+      "scripts/cec_connection_walk.py",
+      "scripts/cec_constraint_ir.py",
+      "scripts/cec_constraint_seating.py",
+      "scripts/cec_constraints.py",
+      "scripts/cec_construction_feedback.py",
+      "scripts/cec_contained_one_face_barrel_retirement.py",
+      "scripts/cec_contained_track_receiving.py",
+      "scripts/cec_control_current_branch.py",
+      "scripts/cec_control_gate_bias_placement.py",
+      "scripts/cec_control_pullup_placement.py",
+      "scripts/cec_control_shunt_ground_return_axes.py",
+      "scripts/cec_control_shunt_placement.py",
+      "scripts/cec_coord_hints.py",
+      "scripts/cec_coord_router.py",
+      "scripts/cec_copper_echo.py",
+      "scripts/cec_copper_overlap.py",
+      "scripts/cec_copper_reuse.py",
+      "scripts/cec_corpus_compile.py",
+      "scripts/cec_courtyard_edge.py",
+      "scripts/cec_critical_checkpoint.py",
+      "scripts/cec_current_binding.py",
+      "scripts/cec_current_debt.py",
+      "scripts/cec_current_topology.py",
+      "scripts/cec_dashboard.py",
+      "scripts/cec_dcir.py",
+      "scripts/cec_declared_current_endpoints.py",
+      "scripts/cec_decoupler_cell.py",
+      "scripts/cec_detached_current_passive_pose.py",
+      "scripts/cec_detached_ordinary_passive_translation.py",
+      "scripts/cec_device_bypass.py",
+      "scripts/cec_device_power_roles.py",
+      "scripts/cec_dfm_check.py",
+      "scripts/cec_dimension_repair.py",
+      "scripts/cec_dispatch.py",
+      "scripts/cec_distributed_supply.py",
+      "scripts/cec_distributed_supply_prefix.py",
+      "scripts/cec_distributed_supply_stage.py",
+      "scripts/cec_dsn_exact_guard_dedupe.py",
+      "scripts/cec_dsn_routing_settings.py",
+      "scripts/cec_edge_packing.py",
+      "scripts/cec_edge_recess.py",
+      "scripts/cec_endpoint_layer_budget.py",
+      "scripts/cec_endpoint_roadmap.py",
+      "scripts/cec_enrolled_pair_signal_view.py",
+      "scripts/cec_escape_cell.py",
+      "scripts/cec_escape_frontier.py",
+      "scripts/cec_escape_pose_frontier.py",
+      "scripts/cec_exact_connection_aliases.py",
+      "scripts/cec_exact_outline_topology.py",
+      "scripts/cec_exact_overlap_receiving.py",
+      "scripts/cec_exact_overlap_stage.py",
+      "scripts/cec_exact_polygon_cover.py",
+      "scripts/cec_exact_reference_length.py",
+      "scripts/cec_existing_local_pofv_pad_rule.py",
+      "scripts/cec_explicit_shunt_leaf.py",
+      "scripts/cec_extractor_eval.py",
+      "scripts/cec_fab_check.py",
+      "scripts/cec_fab_native_geometry.py",
+      "scripts/cec_fab_profile.py",
+      "scripts/cec_fab_repair.py",
+      "scripts/cec_facts.py",
+      "scripts/cec_failure_replay.py",
+      "scripts/cec_fiducial_reuse.py",
+      "scripts/cec_field_coupling.py",
+      "scripts/cec_field_coupling_repair.py",
+      "scripts/cec_field_landing.py",
+      "scripts/cec_field_search.py",
+      "scripts/cec_field_transition_return.py",
+      "scripts/cec_final_residual.py",
+      "scripts/cec_finalist_evidence.py",
+      "scripts/cec_fix_eps_rev3_bom_fields.py",
+      "scripts/cec_fixed_pofv_mobility.py",
+      "scripts/cec_footprint_fields.py",
+      "scripts/cec_force_bypass_terminals.py",
+      "scripts/cec_force_crossface_receiving.py",
+      "scripts/cec_force_current.py",
+      "scripts/cec_force_lanes.py",
+      "scripts/cec_force_rails.py",
+      "scripts/cec_force_sense_evidence.py",
+      "scripts/cec_fr.py",
+      "scripts/cec_fr02.py",
+      "scripts/cec_fr_bounded_transcript.py",
+      "scripts/cec_fresh_wave.py",
+      "scripts/cec_frozen_copper.py",
+      "scripts/cec_frozen_placement_domain.py",
+      "scripts/cec_frozen_pour_void.py",
+      "scripts/cec_frozen_prefix_completion.py",
+      "scripts/cec_frozen_zone_obstacles.py",
+      "scripts/cec_fs_actuator.py",
+      "scripts/cec_full_current_planar_reflow.py",
+      "scripts/cec_full_current_supply_prefix.py",
+      "scripts/cec_full_pipeline.py",
+      "scripts/cec_fullstack.py",
+      "scripts/cec_future_congestion.py",
+      "scripts/cec_future_pin_access.py",
+      "scripts/cec_generalization_gate.py",
+      "scripts/cec_generated_fill_seams.py",
+      "scripts/cec_generated_pickup_retirement.py",
+      "scripts/cec_gnd_fanout.py",
+      "scripts/cec_gpu_amg.py",
+      "scripts/cec_ground_access_completion.py",
+      "scripts/cec_ground_component_join.py",
+      "scripts/cec_ground_dead_end_tail.py",
+      "scripts/cec_ground_elbow_reflow.py",
+      "scripts/cec_ground_local_mesh_entry.py",
+      "scripts/cec_ground_mesh_entry.py",
+      "scripts/cec_ground_package_pad_contacts.py",
+      "scripts/cec_ground_plane.py",
+      "scripts/cec_ground_plane_echo.py",
+      "scripts/cec_ground_reference_access.py",
+      "scripts/cec_ground_reference_reflow.py",
+      "scripts/cec_ground_return_policy.py",
+      "scripts/cec_ground_return_preservation.py",
+      "scripts/cec_ground_return_shortcut.py",
+      "scripts/cec_ground_strap_rebuild.py",
+      "scripts/cec_ground_via_clearance_window.py",
+      "scripts/cec_hardware_qualification.py",
+      "scripts/cec_hole_index.py",
+      "scripts/cec_hub_holdup.py",
+      "scripts/cec_impedance.py",
+      "scripts/cec_inpad_ground_barrel_seats.py",
+      "scripts/cec_interface_eco.py",
+      "scripts/cec_interface_routes.py",
+      "scripts/cec_isolated_measurement_completion.py",
+      "scripts/cec_joint_connection_search.py",
+      "scripts/cec_joint_route_negotiation.py",
+      "scripts/cec_judge_local.py",
+      "scripts/cec_kelvin_branch_repair.py",
+      "scripts/cec_kelvin_copper_cut.py",
+      "scripts/cec_kelvin_departure.py",
+      "scripts/cec_kelvin_force_separation.py",
+      "scripts/cec_ledger.py",
+      "scripts/cec_legend_repair.py",
+      "scripts/cec_linear_stage_ground_entries.py",
+      "scripts/cec_literal_footprint_metadata.py",
+      "scripts/cec_local_branch_access.py",
+      "scripts/cec_local_copper_cell.py",
+      "scripts/cec_local_power_prefix.py",
+      "scripts/cec_local_return_feedback.py",
+      "scripts/cec_local_seating.py",
+      "scripts/cec_local_via_rebuild.py",
+      "scripts/cec_locked_net_ownership.py",
+      "scripts/cec_macro_boundary_composition.py",
+      "scripts/cec_macro_cut_components.py",
+      "scripts/cec_macro_ground_barrel_window.py",
+      "scripts/cec_macro_ground_ingress.py",
+      "scripts/cec_macro_measurement_corridor.py",
+      "scripts/cec_macro_new_ground_dogbone.py",
+      "scripts/cec_macro_obstacle_cuts.py",
+      "scripts/cec_macro_ordinary_join_obligations.py",
+      "scripts/cec_macro_priority_preflight.py",
+      "scripts/cec_macro_priority_reconstruction.py",
+      "scripts/cec_macro_quiet_output.py",
+      "scripts/cec_macro_rc_input_prefix.py",
+      "scripts/cec_macro_supply_departure.py",
+      "scripts/cec_manufacturer_footprint_parity.py",
+      "scripts/cec_manufacturer_land_pattern.py",
+      "scripts/cec_materialized_candidate.py",
+      "scripts/cec_mating_rows.py",
+      "scripts/cec_maze_channels.py",
+      "scripts/cec_measurement_auxiliary_cut.py",
+      "scripts/cec_measurement_current_branch.py",
+      "scripts/cec_measurement_filter_span.py",
+      "scripts/cec_measurement_launch_pruning.py",
+      "scripts/cec_measurement_leaf.py",
+      "scripts/cec_measurement_leaf_bridge.py",
+      "scripts/cec_measurement_route_policy.py",
+      "scripts/cec_measurement_terminal_access.py",
+      "scripts/cec_measurement_terminal_route.py",
+      "scripts/cec_mezz_contract.py",
+      "scripts/cec_migrate_6layer.py",
+      "scripts/cec_mount_patterns.py",
+      "scripts/cec_mounting_contract.py",
+      "scripts/cec_native_barrel_portals.py",
+      "scripts/cec_native_bus_column.py",
+      "scripts/cec_native_capsule_contact.py",
+      "scripts/cec_native_component_ports.py",
+      "scripts/cec_native_construction_frame.py",
+      "scripts/cec_native_contained_via_events.py",
+      "scripts/cec_native_contour_regions.py",
+      "scripts/cec_native_copper_snapshot.py",
+      "scripts/cec_native_current_capture.py",
+      "scripts/cec_native_drc_inventory.py",
+      "scripts/cec_native_drc_runner.py",
+      "scripts/cec_native_fault_lineage.py",
+      "scripts/cec_native_field_roles.py",
+      "scripts/cec_native_fill_geometry.py",
+      "scripts/cec_native_frontier_splice.py",
+      "scripts/cec_native_frozen_zone_access.py",
+      "scripts/cec_native_ground_span_reflow.py",
+      "scripts/cec_native_isolated_vias.py",
+      "scripts/cec_native_items.py",
+      "scripts/cec_native_layer_masks.py",
+      "scripts/cec_native_library_context.py",
+      "scripts/cec_native_local_subtractive_clip.py",
+      "scripts/cec_native_pad_obstacles.py",
+      "scripts/cec_native_pad_ports.py",
+      "scripts/cec_native_partition_pair.py",
+      "scripts/cec_native_pivot_contacts.py",
+      "scripts/cec_native_placement_context.py",
+      "scripts/cec_native_portal_cpu_portfolio.py",
+      "scripts/cec_native_portal_geometry.py",
+      "scripts/cec_native_pose_prescreen.py",
+      "scripts/cec_native_route_portal.py",
+      "scripts/cec_native_rule_areas.py",
+      "scripts/cec_native_rule_validity.py",
+      "scripts/cec_native_scalar_corner_scope.py",
+      "scripts/cec_native_supply_via_context.py",
+      "scripts/cec_native_track_ports.py",
+      "scripts/cec_native_track_prefix.py",
+      "scripts/cec_native_via_frontier.py",
+      "scripts/cec_native_via_land_context.py",
+      "scripts/cec_native_via_obstruction_stack.py",
+      "scripts/cec_native_via_pad_context.py",
+      "scripts/cec_native_zone_islands.py",
+      "scripts/cec_new_track_body_echo.py",
+      "scripts/cec_noncontact_placement.py",
+      "scripts/cec_normalize_verified_lcsc_parts.py",
+      "scripts/cec_octilinear_corner.py",
+      "scripts/cec_operation_budget.py",
+      "scripts/cec_ordinary_barrel_reseat.py",
+      "scripts/cec_ordinary_corner_collateral.py",
+      "scripts/cec_ordinary_escape_corridor.py",
+      "scripts/cec_ordinary_power_columns.py",
+      "scripts/cec_ordinary_route_receiving.py",
+      "scripts/cec_ordinary_signal_completion.py",
+      "scripts/cec_outline_compaction.py",
+      "scripts/cec_outline_geometry.py",
+      "scripts/cec_output_mount_audit.py",
+      "scripts/cec_overnight_directed.py",
+      "scripts/cec_owner_escape_articulation.py",
+      "scripts/cec_pad_face_launch.py",
+      "scripts/cec_pad_incident_tracks.py",
+      "scripts/cec_pad_surface_access.py",
+      "scripts/cec_pair_access_repair.py",
+      "scripts/cec_pair_axis_miter.py",
+      "scripts/cec_pair_banks.py",
+      "scripts/cec_pair_bend_state.py",
+      "scripts/cec_pair_fallback.py",
+      "scripts/cec_pair_field_search.py",
+      "scripts/cec_pair_fixed_port_shortening.py",
+      "scripts/cec_pair_grid_landing.py",
+      "scripts/cec_pair_heading_boundary.py",
+      "scripts/cec_pair_length_match.py",
+      "scripts/cec_pair_local_reference_refinement.py",
+      "scripts/cec_pair_member_obstacles.py",
+      "scripts/cec_pair_native_layer_order.py",
+      "scripts/cec_pair_order_repair.py",
+      "scripts/cec_pair_pad_guard.py",
+      "scripts/cec_pair_return.py",
+      "scripts/cec_pair_return_field.py",
+      "scripts/cec_pair_ribbon.py",
+      "scripts/cec_pair_semantics.py",
+      "scripts/cec_pair_serial_paths.py",
+      "scripts/cec_pair_skew.py",
+      "scripts/cec_pair_source_reference.py",
+      "scripts/cec_pair_terminal_caps.py",
+      "scripts/cec_paired_route_reconstruction.py",
+      "scripts/cec_parallel_copper.py",
+      "scripts/cec_parallel_links.py",
+      "scripts/cec_part_semantics.py",
+      "scripts/cec_pass_review.py",
+      "scripts/cec_pass_through_current.py",
+      "scripts/cec_passes.py",
+      "scripts/cec_pcb.py",
+      "scripts/cec_pcb_reconcile.py",
+      "scripts/cec_physical_body.py",
+      "scripts/cec_pi_cleanup.py",
+      "scripts/cec_place.py",
+      "scripts/cec_placement_checkpoint.py",
+      "scripts/cec_placement_commit.py",
+      "scripts/cec_placement_dependencies.py",
+      "scripts/cec_placement_evidence_identity.py",
+      "scripts/cec_placement_geometry.py",
+      "scripts/cec_placement_probe_coverage.py",
+      "scripts/cec_placement_reconstruction.py",
+      "scripts/cec_placement_relation_guard.py",
+      "scripts/cec_placement_route_prefix.py",
+      "scripts/cec_placement_search_domain.py",
+      "scripts/cec_placement_session.py",
+      "scripts/cec_placement_station_groups.py",
+      "scripts/cec_policy.py",
+      "scripts/cec_portal_copper.py",
+      "scripts/cec_portal_feedback.py",
+      "scripts/cec_pose_copper_score.py",
+      "scripts/cec_post_authority_recovery.py",
+      "scripts/cec_pour_clearance.py",
+      "scripts/cec_pour_plan.py",
+      "scripts/cec_pourplan.py",
+      "scripts/cec_power_artifact_worker.py",
+      "scripts/cec_power_body.py",
+      "scripts/cec_power_budget.py",
+      "scripts/cec_power_connectivity.py",
+      "scripts/cec_power_contours.py",
+      "scripts/cec_power_failure.py",
+      "scripts/cec_power_guard_geometry.py",
+      "scripts/cec_power_local_replay.py",
+      "scripts/cec_power_order.py",
+      "scripts/cec_power_terminal_access.py",
+      "scripts/cec_precision_route.py",
+      "scripts/cec_preflight_native_recovery.py",
+      "scripts/cec_prefreeze_local_pi.py",
+      "scripts/cec_priority_dependency.py",
+      "scripts/cec_priority_force_dispatch.py",
+      "scripts/cec_priority_recovery.py",
+      "scripts/cec_priority_replacement_receipt.py",
+      "scripts/cec_probe_evidence.py",
+      "scripts/cec_probe_scope.py",
+      "scripts/cec_process_pool.py",
+      "scripts/cec_programming_resistor_placement.py",
+      "scripts/cec_project_policy_seal.py",
+      "scripts/cec_projected_ground_contact.py",
+      "scripts/cec_proposal_receipt_memo.py",
+      "scripts/cec_proposed_collinear_copper.py",
+      "scripts/cec_protector_cell.py",
+      "scripts/cec_protector_cell_receiving.py",
+      "scripts/cec_pth_pair_returns.py",
+      "scripts/cec_pth_return_repair.py",
+      "scripts/cec_qualified_courtyard_restore.py",
+      "scripts/cec_qualified_escape.py",
+      "scripts/cec_quiet_signal_completion.py",
+      "scripts/cec_quiet_signal_requests.py",
+      "scripts/cec_rail_detour.py",
+      "scripts/cec_rail_geometry.py",
+      "scripts/cec_rail_transition_search.py",
+      "scripts/cec_ranked_frontier.py",
+      "scripts/cec_rated_barrel_reseat.py",
+      "scripts/cec_rated_branch_repair.py",
+      "scripts/cec_rated_consumer_scope.py",
+      "scripts/cec_rated_dsn_overlay.py",
+      "scripts/cec_rated_supply_detour.py",
+      "scripts/cec_rated_trace_scope.py",
+      "scripts/cec_rated_wave_context.py",
+      "scripts/cec_received_private_stage.py",
+      "scripts/cec_rectilinear_copper.py",
+      "scripts/cec_redundant_bypass_ground.py",
+      "scripts/cec_redundant_local_ground_return.py",
+      "scripts/cec_reference_ingress.py",
+      "scripts/cec_reference_map_reownership.py",
+      "scripts/cec_regional_fill.py",
+      "scripts/cec_render.py",
+      "scripts/cec_render_diff.py",
+      "scripts/cec_request_wire_identity.py",
+      "scripts/cec_reservation_index.py",
+      "scripts/cec_reserved_corridor_track_scope.py",
+      "scripts/cec_reserved_pour_pose_events.py",
+      "scripts/cec_reservoir_screen.py",
+      "scripts/cec_residual_breadth.py",
+      "scripts/cec_resistive_monitor_branch.py",
+      "scripts/cec_retained_address_ground.py",
+      "scripts/cec_retained_bypass_contact_frame.py",
+      "scripts/cec_retained_fullwidth_supply_contact.py",
+      "scripts/cec_retained_ground_barrel_clearance.py",
+      "scripts/cec_retained_ground_component.py",
+      "scripts/cec_retained_ground_control_port.py",
+      "scripts/cec_retained_pad_barrel_access.py",
+      "scripts/cec_retained_route_reuse.py",
+      "scripts/cec_retained_source_supply_contact.py",
+      "scripts/cec_retained_supply_port.py",
+      "scripts/cec_retained_surface_pad_copper.py",
+      "scripts/cec_return_escape.py",
+      "scripts/cec_return_plane_preview.py",
+      "scripts/cec_rigid_cell_preservation.py",
+      "scripts/cec_rounded_landing.py",
+      "scripts/cec_route_awareness_service.py",
+      "scripts/cec_route_candidate_worker.py",
+      "scripts/cec_route_checkpoint.py",
+      "scripts/cec_route_choice_portfolio.py",
+      "scripts/cec_route_copper_lineage.py",
+      "scripts/cec_route_corner_contacts.py",
+      "scripts/cec_route_debt_resume.py",
+      "scripts/cec_route_dimensions.py",
+      "scripts/cec_route_evidence.py",
+      "scripts/cec_route_field_finish.py",
+      "scripts/cec_route_pair_admission.py",
+      "scripts/cec_route_placement_admission.py",
+      "scripts/cec_route_pose_history.py",
+      "scripts/cec_route_preflight.py",
+      "scripts/cec_route_progress.py",
+      "scripts/cec_route_progress_polish.py",
+      "scripts/cec_route_proposal_guard.py",
+      "scripts/cec_route_quality.py",
+      "scripts/cec_route_scalar_finish.py",
+      "scripts/cec_router.py",
+      "scripts/cec_saved_family_repair.py",
+      "scripts/cec_saved_ground_hierarchy.py",
+      "scripts/cec_scalar_corner_stage.py",
+      "scripts/cec_sch.py",
+      "scripts/cec_sch_gates.py",
+      "scripts/cec_sch_layout.py",
+      "scripts/cec_sch_lint.py",
+      "scripts/cec_score.py",
+      "scripts/cec_search_budget.py",
+      "scripts/cec_search_completion.py",
+      "scripts/cec_search_policy.py",
+      "scripts/cec_seat_stream.py",
+      "scripts/cec_selected_cap_ground_boundary.py",
+      "scripts/cec_sense_auxiliary.py",
+      "scripts/cec_sense_auxiliary_stage.py",
+      "scripts/cec_sense_topology.py",
+      "scripts/cec_sensitive_divider_role.py",
+      "scripts/cec_sensitive_redundant_span.py",
+      "scripts/cec_sensitive_scalar_completion.py",
+      "scripts/cec_sensitive_scalar_corner_stage.py",
+      "scripts/cec_sensitive_scalar_path_reflow.py",
+      "scripts/cec_series_current_domain.py",
+      "scripts/cec_shared_pin_reference.py",
+      "scripts/cec_shunt_endcap_clearance.py",
+      "scripts/cec_shunt_force_landing.py",
+      "scripts/cec_signal_via_clearance_window.py",
+      "scripts/cec_slab_pour.py",
+      "scripts/cec_smd_macro_transport.py",
+      "scripts/cec_snag_compiler.py",
+      "scripts/cec_source_aggregate_capacitor_cell.py",
+      "scripts/cec_source_capacitor_control_ground.py",
+      "scripts/cec_source_connector_feedthrough.py",
+      "scripts/cec_source_current_endpoint_intake.py",
+      "scripts/cec_source_current_pad_ports.py",
+      "scripts/cec_source_current_ports.py",
+      "scripts/cec_source_cut_chain.py",
+      "scripts/cec_source_device_pinmap.py",
+      "scripts/cec_source_divider_ground_span.py",
+      "scripts/cec_source_face_widths.py",
+      "scripts/cec_source_ground_boundary_connection.py",
+      "scripts/cec_source_ground_continuation.py",
+      "scripts/cec_source_ground_endpoint_cut.py",
+      "scripts/cec_source_ground_leaf.py",
+      "scripts/cec_source_guided_ordinary_detour.py",
+      "scripts/cec_source_linear_power_stage.py",
+      "scripts/cec_source_literal_additions.py",
+      "scripts/cec_source_literal_footprint_retention.py",
+      "scripts/cec_source_literal_group_retirement.py",
+      "scripts/cec_source_literal_retirement.py",
+      "scripts/cec_source_mount_stitch_reconcile.py",
+      "scripts/cec_source_netlist_semantics.py",
+      "scripts/cec_source_no_connect.py",
+      "scripts/cec_source_obsolete_supply_barrels.py",
+      "scripts/cec_source_rc_elbow_reflow.py",
+      "scripts/cec_source_reference_group_cardinal_batch.py",
+      "scripts/cec_source_reference_group_transport.py",
+      "scripts/cec_source_registry.py",
+      "scripts/cec_source_retaining_ses_import.py",
+      "scripts/cec_source_rule_ground_boundary.py",
+      "scripts/cec_source_rule_signal_launches.py",
+      "scripts/cec_source_series_link_placement.py",
+      "scripts/cec_source_sideband_monitor_tap.py",
+      "scripts/cec_source_signal_bias_placement.py",
+      "scripts/cec_source_split_supply_input.py",
+      "scripts/cec_source_supply_endpoint_cut.py",
+      "scripts/cec_span_verify.py",
+      "scripts/cec_spice_sanity.py",
+      "scripts/cec_stack_fit_screen.py",
+      "scripts/cec_stage_admission.py",
+      "scripts/cec_staged_fr.py",
+      "scripts/cec_stale_local_ground_via.py",
+      "scripts/cec_stationary_ground_barrel.py",
+      "scripts/cec_stationary_ground_forest.py",
+      "scripts/cec_stationary_owner_ground_obligations.py",
+      "scripts/cec_suite_inspection.py",
+      "scripts/cec_suite_source_audit_cache.py",
+      "scripts/cec_supply_consumer_branch.py",
+      "scripts/cec_supply_group.py",
+      "scripts/cec_supply_native.py",
+      "scripts/cec_support_branch_preservation.py",
+      "scripts/cec_support_cell_topology.py",
+      "scripts/cec_support_craft_gate.py",
+      "scripts/cec_support_field_reflow.py",
+      "scripts/cec_support_motion.py",
+      "scripts/cec_support_pin_aperture.py",
+      "scripts/cec_support_pivot_receiving.py",
+      "scripts/cec_support_pose_rank.py",
+      "scripts/cec_supported_candidates.py",
+      "scripts/cec_surface_supply_path_graph.py",
+      "scripts/cec_swig_guard.py",
+      "scripts/cec_synth_pipeline.py",
+      "scripts/cec_systemd_completion_event.py",
+      "scripts/cec_terminal_launch_pocket.py",
+      "scripts/cec_terminal_overhang.py",
+      "scripts/cec_terminal_range.py",
+      "scripts/cec_thermal2d.py",
+      "scripts/cec_thermal_contract.py",
+      "scripts/cec_thermal_overlay.py",
+      "scripts/cec_thermal_raster_topology.py",
+      "scripts/cec_thermal_scenarios.py",
+      "scripts/cec_thermal_sources.py",
+      "scripts/cec_thermal_terminal_selection.py",
+      "scripts/cec_toolchain.py",
+      "scripts/cec_transition_landings.py",
+      "scripts/cec_translation_context_window.py",
+      "scripts/cec_translation_geometry.py",
+      "scripts/cec_translation_halfplanes.py",
+      "scripts/cec_unassigned_mount_isolation.py",
+      "scripts/cec_verdict_core.py",
+      "scripts/cec_verifier.py",
+      "scripts/cec_via_field_layout.py",
+      "scripts/cec_vision_narrate.py",
+      "scripts/cec_vlm_bakeoff.py",
+      "scripts/cec_wave_intents.py",
+      "scripts/cec_worklog.py",
+      "scripts/cec_xfcn_contract.py",
+      "scripts/cec_zone_endpoint.py",
+      "scripts/cec_zone_fill.py"
+    ],
+    "runtime_policy_modules": [
+      "scripts/cec_beta_manifest.py",
+      "scripts/cec_board_policy.py",
+      "scripts/cec_mezz_contract.py",
+      "scripts/cec_power_budget.py",
+      "scripts/cec_xfcn_contract.py"
+    ],
+    "runtime_violation_count": 403,
+    "runtime_violations": [
+      {
+        "kind": "reference_selector",
+        "line": 100,
+        "literal": "C2480",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 119,
+        "literal": "C1779",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 121,
+        "literal": "C1525",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 412,
+        "literal": "C1525",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 416,
+        "literal": "C1779",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1447,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1476,
+        "literal": "D1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1482,
+        "literal": "D1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1493,
+        "literal": "U3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1495,
+        "literal": "R12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1496,
+        "literal": "R13",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1497,
+        "literal": "C12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1498,
+        "literal": "U1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1499,
+        "literal": "U8",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1503,
+        "literal": "R26",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1504,
+        "literal": "R27",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1505,
+        "literal": "R28",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1506,
+        "literal": "U4",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1509,
+        "literal": "R12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1510,
+        "literal": "R13",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1511,
+        "literal": "R26",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1512,
+        "literal": "R27",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1513,
+        "literal": "R28",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1562,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1566,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1570,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1600,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1625,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1704,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1784,
+        "literal": "argb-standard",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1912,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1912,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1478,
+        "literal": "C2480",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1480,
+        "literal": "D1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1525,
+        "literal": "C12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1529,
+        "literal": "C1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1531,
+        "literal": "U8",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1602,
+        "literal": "D5",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1603,
+        "literal": "J2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1604,
+        "literal": "Q1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1605,
+        "literal": "R14",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1606,
+        "literal": "R15",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1607,
+        "literal": "R16",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1608,
+        "literal": "R17",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1626,
+        "literal": "L2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1639,
+        "literal": "U11",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1643,
+        "literal": "U7",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1666,
+        "literal": "U5",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1678,
+        "literal": "C25",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1678,
+        "literal": "C22",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1679,
+        "literal": "C26",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1679,
+        "literal": "C27",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1680,
+        "literal": "C28",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1680,
+        "literal": "C15",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1705,
+        "literal": "D2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1735,
+        "literal": "F1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1736,
+        "literal": "F1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1757,
+        "literal": "D3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1758,
+        "literal": "D3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1785,
+        "literal": "J1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1790,
+        "literal": "J1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1791,
+        "literal": "Q1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1792,
+        "literal": "F1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1478,
+        "literal": "D1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1522,
+        "literal": "C12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1754,
+        "literal": "D2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1924,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1925,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1954,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1629,
+        "literal": "L2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1712,
+        "literal": "D2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1789,
+        "literal": "J1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1803,
+        "literal": "Q1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1810,
+        "literal": "Q1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1816,
+        "literal": "F1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1910,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1910,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1931,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1939,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1947,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1050,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1563,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1567,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1573,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1632,
+        "literal": "L2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1636,
+        "literal": "L2",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1777,
+        "literal": "U4",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1804,
+        "literal": "Q1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1811,
+        "literal": "F1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1749,
+        "literal": "J1",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1523,
+        "literal": "C12",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1751,
+        "literal": "J5",
+        "module": "scripts/cec_beta_electrical_audit.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 480,
+        "literal": "output-daughterboards/atx24-out-db",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 481,
+        "literal": "output-daughterboards/eps-out-db",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 482,
+        "literal": "output-daughterboards/pcie-out-db",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 497,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 498,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 499,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 500,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_dashboard.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 234,
+        "literal": "C7519",
+        "module": "scripts/cec_device_power_roles.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 240,
+        "literal": "C7519",
+        "module": "scripts/cec_device_power_roles.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 156,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fab_profile.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 157,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_fab_profile.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 202,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_facts.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 205,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_facts.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 206,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_facts.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 47,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_facts.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 48,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_facts.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 32,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_fix_eps_rev3_bom_fields.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 33,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_fix_eps_rev3_bom_fields.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 58,
+        "literal": "RS1",
+        "module": "scripts/cec_fix_eps_rev3_bom_fields.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 58,
+        "literal": "RS2",
+        "module": "scripts/cec_fix_eps_rev3_bom_fields.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 311,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 311,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 149,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 149,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 189,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 190,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 206,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 207,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 174,
+        "literal": "J3",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 174,
+        "literal": "J4",
+        "module": "scripts/cec_force_lanes.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1019,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1025,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 356,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 359,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 360,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 361,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 381,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 390,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 418,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 661,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 704,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 846,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 847,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 847,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 848,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 848,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 861,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 861,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1057,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1059,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1061,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1064,
+        "literal": "RS1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1067,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1070,
+        "literal": "RS3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1073,
+        "literal": "RS4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 341,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 342,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 935,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 936,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 937,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 953,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 962,
+        "literal": "FID1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 962,
+        "literal": "FID2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 962,
+        "literal": "FID3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1000,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1001,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1014,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1016,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1018,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1077,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1094,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1136,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 549,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 582,
+        "literal": "J2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 582,
+        "literal": "J3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 583,
+        "literal": "J4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 583,
+        "literal": "J5",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 593,
+        "literal": "J2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 593,
+        "literal": "J3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 593,
+        "literal": "J4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 594,
+        "literal": "J5",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 604,
+        "literal": "D6",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 622,
+        "literal": "R9",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 624,
+        "literal": "R10",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 677,
+        "literal": "J3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 677,
+        "literal": "J4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 684,
+        "literal": "J2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 716,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 728,
+        "literal": "J3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 728,
+        "literal": "J2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 730,
+        "literal": "J3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 731,
+        "literal": "J2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1005,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1064,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1064,
+        "literal": "U11",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1064,
+        "literal": "RS1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1064,
+        "literal": "U10",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1067,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1067,
+        "literal": "U11",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1067,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1067,
+        "literal": "U11",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1070,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1070,
+        "literal": "U11",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1070,
+        "literal": "RS3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1070,
+        "literal": "U12",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1073,
+        "literal": "RS2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1073,
+        "literal": "U11",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1073,
+        "literal": "RS4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1073,
+        "literal": "U13",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1097,
+        "literal": "RS4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1098,
+        "literal": "U13",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1098,
+        "literal": "C13",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1230,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 2976,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 341,
+        "literal": "H1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 342,
+        "literal": "H1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 965,
+        "literal": "H3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 965,
+        "literal": "H4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 969,
+        "literal": "J5",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "H3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "H4",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "FID1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "FID2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "FID3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1233,
+        "literal": "U1",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 561,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 652,
+        "literal": "C29",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 652,
+        "literal": "C30",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 653,
+        "literal": "C31",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 653,
+        "literal": "C32",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 654,
+        "literal": "C33",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 654,
+        "literal": "C34",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 722,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 2114,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 2114,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_fresh_wave.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 2057,
+        "literal": "RS1",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 2057,
+        "literal": "RS2",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 2057,
+        "literal": "U20",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 2057,
+        "literal": "U21",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 2057,
+        "literal": "U2",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1543,
+        "literal": "U1",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1543,
+        "literal": "U3",
+        "module": "scripts/cec_fullstack.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 21,
+        "literal": "C1",
+        "module": "scripts/cec_hub_holdup.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 21,
+        "literal": "C37",
+        "module": "scripts/cec_hub_holdup.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 18,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_hub_holdup.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 45,
+        "literal": "RS485",
+        "module": "scripts/cec_impedance.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1010,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_judge_local.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 236,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_migrate_6layer.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 236,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_migrate_6layer.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 266,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_migrate_6layer.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 266,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_migrate_6layer.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 59,
+        "literal": "C2480",
+        "module": "scripts/cec_normalize_verified_lcsc_parts.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 240,
+        "literal": "C1779",
+        "module": "scripts/cec_normalize_verified_lcsc_parts.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 255,
+        "literal": "C1525",
+        "module": "scripts/cec_normalize_verified_lcsc_parts.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 94,
+        "literal": "U2",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 95,
+        "literal": "U2",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 97,
+        "literal": "U1",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 98,
+        "literal": "U1",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 100,
+        "literal": "U1",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 101,
+        "literal": "U1",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 93,
+        "literal": "U2",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 93,
+        "literal": "U1",
+        "module": "scripts/cec_overnight_directed.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 768,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_pcb_reconcile.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 591,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_place.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 2965,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_router.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 924,
+        "literal": "U1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 925,
+        "literal": "C1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 926,
+        "literal": "C2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 927,
+        "literal": "C3",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 928,
+        "literal": "C4",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 929,
+        "literal": "R1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 930,
+        "literal": "R2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 931,
+        "literal": "C5",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 938,
+        "literal": "U1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 939,
+        "literal": "R1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 940,
+        "literal": "R2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 941,
+        "literal": "C5",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 943,
+        "literal": "U1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "C1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "C2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "C3",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "C4",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "R1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "R2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1018,
+        "literal": "C5",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 943,
+        "literal": "C1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 943,
+        "literal": "C2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 943,
+        "literal": "C3",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 943,
+        "literal": "C4",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 966,
+        "literal": "R1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 967,
+        "literal": "R1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 968,
+        "literal": "R2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 969,
+        "literal": "R2",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 970,
+        "literal": "C5",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 971,
+        "literal": "C5",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 1017,
+        "literal": "U1",
+        "module": "scripts/cec_sch_layout.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 31,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 31,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 32,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 32,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 33,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 33,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 34,
+        "literal": "output-daughterboards/atx24-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 35,
+        "literal": "output-daughterboards/eps-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 36,
+        "literal": "output-daughterboards/pcie-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 37,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 38,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 39,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 40,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 41,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 42,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "atx-24pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "eps-8pin-rev3",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 420,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 421,
+        "literal": "output-daughterboards/atx24-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 421,
+        "literal": "output-daughterboards/eps-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 421,
+        "literal": "output-daughterboards/pcie-out-db",
+        "module": "scripts/cec_suite_inspection.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 10234,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 10235,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 641,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 641,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 5958,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9099,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9099,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9100,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9102,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9108,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9065,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9065,
+        "literal": "J4",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 9172,
+        "literal": "J3",
+        "module": "scripts/cec_synth_pipeline.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 208,
+        "literal": "pcie-8pin-2port",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 208,
+        "literal": "pcie-8pin-3port",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 241,
+        "literal": "J4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 241,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 282,
+        "literal": "RS1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 283,
+        "literal": "RS2",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 284,
+        "literal": "RS3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 285,
+        "literal": "RS4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 290,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 175,
+        "literal": "J10",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 175,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 177,
+        "literal": "J11",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 177,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 179,
+        "literal": "J13",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 179,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 181,
+        "literal": "J15",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 181,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 183,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 183,
+        "literal": "J16",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 183,
+        "literal": "J19",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 191,
+        "literal": "J13",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 191,
+        "literal": "J14",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 191,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 193,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 193,
+        "literal": "J10",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 193,
+        "literal": "J11",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 201,
+        "literal": "J10",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 201,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 203,
+        "literal": "J1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 203,
+        "literal": "J13",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 220,
+        "literal": "J5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 220,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 221,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 221,
+        "literal": "FB1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 222,
+        "literal": "FB1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 222,
+        "literal": "U4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 237,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 239,
+        "literal": "J4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 286,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 321,
+        "literal": "U7",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 322,
+        "literal": "U11",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 323,
+        "literal": "F5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 323,
+        "literal": "U11",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 324,
+        "literal": "U11",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 324,
+        "literal": "U7",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 325,
+        "literal": "U7",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 325,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 325,
+        "literal": "F2",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 325,
+        "literal": "F3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 325,
+        "literal": "F4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 326,
+        "literal": "D1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 329,
+        "literal": "U3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 330,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 330,
+        "literal": "J2",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 331,
+        "literal": "F2",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 331,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 332,
+        "literal": "F3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 332,
+        "literal": "J4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 333,
+        "literal": "F4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 333,
+        "literal": "J5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 334,
+        "literal": "J2",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 334,
+        "literal": "J3",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 334,
+        "literal": "J4",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 334,
+        "literal": "J5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 334,
+        "literal": "U1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 250,
+        "literal": "J5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 250,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 251,
+        "literal": "F1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 251,
+        "literal": "FB1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 252,
+        "literal": "FB1",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 252,
+        "literal": "U5",
+        "module": "scripts/cec_thermal_overlay.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1160,
+        "literal": "hub-standard-rev2",
+        "module": "scripts/cec_thermal_sources.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 1160,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_thermal_sources.py"
+      },
+      {
+        "kind": "product_identity",
+        "line": 206,
+        "literal": "12vhpwr-standard",
+        "module": "scripts/cec_vlm_bakeoff.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 266,
+        "literal": "R15",
+        "module": "scripts/cec_vlm_bakeoff.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 266,
+        "literal": "R16",
+        "module": "scripts/cec_vlm_bakeoff.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 266,
+        "literal": "R17",
+        "module": "scripts/cec_vlm_bakeoff.py"
+      },
+      {
+        "kind": "reference_selector",
+        "line": 266,
+        "literal": "R18",
+        "module": "scripts/cec_vlm_bakeoff.py"
+      }
+    ],
+    "schema": 2,
+    "violations": []
+  },
+  "generic_release_ok": false,
+  "hierarchical_sheet_count": 6,
+  "intake": {
+    "advisory": {
+      "entries": [],
+      "n": 0
+    },
+    "board": "board.kicad_pcb",
+    "constraint_ir": {
+      "count": 50,
+      "fingerprint": "d9038dca12d1691f2a2750782d7a50eb23e55545a3dcda41bd7195618e30d665",
+      "release_blocking_count": 38,
+      "schema": 1
+    },
+    "deferred_to_route": [],
+    "ok": true,
+    "reasons": [],
+    "results": {
+      "bom-field-lint": [
+        "PASS",
+        "no placeholder/empty BOM fields on 125 part(s) (known-open gaps noted, not failed: RS3, RS2, RS1, RS4)"
+      ],
+      "can-transceiver-tja1051t3": [
+        "PASS",
+        "CAN transceiver = TJA1051T/3"
+      ],
+      "detect-esd-diode-pin8": [
+        "PASS",
+        "DETECT ESD diode: [('D1', 'PESD5V0S1BA')]"
+      ],
+      "detect-resistor-code": [
+        "PASS",
+        "DETECT code resistor = 2.2k (CAN-only)"
+      ],
+      "erc": [
+        "PASS",
+        "0 ERROR-severity violations"
+      ],
+      "no-foreign-on-high-current-pour": [
+        "N/A",
+        "no per-cable high-current pour region (shared-bus / non-cable board)"
+      ],
+      "paired-assembly-envelope": [
+        "PASS",
+        "exact selected pair contacts, bodies, hardware, vertical bounds and both vent reservations fit; physical release remains separate"
+      ],
+      "rj45-link-pinmap": [
+        "N/A",
+        "no RJ-45 on this board"
+      ],
+      "sch-pcb-sync": [
+        "PASS",
+        "exact value/footprint/pad-net/jumper signatures and assembly state in sync (125 refs)"
+      ],
+      "shunt-values-per-table": [
+        "PASS",
+        "shunt values look like \u00a76.4 mOhm parts: [('RS3', '2m\u03a9'), ('RS2', '2m\u03a9'), ('RS1', '2m\u03a9'), ('RS4', 'R025')]"
+      ]
+    }
+  },
+  "manifest_errors": [],
+  "ok": true,
+  "project_rule_authority": {
+    "applicable": true,
+    "authority": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_pro",
+    "conflicting_patterns": [],
+    "mismatched_classes": [],
+    "missing_classes": [],
+    "missing_patterns": [],
+    "ok": true,
+    "reason": "manifest_project_rules_present",
+    "repair_required": false,
+    "schema": 1,
+    "target": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/mount-normalization-v1/candidate/board.kicad_pro",
+    "target_missing": false
+  },
+  "root_schematic": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_sch",
+  "route_geometry_deferred": true,
+  "schema": 1,
+  "selected_assembly_hashes": {
+    "carrier": "e227b66e6319645b74c1078d619403bea3596848fc5e178d6d4e8c6a0946bc4e",
+    "contract": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "cover": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+  }
+}

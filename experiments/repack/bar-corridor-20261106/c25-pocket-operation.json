@@ -1,0 +1,13 @@
+{
+  "kind": "place_cell",
+  "native_macro": true,
+  "poses": [
+    {"reference": "C25", "at_nm": [26200000, 65600000], "rotation_deg": 0}
+  ],
+  "routes": [],
+  "vias": [],
+  "allow_locked_footprint_uuids": [],
+  "allow_locked_track_uuids": [],
+  "allow_locked_transport_uuids": [],
+  "reference_group_uuids": ["ab1b035f-133e-5762-874e-d393efe710e8"]
+}

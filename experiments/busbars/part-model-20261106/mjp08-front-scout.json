@@ -1,0 +1,17 @@
+{
+  "schema":1,
+  "status":"NOT_C25_ONLY__ADDITIONAL_C53_AND_RATED_COPPER_OBSTACLES",
+  "source_sha256":"0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+  "manufacturer":"https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+  "part":"MJP-0.8",
+  "manufacturer_claims":{"series_rated_current_A":20,"material":"phosphor bronze; copper applies only to MJP-1.0","A_mm":18.32,"B_mm":21.72,"land_pitch_mm":20.32},
+  "qualification":"No guaranteed installed height/underside, current test conditions, PCB access or joint qualification inferred.",
+  "proposals":{"bar_center_x_mm":23.2,"center_y_mm":[56,56.2],"body_width_mm":1.8,"body_length_mm":21.72,"land_size_mm":[2,2],"engineering_courtyard_width_mm":2.49,"engineering_courtyard_length_mm":22.81},
+  "courtyard_basis":"Analytical cached-style bound from same .25mm side and .5mm axial margin as provisional MJP1 footprint; not a supplied or validated native MJP0.8 asset.",
+  "C25_pose_preview":{"at_mm":[26,65.5],"rotation_deg":0,"courtyard_mm":[24.305,64.525,27.695,66.475],"same_face_ok":true,"paired_body_ok":true,"bar_courtyard_overlap_mm2":0.273},
+  "additional_owner":{"ref":"C53","uuid":"b9162945-e856-4020-a666-e1e4fdffd7df","source_pose_mm":[23.979989,55.3,180],"courtyard_mm":[22.284989,54.325,25.674989,56.275],"bar_overlap_mm2":4.21202145,"pads":[[24.929989,55.3,"VBUS"],[23.029989,55.3,"GND"]]},
+  "upper_foot_conflicts":["2298b048-015d-44d8-8bc1-8c23a2c7389e SYS_PORT F.Cu .371227mm at X24.038523","ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72 U6_SS F.Cu .2mm diagonal19.8,44.4 to22.8,47.4"],
+  "lower_foot_conflicts":["bdeacc19-7237-4ced-be18-91b64317c858 SENSE5V_HI F.Cu3.4mm horizontalY68.15","ff889312-a85b-4724-9c3a-ee4883e7fe12 5VSB via22.2,65.5","2d967a6d-3110-4c0a-b465-20728fcd7872 and0a5a83b5-8e9b-58e6-a880-fd02ad36c11a 5VSB approach tracks"],
+  "vent":{"C37_projected_max_x_mm":21.899979920686434,"bar_body_min_x_mm":22.3,"body_to_vent_mm":0.40002007931356687,"engineering_courtyard_min_x_mm":21.955,"court_positive_intersection_mm2":0,"C1_also_disjoint":true},
+  "decision":"Both Y choices avoid projected vents and nominal J6P/J3 body bounds, but neither is C25-only or a closed candidate. Need at least C53 repack, C25 additional courtyard clearance, SYS_PORT/SS local repair, and rated SENSE5V_HI plus5VSB lower-foot accommodation. No board saved, source part asset created, native DRC/current/installed-Z acceptance claimed. Saved fills and all-layer connectivity remain untested."
+}

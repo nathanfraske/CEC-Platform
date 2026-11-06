@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "status": "private_consistency_checkpoint_and_nonadmitting_bypass_role_slice",
+  "goal_status": "active",
+  "reviewed_selector_unchanged_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+  "best_private_consistency_child": {
+    "path": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+    "sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "opens": 0,
+    "native_drc_errors": 0,
+    "frozen_library_warnings": 94,
+    "width_mm": 78,
+    "height_mm": 87.5,
+    "new_xy_compaction": false,
+    "bar_installed": false
+  },
+  "changes": [
+    {
+      "kind": "exact_source_library_mount_geometry",
+      "scope": "H1 eight satellite centers corrected by 2 nm per affected coordinate; bores, lands, center, other copper and all rules unchanged",
+      "receipt": "mount-receiving-v2/receiving/receiving.json",
+      "all_full_receiving_gates_passed": true,
+      "generic_fix": "Native warning improvement is not evidence of exact library normalization. Retain exact native finding nonregression, zero errors, no exclusions and no extra opens; source-library replay and existing physical/current/field/return/assembly gates remain mandatory."
+    },
+    {
+      "kind": "typed_stale_reference_map_replacement",
+      "scope": "One complete translated courtyard map and its reference, source-bound to actual owner/group; only six annotation nodes changed",
+      "receipt": "c25-reference-repair-v1/scope-report.json",
+      "all_material_and_footprints_literal_exact": true,
+      "normal_source_map_inspector_unchanged": true
+    },
+    {
+      "kind": "standalone_missing_bypass_corrective_role",
+      "module": "scripts/cec_missing_bypass_repair.py",
+      "scope": "Explicit intent, canonical source parts/pins/net membership, unique out-of-range missing requirement, preserved source current contract and all existing assignments; not an actuator",
+      "actual_source_probe": "c9-missing-role-probe.json",
+      "actual_temporary_candidate_probe": "c9-missing-role-transition-probe.json",
+      "source_distance_mm": 3.8439791817985953,
+      "candidate_distance_mm": 2.9649942748850293,
+      "original_limit_mm": 3.5,
+      "pose_screen": "c9-locality-scout.json",
+      "proposal_pose_mm": [10.5, 48.5, 180],
+      "routed": false,
+      "candidate_persisted": false,
+      "cut_route_current_or_admission_authority": false,
+      "replay_fix": "Reuse existing full exported-tree semantic identity excluding only the generated design/date. Raw export hash remains evidence, not a false source-change trigger; executable and all semantic/source hashes remain bound."
+    }
+  ],
+  "regression_evidence": [
+    {"path": "regression-mount-annotation.xml", "passed": 63},
+    {"path": "regression-consistency-expanded-final.xml", "passed": 415},
+    {"path": "regression-missing-bypass-replay.xml", "passed": 47, "scope": "Final timestamp fix and existing semantic source tests; overlaps other test inventories"}
+  ],
+  "bar_assets": {
+    "preferred_short_front_trial": "experiments/busbars/part-model-20261106/mjp07-source-fixture/receipt.json",
+    "alternative_short_fixture": "experiments/busbars/part-model-20261106/mjp08-source-fixture/receipt.json",
+    "copper_long_fixture": "experiments/busbars/part-model-20261106/source-fixture/receipt.json",
+    "short_part_material": "phosphor bronze, not copper",
+    "native_fixture_opens_do_not_prove_physical_pcb_or_rated_component_transport": true,
+    "current_joint_installed_z_and_assembler_qualification_outstanding": true
+  },
+  "next": [
+    "Integrate the missing-bypass corrective role into independently derived source supply/Ground leaf ownership and macro receiving; do not invent a source-selected assignment. Then reconnect and receive C9's rotation.",
+    "After that local requirement is truly restored, retry C53 additional-bulk relocation through the existing aggregate mechanism.",
+    "Add a positive shared-rail reservoir operation for C25 or find a genuinely better coordinated owner cell. Do not declare a remote reservoir to be a local U5 bypass merely to pass the current classifier.",
+    "Construct and electrically/mechanically qualify actual short bar feet and transport before retiring any incumbent power copper or trimming the outline. The current no-Hub-repack potential is only 2 mm X and zero Y; no new saving has been demonstrated."
+  ],
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "fab_ready": false,
+  "release_authority": false
+}

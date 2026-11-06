@@ -1,0 +1,290 @@
+(footprint "Mac8_MJP_0p8_NOMINAL_PROTOTYPE"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "MJP-0.8 exact MPN NOMINAL PROTOTYPE: phosphor bronze, Sn/Ni; NOT copper.20A catalog only, not solder-joint/path/current/Z qualification.")
+	(property "Reference" "BB**"
+		(at 0 -2.5 0)
+		(layer "F.SilkS")
+		(uuid "50ecfc08-c071-40b2-8557-11b2905fa6c3")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Value" "Mac8_MJP_0p8_NOMINAL_PROTOTYPE"
+		(at 0 2.5 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "fb737e0d-e559-4ebe-a396-427dab4e3533")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "69840a5b-cf79-4344-ad89-8bc2162c646d")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3fa315bb-b15a-48a8-aef9-79d3d2f9a4c0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Manufacturer" "Mac8"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "897d0f11-d3eb-5140-9cd2-7914dd4f025f")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "MPN" "MJP-0.8"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "f03944b8-9cb5-57f8-88a9-4c10832c55fa")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Qualification" "NOMINAL_PROTOTYPE_NOT_RELEASED"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "e01c7764-6ac7-5f4e-997a-39d3e59f18ef")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Height_nominal_mm" "2.3"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "287b3a10-ff71-5359-a74b-c0a9952ac197")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Underside_nominal_mm" "1.8"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "af8bdeb9-605e-5625-8478-1319949dd28c")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Catalog_current_A" "20_NOT_APPLICATION_QUALIFIED"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "b11eac4d-d148-5c82-8072-eba1e13b6cc0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Source_profile_sha256" "f8f0c4f44965cf9036eff8ae32c962f980339c54d3561e9888a27371df71fbbd"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "aee8359b-3622-577a-996f-32ee47e27dbf")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Electrical_model" "ONE_CONTINUOUS_CONDUCTOR_TWO_SOLDER_JOINTS"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "b8c59da6-fecc-5b0d-a684-d22fb22f3dc7")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Material" "PHOSPHOR_BRONZE_NOT_COPPER"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a4a60a1c-f031-506d-a035-b8803a302ed9")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Finish" "TIN_OVER_NICKEL"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0e80586c-cada-5641-83c5-1e1ba4c736ce")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Reel_MPN" "MJP-0.8-T"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3b3fb6ef-1e97-5436-8647-aa5d69ed80b0")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Reel_quantity" "700"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "12a33cf0-30ba-501f-8a4b-995f1ae0c541")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Reel_tape_width_mm" "32"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "88068768-fde6-53d7-ae42-e1a958d5063f")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers yes)
+	(fp_line
+		(start -11.41 -1.25)
+		(end 11.41 -1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "d00443da-31d3-5b23-a41a-80e1306ac592")
+	)
+	(fp_line
+		(start -11.41 1.25)
+		(end -11.41 -1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "391e6141-6854-5520-8642-19ba8a4cb7ec")
+	)
+	(fp_line
+		(start 11.41 -1.25)
+		(end 11.41 1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "5a0e8d3f-3e39-5fd9-ab8e-0332378662b8")
+	)
+	(fp_line
+		(start 11.41 1.25)
+		(end -11.41 1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "00c56c86-6b17-5b70-90f6-fcb83c379173")
+	)
+	(fp_line
+		(start -10.86 -0.9)
+		(end 10.86 -0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "740f790f-d376-54a1-b456-9a9adcee4c1b")
+	)
+	(fp_line
+		(start -10.86 0.9)
+		(end -10.86 -0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "d49cdd8d-8af8-5a2b-91fd-1799bba99738")
+	)
+	(fp_line
+		(start 10.86 -0.9)
+		(end 10.86 0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "81b290dc-69d9-5fb6-b442-b7a13c4424be")
+	)
+	(fp_line
+		(start 10.86 0.9)
+		(end -10.86 0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "260a1947-79a1-59bc-a44c-5b725e76c0fc")
+	)
+	(pad "1" smd rect
+		(at -10.16 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "7940e16f-ff24-53e6-ae2b-a7493e021bc5")
+	)
+	(pad "1" smd rect
+		(at 10.16 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "fe5bc0bf-8de0-56ba-9e62-457106c5af66")
+	)
+	(embedded_fonts no)
+)
