@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.440" timestamp="2026-11-06T12:31:47.737855" hostname="DESKTOP-AF2CO1R"><testcase classname="tests.test_source_cap_ground_via_repair" name="test_unrelated_opaque_text_missing_zero_angle_remains_exact[False]" time="1.249" /></testsuite></testsuites>

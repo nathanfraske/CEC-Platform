@@ -1,0 +1,278 @@
+{
+  "source": "experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "fixed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "pad_uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+  "pad_polygon": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          21.275,
+          49.8
+        ],
+        [
+          21.370671,
+          49.81903
+        ],
+        [
+          21.451777,
+          49.873223
+        ],
+        [
+          21.50597,
+          49.954329
+        ],
+        [
+          21.525,
+          50.05
+        ],
+        [
+          21.525,
+          50.55
+        ],
+        [
+          21.50597,
+          50.645671
+        ],
+        [
+          21.451777,
+          50.726777
+        ],
+        [
+          21.370671,
+          50.78097
+        ],
+        [
+          21.275,
+          50.8
+        ],
+        [
+          20.325,
+          50.8
+        ],
+        [
+          20.229329,
+          50.78097
+        ],
+        [
+          20.148223,
+          50.726777
+        ],
+        [
+          20.09403,
+          50.645671
+        ],
+        [
+          20.075,
+          50.55
+        ],
+        [
+          20.075,
+          50.05
+        ],
+        [
+          20.09403,
+          49.954329
+        ],
+        [
+          20.148223,
+          49.873223
+        ],
+        [
+          20.229329,
+          49.81903
+        ],
+        [
+          20.325,
+          49.8
+        ],
+        [
+          21.275,
+          49.8
+        ]
+      ]
+    ]
+  },
+  "via_geometry_mm": [
+    0.5,
+    0.3
+  ],
+  "clearance_mm": 0.2,
+  "containment_reserve_mm": 0.001,
+  "eroded_native_pad_center_region": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          20.329935568345277,
+          50.05493556834527
+        ],
+        [
+          20.326,
+          50.07472115737107
+        ],
+        [
+          20.326,
+          50.52527884262892
+        ],
+        [
+          20.329935568345277,
+          50.54506443165472
+        ],
+        [
+          20.349721157371082,
+          50.549
+        ],
+        [
+          21.25027884262892,
+          50.549
+        ],
+        [
+          21.27006443165472,
+          50.54506443165472
+        ],
+        [
+          21.273999999999997,
+          50.52527884262893
+        ],
+        [
+          21.273999999999997,
+          50.07472115737106
+        ],
+        [
+          21.270064431654724,
+          50.05493556834528
+        ],
+        [
+          21.250278842628894,
+          50.050999999999995
+        ],
+        [
+          20.349721157371068,
+          50.050999999999995
+        ],
+        [
+          20.329935568345277,
+          50.05493556834527
+        ]
+      ]
+    ]
+  },
+  "remaining_conservative_center_region": {
+    "type": "Polygon",
+    "coordinates": []
+  },
+  "remaining_region_area_mm2": 0.0,
+  "remaining_region_bounds_mm": null,
+  "active_geometric_constraints": [
+    {
+      "identity": {
+        "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+        "kind": "saved_filled_zone",
+        "net": "/SENSE3V3_HI",
+        "layer": "B.Cu"
+      },
+      "removed_area_mm2": 0.45354718377830444,
+      "offset_mm": 0.451
+    },
+    {
+      "identity": {
+        "uuid": "25bba609-ee8a-4547-9df7-c906cfc0979c",
+        "kind": "PCB_TRACK",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "layer": "B.Cu"
+      },
+      "removed_area_mm2": 0.01818339127744657,
+      "offset_mm": 0.451
+    }
+  ],
+  "grid_mm": 0.01,
+  "grid_sites_inside_derived_region": 0,
+  "native_verified_seat": null,
+  "optimistic_zero_margin_superset_after_3V3_zone": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          20.325,
+          50.55
+        ],
+        [
+          20.5196038969321,
+          50.55
+        ],
+        [
+          20.325,
+          50.355396103067896
+        ],
+        [
+          20.325,
+          50.55
+        ]
+      ]
+    ]
+  },
+  "optimistic_zero_margin_superset_after_3V3_zone_area_mm2": 0.018935338350579874,
+  "optimistic_zero_margin_superset_after_MUX_trace_area_mm2": 0.0,
+  "no_geometric_seat_even_in_optimistic_zero_margin_superset": true,
+  "closing_trace": {
+    "uuid": "25bba609-ee8a-4547-9df7-c906cfc0979c",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+    "layer": "B.Cu",
+    "start_nm": [
+      16000000,
+      47000000
+    ],
+    "end_nm": [
+      22000000,
+      53000000
+    ],
+    "width_nm": 477370,
+    "locked": true
+  },
+  "source_copper_cut": false,
+  "antipad_or_foreign_copper_subtraction_authorized": false,
+  "board_saved": false,
+  "new_candidate_saved": false,
+  "release_authority": false,
+  "full_source_owned_construction_and_saved_receiving_pending": true
+}

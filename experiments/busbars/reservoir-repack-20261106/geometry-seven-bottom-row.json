@@ -1,0 +1,624 @@
+{
+  "source": "experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "source_poses": {
+    "U6": [
+      14999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      11000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      12563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      12800000,
+      48625000,
+      -90.0
+    ],
+    "C55": [
+      19450000,
+      48000000,
+      0.0
+    ],
+    "C54": [
+      16924990,
+      47245001,
+      90.0
+    ],
+    "C51": [
+      18500000,
+      50125000,
+      180.0
+    ]
+  },
+  "proposed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C55": [
+      19750000,
+      48004594,
+      270
+    ],
+    "C54": [
+      17000000,
+      49000000,
+      180
+    ],
+    "C51": [
+      17725000,
+      51025000,
+      270
+    ]
+  },
+  "proposed_pads": {
+    "U6": [
+      {
+        "pin": "1",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "at_nm": [
+          16324990,
+          47075002
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "at_nm": [
+          16324990,
+          47775001
+        ]
+      },
+      {
+        "pin": "3",
+        "net": "GND",
+        "at_nm": [
+          16249989,
+          48550000
+        ]
+      },
+      {
+        "pin": "4",
+        "net": "GND",
+        "at_nm": [
+          16749990,
+          48550000
+        ]
+      },
+      {
+        "pin": "5",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "at_nm": [
+          17249990,
+          48550000
+        ]
+      },
+      {
+        "pin": "6",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "at_nm": [
+          17749991,
+          48550000
+        ]
+      },
+      {
+        "pin": "7",
+        "net": "+5VSB",
+        "at_nm": [
+          17674990,
+          47775001
+        ]
+      },
+      {
+        "pin": "8",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "at_nm": [
+          17674990,
+          47075002
+        ]
+      },
+      {
+        "pin": "9",
+        "net": "unconnected-(U6-ST-Pad9)",
+        "at_nm": [
+          17749991,
+          46250002
+        ]
+      },
+      {
+        "pin": "10",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "at_nm": [
+          17249990,
+          46250002
+        ]
+      },
+      {
+        "pin": "11",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "at_nm": [
+          16749990,
+          46250002
+        ]
+      },
+      {
+        "pin": "12",
+        "net": "GND",
+        "at_nm": [
+          16249989,
+          46250002
+        ]
+      }
+    ],
+    "C9": [
+      {
+        "pin": "1",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "at_nm": [
+          13000000,
+          47050000
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          13000000,
+          48950000
+        ]
+      }
+    ],
+    "C27": [
+      {
+        "pin": "1",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "at_nm": [
+          15043990,
+          45800000
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          14083990,
+          45800000
+        ]
+      }
+    ],
+    "R54": [
+      {
+        "pin": "1",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "at_nm": [
+          14800000,
+          48115000
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          14800000,
+          49135000
+        ]
+      }
+    ],
+    "C55": [
+      {
+        "pin": "1",
+        "net": "+5VSB",
+        "at_nm": [
+          19750000,
+          47054594
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          19750000,
+          48954594
+        ]
+      }
+    ],
+    "C54": [
+      {
+        "pin": "1",
+        "net": "+5VSB",
+        "at_nm": [
+          17480000,
+          49000000
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          16520000,
+          49000000
+        ]
+      }
+    ],
+    "C51": [
+      {
+        "pin": "1",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "at_nm": [
+          17725000,
+          50250000
+        ]
+      },
+      {
+        "pin": "2",
+        "net": "GND",
+        "at_nm": [
+          17725000,
+          51800000
+        ]
+      }
+    ]
+  },
+  "courtyard_collisions": [
+    {
+      "refs": [
+        "C54",
+        "U6"
+      ],
+      "area_mm2": 0.995499999999996,
+      "bounds": [
+        [
+          15.55499,
+          45.705,
+          18.44499,
+          49.095
+        ],
+        [
+          16.095,
+          48.545,
+          17.905,
+          49.455
+        ]
+      ],
+      "other_owner_moved": true
+    }
+  ],
+  "paired_ok": false,
+  "paired_violations": [
+    {
+      "kind": "opposing_bodies",
+      "refs": [
+        "C51",
+        "C37"
+      ],
+      "margin_mm": -1.6999999999999993,
+      "ok": false,
+      "free_mm": 1.3000000000000007
+    }
+  ],
+  "C55_exact_point8_Ground_observation": {
+    "distance_mm": 0.0,
+    "via_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+    "process_pad_blocked": false,
+    "records": [
+      {
+        "ref": "C55",
+        "pad": "2",
+        "net": "GND",
+        "reason": "JLC06162H-3313 POFV accepted"
+      }
+    ]
+  },
+  "C54_original_axis_nm": [
+    16924990,
+    46765001
+  ],
+  "C54_proposed_axis_nm": [
+    16520000,
+    49000000
+  ],
+  "C54_barrel_geometry_nm": [
+    500000,
+    300000
+  ],
+  "C54_source_pad_process": [
+    false,
+    "full via land is not contained by the SMD pad"
+  ],
+  "C54_all_layer_spot_clear": false,
+  "C54_all_layer_guard": {
+    "ok": false,
+    "reason": "existing via violates drill spacing",
+    "at_mm": [
+      16.52,
+      49.0
+    ],
+    "diameter_mm": 0.5,
+    "clearance_mm": 0.2,
+    "layer": null,
+    "blockers": [
+      {
+        "kind": "via",
+        "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "contact": "hole_clearance"
+      }
+    ]
+  },
+  "C54_actual_foreign_track_conflicts": [
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "F.Cu",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "GND",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "SIG2",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "PWR",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "GND2",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "layer": "B.Cu",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16750000,
+        49500000
+      ],
+      "end_nm": [
+        16750000,
+        49500000
+      ],
+      "width_nm": 600000
+    },
+    {
+      "uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "F.Cu",
+      "kind": "PCB_TRACK",
+      "start_nm": [
+        15749991,
+        48550000
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 200000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "F.Cu",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "GND",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "SIG2",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "PWR",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "GND2",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "B.Cu",
+      "kind": "PCB_VIA",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        48903553
+      ],
+      "width_nm": 500000
+    },
+    {
+      "uuid": "be78cc58-17f6-41e7-9b89-3cb48aad190a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "layer": "B.Cu",
+      "kind": "PCB_TRACK",
+      "start_nm": [
+        16103544,
+        48903553
+      ],
+      "end_nm": [
+        16103544,
+        59925000
+      ],
+      "width_nm": 200000
+    }
+  ],
+  "owner_IN1_pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+  "direct_owner_to_C55_centers_mm": 2.1965092182253643,
+  "via_C54_lower_bound_centers_mm": 4.229986694470427,
+  "local_supply_max_mm": 3.5,
+  "source_copper_retained": true,
+  "old_C55_tail_retirement_separate_and_pending": true,
+  "board_saved": false,
+  "accepted": false,
+  "release_authority": false,
+  "unmoved_Hub_C37": {
+    "native_courtyard_bounds_mm": [
+      63.405,
+      38.005,
+      83.595,
+      61.195
+    ],
+    "in_ATX_frame_courtyard_bounds_mm": [
+      2.405000000000001,
+      47.80500000000001,
+      22.595,
+      70.995
+    ],
+    "native_position_nm": [
+      73500000,
+      49600000
+    ],
+    "in_ATX_frame_body_center_mm": [
+      12.5,
+      59.400000000000006
+    ],
+    "C51_native_courtyard_bounds_mm": [
+      17.0,
+      49.55,
+      18.45,
+      52.5
+    ],
+    "scope": "Courtyard bounds for locating obstacle only; paired gate uses declared reservoir body/vent/height model, not this rectangle as substitute"
+  }
+}

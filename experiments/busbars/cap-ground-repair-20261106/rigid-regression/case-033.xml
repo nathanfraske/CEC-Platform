@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.201" timestamp="2026-11-06T12:31:54.359092" hostname="DESKTOP-AF2CO1R"><testcase classname="tests.test_source_cap_ground_via_repair" name="test_exact_tokens_keep_escaped_quote_and_semicolon_inside_strings" time="0.001" /></testsuite></testsuites>

@@ -1,0 +1,303 @@
+{
+  "source": "experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "source_C51_rotation_deg": 180.0,
+  "source_C51_unchanged_rotation_intent_over_literal_zero": true,
+  "proposed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "native_courtyards": {
+    "U6": [
+      15.55499,
+      45.705,
+      18.44499,
+      49.095
+    ],
+    "C9": [
+      12.025,
+      46.305,
+      13.975,
+      49.695
+    ],
+    "C27": [
+      13.65899,
+      45.345,
+      15.46899,
+      46.255
+    ],
+    "R54": [
+      14.335,
+      47.7,
+      15.265,
+      49.55
+    ],
+    "C54": [
+      18.46999,
+      47.225,
+      19.37999,
+      49.035
+    ],
+    "C55": [
+      19.825,
+      47.655,
+      21.775,
+      51.045
+    ],
+    "C51": [
+      16.825,
+      49.2,
+      19.775,
+      50.65
+    ]
+  },
+  "court_clashes": [],
+  "paired_ok": true,
+  "paired_violations": [],
+  "hypothetical_ground_vias": [
+    {
+      "ref": "C54",
+      "at_nm": [
+        18924990,
+        48610000
+      ],
+      "diameter_nm": 500000,
+      "drill_nm": 300000,
+      "pad_process_blocked": false,
+      "pad_process_records": [
+        {
+          "ref": "C54",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "all_layer_clear": true,
+      "all_layer_report": {
+        "ok": true,
+        "at_mm": [
+          18.92499,
+          48.61
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2
+      },
+      "actual_foreign_tracks": [],
+      "actual_saved_foreign_filled_zone_conflicts": [],
+      "unknown_saved_zone_geometry": [],
+      "source_barrel_replacement_requires_positive_exclusive_ownership": true,
+      "retired_source_barrel_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97"
+    },
+    {
+      "ref": "C55",
+      "at_nm": [
+        20800000,
+        50300000
+      ],
+      "diameter_nm": 500000,
+      "drill_nm": 300000,
+      "pad_process_blocked": false,
+      "pad_process_records": [
+        {
+          "ref": "C55",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ],
+      "all_layer_clear": false,
+      "all_layer_report": {
+        "ok": false,
+        "reason": "foreign copper excludes via land",
+        "at_mm": [
+          20.8,
+          50.3
+        ],
+        "diameter_mm": 0.5,
+        "clearance_mm": 0.2,
+        "layer": "B.Cu",
+        "blockers": [
+          {
+            "kind": "zone",
+            "net": "/SENSE3V3_HI",
+            "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+            "layer": "B.Cu",
+            "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+            "contact": "zone_clearance"
+          }
+        ]
+      },
+      "actual_foreign_tracks": [],
+      "actual_saved_foreign_filled_zone_conflicts": [
+        {
+          "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+          "net": "/SENSE3V3_HI",
+          "layer": "B.Cu"
+        }
+      ],
+      "unknown_saved_zone_geometry": [],
+      "source_barrel_replacement_requires_positive_exclusive_ownership": true,
+      "retired_source_barrel_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b"
+    }
+  ],
+  "retained_C51_via_process_blocked": false,
+  "retained_C51_via_process_records": [
+    {
+      "ref": "C51",
+      "pad": "2",
+      "net": "GND",
+      "reason": "JLC06162H-3313 POFV accepted"
+    }
+  ],
+  "retained_C51_via_at_nm": [
+    17725000,
+    50125000
+  ],
+  "C51_new_pad_positions": [
+    {
+      "pin": "1",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "at_nm": [
+        19075000,
+        49925000
+      ]
+    },
+    {
+      "pin": "2",
+      "net": "GND",
+      "at_nm": [
+        17525000,
+        49925000
+      ]
+    }
+  ],
+  "full_width_IN1_local_path": [
+    {
+      "a_mm": [
+        17.67499,
+        47.775001
+      ],
+      "z_mm": [
+        18.799989,
+        47.775001
+      ],
+      "clear": true,
+      "blockers": []
+    },
+    {
+      "a_mm": [
+        18.799989,
+        47.775001
+      ],
+      "z_mm": [
+        18.92499,
+        47.65
+      ],
+      "clear": true,
+      "blockers": []
+    },
+    {
+      "a_mm": [
+        18.92499,
+        47.65
+      ],
+      "z_mm": [
+        20.05,
+        47.65
+      ],
+      "clear": false,
+      "blockers": [
+        {
+          "kind": "track",
+          "net": "GND",
+          "layer": "F.Cu",
+          "locked": true,
+          "from_mm": [
+            20.4,
+            48.0
+          ],
+          "to_mm": [
+            19.445406,
+            48.954594
+          ],
+          "width_mm": 0.2,
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "contact": "clearance"
+        }
+      ]
+    },
+    {
+      "a_mm": [
+        20.05,
+        47.65
+      ],
+      "z_mm": [
+        20.8,
+        48.4
+      ],
+      "clear": false,
+      "blockers": [
+        {
+          "kind": "track",
+          "net": "GND",
+          "layer": "F.Cu",
+          "locked": true,
+          "from_mm": [
+            20.4,
+            48.0
+          ],
+          "to_mm": [
+            19.445406,
+            48.954594
+          ],
+          "width_mm": 0.2,
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "contact": "clearance"
+        }
+      ]
+    }
+  ],
+  "path_length_mm": 3.487447281290023,
+  "width_nm": 477370,
+  "locality_limit_mm": 3.5,
+  "source_copper_retained": true,
+  "source_C55_old_tail_and_via_exclusive_retirement_pending": true,
+  "board_saved": false,
+  "accepted": false,
+  "release_authority": false
+}
