@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "scope": "Bounded, read-only ATX 12V bottom-loop bar assessment; no source/board edits or procurement. Three shortlisted part families, two additional deliberate native rejection screens, no search sweep.",
+  "native_source": {
+    "path": "experiments/repack/bar-land-20261105/carrier/board.kicad_pcb",
+    "sha256": "c9cac71adb685a7f32e48af34793455927f89f9207c2af1b54577a4f95a15251",
+    "outline_mm": [0, 0, 78, 89.5],
+    "net": "/SENSE12V_HI",
+    "source_refs": ["J3"],
+    "sink_refs": ["RS1"],
+    "authority": "cec_full_current_planar_reflow._model exact aggregate_source_sink binding",
+    "amps": 12,
+    "geometry_margin": 1.25,
+    "required_conductor_a": 15,
+    "retained_outer_track_width_mm": 3.230592,
+    "bottom_copper_max_y_mm": 88.815297,
+    "J3_10_at_mm": [22.549999, 79.4],
+    "J3_11_at_mm": [18.349999, 79.4],
+    "J3_9_at_mm": [26.749999, 79.4],
+    "J3_9_net": "+5VSB",
+    "header_note": "No J6P/J6C/J6D pad carries /SENSE12V_HI. J6P carries +5V_SYS_PORT and GND. A direct header bypass is not this source-to-RS1 current path."
+  },
+  "shortlist": [
+    {
+      "part": "Mac8 MJP-1.0 / MJP-1.0-T",
+      "profile": "experiments/busbars/mac8-mjp-1.0-nominal.json",
+      "manufacturer_url": "https://www.mac8japan.com/products/406",
+      "manufacturer_drawing_url": "https://mac8usa.com/wp-content/uploads/2022/02/en_2022a_rev_mjp-series.pdf",
+      "manufacturer_evidence": "20A; MJP-1.0 copper (shorter MJP variants are phosphor bronze); tin over nickel. Nominal total height2.3mm, underside1.8mm, width1.8mm, total length26.8mm. Recommended >=2x2mm lands at25.4mm centres.",
+      "catalog_rating_passes_15a_comparison": true,
+      "supplier_price_url": "https://www.marutsu.co.jp/GoodsDetail.jsp?salesGoodsCode=91074",
+      "indexed_price": {"currency": "JPY", "pack_quantity": 700, "pack_ex_tax": 20650, "unit_ex_tax_calculated": 29.5, "pack_in_tax": 22715},
+      "availability_note": "Distributor page says manufacturer order/no store stock; indexed delivery date not relied on. No global JLC assembly availability or fee verified.",
+      "status": "No legal demonstrated bottom-loop layout; direct and remote native trials below reject. B.Cu outward mounting lacks unchanged-Z proof. F.Cu trial near input band hits existing keepout/foreign 5V copper.",
+      "indispensable_vendor_evidence": [
+        "Guaranteed minimum assembled underside and maximum assembled height including component, solder and seating tolerances",
+        "Current/temperature-rise test conditions and acceptable solder land/process for15A design path",
+        "Actual quote/stock and assembly route/fees if subsequently a legal placement is demonstrated"
+      ]
+    },
+    {
+      "part": "Keystone5104 /5104TR",
+      "manufacturer_url": "https://www.keyelco.com/product.cfm/product_id/14013",
+      "manufacturer_drawing_url": "https://www.keyelco.com/product-pdf.cfm?p=14013",
+      "manufacturer_verified": "Copper, silver plated, SMT,12.3mm overall length. Manufacturer drawing endpoint accessible to web viewer but no readable text; not newly visually dimension-qualified in this assessment.",
+      "supplier_url": "https://www.digikey.com/en/products/detail/keystone-electronics/5104/4780769",
+      "supplier_claims_not_substituted_for_manufacturer_guarantee": {"current_a": 20, "height_mm": 1.8, "pitch_mm": 8.1},
+      "indexed_supplier_snapshot": {"stock": 46425, "currency": "USD", "unit_at_1": 0.25, "unit_at_10": 0.188, "unit_at_100": 0.1424},
+      "status": "Cheap lower-height short link, not a demonstrated replacement for the >=16.15mm lateral excursion from left12V trunk x2.2 to J3.11 x18.35. Do not chain parts or assume current sharing. No native placement trial because source geometry/underside/current guarantee not established.",
+      "indispensable_vendor_evidence": [
+        "Readable manufacturer drawing specifying land centres, guaranteed height/underside and tolerances",
+        "Manufacturer15A-or-higher current rating with thermal/assembly context",
+        "A legal new rated connection topology; lower nominal height alone does not remove J3 tail interference or prove unchanged complete Z"
+      ]
+    },
+    {
+      "part": "IHI14257-45 raised THT staple",
+      "manufacturer_url": "https://ihiconnectors.com/IHI-PCB-Shunts-and-Jumpers.html",
+      "drawing_url": "https://lugsdirect.com/PDF_Webprint/14257-45.pdf",
+      "manufacturer_linked_supplier_url": "https://lugsdirect.com/14257-45-(40-57A-AMP)-Shunt-Jumper-PCB-Staple-THT.htm",
+      "source_evidence": "Solid copper, tin over nickel, THT only, arch for jumping components. Supplier catalog names40-57A, linked ampacity page39-76A: contextual ratings, not automatic whole-board qualification. Prior visually reviewed drawing .565in length,.240in width,.494in total height,.125in penetration: nominal installed apex9.373mm above PCB; two1.4224x6.985mm slots on13.081mm centres.",
+      "supplier_price_usd": {"at_1": 0.42, "at_500": 0.31, "at_1000": 0.23},
+      "status": "Inexpensive actual THT bridge, but large slots and arch are not drop-in J3 pad geometry. Outward arch would increase Z; inward arch is potentially below22mm gap but conflicts with16mm J3 housing if crossing its footprint. Remote placement requires new slots/routing and full paired geometry. No demonstrated benefit over no-bar12V reroute.",
+      "indispensable_vendor_evidence": [
+        "Guaranteed component/installed height, slot/lead tolerances and underside profile at all crossing coordinates",
+        "Application-relevant current/temperature-rise basis and hole/barrel/solder process",
+        "No-increase complete-Z proof including outward tails and solder after any inward installation"
+      ]
+    }
+  ],
+  "additional_native_rejection_trials": {
+    "common": "J3 moved in memory from y79.4 to77.4 only; no tracks/parts modified on disk. bridges.screen_native with exact existing MJP nominal profile,0.2mm copper clearance assumption and0.25mm mechanical margin, bounded8s deadline each. These are rejection checks, not full custom-rule DRC, current, max-height or paired qualification.",
+    "trials": [
+      {
+        "id": "B.Cu-remote-lands",
+        "ends_mm": [[2.2, 70], [27.6, 70]],
+        "land_clearance_screen_ok": false,
+        "nominal_mechanical_screen_ok": false,
+        "source_copper_touches_both_feet": false,
+        "rejects": ["Second foot overlaps J3.21 /SENSE5V_HI drill/copper", "Second foot conflicts with+5VSB tracks/fill", "Body comes within0.1mm of J3.21..24 lead projections, below0.25mm margin"],
+        "z_note": "B.Cu is outward-facing; moving away from tails does not put this bar into the22mm inward gap."
+      },
+      {
+        "id": "F.Cu-remote-lands",
+        "ends_mm": [[2.2, 68], [27.6, 68]],
+        "land_clearance_screen_ok": false,
+        "nominal_mechanical_screen_ok": false,
+        "source_copper_touches_both_feet": false,
+        "rejects": ["Second foot overlaps existing /SENSE5V_HI track and filled zone", "Body intersects component keepout UUID cdb78967-3235-44b9-962b-6ce7aa574142"],
+        "z_note": "Inward F.Cu avoids outward height addition in principle, but this placement is already locally illegal; no paired-stack trial warranted."
+      }
+    ],
+    "prior_direct_trial": "B.Cu feet(2.2,77.4)/(27.6,77.4) overlap J3.9 +5VSB land/drill and cross J3.9..12 lead projections."
+  },
+  "complete_z_boundary": {
+    "stack_gap_mm": [21.5, 22.5],
+    "inward_face": "F.Cu",
+    "outward_face": "B.Cu",
+    "J3_tail_extension_mm_on_exact_1p6_board": [1.2, 2.6],
+    "tail_basis": "Previously inspected Molex39291247 family drawing3.5+/-0.7mm tail from seating plane; assembly seating/laminate/solder tolerances remain additional unknowns.",
+    "warning": "A2.6mm possible tail maximum is not a guaranteed existing stand-off floor. It cannot prove a2.3mm nominal outward MJP adds no complete Z, and maximum tails may exceed nominal1.8mm MJP underside. No automatic trimming or clearance credit."
+  },
+  "bounded_exclusions": "Mac8 MJ low-profile family is7A per manufacturer https://www.mac8japan.com/products/333 and is not eligible for15A. No parallel sharing assumption. No open-ended catalog search performed.",
+  "decision": "No source-qualified part-plus-layout presently warrants purchase or bar investment for this bottleneck. Prioritize root's bounded no-bar J3 shift/12V loop reroute proof. If that fails for a specifically documented crossing, retain MJP only as a conditional inward-face candidate after legal new lands/rated stubs and guaranteed height/process evidence; do not claim all possible placements are impossible.",
+  "routing_admitted": false,
+  "current_qualified": false,
+  "assembly_qualified": false,
+  "complete_z_unchanged_proven": false,
+  "release_authority": false
+}

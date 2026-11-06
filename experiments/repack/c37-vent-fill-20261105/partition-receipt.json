@@ -1,0 +1,17 @@
+{
+  "available": true,
+  "preserved": true,
+  "source_component_count": 464,
+  "child_component_count": 464,
+  "native_source_component_count": 464,
+  "native_child_component_count": 464,
+  "reported_parts_contain_comparison_keys_only": true,
+  "overlap_token_count": 8,
+  "intersection_pairs": 16,
+  "exact_positive_native_island_overlap": true,
+  "whole_zone_uuid_connectivity_credit": false,
+  "current_capacity_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "independent_delta_pose_current_receiving_still_required": true
+}

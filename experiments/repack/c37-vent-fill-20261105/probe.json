@@ -1,0 +1,113 @@
+{
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/atx-small-cell-20261105/native-v5/carrier/board.kicad_pcb",
+      "sha256": "dcc749c6d75bac04675ec7260f8709ee78ff798fd6d18a618f9819c56cdd7688"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/hub-kvm-20261105/native-v15/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "guard_uuid": "cdb78967-3235-44b9-962b-6ce7aa574142",
+  "zone_uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+  "net": "/SENSE5V_HI",
+  "status": "PRIVATE_PROBE_NOT_ADMITTED",
+  "compile": {
+    "algorithm": "native-priority-settle-v1",
+    "stable": true,
+    "ordered_passes": 2,
+    "compiled_zone_count": 1,
+    "initialized_selected": true,
+    "fingerprint": "e1b4ca367d2fc45504c2795a7b0d17f314b6d040b56ed5b7475c67513f1c70f6",
+    "native_copper_received": false,
+    "release_authority": false
+  },
+  "loss": {
+    "area_mm2": 8.93735e-08,
+    "polygons": 1,
+    "rings": [
+      [
+        [
+          [
+            19196401,
+            66768553
+          ],
+          [
+            19195945,
+            66768937
+          ],
+          [
+            19089793,
+            66859001
+          ],
+          [
+            18965181,
+            66964726
+          ],
+          [
+            19195992,
+            66768897
+          ],
+          [
+            19197011,
+            66768003
+          ]
+        ]
+      ]
+    ]
+  },
+  "gain": {
+    "area_mm2": 0.0,
+    "polygons": 0,
+    "rings": []
+  },
+  "guard_overlap": {
+    "area_mm2": 5.0486e-08,
+    "polygons": 2,
+    "rings": [
+      [
+        [
+          [
+            17155304,
+            68131671
+          ],
+          [
+            17084708,
+            68165060
+          ],
+          [
+            17084715,
+            68165056
+          ]
+        ]
+      ],
+      [
+        [
+          [
+            19427545,
+            66559030
+          ],
+          [
+            19492372,
+            66496289
+          ],
+          [
+            19492378,
+            66496284
+          ]
+        ]
+      ]
+    ]
+  },
+  "candidate": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/c37-vent-fill-20261105/candidate/carrier/board.kicad_pcb",
+    "sha256": "c701f93c4a12a00c63dd1b3cb8125a59c5752d30e3482619436caf2201089645"
+  },
+  "only_guard_polygon_and_selected_saved_fill_changed": true,
+  "source_hashes_preserved": true
+}

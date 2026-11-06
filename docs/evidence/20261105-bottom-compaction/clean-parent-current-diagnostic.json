@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-06T05:20:52Z",
+  "source": {"path":"experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb","sha256":"496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"},
+  "candidate": {"path":"experiments/repack/atx-small-cell-20261105/native-v5/carrier/board.kicad_pcb","sha256":"dcc749c6d75bac04675ec7260f8709ee78ff798fd6d18a618f9819c56cdd7688"},
+  "previous_comparison": {"path":"docs/evidence/20261105-bottom-compaction/atx-cell-v5-current.json","sha256":"62bc85d91f25afb664895be01e2132ca28557eef3cad8e77ad1e2c37f5bfbe9c","source_sha256":"27db3ea6947ce467587f454b3b719d123306b43397cd74c9ad985fc320d9dfa4"},
+  "fresh_exact_check": {
+    "entrypoint":"cec_current_debt.receive(source,candidate,board_hint='atx-24pin-rev3')",
+    "checker":"cec_constraints.CHECKERS['trace-width-high-current']",
+    "environment":{"PYTHONDONTWRITEBYTECODE":"1","CEC_THERMAL_GPU_AMG":"1"},
+    "scripts/cec_constraints.py_sha256":"4739a53765003f2901f0fc6a3a64ae2c255956aa6bfbfea7080543977e3300b7",
+    "scripts/cec_current_debt.py_sha256":"c6e8ed7e5e1744d74c5ad54b258d27cef2d7d16f2db93d05b50808e06f776dd9",
+    "independent_native_evaluations":2,
+    "source_candidate_and_code_unchanged":true,
+    "complete":true,"ok":true,"errors":[],"new_faults":[],"worsened_faults":[],
+    "before_fault_objects":10,"after_fault_objects":10,
+    "before_checker_pass":false,"after_checker_pass":false,
+    "current_qualified":false,"release_authority":false
+  },
+  "conclusion":"All seven identified undersized segments plus three failing domains are already present in the exact CLEAN496e parent. Closed native-v5 retains identical faults/authority/severity. This is inherited unresolved current-model debt, not a new fault introduced by the bottom repack; it remains a current failure, not a generic waiver or physical-safety finding.",
+  "count_definition":"10 fault objects =7 native segment identities +3 aggregate domain identities. The checker describes3 current-model violations because it reports one disconnected rated domain per net.",
+  "domains":[
+    {
+      "net":"/SENSE12V_LO","source_ref":"RS1","sink_ref":"TB1",
+      "current_authority":{"amps":12,"geometry_margin":1.25,"margin_included":false,"source":"board_design_basis","pattern":"/SENSE12V"},
+      "required_width_mm":3.2305914619680833,"layer":"F.Cu",
+      "original_connectivity":true,"rated_connectivity":false,
+      "rated_partition":"RS1.2 separate from each of four physical TB1 pad1 legs",
+      "segments":[
+        {"uuid":"0ea308d8-0916-4f7c-96f4-d428e85f5fe1","actual_mm":0.8,"start_mm":[42.815,7.4],"end_mm":[42.815,17.1],"same_net_saved_fill_contains_start_mid_end":[false,false,true]},
+        {"uuid":"d0b6d2b4-9cfe-47c3-8b24-d3a99d99fb06","actual_mm":0.8,"start_mm":[37.315,7.4],"end_mm":[37.315,17.1],"same_net_saved_fill_contains_start_mid_end":[false,false,true]},
+        {"uuid":"dcf4ab3a-cc44-4be4-8096-d77bbfebfa0e","actual_mm":0.8,"start_mm":[37.315,2.4],"end_mm":[37.315,7.4],"same_net_saved_fill_contains_start_mid_end":[false,false,false]},
+        {"uuid":"faf3f80b-7c71-40bf-a5b8-53efb056a54c","actual_mm":0.8,"start_mm":[42.815,2.4],"end_mm":[42.815,7.4],"same_net_saved_fill_contains_start_mid_end":[false,false,false]}
+      ],
+      "saved_fill":{"uuid":"8299e7ca-b54e-408f-b4da-f843235b9b5a","name":"CEC_RECTILINEAR_POWER_CONTOUR","layer":"F.Cu","outline_bounds_mm":[35.697,15.482,53.303,29.086599]},
+      "root_cause":"Source terminal escape/leg links are0.8mm and extend beyond the saved12V output pour. Removing them disconnects the physical terminal legs from RS1. This is in the top output band, not the bottom J3 input-loop rewrite."
+    },
+    {
+      "net":"/SENSE3V3_LO","source_ref":"RS3","sink_ref":"TB4",
+      "current_authority":{"amps":20,"geometry_margin":1.25,"margin_included":false,"source":"board_design_basis","pattern":"/SENSE3V3"},
+      "required_width_mm":78.2976189903335,"layer":"In2.Cu","native_layer_name":"SIG2",
+      "original_connectivity":true,"rated_connectivity":false,
+      "rated_partition":"RS3.2 retains connection to two TB4 legs at y7.4; the two y2.4 legs isolate",
+      "segments":[
+        {"uuid":"3f3fd529-83f6-462b-badc-4a1578ce288d","actual_mm":1.25,"start_mm":[26.814999,7.4],"end_mm":[26.814999,2.4],"same_net_saved_fill_contains_start_mid_end":[true,false,false]},
+        {"uuid":"91c95e67-3bfe-44db-aca8-fa5209c41ca1","actual_mm":1.25,"start_mm":[21.314999,7.4],"end_mm":[21.314999,2.4],"same_net_saved_fill_contains_start_mid_end":[true,false,false]}
+      ],
+      "saved_fill":{"uuid":"6a262435-c3ea-46fc-b6fa-5879753b30bc","name":"CEC_NATIVE_POWER_CONTOUR_REGIONS","layer":"SIG2","outline_bounds_mm":[18.813,6.774,64.701,44.541],"filled_outline_count":2},
+      "root_cause":"Two original1.25mm inner-layer terminal leg links run above the saved pour boundary to y2.4. They are not embedded conductors and fail the unchanged profile's20A x1.25 inner-layer width requirement. The78.298mm requirement is the existing internal-layer model output, not an invented new current or an instruction to fit that literal width."
+    },
+    {
+      "net":"/SENSE5VSB_LO","source_ref":"RS4","sink_ref":"TB5",
+      "current_authority":{"amps":3,"geometry_margin":1.25,"margin_included":false,"source":"board_design_basis","pattern":"/SENSE5VSB"},
+      "required_width_mm":5.7190343613477115,"layer":"In3.Cu","native_layer_name":"PWR",
+      "original_connectivity":true,"rated_connectivity":false,
+      "rated_partition":"RS4.2 isolates from all four TB5 pad1 legs, which remain mutually connected",
+      "segments":[
+        {"uuid":"664c316a-dc6f-436f-892e-af89f7b1ce4a","actual_mm":0.8,"start_mm":[50.815,7.4],"end_mm":[53.15,7.4],"same_net_saved_fill_contains_start_mid_end":[false,false,true]}
+      ],
+      "saved_fill":{"uuid":"171feffb-dca8-44d4-997a-95ebf3c20b9d","name":"CEC_RECTILINEAR_POWER_CONTOUR","layer":"PWR","outline_bounds_mm":[39.214,6.999,53.903,43.523],"filled_outline_count":2},
+      "root_cause":"Original0.8mm PWR-layer bridge links the terminal collector to the shunt-side path across a saved-fill gap. Presence of a same-net zone elsewhere is not enough: start and midpoint are outside its saved copper; removing the bridge separates the authority domains."
+    }
+  ],
+  "saved_fill_nonregression":{
+    "method":"Compared native Outline().Format() and every enabled same-zone GetFilledPolysList(layer).Format() between exact parent and closed native-v5, by zone UUID.",
+    "affected_net_zone_count":10,
+    "all_10_zone_outlines_identical":true,"all_10_saved_fills_identical":true,
+    "zone_uuids":["04b1b0ba-5c8d-45df-921a-770a27d15213","40d65e0a-4104-5c20-9c29-cef71c2d2c94","8299e7ca-b54e-408f-b4da-f843235b9b5a","c9e01436-e2ed-403b-aee8-6e4f71ae5fdf","fe5140fc-3edf-487d-a042-5cb68da1b88a","3aae5dec-e07a-4716-99c2-2b807e4a140e","05a3ce43-03f7-4c21-8169-777af4ba2678","6a262435-c3ea-46fc-b6fa-5879753b30bc","171feffb-dca8-44d4-997a-95ebf3c20b9d","a6c38bb1-372c-4473-a987-2632a98d8f23"]
+  },
+  "qualification_boundary":"The exact checker removes only unqualified undersized native segments from a scratch rated-subgraph and rebuilds connectivity from saved native copper; originals connect and rated counterfactuals do not. Source authority, neckdown exceptions, layers and gates were not changed. Off-board terminal metal current distribution, thermal/current performance, sample qualification and release remain separate requirements. No generic exception granted.",
+  "boards_modified":false,"gates_modified":false,"current_qualified":false,"release_authority":false
+}

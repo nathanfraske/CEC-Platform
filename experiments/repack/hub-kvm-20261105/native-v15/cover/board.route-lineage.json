@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "purpose": "generated-copper-provenance",
+  "producer": "certificate_rigid_cell_motion",
+  "electrical_identity": "a3c937efd3358afcf820cbf97c4b641a36fbc59f65fafa0a43312bb7c4620fc6",
+  "release_authority": false,
+  "producer_input_sha256": "1bffe20b26f18140139f272e168af310dabb2ed7cf6a5aeca0ca6315a7ffe01c",
+  "parent_receipt_sha256": "aa270eb714754365d179f77678a71dfe4c6956896f5501fca94aea08c2f6c225",
+  "mutation": {
+    "moved_uuids": [],
+    "removed_uuids": [
+      "bb01fe9f-da17-45e1-9804-ce897098cd12",
+      "e95759f5-f58a-4e1d-a7a9-9fa47e4525ec"
+    ]
+  },
+  "members": {
+    "14f574c6-144c-4e1c-a121-c3ef48b73f6c": "d62c7dd3f22eb615da4b8777c73ae295467e60f202b55e15425f6d221ddc6869",
+    "5b7430c1-a9a5-4621-9525-19ccbb174aa3": "085293bf367757fb7cc69bbd9e397d5cf291227e468b356f0657d69ed377cd0a",
+    "7e443665-567e-4d75-b72f-fdc1269b479f": "b484f54184c8211d28a6172ea36f62453d070daa966f2f1272dbe57b638f9a11",
+    "ac718310-4e55-4254-b6ce-a15f6701c1b7": "b952745f984afb1f6de34a1312d9bf89898d8c85efab5e9952be4223c66301a5",
+    "e0a4b171-281f-46c7-8813-196e8270e3e8": "81fcb19f6da80b8caea5b8d00fadf195d1f54881ef874e2e64bc44687cb1addd",
+    "e18458a9-37a8-4cf4-b76a-f7dd185990e2": "102cd3a8c2adc7a921b1cc39a6ce0fa9faf32b34dd727cacbe75cf276ba95703",
+    "e434aac8-854d-475f-a34a-ce8ce30b3888": "f5ff8b1d40807353c8f6a74a531a3832c7df639b6a2c66799fceea9259cdc791",
+    "f801995f-ad74-4d9b-b2a4-4508a83abe4c": "efde601513546ee23c76202d9f31e6d5450e1682a320af4e7f7815707c1f8cb1"
+  },
+  "producer_output_sha256": "06cc69110e9943cfcc11a4c1b33040c3bfbf05c7aeff21c4f8b556ed5eab43b7"
+}

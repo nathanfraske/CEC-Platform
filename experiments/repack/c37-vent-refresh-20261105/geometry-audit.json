@@ -1,0 +1,731 @@
+{
+  "native_collide_copper_guard": true,
+  "native_collide_guard_copper": true,
+  "native_intersection_area_nm2": 50518.0,
+  "native_reverse_intersection_area_nm2": 50518.0,
+  "intersection_rings_nm": [
+    [
+      [
+        [
+          17155304,
+          68131671
+        ],
+        [
+          17084708,
+          68165060
+        ],
+        [
+          17084715,
+          68165056
+        ]
+      ]
+    ],
+    [
+      [
+        [
+          19195992,
+          66768897
+        ],
+        [
+          19195945,
+          66768937
+        ],
+        [
+          19195944,
+          66768937
+        ],
+        [
+          19196001,
+          66768889
+        ]
+      ]
+    ],
+    [
+      [
+        [
+          19427545,
+          66559030
+        ],
+        [
+          19492372,
+          66496289
+        ],
+        [
+          19492378,
+          66496284
+        ]
+      ]
+    ]
+  ],
+  "integer_shoelace_area2_nm2": 101036,
+  "shapely_integer_coordinate_intersection_area_nm2": 89957.49952010252,
+  "shapely_mm_intersection_area_mm2": 8.99574990029118e-08,
+  "shapely_integer_valid": [
+    true,
+    true
+  ],
+  "witnesses": [
+    {
+      "point_nm": [
+        17155304,
+        68131671
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              16881673,
+              68261089
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              17155304,
+              68131671
+            ],
+            [
+              17159706,
+              68129500
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              17084715,
+              68165056
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              17155304,
+              68131671
+            ],
+            [
+              17159706,
+              68129500
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        17084708,
+        68165060
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "16299373561/91622942885",
+          "edge_nm": [
+            [
+              16881673,
+              68261089
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "6098620537",
+          "edge_nm": [
+            [
+              17155304,
+              68131671
+            ],
+            [
+              17159706,
+              68129500
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "297424516/1188151957",
+          "edge_nm": [
+            [
+              17055906,
+              68183982
+            ],
+            [
+              17084715,
+              68165056
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "65",
+          "edge_nm": [
+            [
+              17084715,
+              68165056
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        17084715,
+        68165056
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "100024815289/91622942885",
+          "edge_nm": [
+            [
+              16881673,
+              68261089
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "6097365146",
+          "edge_nm": [
+            [
+              17155304,
+              68131671
+            ],
+            [
+              17159706,
+              68129500
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              17055906,
+              68183982
+            ],
+            [
+              17084715,
+              68165056
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              17084715,
+              68165056
+            ],
+            [
+              17155304,
+              68131671
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19195992,
+        66768897
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              18965181,
+              66964726
+            ],
+            [
+              19195992,
+              66768897
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19195992,
+              66768897
+            ],
+            [
+              19199683,
+              66765661
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "23104/356305",
+          "edge_nm": [
+            [
+              19195944,
+              66768937
+            ],
+            [
+              19196401,
+              66768553
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "3809",
+          "edge_nm": [
+            [
+              18981203,
+              66951133
+            ],
+            [
+              19195945,
+              66768937
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19195945,
+        66768937
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "810939529/91622714962",
+          "edge_nm": [
+            [
+              18965181,
+              66964726
+            ],
+            [
+              19195992,
+              66768897
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "3809",
+          "edge_nm": [
+            [
+              19195992,
+              66768897
+            ],
+            [
+              19199683,
+              66765661
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              18981203,
+              66951133
+            ],
+            [
+              19195945,
+              66768937
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19195945,
+              66768937
+            ],
+            [
+              19195944,
+              66768937
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19195944,
+        66768937
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "14003345952/45811357481",
+          "edge_nm": [
+            [
+              18965181,
+              66964726
+            ],
+            [
+              19195992,
+              66768897
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "3904",
+          "edge_nm": [
+            [
+              19195992,
+              66768897
+            ],
+            [
+              19199683,
+              66765661
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19195945,
+              66768937
+            ],
+            [
+              19195944,
+              66768937
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19195944,
+              66768937
+            ],
+            [
+              19196401,
+              66768553
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19196001,
+        66768889
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "163216/24095177",
+          "edge_nm": [
+            [
+              19195992,
+              66768897
+            ],
+            [
+              19199683,
+              66765661
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "145",
+          "edge_nm": [
+            [
+              18965181,
+              66964726
+            ],
+            [
+              19195992,
+              66768897
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "2304/356305",
+          "edge_nm": [
+            [
+              19195944,
+              66768937
+            ],
+            [
+              19196401,
+              66768553
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "5440",
+          "edge_nm": [
+            [
+              18981203,
+              66951133
+            ],
+            [
+              19195945,
+              66768937
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19427545,
+        66559030
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19423963,
+              66562385
+            ],
+            [
+              19427545,
+              66559030
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19645054,
+              66348525
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19423963,
+              66562385
+            ],
+            [
+              19427545,
+              66559030
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19492372,
+              66496289
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19492372,
+        66496289
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "52661158578/45811260053",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19645054,
+              66348525
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "8138973010",
+          "edge_nm": [
+            [
+              19423963,
+              66562385
+            ],
+            [
+              19427545,
+              66559030
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19492372,
+              66496289
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "0",
+          "edge_nm": [
+            [
+              19492372,
+              66496289
+            ],
+            [
+              19520962,
+              66475609
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "point_nm": [
+        19492378,
+        66496284
+      ],
+      "guard_edges": [
+        {
+          "distance_squared_nm2": "22215604401/91622520106",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19645054,
+              66348525
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "8140378405",
+          "edge_nm": [
+            [
+              19423963,
+              66562385
+            ],
+            [
+              19427545,
+              66559030
+            ]
+          ]
+        }
+      ],
+      "copper_edges": [
+        {
+          "distance_squared_nm2": "3560769/12450505",
+          "edge_nm": [
+            [
+              19492372,
+              66496289
+            ],
+            [
+              19520962,
+              66475609
+            ]
+          ]
+        },
+        {
+          "distance_squared_nm2": "61",
+          "edge_nm": [
+            [
+              19427545,
+              66559030
+            ],
+            [
+              19492372,
+              66496289
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "exact_rational_witness": {
+    "guard_edge_nm": [
+      [
+        16881673,
+        68261089
+      ],
+      [
+        17155304,
+        68131671
+      ]
+    ],
+    "copper_boundary_vertices_nm": [
+      [
+        17055906,
+        68183982
+      ],
+      [
+        17084715,
+        68165056
+      ],
+      [
+        17155304,
+        68131671
+      ]
+    ],
+    "source_copper_vertex_guard_class": "inside",
+    "source_copper_vertex_penetration_squared_nm2": "100024815289/91622942885",
+    "exact_crossing_point_nm": [
+      "24778587647817957/1450337144",
+      "49431159312654653/725168572"
+    ],
+    "source_copper_edge_parameter": "1450020877/1450337144",
+    "triangle_area_nm2": "118340453663383/2900674288",
+    "triangle_area_nm2_decimal": 40797.56701845285,
+    "strict_common_interior_point_nm": [
+      "74438159014783693/4351011432",
+      "49423087399839499/725168572"
+    ],
+    "guard_exact_winding_class": "inside",
+    "copper_exact_winding_class": "inside",
+    "interpretation": "A positive-area rational triangle exists in both saved native polygons. Native clipping rounds intersection coordinates and reports a different sliver area; the collision is not merely floating overlay noise."
+  }
+}

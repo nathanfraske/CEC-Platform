@@ -1,0 +1,2987 @@
+{
+  "schema": 1,
+  "scope": "Source-bound read-only J3 up2 contact and contour reconstruction inventory. Not retirement, route or current admission.",
+  "source": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb",
+    "sha256": "496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"
+  },
+  "target_J3": {
+    "at_nm": [
+      60349999,
+      77400000
+    ],
+    "rotation_deg": 180,
+    "delta_nm": [
+      0,
+      -2000000
+    ]
+  },
+  "pads": [
+    {
+      "number": "",
+      "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+      "net": "",
+      "source_at_nm": [
+        64849999,
+        83600000
+      ],
+      "target_at_nm": [
+        64849999,
+        81600000
+      ],
+      "size_nm": [
+        3200000,
+        3200000
+      ],
+      "drill_nm": [
+        3200000,
+        3200000
+      ],
+      "attribute": 3,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": []
+    },
+    {
+      "number": "",
+      "uuid": "921bad9d-6c5d-49b1-88bb-2239b26257f1",
+      "net": "",
+      "source_at_nm": [
+        9649999,
+        83600000
+      ],
+      "target_at_nm": [
+        9649999,
+        81600000
+      ],
+      "size_nm": [
+        3200000,
+        3200000
+      ],
+      "drill_nm": [
+        3200000,
+        3200000
+      ],
+      "attribute": 3,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": []
+    },
+    {
+      "number": "1",
+      "uuid": "2fef6eee-bcc6-4698-bc52-143ed5ab09a8",
+      "net": "/SENSE3V3_HI",
+      "source_at_nm": [
+        60349999,
+        79400000
+      ],
+      "target_at_nm": [
+        60349999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "086d02f1-bc31-4ca2-85ba-72813e270d41",
+        "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+        "33dc8c50-5fc6-4e38-a396-6e1a6f1b7448",
+        "4082d1c7-9c37-4995-a42d-d206a91fd98d",
+        "2d54aae3-bc76-41b1-b86d-80f1058b1f1d"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+          "layer": "F.Cu",
+          "net": "/SENSE3V3_HI"
+        },
+        {
+          "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+          "layer": "B.Cu",
+          "net": "/SENSE3V3_HI"
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "uuid": "c13153d3-1c1b-4d2d-a8c6-fd863b3a148b",
+      "net": "/SENSE3V3_HI",
+      "source_at_nm": [
+        56149999,
+        79400000
+      ],
+      "target_at_nm": [
+        56149999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "086d02f1-bc31-4ca2-85ba-72813e270d41",
+        "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+        "4082d1c7-9c37-4995-a42d-d206a91fd98d"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+          "layer": "F.Cu",
+          "net": "/SENSE3V3_HI"
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "uuid": "52fdcd79-b5e5-4f67-bb33-d945b28062b6",
+      "net": "GND",
+      "source_at_nm": [
+        51949999,
+        79400000
+      ],
+      "target_at_nm": [
+        51949999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "uuid": "59e14c1d-abc9-4064-842e-ef9650c6c1fc",
+      "net": "/SENSE5V_HI",
+      "source_at_nm": [
+        47749999,
+        79400000
+      ],
+      "target_at_nm": [
+        47749999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "23c90000-6b82-4586-9136-649a6f6ed3c1",
+        "4dfa113e-3201-4784-845a-41762ac5add5",
+        "98e580e5-f44d-4f12-84d3-b8bc9f76b3ca",
+        "e33134fd-3854-40b0-9b7a-e57a597b0218"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "layer": "F.Cu",
+          "net": "/SENSE5V_HI"
+        },
+        {
+          "uuid": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+          "layer": "SIG2",
+          "net": "/SENSE5V_HI"
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "uuid": "61aa8d7a-f3eb-4908-b597-403227bb8649",
+      "net": "GND",
+      "source_at_nm": [
+        43549999,
+        79400000
+      ],
+      "target_at_nm": [
+        43549999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "uuid": "4418f9e7-060d-48fa-948c-d6075d2c6b4e",
+      "net": "/SENSE5V_HI",
+      "source_at_nm": [
+        39349999,
+        79400000
+      ],
+      "target_at_nm": [
+        39349999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "84260bd0-e624-4055-87fc-f4bc52548aa0",
+        "c6b5a89f-a755-40de-92d6-b77dde9ccca9",
+        "53095c5c-e8d1-4306-a335-dc5ab29e94cf",
+        "782f7dd8-5424-4270-9d22-8c4635062b2e"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "layer": "F.Cu",
+          "net": "/SENSE5V_HI"
+        },
+        {
+          "uuid": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+          "layer": "SIG2",
+          "net": "/SENSE5V_HI"
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "uuid": "16d9c45e-df4b-43e5-bc69-818283c69649",
+      "net": "GND",
+      "source_at_nm": [
+        35149999,
+        79400000
+      ],
+      "target_at_nm": [
+        35149999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "uuid": "81e00b5d-7791-4ec8-8766-f3d95a420f71",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "source_at_nm": [
+        30949999,
+        79400000
+      ],
+      "target_at_nm": [
+        30949999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "1f77b367-52e5-4812-a9e7-b1caedcd4d1a",
+        "547e9187-77ea-4d44-8384-6dbe63f37955"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": []
+    },
+    {
+      "number": "9",
+      "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+      "net": "+5VSB",
+      "source_at_nm": [
+        26749999,
+        79400000
+      ],
+      "target_at_nm": [
+        26749999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "61ee21af-b79c-5282-afcc-116a1d5e35bd",
+        "61fb1eb8-ea49-48cd-aad3-05f124165f73",
+        "f976aec1-849f-5e86-a838-554eda6802c9"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4d6fd6d5-8a6d-45b3-900a-ba464f12dcb1",
+          "layer": "F.Cu",
+          "net": "+5VSB"
+        }
+      ]
+    },
+    {
+      "number": "10",
+      "uuid": "bc8c166e-0d12-4ee3-8928-ccde9f3f409f",
+      "net": "/SENSE12V_HI",
+      "source_at_nm": [
+        22549999,
+        79400000
+      ],
+      "target_at_nm": [
+        22549999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "70d61afc-3210-4567-a68b-db3813502b5c"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+          "layer": "B.Cu",
+          "net": "/SENSE12V_HI"
+        }
+      ]
+    },
+    {
+      "number": "11",
+      "uuid": "b5c3d7cd-d0a8-4d9b-b8a0-4b8d9835ec2a",
+      "net": "/SENSE12V_HI",
+      "source_at_nm": [
+        18349999,
+        79400000
+      ],
+      "target_at_nm": [
+        18349999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "6838fe97-289e-4967-a26f-b47df4a49f61",
+        "70d61afc-3210-4567-a68b-db3813502b5c",
+        "b2e852b1-b446-4347-80e2-141dd773b1d4"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+          "layer": "B.Cu",
+          "net": "/SENSE12V_HI"
+        }
+      ]
+    },
+    {
+      "number": "12",
+      "uuid": "d1eb052f-59e9-4d2b-9a0a-2c893f8c1e53",
+      "net": "/SENSE3V3_HI",
+      "source_at_nm": [
+        14149999,
+        79400000
+      ],
+      "target_at_nm": [
+        14149999,
+        77400000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+          "layer": "B.Cu",
+          "net": "/SENSE3V3_HI"
+        }
+      ]
+    },
+    {
+      "number": "13",
+      "uuid": "481d2285-59b4-450e-a60e-25ec92f5520d",
+      "net": "/SENSE3V3_HI",
+      "source_at_nm": [
+        60349999,
+        73900000
+      ],
+      "target_at_nm": [
+        60349999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "086d02f1-bc31-4ca2-85ba-72813e270d41",
+        "33dc8c50-5fc6-4e38-a396-6e1a6f1b7448",
+        "2d54aae3-bc76-41b1-b86d-80f1058b1f1d"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+          "layer": "F.Cu",
+          "net": "/SENSE3V3_HI"
+        },
+        {
+          "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+          "layer": "B.Cu",
+          "net": "/SENSE3V3_HI"
+        }
+      ]
+    },
+    {
+      "number": "14",
+      "uuid": "0e1e5bb0-b42d-4687-9d4d-498edfaec001",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+      "source_at_nm": [
+        56149999,
+        73900000
+      ],
+      "target_at_nm": [
+        56149999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "5f99196f-9972-4af8-9201-11df7528018e",
+        "c52c85ae-9124-44ab-b390-3ba88b9a4aa1"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "3d884a77-15c2-43a6-8988-2e44455932e8",
+          "layer": "SIG2",
+          "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V"
+        }
+      ]
+    },
+    {
+      "number": "15",
+      "uuid": "22d2362f-71ee-4221-bac9-970b2c4592fc",
+      "net": "GND",
+      "source_at_nm": [
+        51949999,
+        73900000
+      ],
+      "target_at_nm": [
+        51949999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "16",
+      "uuid": "65a008e3-cc42-4a9d-959e-f967dbaed9f5",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PSON",
+      "source_at_nm": [
+        47749999,
+        73900000
+      ],
+      "target_at_nm": [
+        47749999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "4b10cff0-bac7-4c53-b5e0-4688e5079ad7"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": []
+    },
+    {
+      "number": "17",
+      "uuid": "8807334c-79e0-4bc2-90e7-ee9dc6bf0782",
+      "net": "GND",
+      "source_at_nm": [
+        43549999,
+        73900000
+      ],
+      "target_at_nm": [
+        43549999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "18",
+      "uuid": "7366a60e-47cd-4b14-a339-b6115e12e44b",
+      "net": "GND",
+      "source_at_nm": [
+        39349999,
+        73900000
+      ],
+      "target_at_nm": [
+        39349999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "19",
+      "uuid": "70a19303-cd25-40cf-b11c-46b9c88963fc",
+      "net": "GND",
+      "source_at_nm": [
+        35149999,
+        73900000
+      ],
+      "target_at_nm": [
+        35149999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "number": "20",
+      "uuid": "be12591b-51c9-4201-8f33-107e1578c4c0",
+      "net": "unconnected-(J3-NC-Pad20)",
+      "source_at_nm": [
+        30949999,
+        73900000
+      ],
+      "target_at_nm": [
+        30949999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": []
+    },
+    {
+      "number": "21",
+      "uuid": "b51775f3-c658-432d-83ac-e59e8666f295",
+      "net": "/SENSE5V_HI",
+      "source_at_nm": [
+        26749999,
+        73900000
+      ],
+      "target_at_nm": [
+        26749999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "913fccfb-6a94-42da-ae63-25f7b0ec5a38",
+        "5be23785-e542-4a41-990d-22369d423ecb",
+        "7b8f9c6f-617f-4ee0-99f0-58953450070c"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "layer": "F.Cu",
+          "net": "/SENSE5V_HI"
+        },
+        {
+          "uuid": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+          "layer": "SIG2",
+          "net": "/SENSE5V_HI"
+        }
+      ]
+    },
+    {
+      "number": "22",
+      "uuid": "22e416d8-f14b-4aec-b499-9be52724ae4d",
+      "net": "/SENSE5V_HI",
+      "source_at_nm": [
+        22549999,
+        73900000
+      ],
+      "target_at_nm": [
+        22549999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "ccc7ef27-c77f-4214-899f-d1c00f59d16d"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "layer": "F.Cu",
+          "net": "/SENSE5V_HI"
+        }
+      ]
+    },
+    {
+      "number": "23",
+      "uuid": "879cfb06-4fc0-4858-bb3d-9c67bbe95ffd",
+      "net": "/SENSE5V_HI",
+      "source_at_nm": [
+        18349999,
+        73900000
+      ],
+      "target_at_nm": [
+        18349999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [
+        "ccc7ef27-c77f-4214-899f-d1c00f59d16d"
+      ],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+          "layer": "F.Cu",
+          "net": "/SENSE5V_HI"
+        }
+      ]
+    },
+    {
+      "number": "24",
+      "uuid": "0ffd6e28-65a8-4f61-b6e3-446c79d3a88c",
+      "net": "GND",
+      "source_at_nm": [
+        14149999,
+        73900000
+      ],
+      "target_at_nm": [
+        14149999,
+        71900000
+      ],
+      "size_nm": [
+        2700000,
+        3700000
+      ],
+      "drill_nm": [
+        1800000,
+        1800000
+      ],
+      "attribute": 0,
+      "track_contacts": [],
+      "via_contacts": [],
+      "saved_fill_contacts": [
+        {
+          "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+          "layer": "GND",
+          "net": "GND"
+        },
+        {
+          "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+          "layer": "GND2",
+          "net": "GND"
+        }
+      ]
+    }
+  ],
+  "track_inventory": [
+    {
+      "uuid": "086d02f1-bc31-4ca2-85ba-72813e270d41",
+      "net": "/SENSE3V3_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 6535523,
+      "start_nm": [
+        60856249,
+        77106250
+      ],
+      "end_nm": [
+        60181249,
+        77781250
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+      "net": "/SENSE3V3_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 6535523,
+      "start_nm": [
+        57564060,
+        80325000
+      ],
+      "end_nm": [
+        57331249,
+        80092189
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "33dc8c50-5fc6-4e38-a396-6e1a6f1b7448",
+      "net": "/SENSE3V3_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 6535523,
+      "start_nm": [
+        60856249,
+        75515108
+      ],
+      "end_nm": [
+        60856249,
+        77106250
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "4082d1c7-9c37-4995-a42d-d206a91fd98d",
+      "net": "/SENSE3V3_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 6535523,
+      "start_nm": [
+        59168749,
+        80325000
+      ],
+      "end_nm": [
+        57564060,
+        80325000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "2d54aae3-bc76-41b1-b86d-80f1058b1f1d",
+      "net": "/SENSE3V3_HI",
+      "contact_layers": [
+        "B.Cu"
+      ],
+      "locked": true,
+      "layer": "B.Cu",
+      "width_nm": 6535523,
+      "start_nm": [
+        69200000,
+        70300000
+      ],
+      "end_nm": [
+        61100000,
+        78400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "23c90000-6b82-4586-9136-649a6f6ed3c1",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        47749999,
+        79400000
+      ],
+      "end_nm": [
+        49849999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "4dfa113e-3201-4784-845a-41762ac5add5",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        45649999,
+        79400000
+      ],
+      "end_nm": [
+        47749999,
+        79400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "98e580e5-f44d-4f12-84d3-b8bc9f76b3ca",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        47749999,
+        79400000
+      ],
+      "end_nm": [
+        49849999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "e33134fd-3854-40b0-9b7a-e57a597b0218",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        45649999,
+        79400000
+      ],
+      "end_nm": [
+        47749999,
+        79400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "84260bd0-e624-4055-87fc-f4bc52548aa0",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        39349999,
+        79400000
+      ],
+      "end_nm": [
+        41449999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "c6b5a89f-a755-40de-92d6-b77dde9ccca9",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 1000000,
+      "start_nm": [
+        37249999,
+        79400000
+      ],
+      "end_nm": [
+        39349999,
+        79400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "53095c5c-e8d1-4306-a335-dc5ab29e94cf",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        37249999,
+        79400000
+      ],
+      "end_nm": [
+        39349999,
+        79400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "782f7dd8-5424-4270-9d22-8c4635062b2e",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        39349999,
+        79400000
+      ],
+      "end_nm": [
+        41449999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "1f77b367-52e5-4812-a9e7-b1caedcd4d1a",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        31800000,
+        79400000
+      ],
+      "end_nm": [
+        30949999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "547e9187-77ea-4d44-8384-6dbe63f37955",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "start_nm": [
+        34000000,
+        81600000
+      ],
+      "end_nm": [
+        31800000,
+        79400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "61ee21af-b79c-5282-afcc-116a1d5e35bd",
+      "net": "+5VSB",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 600000,
+      "start_nm": [
+        27100000,
+        79400000
+      ],
+      "end_nm": [
+        28100000,
+        80400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "61fb1eb8-ea49-48cd-aad3-05f124165f73",
+      "net": "+5VSB",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 600000,
+      "start_nm": [
+        28100000,
+        80400000
+      ],
+      "end_nm": [
+        28640000,
+        80400000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "f976aec1-849f-5e86-a838-554eda6802c9",
+      "net": "+5VSB",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 600000,
+      "start_nm": [
+        26749999,
+        79400000
+      ],
+      "end_nm": [
+        27100000,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "70d61afc-3210-4567-a68b-db3813502b5c",
+      "net": "/SENSE12V_HI",
+      "contact_layers": [
+        "B.Cu"
+      ],
+      "locked": true,
+      "layer": "B.Cu",
+      "width_nm": 3230592,
+      "start_nm": [
+        18349999,
+        79400000
+      ],
+      "end_nm": [
+        22549999,
+        79400000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "6838fe97-289e-4967-a26f-b47df4a49f61",
+      "net": "/SENSE12V_HI",
+      "contact_layers": [
+        "B.Cu"
+      ],
+      "locked": true,
+      "layer": "B.Cu",
+      "width_nm": 3230592,
+      "start_nm": [
+        18400000,
+        80200000
+      ],
+      "end_nm": [
+        11400000,
+        87200000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "b2e852b1-b446-4347-80e2-141dd773b1d4",
+      "net": "/SENSE12V_HI",
+      "contact_layers": [
+        "B.Cu"
+      ],
+      "locked": true,
+      "layer": "B.Cu",
+      "width_nm": 3230592,
+      "start_nm": [
+        18400000,
+        79400000
+      ],
+      "end_nm": [
+        18400000,
+        80200000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "5f99196f-9972-4af8-9201-11df7528018e",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1256680,
+      "start_nm": [
+        56149999,
+        73900000
+      ],
+      "end_nm": [
+        56149999,
+        72049180
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "c52c85ae-9124-44ab-b390-3ba88b9a4aa1",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1256680,
+      "start_nm": [
+        56149999,
+        72049180
+      ],
+      "end_nm": [
+        57075409,
+        71123770
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "4b10cff0-bac7-4c53-b5e0-4688e5079ad7",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PSON",
+      "contact_layers": [
+        "PWR"
+      ],
+      "locked": true,
+      "layer": "PWR",
+      "width_nm": 200000,
+      "start_nm": [
+        47749999,
+        73900000
+      ],
+      "end_nm": [
+        41497651,
+        67647652
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "913fccfb-6a94-42da-ae63-25f7b0ec5a38",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 3400000,
+      "start_nm": [
+        26749999,
+        73900000
+      ],
+      "end_nm": [
+        26749999,
+        71600000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "5be23785-e542-4a41-990d-22369d423ecb",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        26749999,
+        72325000
+      ],
+      "end_nm": [
+        26749999,
+        73900000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": true
+    },
+    {
+      "uuid": "7b8f9c6f-617f-4ee0-99f0-58953450070c",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "SIG2"
+      ],
+      "locked": true,
+      "layer": "SIG2",
+      "width_nm": 1000000,
+      "start_nm": [
+        26749999,
+        72325000
+      ],
+      "end_nm": [
+        27749999,
+        71325000
+      ],
+      "start_center_inside_pad": true,
+      "end_center_inside_pad": false
+    },
+    {
+      "uuid": "ccc7ef27-c77f-4214-899f-d1c00f59d16d",
+      "net": "/SENSE5V_HI",
+      "contact_layers": [
+        "F.Cu"
+      ],
+      "locked": true,
+      "layer": "F.Cu",
+      "width_nm": 3400000,
+      "start_nm": [
+        20750000,
+        73900000
+      ],
+      "end_nm": [
+        20750000,
+        70150000
+      ],
+      "start_center_inside_pad": false,
+      "end_center_inside_pad": false
+    }
+  ],
+  "tracks_beyond_y87mm": [
+    {
+      "uuid": "114594ee-2e2c-42c6-90ff-06c0a9936182",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        584704,
+        79584704,
+        9015297,
+        88015297
+      ]
+    },
+    {
+      "uuid": "23a4f7c1-7f7b-4575-936c-b5699920bb2c",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        5984704,
+        84784704,
+        9615297,
+        88415297
+      ]
+    },
+    {
+      "uuid": "274d7e27-7198-46ee-96b3-cfb0f048ad80",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        6984704,
+        85584704,
+        13015297,
+        88815297
+      ]
+    },
+    {
+      "uuid": "55fff7c2-e41c-42b6-a3da-2bab3d319ebf",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        6584704,
+        85184704,
+        10215297,
+        88815297
+      ]
+    },
+    {
+      "uuid": "6838fe97-289e-4967-a26f-b47df4a49f61",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        9784704,
+        78584704,
+        20015297,
+        88815297
+      ]
+    },
+    {
+      "uuid": "79fe3cdf-36b1-4e17-a230-d92a6543f34e",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        6384704,
+        85184704,
+        9815297,
+        88415297
+      ]
+    },
+    {
+      "uuid": "84d463ed-6ea6-49ee-bd1e-95d7f24b518e",
+      "net": "/SENSE12V_HI",
+      "width_nm": 3230592,
+      "bounds_nm": [
+        5784704,
+        84784704,
+        9215297,
+        88015297
+      ]
+    }
+  ],
+  "saved_fills_beyond_y87mm": [
+    {
+      "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+      "layer": "B.Cu",
+      "bounds_mm": [
+        0.582,
+        32.182,
+        44.97161,
+        88.818
+      ]
+    },
+    {
+      "uuid": "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+      "layer": "GND",
+      "bounds_mm": [
+        0.5005,
+        0.5005,
+        77.4995,
+        88.9995
+      ]
+    },
+    {
+      "uuid": "d973fe53-5c88-47cd-9e60-63dafba1de54",
+      "layer": "GND2",
+      "bounds_mm": [
+        0.5005,
+        0.5005,
+        77.4995,
+        88.9995
+      ]
+    }
+  ],
+  "rail_zones": [
+    {
+      "uuid": "1f89c8d0-7e4b-402c-a207-fa0edede2219",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+      "filled": true,
+      "outline_vertex_count": 8,
+      "outline_bounds_nm": [
+        60524000,
+        50024000,
+        63876000,
+        55139000
+      ]
+    },
+    {
+      "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "net": "/SENSE5V_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+      "filled": true,
+      "outline_vertex_count": 77,
+      "outline_bounds_nm": [
+        16998000,
+        50024000,
+        53301000,
+        79903000
+      ]
+    },
+    {
+      "uuid": "62279ed9-4e20-4cee-923f-d3795932bef5",
+      "net": "/SENSE12V_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+      "filled": true,
+      "outline_vertex_count": 17,
+      "outline_bounds_nm": [
+        41437610,
+        33788000,
+        53303000,
+        40324497
+      ]
+    },
+    {
+      "uuid": "8daae77c-effc-4d15-b97f-fe4db0994cc1",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "patch:/SENSE3V3_HI",
+      "filled": true,
+      "outline_vertex_count": 4,
+      "outline_bounds_nm": [
+        58950000,
+        51512500,
+        64150000,
+        55412500
+      ]
+    },
+    {
+      "uuid": "ab1b0503-a66d-42df-b80a-32c174febee7",
+      "net": "/SENSE5V_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "patch:/SENSE5V_HI",
+      "filled": true,
+      "outline_vertex_count": 16,
+      "outline_bounds_nm": [
+        46948000,
+        50023000,
+        52152000,
+        60301000
+      ]
+    },
+    {
+      "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "F.Cu"
+      ],
+      "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+      "filled": true,
+      "outline_vertex_count": 39,
+      "outline_bounds_nm": [
+        54059000,
+        72245000,
+        64128000,
+        83597000
+      ]
+    },
+    {
+      "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "B.Cu"
+      ],
+      "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+      "filled": true,
+      "outline_vertex_count": 249,
+      "outline_bounds_nm": [
+        4198000,
+        38273000,
+        72471000,
+        82670000
+      ]
+    },
+    {
+      "uuid": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "B.Cu"
+      ],
+      "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+      "filled": true,
+      "outline_vertex_count": 8,
+      "outline_bounds_nm": [
+        5931000,
+        74154000,
+        13379000,
+        81602000
+      ]
+    },
+    {
+      "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+      "net": "/SENSE12V_HI",
+      "layers": [
+        "B.Cu"
+      ],
+      "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+      "filled": true,
+      "outline_vertex_count": 154,
+      "outline_bounds_nm": [
+        582000,
+        32182000,
+        44971610,
+        88818000
+      ],
+      "outline_rings_nm": [
+        [
+          [
+            582000,
+            35329000
+          ],
+          [
+            1529000,
+            34382000
+          ],
+          [
+            1531000,
+            34382000
+          ],
+          [
+            2869000,
+            34382000
+          ],
+          [
+            2871000,
+            34382000
+          ],
+          [
+            17929000,
+            34382000
+          ],
+          [
+            19182000,
+            33129000
+          ],
+          [
+            20129000,
+            32182000
+          ],
+          [
+            20131000,
+            32182000
+          ],
+          [
+            21469000,
+            32182000
+          ],
+          [
+            21471000,
+            32182000
+          ],
+          [
+            22418000,
+            33129000
+          ],
+          [
+            22500000,
+            33211000
+          ],
+          [
+            22929000,
+            32782000
+          ],
+          [
+            22931000,
+            32782000
+          ],
+          [
+            23729000,
+            32782000
+          ],
+          [
+            23731000,
+            32782000
+          ],
+          [
+            24269000,
+            32782000
+          ],
+          [
+            24271000,
+            32782000
+          ],
+          [
+            25069000,
+            32782000
+          ],
+          [
+            25071000,
+            32782000
+          ],
+          [
+            25271000,
+            32982000
+          ],
+          [
+            26929000,
+            32982000
+          ],
+          [
+            27329000,
+            32582000
+          ],
+          [
+            27331000,
+            32582000
+          ],
+          [
+            27529000,
+            32582000
+          ],
+          [
+            27531000,
+            32582000
+          ],
+          [
+            28669000,
+            32582000
+          ],
+          [
+            28671000,
+            32582000
+          ],
+          [
+            28869000,
+            32582000
+          ],
+          [
+            28871000,
+            32582000
+          ],
+          [
+            29818000,
+            33529000
+          ],
+          [
+            29871000,
+            33582000
+          ],
+          [
+            30069000,
+            33582000
+          ],
+          [
+            30071000,
+            33582000
+          ],
+          [
+            31018000,
+            34529000
+          ],
+          [
+            32071000,
+            35582000
+          ],
+          [
+            32869000,
+            35582000
+          ],
+          [
+            32871000,
+            35582000
+          ],
+          [
+            33818000,
+            36529000
+          ],
+          [
+            34171000,
+            36882000
+          ],
+          [
+            35169000,
+            36882000
+          ],
+          [
+            35171000,
+            36882000
+          ],
+          [
+            38729000,
+            36882000
+          ],
+          [
+            38929000,
+            36682000
+          ],
+          [
+            38931000,
+            36682000
+          ],
+          [
+            40269000,
+            36682000
+          ],
+          [
+            40271000,
+            36682000
+          ],
+          [
+            40729000,
+            36682000
+          ],
+          [
+            40731000,
+            36682000
+          ],
+          [
+            42069000,
+            36682000
+          ],
+          [
+            42071000,
+            36682000
+          ],
+          [
+            42326405,
+            36937405
+          ],
+          [
+            42472610,
+            36791200
+          ],
+          [
+            43936610,
+            36791200
+          ],
+          [
+            44971610,
+            37826200
+          ],
+          [
+            44971610,
+            39290200
+          ],
+          [
+            43936610,
+            40325200
+          ],
+          [
+            42472610,
+            40325200
+          ],
+          [
+            42465410,
+            40318000
+          ],
+          [
+            41131000,
+            40318000
+          ],
+          [
+            41129000,
+            40318000
+          ],
+          [
+            40729000,
+            39918000
+          ],
+          [
+            40271000,
+            39918000
+          ],
+          [
+            40071000,
+            40118000
+          ],
+          [
+            40069000,
+            40118000
+          ],
+          [
+            38731000,
+            40118000
+          ],
+          [
+            38729000,
+            40118000
+          ],
+          [
+            35171000,
+            40118000
+          ],
+          [
+            35071000,
+            40218000
+          ],
+          [
+            35069000,
+            40218000
+          ],
+          [
+            34271000,
+            40218000
+          ],
+          [
+            34269000,
+            40218000
+          ],
+          [
+            33731000,
+            40218000
+          ],
+          [
+            33729000,
+            40218000
+          ],
+          [
+            32931000,
+            40218000
+          ],
+          [
+            32929000,
+            40218000
+          ],
+          [
+            31982000,
+            39271000
+          ],
+          [
+            31529000,
+            38818000
+          ],
+          [
+            30731000,
+            38818000
+          ],
+          [
+            30729000,
+            38818000
+          ],
+          [
+            29782000,
+            37871000
+          ],
+          [
+            28729000,
+            36818000
+          ],
+          [
+            28531000,
+            36818000
+          ],
+          [
+            28529000,
+            36818000
+          ],
+          [
+            27929000,
+            36218000
+          ],
+          [
+            26931000,
+            36218000
+          ],
+          [
+            26929000,
+            36218000
+          ],
+          [
+            25271000,
+            36218000
+          ],
+          [
+            25269000,
+            36218000
+          ],
+          [
+            24071000,
+            36218000
+          ],
+          [
+            23671000,
+            36618000
+          ],
+          [
+            23669000,
+            36618000
+          ],
+          [
+            22671000,
+            36618000
+          ],
+          [
+            22669000,
+            36618000
+          ],
+          [
+            22331000,
+            36618000
+          ],
+          [
+            22329000,
+            36618000
+          ],
+          [
+            21331000,
+            36618000
+          ],
+          [
+            21329000,
+            36618000
+          ],
+          [
+            20800000,
+            36089000
+          ],
+          [
+            20218000,
+            36671000
+          ],
+          [
+            19271000,
+            37618000
+          ],
+          [
+            19269000,
+            37618000
+          ],
+          [
+            17931000,
+            37618000
+          ],
+          [
+            17929000,
+            37618000
+          ],
+          [
+            3818000,
+            37618000
+          ],
+          [
+            3818000,
+            80529000
+          ],
+          [
+            8071000,
+            84782000
+          ],
+          [
+            8269000,
+            84782000
+          ],
+          [
+            8271000,
+            84782000
+          ],
+          [
+            8671000,
+            85182000
+          ],
+          [
+            8869000,
+            85182000
+          ],
+          [
+            8871000,
+            85182000
+          ],
+          [
+            9271000,
+            85582000
+          ],
+          [
+            10729000,
+            85582000
+          ],
+          [
+            16733000,
+            79578000
+          ],
+          [
+            16733000,
+            78730000
+          ],
+          [
+            17680000,
+            77783000
+          ],
+          [
+            17728000,
+            77783000
+          ],
+          [
+            17729000,
+            77782000
+          ],
+          [
+            17731000,
+            77782000
+          ],
+          [
+            19069000,
+            77782000
+          ],
+          [
+            19071000,
+            77782000
+          ],
+          [
+            19072000,
+            77783000
+          ],
+          [
+            23220000,
+            77783000
+          ],
+          [
+            24167000,
+            78730000
+          ],
+          [
+            24167000,
+            80070000
+          ],
+          [
+            23220000,
+            81017000
+          ],
+          [
+            19872000,
+            81017000
+          ],
+          [
+            19071000,
+            81818000
+          ],
+          [
+            13018000,
+            87871000
+          ],
+          [
+            12071000,
+            88818000
+          ],
+          [
+            12069000,
+            88818000
+          ],
+          [
+            10731000,
+            88818000
+          ],
+          [
+            10729000,
+            88818000
+          ],
+          [
+            9271000,
+            88818000
+          ],
+          [
+            9269000,
+            88818000
+          ],
+          [
+            7931000,
+            88818000
+          ],
+          [
+            7929000,
+            88818000
+          ],
+          [
+            7529000,
+            88418000
+          ],
+          [
+            7331000,
+            88418000
+          ],
+          [
+            7329000,
+            88418000
+          ],
+          [
+            6929000,
+            88018000
+          ],
+          [
+            6731000,
+            88018000
+          ],
+          [
+            6729000,
+            88018000
+          ],
+          [
+            5782000,
+            87071000
+          ],
+          [
+            1529000,
+            82818000
+          ],
+          [
+            582000,
+            81871000
+          ],
+          [
+            582000,
+            81869000
+          ],
+          [
+            582000,
+            80531000
+          ],
+          [
+            582000,
+            80529000
+          ],
+          [
+            582000,
+            36671000
+          ],
+          [
+            582000,
+            36669000
+          ],
+          [
+            582000,
+            35331000
+          ]
+        ]
+      ]
+    },
+    {
+      "uuid": "9bdd9300-6e8e-4826-92aa-0980887f6548",
+      "net": "/SENSE5V_HI",
+      "layers": [
+        "B.Cu"
+      ],
+      "name": "patch:/SENSE5V_HI",
+      "filled": true,
+      "outline_vertex_count": 4,
+      "outline_bounds_nm": [
+        45950000,
+        51600000,
+        52150000,
+        56062500
+      ]
+    },
+    {
+      "uuid": "be6b9537-8692-4bea-b75b-f89f7bf379e0",
+      "net": "/SENSE5V_HI",
+      "layers": [
+        "B.Cu"
+      ],
+      "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+      "filled": true,
+      "outline_vertex_count": 8,
+      "outline_bounds_nm": [
+        46931000,
+        51281000,
+        53469000,
+        59269000
+      ]
+    },
+    {
+      "uuid": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+      "net": "/SENSE5V_HI",
+      "layers": [
+        "SIG2"
+      ],
+      "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+      "filled": true,
+      "outline_vertex_count": 51,
+      "outline_bounds_nm": [
+        26248000,
+        70824000,
+        50351000,
+        79901000
+      ]
+    },
+    {
+      "uuid": "5b83b822-9ef2-4505-ace5-8a204332bea7",
+      "net": "/SENSE3V3_HI",
+      "layers": [
+        "PWR"
+      ],
+      "name": "patch:/SENSE3V3_HI",
+      "filled": true,
+      "outline_vertex_count": 4,
+      "outline_bounds_nm": [
+        58950000,
+        51512500,
+        64150000,
+        55412500
+      ]
+    }
+  ],
+  "target_pad_zone_positive_overlap_mm2": [
+    {
+      "pin": "1",
+      "zone": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 9.936875430591991,
+      "saved_fill_overlap_mm2": 9.936875430591991
+    },
+    {
+      "pin": "1",
+      "zone": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+      "layer": "B.Cu",
+      "outline_overlap_mm2": 9.897668248943493,
+      "saved_fill_overlap_mm2": 9.897668348569857
+    },
+    {
+      "pin": "2",
+      "zone": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 5.396115609754553,
+      "saved_fill_overlap_mm2": 5.395824321562548
+    },
+    {
+      "pin": "4",
+      "zone": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 0.4379561745439274,
+      "saved_fill_overlap_mm2": 0.4379561745439274
+    },
+    {
+      "pin": "4",
+      "zone": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+      "layer": "SIG2",
+      "outline_overlap_mm2": 0.4379561745439274,
+      "saved_fill_overlap_mm2": 0.4379561745439274
+    },
+    {
+      "pin": "6",
+      "zone": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 0.4408963610547255,
+      "saved_fill_overlap_mm2": 0.44086790972072576
+    },
+    {
+      "pin": "6",
+      "zone": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+      "layer": "SIG2",
+      "outline_overlap_mm2": 0.4379561745439272,
+      "saved_fill_overlap_mm2": 0.4379561745439272
+    },
+    {
+      "pin": "10",
+      "zone": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+      "layer": "B.Cu",
+      "outline_overlap_mm2": 2.96591573191653,
+      "saved_fill_overlap_mm2": 2.965733726704532
+    },
+    {
+      "pin": "11",
+      "zone": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+      "layer": "B.Cu",
+      "outline_overlap_mm2": 2.967257545469006,
+      "saved_fill_overlap_mm2": 2.967053343668135
+    },
+    {
+      "pin": "12",
+      "zone": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+      "layer": "B.Cu",
+      "outline_overlap_mm2": 1.1397449913133195,
+      "saved_fill_overlap_mm2": 1.1395630040908138
+    },
+    {
+      "pin": "13",
+      "zone": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 3.1612641500718857,
+      "saved_fill_overlap_mm2": 3.1611185059758835
+    },
+    {
+      "pin": "21",
+      "zone": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 8.42798837185,
+      "saved_fill_overlap_mm2": 8.42798837185
+    },
+    {
+      "pin": "21",
+      "zone": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+      "layer": "SIG2",
+      "outline_overlap_mm2": 3.1445289844144027,
+      "saved_fill_overlap_mm2": 3.144237342222398
+    },
+    {
+      "pin": "22",
+      "zone": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 8.427988371850006,
+      "saved_fill_overlap_mm2": 8.427988371850006
+    },
+    {
+      "pin": "23",
+      "zone": "4298863e-593a-4614-93d4-b005e5fa434e",
+      "layer": "F.Cu",
+      "outline_overlap_mm2": 8.427988371850004,
+      "saved_fill_overlap_mm2": 8.427988371850004
+    }
+  ],
+  "support_contacts": {
+    "C9": {
+      "reference": "C9",
+      "target_pose": [
+        10550000,
+        48000000,
+        270
+      ],
+      "pads": [
+        {
+          "number": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "source_at_nm": [
+            10950000,
+            47560000
+          ],
+          "tracks": [
+            {
+              "uuid": "319483fd-5706-4043-917d-c62a8c023aad",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "locked": true,
+              "layer": "F.Cu",
+              "width_nm": 200000,
+              "start_nm": [
+                11165001,
+                47775001
+              ],
+              "end_nm": [
+                14324990,
+                47775001
+              ]
+            },
+            {
+              "uuid": "c3d781c3-fd04-4865-b0d1-23b073a604dc",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "locked": true,
+              "layer": "F.Cu",
+              "width_nm": 200000,
+              "start_nm": [
+                10950000,
+                47560000
+              ],
+              "end_nm": [
+                11165001,
+                47775001
+              ]
+            }
+          ],
+          "vias": []
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "source_at_nm": [
+            10950000,
+            49460000
+          ],
+          "tracks": [],
+          "vias": [
+            {
+              "uuid": "143bcb91-4502-4b8d-9263-c99e2b464451",
+              "net": "GND",
+              "locked": true,
+              "at_nm": [
+                11230000,
+                49460000
+              ],
+              "drill_nm": 300000,
+              "diameter_nm": 500000
+            }
+          ]
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "at_nm": [
+            10550000,
+            47050000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            10550000,
+            48950000
+          ]
+        }
+      ]
+    },
+    "R54": {
+      "reference": "R54",
+      "target_pose": [
+        12800000,
+        48625000,
+        270
+      ],
+      "pads": [
+        {
+          "number": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "source_at_nm": [
+            12800000,
+            48415000
+          ],
+          "tracks": [
+            {
+              "uuid": "260484da-9029-4624-bbe7-634592e0db1f",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "locked": true,
+              "layer": "F.Cu",
+              "width_nm": 200000,
+              "start_nm": [
+                12615000,
+                48600000
+              ],
+              "end_nm": [
+                12800000,
+                48415000
+              ]
+            },
+            {
+              "uuid": "2ee69cb8-9798-46be-a78a-ae23351caec4",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "locked": true,
+              "layer": "F.Cu",
+              "width_nm": 200000,
+              "start_nm": [
+                12400000,
+                48600000
+              ],
+              "end_nm": [
+                12615000,
+                48600000
+              ]
+            },
+            {
+              "uuid": "90a22bd0-3275-4a94-8da8-35fa04904bd4",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "locked": true,
+              "layer": "F.Cu",
+              "width_nm": 200000,
+              "start_nm": [
+                12200000,
+                48800000
+              ],
+              "end_nm": [
+                12400000,
+                48600000
+              ]
+            }
+          ],
+          "vias": []
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "source_at_nm": [
+            12800000,
+            49435000
+          ],
+          "tracks": [],
+          "vias": [
+            {
+              "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+              "net": "GND",
+              "locked": true,
+              "at_nm": [
+                12800000,
+                49435000
+              ],
+              "drill_nm": 250000,
+              "diameter_nm": 350000
+            }
+          ]
+        }
+      ],
+      "target_pads": [
+        {
+          "number": "1",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "at_nm": [
+            12800000,
+            48115000
+          ]
+        },
+        {
+          "number": "2",
+          "net": "GND",
+          "at_nm": [
+            12800000,
+            49135000
+          ]
+        }
+      ]
+    }
+  },
+  "manual_route_suggestions_not_clearance_received": [
+    {
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "replace_source_uuid_scope": [
+        "1f77b367-52e5-4812-a9e7-b1caedcd4d1a",
+        "547e9187-77ea-4d44-8384-6dbe63f37955"
+      ],
+      "points_mm": [
+        [
+          30.949999,
+          77.4
+        ],
+        [
+          30.949999,
+          80.949999
+        ],
+        [
+          31.6,
+          81.6
+        ],
+        [
+          34,
+          81.6
+        ]
+      ]
+    },
+    {
+      "net": "+5VSB",
+      "width_nm": 600000,
+      "replace_source_uuid_scope": [
+        "61ee21af-b79c-5282-afcc-116a1d5e35bd",
+        "61fb1eb8-ea49-48cd-aad3-05f124165f73",
+        "f976aec1-849f-5e86-a838-554eda6802c9"
+      ],
+      "points_mm": [
+        [
+          26.749999,
+          77.4
+        ],
+        [
+          26.749999,
+          78.509999
+        ],
+        [
+          28.64,
+          80.4
+        ]
+      ],
+      "preserve_each_source_layer": true
+    },
+    {
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+      "width_nm": 1256680,
+      "replace_source_uuid_scope": [
+        "5f99196f-9972-4af8-9201-11df7528018e",
+        "c52c85ae-9124-44ab-b390-3ba88b9a4aa1"
+      ],
+      "points_mm": [
+        [
+          56.149999,
+          71.9
+        ],
+        [
+          56.299179,
+          71.9
+        ],
+        [
+          57.075409,
+          71.12377
+        ]
+      ],
+      "preserve_each_source_layer": true
+    },
+    {
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PSON",
+      "width_nm": 200000,
+      "replace_source_uuid_scope": [
+        "4b10cff0-bac7-4c53-b5e0-4688e5079ad7"
+      ],
+      "points_mm": [
+        [
+          47.749999,
+          71.9
+        ],
+        [
+          47.749999,
+          69.9
+        ],
+        [
+          45.497651,
+          67.647652
+        ],
+        [
+          41.497651,
+          67.647652
+        ]
+      ],
+      "preserve_source_layer": true
+    },
+    {
+      "owner": "C9.1",
+      "replace_source_uuid_scope": [
+        "c3d781c3-fd04-4865-b0d1-23b073a604dc"
+      ],
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "points_mm": [
+        [
+          10.55,
+          47.05
+        ],
+        [
+          10.55,
+          47.16
+        ],
+        [
+          11.165001,
+          47.775001
+        ]
+      ],
+      "retain_next_track": "319483fd-5706-4043-917d-c62a8c023aad"
+    },
+    {
+      "owner": "R54.1",
+      "replace_source_uuid_scope": [
+        "260484da-9029-4624-bbe7-634592e0db1f"
+      ],
+      "layer": "F.Cu",
+      "width_nm": 200000,
+      "points_mm": [
+        [
+          12.615,
+          48.6
+        ],
+        [
+          12.615,
+          48.3
+        ],
+        [
+          12.8,
+          48.115
+        ]
+      ]
+    }
+  ],
+  "manual_support_via_moves_not_received": [
+    {
+      "uuid": "143bcb91-4502-4b8d-9263-c99e2b464451",
+      "owner": "C9.2",
+      "at_nm": [
+        10830000,
+        48950000
+      ],
+      "basis": "Preserve source pad-relative +0.28 mm X offset; retain drill, padstack and original return partitions."
+    },
+    {
+      "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+      "owner": "R54.2",
+      "at_nm": [
+        12800000,
+        49135000
+      ],
+      "basis": "Preserve centered source land/barrel ownership; retain process and ground partitions."
+    }
+  ],
+  "zone_actions": {
+    "must_change_geometry": [
+      {
+        "uuid": "7c664019-6774-4c0c-aded-21ce3846fbe2",
+        "reason": "Actual B.Cu CEC_RECTILINEAR_POWER_CONTOUR outlines the entire old force path and bottom U-loop to y88.818. It is not just a pad landing. Track replacement plus ordinary refill alone restores obsolete low material unless the contour is explicitly reconstructed."
+      },
+      {
+        "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+        "reason": "F.Cu 5V bank old terminal tips should follow moved J3.4/.6. Existing saved overlap after move is only about0.438 mm2 each, so positive connectivity is not full-current evidence."
+      },
+      {
+        "uuid": "d76cf54f-b6a2-4073-82a1-4bbc96bd12af",
+        "reason": "SIG2 5V bank has corresponding thin old tips at J3.4/.6; reconstruct authored landing fingers and preserve trunk/net partition."
+      }
+    ],
+    "refill_then_independently_receive": [
+      {
+        "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+        "reason": "F.Cu 3V3 bank still positively overlaps moved pins1/2/13. Do not move whole bank blindly; measure actual rated contact necks and target pad landings."
+      },
+      {
+        "uuid": "2bf47d0a-918a-48da-9713-1fa59bf7fd2b",
+        "reason": "B.Cu 3V3 bank still overlaps moved pin1; independent full-current neck proof needed."
+      },
+      {
+        "uuid": "5f1e0512-cc2a-4394-a40e-4d151e146dc8",
+        "reason": "B.Cu left 3V3 landing still overlaps moved pin12 by about1.14mm2; no automatic contact/current qualification."
+      }
+    ],
+    "ground_clip_or_refill_after_outline": [
+      "28fb1d19-c582-4c57-aaf1-e0c9341b8a02",
+      "d973fe53-5c88-47cd-9e60-63dafba1de54"
+    ]
+  },
+  "bottom_trim": {
+    "source_y_mm": 89.5,
+    "proposed_y_mm": 87.5,
+    "required_copper_setback_mm": 0.5,
+    "current_blockers": "Seven 12V tracks plus B.Cu12V contour, and two shared GND fills. No other source track bbox reaches y87.",
+    "native_trim_not_admitted": true,
+    "J3_mount_holes_after_move_mm": [
+      [
+        9.649999,
+        81.6
+      ],
+      [
+        64.849999,
+        81.6
+      ]
+    ],
+    "mount_hole_diameter_mm": 3.2,
+    "FID3_fixed_mm": [
+      3.5,
+      85
+    ],
+    "warning": "Keep genuine connector body overhang distinct from laminate support; no housing/cable qualification follows."
+  },
+  "paired_mechanics": {
+    "current_J3_up2_only_violations": [
+      "J3/J_KVM opposing bodies margin -1.0 mm",
+      "J3/C37 opposing edge clearance margin -0.195 mm"
+    ],
+    "minimum_checked_closure": {
+      "carrier": [
+        "J3 to60.349999,77.4,180",
+        "C9 to10.55,48,270",
+        "R54 to12.8,48.625,270"
+      ],
+      "cover": [
+        "C37",
+        "J_KVM",
+        "C_bulk1",
+        "F5",
+        "D7",
+        "R28",
+        "C32"
+      ],
+      "cover_pose_authority": "docs/evidence/20261105-busbar-candidates/paired-request.json",
+      "current_C7_preserved_at_nm": [
+        64500000,
+        70050000
+      ],
+      "current_C7_rotation_deg": 90,
+      "actual_assembly_screen_ok": true,
+      "violations": []
+    },
+    "native_J3_target_sameface_courtyard_conflicts": []
+  },
+  "warnings": [
+    "All source widths and layers remain unchanged in suggestions. No new current budget or parallel sharing inferred.",
+    "Polygon contact inventory includes wide-conductor INTERIOR contacts, not only centerline endpoints; all such source partitions must be re-derived.",
+    "No direct via-pad contact found at J3; ground/supply fills remain real contacts needing independent receiving.",
+    "A route suggestion is not a collision-clear or accepted route. No deletion/unlock/outline/fill modification authority granted by this inventory.",
+    "Zone outline names establish literal source provenance labels only; no safety or fabrication qualification inferred.",
+    "No boards or shared modules modified."
+  ],
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false
+}

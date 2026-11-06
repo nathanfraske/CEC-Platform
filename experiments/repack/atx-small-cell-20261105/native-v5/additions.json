@@ -1,0 +1,116 @@
+{
+  "parent_sha256": "8cebf1cc5ba52a0f2b182fffab3113a235782dbf049f4c961bbbfe20a287b466",
+  "candidate_sha256": "dcc749c6d75bac04675ec7260f8709ee78ff798fd6d18a618f9819c56cdd7688",
+  "operations": [
+    {
+      "operation": "explicit_pad_owned_ordinary_control_via",
+      "uuid": "f2ae1393-f47d-5c14-8dbd-05e244de62fc",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+      "net_authority_pad_uuid": "155a6216-4c09-5d54-b78f-e30813abff9c",
+      "net_authority_reference": "U5.5",
+      "process_prototype_uuid": "143bcb91-4502-4b8d-9263-c99e2b464451",
+      "at_nm": [
+        35872100,
+        65990000
+      ],
+      "diameter_nm": 500000,
+      "drill_nm": 300000,
+      "qualification": "Source process only; no inferred current allocation or assembly admission."
+    },
+    {
+      "operation": "explicit_pad_owned_ordinary_control_via",
+      "uuid": "548a7832-7c7c-5b36-86ac-082bbc31a062",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+      "net_authority_pad_uuid": "d615c225-5499-4a9e-bfa0-72c5c837120f",
+      "net_authority_reference": "R59.2",
+      "process_prototype_uuid": "143bcb91-4502-4b8d-9263-c99e2b464451",
+      "at_nm": [
+        31300000,
+        64600000
+      ],
+      "diameter_nm": 500000,
+      "drill_nm": 300000,
+      "qualification": "Source process only; no inferred current allocation or assembly admission."
+    },
+    {
+      "operation": "explicit_pad_owned_ordinary_control_via",
+      "uuid": "4bab6549-7e66-59e6-8ce4-de607cc8c466",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+      "net_authority_pad_uuid": "d4151e77-d142-4306-a65d-35d3ab7e2d63",
+      "net_authority_reference": "R69.1",
+      "process_prototype_uuid": "143bcb91-4502-4b8d-9263-c99e2b464451",
+      "at_nm": [
+        29210000,
+        64100000
+      ],
+      "diameter_nm": 500000,
+      "drill_nm": 300000,
+      "qualification": "Source process only; no inferred current allocation or assembly admission."
+    },
+    {
+      "operation": "explicit_pad_owned_ordinary_control_path",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+      "net_authority_pad_uuid": "155a6216-4c09-5d54-b78f-e30813abff9c",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "points_nm": [
+        [
+          35872100,
+          65990000
+        ],
+        [
+          35872100,
+          65600000
+        ],
+        [
+          35172100,
+          64900000
+        ],
+        [
+          31600000,
+          64900000
+        ],
+        [
+          31300000,
+          64600000
+        ]
+      ]
+    },
+    {
+      "operation": "explicit_pad_owned_ordinary_control_path",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U5_OV1",
+      "net_authority_pad_uuid": "155a6216-4c09-5d54-b78f-e30813abff9c",
+      "layer": "SIG2",
+      "width_nm": 200000,
+      "points_nm": [
+        [
+          31300000,
+          64600000
+        ],
+        [
+          30800000,
+          64100000
+        ],
+        [
+          29210000,
+          64100000
+        ]
+      ]
+    }
+  ],
+  "added_uuids": [
+    "12368b47-b220-54a8-be17-1d699cf20c93",
+    "4bab6549-7e66-59e6-8ce4-de607cc8c466",
+    "548a7832-7c7c-5b36-86ac-082bbc31a062",
+    "62d6dc18-0e4b-501c-b0f4-23cab499e32c",
+    "67a38561-a42a-5508-9330-561c8d552391",
+    "91dcbb5e-d5a7-5a84-80bb-7a869e6859d9",
+    "cd25cf64-0c12-5fde-a7ab-bd6de3e41c9e",
+    "f2ae1393-f47d-5c14-8dbd-05e244de62fc",
+    "f46fa2fb-20b0-5171-974a-279fec2f504d"
+  ],
+  "typed_members_changed": [],
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false
+}
