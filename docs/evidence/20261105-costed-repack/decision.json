@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "status": "mechanical_placement_study_not_routed_or_admitted",
+  "current_source_receipt": "checkpoints/review-20261105-outline-compaction/receipt.json",
+  "current_target_request": "docs/evidence/20261105-costed-repack/top-edge-request.json",
+  "current_target_result": "docs/evidence/20261105-costed-repack/top-edge-result.json",
+  "superseded_study": {
+    "request": "docs/evidence/20261105-costed-repack/request.json",
+    "result": "docs/evidence/20261105-costed-repack/preview-result.json",
+    "reason": "The user's subsequent edge-exiting KVM requirement excludes the former inward KVM position, even though it passes the narrower body/courtyard screen."
+  },
+  "user_constraints": {
+    "KVM": "Right-angle exit at Hub top, right or bottom edge; never the native left edge.",
+    "added_cost": "Modest added assembled BOM cost acceptable only if it enables a meaningful reduction of the actual matched assembly footprint.",
+    "stack": "Use existing dead-bug gap; do not confuse board XY length with stack Z thickness."
+  },
+  "current_study_measurements": {
+    "laminate_XY_mm_before_and_after": [86.49, 89.5],
+    "declared_body_plus_laminate_XY_mm_before": [89.585, 95.09],
+    "declared_body_plus_laminate_XY_mm_after": [89.585, 93.09],
+    "Y_reduction_mm": 2.0,
+    "bounding_area_reduction_percent_approximately": 2.103,
+    "nominal_interboard_gap_Z_mm_unchanged": 22,
+    "gap_tolerance_range_mm_unchanged": [21.5, 22.5],
+    "cables_hardware_and_service_access_included_in_XY_metric": false,
+    "BOM_change": false,
+    "PCB_files_changed": false
+  },
+  "KVM": {
+    "existing_MPN_retained": "S5B-PH-K-S(LF)(SN)",
+    "existing_LCSC_retained": "C157923",
+    "existing_footprint": "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal",
+    "failure": "Already right-angle hardware, but its mouth faces into the board interior. Body-only stack validation did not enforce edge access.",
+    "new_generic_check": "Evidence-defined mouth location/direction from numbered pads; verify external perimeter exit and allowed edges. Excludes internal holes and preserves pin-number identity on rotation. This is not cable/tool clearance qualification.",
+    "candidate_native_Hub_pose_mm_deg": [60.1, 5.75, 0],
+    "candidate_native_mouth_center_mm": [60.1, -0.5],
+    "candidate_exit_edge": "top",
+    "nearby_protection": "F5 and D7 follow the connector to the top-edge region; the 470uF +5VSB bulk capacitor moves into the vacated lower region. Changed current paths still need independent reconstruction and receiving.",
+    "manufacturer_source": "https://www.jst-mfg.com/product/pdf/eng/ePH.pdf",
+    "assembly_source": "https://jlcpcb.com/partdetail/JST-S5B_PH_K_S_LF_SN/C157923"
+  },
+  "rejected_alternatives": [
+    "4mm ATX input move with rotated lower Hub reservoir encounters multiple capacitor-vent constraints; a uniform U6 support move does not solve them.",
+    "Bottom-edge KVM overlaps tall ATX input connector beneath it under the unchanged stack allocation.",
+    "Right-edge KVM can protrude enough to clear ATX input but widens the combined envelope. A flush right-edge attempt paired with shifting ATX input right5mm instead collides with the Hub's last RJ45 port."
+  ],
+  "busbar_decision": {
+    "adopted": false,
+    "reason": "No demonstrated meaningful XY reduction yet. Existing stack headroom means bar thickness is not itself disqualifying, but local body/vent/insulation and complete current paths must still clear.",
+    "verified_low_cost_candidate": "XFCN T200030-20-R / C55380739: 20x3x2mm tin-plated copper, flat SMT, not a raised THT bridge.",
+    "nominal_width_saved_vs_existing_3p230592mm_path": 0.230592,
+    "land_and_courtyard_overhead_deducted": false,
+    "narrower_unpriced_candidates": ["Kyoshin SD02113-2K: 30x1.5x1.5mm", "Kyoshin SD02115-2K: 30x2x2mm"],
+    "global_assembly_availability_of_new_bars_qualified": false,
+    "bar_ampacity_and_transitions_qualified": false
+  },
+  "next_required": [
+    "Verify mated KVM housing, wire and tool approach through the complete flipped stack.",
+    "Construct a private connected THT/power-cell repack; do not promote a footprint-only move.",
+    "Restore source-owned routes, current-rated force paths, protection topology and saved pours, preserving stack mates and pinout.",
+    "Run independent whole-board DRC/opens, current, Kelvin, bypass, return-path and mechanical receiving before replacing either reviewed board."
+  ],
+  "release_authority": false
+}

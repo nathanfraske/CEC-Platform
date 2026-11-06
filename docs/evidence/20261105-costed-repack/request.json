@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "carrier": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/atx-24pin-rev3/board.kicad_pcb",
+    "sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+    "poses": [
+      {"reference": "J3", "at_nm": [60349999, 77400000], "rotation_deg": 180},
+      {"reference": "C7", "at_nm": [65000000, 69500000], "rotation_deg": 0},
+      {"reference": "C9", "at_nm": [10550000, 48000000], "rotation_deg": 270},
+      {"reference": "R54", "at_nm": [12800000, 48625000], "rotation_deg": 270}
+    ]
+  },
+  "cover": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/hub-standard-rev2/board.kicad_pcb",
+    "sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+    "poses": [
+      {"reference": "C37", "at_nm": [73500000, 49600000], "rotation_deg": 90},
+      {"reference": "J_KVM", "at_nm": [40030001, 57550000], "rotation_deg": 0},
+      {"reference": "F5", "at_nm": [35800000, 50000000], "rotation_deg": 0},
+      {"reference": "C33", "at_nm": [39200000, 48700000], "rotation_deg": 180},
+      {"reference": "D7", "at_nm": [40100000, 50200000], "rotation_deg": 0},
+      {"reference": "C32", "at_nm": [44820000, 50300000], "rotation_deg": 270}
+    ]
+  },
+  "contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  }
+}
