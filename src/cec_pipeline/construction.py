@@ -132,6 +132,14 @@ def _construct_connected(source, candidate, request, board_hint):
     merged = syntax._render(root) + "\n"
     _require_exact_merged_copper(board, merged)
     candidate.write_text(merged)
+    if kind == "place_cell" and operation.get("native_macro") is True:
+        # Match the existing native macro saver and its independent replay.
+        # Derive the exact-group rule from the actual saved members, never
+        # from requested widths. This does not qualify inherited neckdowns
+        # or exempt new members from current/endpoint/DRC receiving.
+        record["native_macro_endpoint_rule"] = syntax.bind_local_endpoint_rule(
+            pcbnew.LoadBoard(str(candidate)), candidate
+        )
     return dict(
         changes=[record],
         kinds=[kind],

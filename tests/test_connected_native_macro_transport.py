@@ -147,3 +147,41 @@ def test_observation_and_consented_replay_use_identical_compiler_authority(tmp_p
     op['allow_locked_transport_uuids']=[ids[0]]
     _,second,_=cells.compile_macro(pcbnew.LoadBoard(str(source)),op,'synthetic')
     assert first==second and flags==[True,True]
+
+
+@pytest.mark.parametrize('mode', [False, True])
+@pytest.mark.parametrize('has_group', [False, True])
+def test_native_macro_emits_exact_saved_member_rule_as_independent_replay(
+        tmp_path, monkeypatch, mode, has_group):
+    import cec_fr as fr
+    source, candidate, op, ids = fixture_context(tmp_path, monkeypatch, mode)
+    if has_group:
+        board = pcbnew.LoadBoard(str(source))
+        group = pcbnew.PCB_GROUP(board); group.SetName(fr.ENDPOINT_NECKDOWN_GROUP); board.Add(group)
+        for x, width in ((30, 200000), (40, 350000)):
+            track = pcbnew.PCB_TRACK(board); track.SetNet(board.FindNet('GND'))
+            track.SetStart(pcbnew.VECTOR2I_MM(x, 10)); track.SetEnd(pcbnew.VECTOR2I_MM(x + 1, 10))
+            track.SetWidth(width); track.SetLayer(pcbnew.F_Cu); board.Add(track); group.AddItem(track)
+        field._save_field_snapshot(board, source); shutil.copyfile(source, candidate)
+    original_rule = '(version 1)\n# unrelated source rule preserved byte for byte\n'
+    source.with_suffix('.kicad_dru').write_text(original_rule)
+    candidate.with_suffix('.kicad_dru').write_text(original_rule)
+    original_board = source.read_bytes()
+    result = construction._construct_connected(source, candidate, {'operations': [op]}, 'synthetic')
+    actual = candidate.with_suffix('.kicad_dru').read_bytes()
+    replay = tmp_path / 'independent.kicad_pcb'
+    shutil.copyfile(candidate, replay); replay.with_suffix('.kicad_dru').write_text(original_rule)
+    syntax.bind_local_endpoint_rule(pcbnew.LoadBoard(str(replay)), replay)
+    if mode:
+        assert actual == replay.with_suffix('.kicad_dru').read_bytes()
+        rule = result['changes'][0]['native_macro_endpoint_rule']
+        assert rule['applicable'] == has_group
+        if has_group:
+            assert rule['min_width_mm'] == .2
+            assert b"A.Type == 'Track' && A.memberOfGroup('" in actual
+            assert b'(constraint track_width (min 0.200mm))' in actual
+    else:
+        assert actual == original_rule.encode()
+        assert 'native_macro_endpoint_rule' not in result['changes'][0]
+    assert source.read_bytes() == original_board
+    assert source.with_suffix('.kicad_dru').read_text() == original_rule
