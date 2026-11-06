@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "scope": "Independent native drill-spacing and actual printed-legend screening, not a full fabrication audit",
+  "source_receipt_sha256": "3f3ac1f9adc7ddf4429e081b9927ee1de6a2d1460bdfca4e8650999ab16ebab5",
+  "full_source_report": "CEC-Board-Reviews/compaction-refinement-20261105/fab/independent-fab-screen.json",
+  "boards": {
+    "atx-24pin-rev3": {"hole_findings": 0, "legend_dimension_findings": 267, "legend_complete": false},
+    "hub-standard-rev2": {"hole_findings": 0, "legend_dimension_findings": 176, "legend_complete": false},
+    "12vhpwr-standard": {"hole_findings": 1, "legend_dimension_findings": 114, "legend_complete": false},
+    "eps-8pin-rev3": {"hole_findings": 2, "legend_dimension_findings": 89, "legend_complete": false},
+    "pcie-8pin-2port": {"hole_findings": 0, "legend_dimension_findings": 84, "legend_complete": false},
+    "pcie-8pin-3port": {"hole_findings": 0, "legend_dimension_findings": 121, "legend_complete": false},
+    "output-daughterboards/atx24-out-db": {"hole_findings": 0, "legend_dimension_findings": 0, "legend_complete": true},
+    "output-daughterboards/eps-out-db": {"hole_findings": 0, "legend_dimension_findings": 0, "legend_complete": true},
+    "output-daughterboards/pcie-out-db": {"hole_findings": null, "legend_dimension_findings": null, "legend_complete": false, "reason": "Screen failed while comparing unresolved outer copper thickness; unknown, not a pass"}
+  },
+  "hole_findings": [
+    {
+      "board": "12vhpwr-standard",
+      "left_uuid": "38619f4c-c48e-428b-b96f-19e1d42d2d3f",
+      "right_uuid": "d9e75a70-2485-41db-8a68-d2f115c644f2",
+      "pair_class": "via_via",
+      "net": "/GPIO0",
+      "gap_mm": 0.249999,
+      "minimum_mm": 0.25,
+      "comparator": ">=",
+      "note": "One nanometre residue; investigate exact geometry and comparison precision, do not silently waive"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "left_uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+      "right_uuid": "669782b7-4040-41fb-afb1-1aa1a67be35c",
+      "pair_class": "via_pad",
+      "reference": "J1.8",
+      "net": "/DETECT",
+      "gap_mm": 0.422101,
+      "minimum_mm": 0.45,
+      "comparator": ">"
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "left_uuid": "349b922c-4b57-4a5a-b9e9-fbd2200ecc79",
+      "right_uuid": "bba0dc16-d71f-4972-8f08-fc721f6e70c3",
+      "pair_class": "via_pad",
+      "reference": "J5.S1",
+      "net": "GND",
+      "gap_mm": 0.4001,
+      "minimum_mm": 0.45,
+      "comparator": ">"
+    }
+  ],
+  "limitations": [
+    "The six main-board legend reports have known dimensional findings plus unsupported filled artwork; counts are not an exhaustive signoff",
+    "These findings differ from native KiCad error/opens totals and must not be relabelled as those totals",
+    "This pass has not established full factory DRC, complete copper-artifact coverage, physical mating, current or thermal qualification",
+    "The source identities remain authoritative; selected ordinary track and Ground-fill refinements do not move these holes or printed artwork"
+  ],
+  "release_authority": false
+}

@@ -15,6 +15,8 @@ CAPABILITIES = MappingProxyType(
         "power_contour": ("assembly_pair",),
         "power_route": _PHYSICAL,
         "bank_collector": _PHYSICAL,
+        "ground_plane_extension": _PHYSICAL,
+        "outline_trim": _PHYSICAL,
         "add_connections": _PHYSICAL,
     }
 )

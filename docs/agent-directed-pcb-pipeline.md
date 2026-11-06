@@ -174,6 +174,31 @@ guides from printed silk; references and functional markings are preserved.
 * `bank_collector`: literal same-net pad-bank collector with solid actual
   saved fill and deliberate chamfers. Original pads and support conductors
   remain. Its outline does not create a new current rating.
+* `ground_plane_extension`: extend one exact existing Ground-zone outline,
+  retaining its layers, settings, holes and all other native objects. Actual
+  saved copper must retain every original filled component; added copper must
+  join original saved Ground material and exactly match an independent native
+  selected-zone refill from immutable Source. An area threshold cannot stand
+  in for that proof: a substituted sub-feature-width neck is rejected.
+  No arbitrary zone replacement, detached
+  filler, additional via/layer sharing or current/thermal qualification is
+  inferred. Full current, Kelvin, field, pair, assembly and native checks still
+  apply. Use this to recover unused return-plane space, not to claim a smaller
+  PCB outline.
+* `outline_trim`: move one explicitly named edge of an existing four-segment
+  rectangle inward. The other objects, hole/part positions, power copper and
+  zone outlines/settings remain literal; only existing Ground fill may be
+  clipped within the changed-edge strip and its source clearance setback.
+  Saved receiving checks the exact three updated edge primitives, conservative
+  native material and valid closed occupied-face courtyard envelopes, no added Ground material and no remote
+  Ground removal. Native/physical checks remain mandatory. This bounded tier
+  does not move mounting interfaces, support complex/cutout outlines or
+  establish washer, mating or thermal qualification.
+
+The November 5 compaction/refinement pass exercises both new actors on actual
+checkpoint boards and ordinary cleanup on four distinct main boards. See
+`docs/evidence/20261105-compaction-refinement/` for quantitative results and
+known fabrication/thermal debt. Review acceptance is not a release decision.
 
 Kelvin preservation first attempts an exact non-interference proof for unrelated
 track-only edits. Both fresh full-denominator manifests must agree on all
@@ -328,10 +353,11 @@ smaller outline. Compare actual saved width, height and laminate area against
 the parent; tighter-looking contents alone are not a board-size reduction.
 Evaluate the complete mating assembly, including connector access, mounting
 hardware and opposing bodies, before counting perimeter space as removable.
-The current actuator catalog does not yet construct and independently receive
-outline/hole/interface changes; extend those tools for the complete changed
-mechanical and electrical scope. This is a tooling gap, not a restriction on
-the user's authorization to compact the boards. A plane fill following the
+The current outline actor covers only a conservative inward trim of one edge
+of an existing rectangle. Coordinated hole/interface moves and complex
+outlines still need tools receiving the complete changed mechanical and
+electrical scope. This is a tooling gap, not a restriction on the user's
+authorization to compact the boards. A plane fill following the
 outline is not itself a compaction limit: distinguish repourable plane copper
 from protected current paths and fixed physical constraints. Preserve loaded
 current/thermal evidence and all existing

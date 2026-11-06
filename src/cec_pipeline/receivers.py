@@ -87,6 +87,20 @@ def worker(job_path, step, output):
             from .connections import receive
 
             result = receive(source, candidate, board_hint=job["board"])
+        elif kind == "ground_plane_extension":
+            from . import groundplanes
+
+            result = groundplanes.receive(
+                source, candidate, job["request"]["operations"][0],
+                construction["changes"][0], board_hint=job["board"],
+            )
+        elif kind == "outline_trim":
+            from . import outlines
+
+            result = outlines.receive(
+                source, candidate, job["request"]["operations"][0],
+                construction["changes"][0], board_hint=job["board"],
+            )
         elif kind in ("power_contour", "power_route", "bank_collector"):
             from . import power
 

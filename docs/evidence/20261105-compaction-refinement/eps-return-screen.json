@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "board": "output-daughterboards/eps-out-db",
+  "scope": "Exact saved-source versus independently constructed received-child numerical screening; not physical qualification",
+  "source_sha256": "492a52f94fe35eb8e950f35cabbb1e1aa5d5ee1364c5761fbbeee4ff029da988",
+  "candidate_sha256": "a6cee74a84dcd493fec62cd9791ca35fb330be92f26a155af70b625838a4fc78",
+  "received_job": "9f0384db5e5e42f5efda8d1c",
+  "changed_zone_uuid": "62815908-b0ee-4199-a192-6f15869261d8",
+  "geometry": {
+    "change": "Extend the existing GND zone right edge from 28.0 to 29.7 mm on its original In1.Cu and In2.Cu layers; no outline, component, via, current-sharing or cooling change",
+    "native_edge_clearance_mm": 0.5,
+    "source_foreign_saved_fill_preserved": true,
+    "all_other_native_objects_preserved": true,
+    "private_seed_results_not_substituted_for_received_child": true,
+    "private_seed_vs_received_ast": "Complete parsed native object and non-object root ASTs, including saved fills, are identical; different file hashes reflect multiline versus compact serialization"
+  },
+  "input_authority": {
+    "provider": "scripts/cec_xfcn_thermal_validate.py PROJECTS eps-db and SCENARIOS nominal_still_air",
+    "positive_net": "+12V",
+    "return_net": "GND",
+    "current_each_net_A": 65.0,
+    "positive_source_refs": "J13,J14",
+    "positive_sink_ref": "J1",
+    "return_source_ref": "J1",
+    "return_sink_refs": "J10,J11",
+    "outer_copper_nominal_um": 70.0,
+    "inner_copper_nominal_um": 35.0,
+    "plating_nominal_um": 25.0,
+    "dielectric_nominal_mm_top_middle_bottom": "0.2,1.065,0.2",
+    "material_and_contact_values_are_declared_screen_inputs_not_measurements": true
+  },
+  "electrical_screen": {
+    "conditions": "0.25 mm mesh; isothermal 20 C copper resistivity; rho(T) disabled; actual pads/tracks/vias/saved fills; no ideal pad faces",
+    "source_GND_resistance_mohm": 0.23228324154342697,
+    "candidate_GND_resistance_mohm": 0.21886524815207545,
+    "source_GND_loss_W": 0.981396695520979,
+    "candidate_GND_loss_W": 0.9247056734425187,
+    "source_GND_drop_mV": 15.098410700322752,
+    "candidate_GND_drop_mV": 14.226241129884905,
+    "GND_resistance_loss_and_drop_reduction_pct": 5.7765654130683135,
+    "source_and_candidate_positive_resistance_mohm": 0.05297535534127614,
+    "source_and_candidate_positive_loss_W": 0.22382087631689168,
+    "source_and_candidate_positive_drop_mV": 3.443398097182949,
+    "source_max_ranked_inner_sheet_J_A_per_mm2": 133.08850709422893,
+    "candidate_max_ranked_inner_sheet_J_A_per_mm2": 133.71485239572695,
+    "ranked_local_peak_J_increase_pct": 0.47062313281082707,
+    "interpretation": "Reduced aggregate return resistance does not mean every local density improved; left-web current redistribution slightly raises the ranked peak"
+  },
+  "thermal_screen": {
+    "identical_source_and_candidate_conditions": {
+      "ambient_C": 50.0,
+      "nonlinear_convection_coefficient_W_per_m2_K125": 1.4,
+      "emissivity": 0.75,
+      "rho_T_enabled": true,
+      "contact_resistance_assumption_mohm": 0.2,
+      "J10_and_J13_heat_each_W": 0.32,
+      "J11_and_J14_heat_each_W": 0.125,
+      "total_contact_heat_requested_and_applied_W": 0.89,
+      "contact_heat_spatial_support": "Actual native pad raster cells, not a fixed number of thermal cells",
+      "additional_cooling_or_chassis_credit": false
+    },
+    "mesh_0p5_mm": {
+      "source_max_board_field_C": 317.9697250001856,
+      "candidate_max_board_field_C": 311.3680346145917,
+      "max_field_reduction_C": 6.6016903855938835,
+      "source_input_W": 3.5228713769238666,
+      "candidate_input_W": 3.3776872110624385,
+      "source_vertical_loss_W": 3.5228714105296355,
+      "candidate_vertical_loss_W": 3.3776872189592035
+    },
+    "mesh_0p25_mm": {
+      "source_max_board_field_C": 318.74771118321695,
+      "candidate_max_board_field_C": 311.54936200138275,
+      "max_field_reduction_C": 7.198349181834203,
+      "source_input_W": 3.496132666391039,
+      "candidate_input_W": 3.3391601426535864,
+      "input_reduction_pct": 4.489890365044157,
+      "source_vertical_loss_W": 3.496132698574185,
+      "candidate_vertical_loss_W": 3.339160153910509,
+      "candidate_solve_elapsed_s": 8.303120005999517
+    },
+    "source_fine_mesh_max_field_difference_C": 0.777986183031343,
+    "candidate_fine_mesh_max_field_difference_C": 0.18132738679105,
+    "dropped_or_absent_requested_nets": 0,
+    "omitted_terminal_nodes": 0,
+    "missing_component_heat_refs": 0,
+    "existing_screen_limits_C": "rise <= 30; maximum <= 105",
+    "source_screen_pass": false,
+    "candidate_screen_pass": false
+  },
+  "evidence_location": "CEC-Board-Reviews/compaction-refinement-20261105/eps; source gnd-dcir.json and 12v-dcir.json; candidate received-trial contains fresh hash-matched DCIR JSON, spatial fields, thermal JSON and native-pad-overlay PNGs; source thermal reports are in simulation-refinement-20261105/thermal",
+  "limitations": {
+    "model": "Reduced 2D board-field and resistive-network screen, not full 3D package/contact/cable physics or junction temperature",
+    "temperature_validity": "Very high computed fields fail the existing screen and exceed demonstrated material/contact/boundary qualification; do not present them as measured or qualified hardware temperatures",
+    "mesh": "Two fine mesh points provide sensitivity evidence, not a formal convergence proof",
+    "interfaces": "No unmeasured cooling credit through connector posts, mated contacts, cables, chassis or TIM",
+    "power_balance": "Numerical energy accounting is not validation of physical cooling or contact assumptions",
+    "qualification": "No fabrication, thermal, current-capacity, safety or production release qualification is established"
+  },
+  "release_authority": false
+}

@@ -1,0 +1,480 @@
+{
+  "actual_private_modules_observed": [
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/3d-viewer/3d_cache/sg/libkicad_3dsg.so.2.0.0",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/api/libkiapi.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/common/gal/libkigal.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/common/libkicommon.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface"
+  ],
+  "admission_unchanged": true,
+  "all_track_errors": true,
+  "cli_sha256": "7bf6c577bdf7f5c048b693c50234dfefaf05614ce40086482e030d76fc7b252e",
+  "command": [
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "pcb",
+    "drc",
+    "--format",
+    "json",
+    "--severity-all",
+    "--all-track-errors",
+    "--output",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/native.json",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/board.kicad_pcb"
+  ],
+  "complete": true,
+  "elapsed_s": 1.933317,
+  "errors": [],
+  "faults_suppressed": 0,
+  "native_elapsed_s": 0.976744,
+  "native_inventory": {
+    "admission_unchanged": true,
+    "category_limits_checked": true,
+    "counts_are_reported_observations_not_exhaustive_totals": true,
+    "errors": [],
+    "faults_suppressed": 0,
+    "full_native_inventory_proved": false,
+    "native_version": "10.0.5",
+    "potentially_truncated": false,
+    "release_authority": false,
+    "reported_unconnected_count": 0,
+    "reported_violation_counts": {
+      "silk_edge_clearance": 6,
+      "silk_over_copper": 12,
+      "silk_overlap": 1
+    },
+    "saturated_categories": [],
+    "schema": 1,
+    "verified_native_limit_source": {
+      "actual_loaded_engine_sha256": "5231762f26fd62737b77ee9260691f7d361ee5ada42634ed51b50b8d2b2a56c7",
+      "cap_only_patch_sha256": "45c0e985895d3e8c62c5f40ff6d2746b151ee3858e2a93e25436f51f426fc12b",
+      "official_commit": "18fb9289ff0efdca53c0352ed81a0973f0a6b58c",
+      "official_source": "https://gitlab.com/kicad/code/kicad/-/blob/10.0.5/pcbnew/drc/drc_engine.cpp"
+    }
+  },
+  "native_library_context": {
+    "authority": {
+      "directory_entries": {
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty": [
+          "SOIC-16_W25Q256JVFIQ_L10.3-W7.5-P1.27.kicad_mod",
+          "SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+          "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL.kicad_mod",
+          "SOP-4_TLP172A_L3.9-W4.4-P2.54.kicad_mod",
+          "TSSOP-16_ADS7830IPWR_L5.0-W4.4-P0.65.kicad_mod",
+          "TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL.kicad_mod",
+          "VSSOP-10_3x3mm_P0.5mm.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1ebfbe252645243c1ab96f62.pretty": [
+          "MountingHole_2.2mm_M2_NPTH_6mm_Hardware.kicad_mod",
+          "MountingHole_2.2mm_M2_Pad_Via.kicad_mod",
+          "MountingHole_2.2mm_M2_Pad_Via_6mm_Hardware.kicad_mod",
+          "MountingHole_2.2mm_M2_Pad_Via_Slim_6mm_Hardware.kicad_mod",
+          "MountingHole_2.7mm_M2.5_Pad_Via.kicad_mod",
+          "MountingHole_3.2mm_M3_Pad_Via.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/69e845ffde6edd53ce18c269.pretty": [
+          "ESP32-C6-MINI-1.kicad_mod",
+          "ESP32-S2-MINI-1.kicad_mod",
+          "ESP32-S2-MINI-1_NoAntKeepout.kicad_mod",
+          "ESP32-S3-WROOM-1.kicad_mod",
+          "ESP32-S3-WROOM-1_NoAntKeepout.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/76073ef576941c9f81a0e0ff.pretty": [
+          "USB_C_Receptacle_GCT_USB4215-03-A.kicad_mod",
+          "USB_C_Receptacle_XKB_U262-16XN-4BVC11.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/7d70726fd8a07a923a49daaa.pretty": [
+          "XFCN_TTR32100127-0600_THT_M3_60A.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/84bc73488de0cc5324f4d234.pretty": [
+          "Panasonic_EVQPUJ_EVQPUA.kicad_mod",
+          "TS-1088-AR02016.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/930c119236f33c8b1bd30dff.pretty": [
+          "QFN-24-1EP_L4.0-W4.0-P0.50-EP2.6x2.6.kicad_mod",
+          "QFN-36-1EP_6x6mm_P0.5mm_EP4.1x4.1mm.kicad_mod",
+          "RUX0012A.kicad_mod",
+          "SLP2510P8_L2.5-W1.0-P0.50-BL.kicad_mod",
+          "VQFN-48_L7.0-W7.0-P0.50-TL-EP.kicad_mod",
+          "VSON-10_DRC0010J_L3.0-W3.0-P0.50-EP.kicad_mod",
+          "WQFN-20_L4.0-W3.0-P0.50-BL-EP.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty": [
+          "REF3030_DBZ3.kicad_mod",
+          "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR.kicad_mod",
+          "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL.kicad_mod",
+          "SOT-23-5.kicad_mod",
+          "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL.kicad_mod",
+          "SOT-23-6.kicad_mod",
+          "SOT-23-6_TI_DBV0006A.kicad_mod",
+          "SOT-23.kicad_mod",
+          "SOT-563.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/b586da6e4b72d896a8319483.pretty": [
+          "Fiducial_1mm_Mask2mm.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/beb8839d50f622596aa2c3f2.pretty": [
+          "Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal.kicad_mod",
+          "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal.kicad_mod",
+          "Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal.kicad_mod",
+          "Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c8c74e9ca56f2d8079c61553.pretty": [
+          "CEC_12V2x6_Horizontal.kicad_mod",
+          "CEC_Logo_Copper.kicad_mod",
+          "CEC_Logo_Copper_Small.kicad_mod",
+          "CEC_Logo_Triangle.kicad_mod",
+          "RJ45_FTP_Shielded_Horizontal.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty": [
+          "C_0402_1005Metric.kicad_mod",
+          "C_0603_1608Metric.kicad_mod",
+          "C_0805_2012Metric.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty": [
+          "R_0402_1005Metric.kicad_mod",
+          "R_1206_3216Metric.kicad_mod",
+          "R_2512_6332Metric.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ec0499f492a504a191b9223c.pretty": [
+          "D_SMA.kicad_mod",
+          "D_SMA_SMAJ58A_L4.4-W2.6-LS5.0.kicad_mod",
+          "D_SMA_SS110_L4.3-W2.6-LS5.2.kicad_mod",
+          "D_SOD-323.kicad_mod"
+        ]
+      },
+      "referenced_files": {
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty/SOIC-8_3.9x4.9mm_P1.27mm.kicad_mod",
+          "sha256": "fc8185f4c01263b469d53f6b7013571a8989a3ff21d2b1c7bfd8fd69cabf09a7"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty/VSSOP-10_3x3mm_P0.5mm.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty/VSSOP-10_3x3mm_P0.5mm.kicad_mod",
+          "sha256": "73dae353b1551982bc15f9b27e0025a79fcd851e681cea21368e229e9ac78ce9"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1ebfbe252645243c1ab96f62.pretty/MountingHole_2.2mm_M2_Pad_Via.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1ebfbe252645243c1ab96f62.pretty/MountingHole_2.2mm_M2_Pad_Via.kicad_mod",
+          "sha256": "53c70911a27ea35cbd7c4f3792444f436a8af899b55ed26ffd23be4bdf947f1d"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/69e845ffde6edd53ce18c269.pretty/ESP32-C6-MINI-1.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/69e845ffde6edd53ce18c269.pretty/ESP32-C6-MINI-1.kicad_mod",
+          "sha256": "d72bfb60cdce7b432f87eaee0175667b5b4f71c83380dec40b33c17f41bb75b3"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/76073ef576941c9f81a0e0ff.pretty/USB_C_Receptacle_GCT_USB4215-03-A.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/76073ef576941c9f81a0e0ff.pretty/USB_C_Receptacle_GCT_USB4215-03-A.kicad_mod",
+          "sha256": "4e3636095b3a281f8741ce76b8a50a44b392a2570c2db19d6505eb921df144e9"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/7d70726fd8a07a923a49daaa.pretty/XFCN_TTR32100127-0600_THT_M3_60A.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/7d70726fd8a07a923a49daaa.pretty/XFCN_TTR32100127-0600_THT_M3_60A.kicad_mod",
+          "sha256": "eb916c4dbf049e07eb84520d5cad867f5f27fc63822e98d6f2cf7bd02571dc7d"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/84bc73488de0cc5324f4d234.pretty/TS-1088-AR02016.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/84bc73488de0cc5324f4d234.pretty/TS-1088-AR02016.kicad_mod",
+          "sha256": "f598bc191f37645ddadd0946c83695f257051f4f4502c11396f6267afabeaeba"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/930c119236f33c8b1bd30dff.pretty/RUX0012A.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/930c119236f33c8b1bd30dff.pretty/RUX0012A.kicad_mod",
+          "sha256": "98a403852a1e5281870b099b2ff77d0ab3e09e087a6c866c2aa36e28255f85b3"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty/SOT-23-5.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty/SOT-23-5.kicad_mod",
+          "sha256": "f1336f7e401280feb44c655db885b3fcd723130eb162ecec8a817f1418cec711"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty/SOT-23-6.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty/SOT-23-6.kicad_mod",
+          "sha256": "6956848f49652e7336dcac9d2a9f7c0e8a421bd5cf2db7f1dcba0612750c0baf"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/b586da6e4b72d896a8319483.pretty/Fiducial_1mm_Mask2mm.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/b586da6e4b72d896a8319483.pretty/Fiducial_1mm_Mask2mm.kicad_mod",
+          "sha256": "9db378fa0b1b32b049500fdfef0610d43ee0b96045cce65e89d38573122424f4"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/beb8839d50f622596aa2c3f2.pretty/Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/beb8839d50f622596aa2c3f2.pretty/Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal.kicad_mod",
+          "sha256": "325df2bdedadc83fadc8169e63c47f08eac856863bac65875a06efe2004cc24f"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c8c74e9ca56f2d8079c61553.pretty/RJ45_FTP_Shielded_Horizontal.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c8c74e9ca56f2d8079c61553.pretty/RJ45_FTP_Shielded_Horizontal.kicad_mod",
+          "sha256": "4e2c65c9b5f5b5a23535fea1b31c7d19bb4bcd12fd8144f492bed2495746e99d"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0402_1005Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0402_1005Metric.kicad_mod",
+          "sha256": "89b791430b0ce747b5f40a3ed2e6ee38806459b6853fa535b80e9bd83fa107c5"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0603_1608Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0603_1608Metric.kicad_mod",
+          "sha256": "37bd8557e92154d81b6098c479702a307936633cf84b402fbb3219d2e2292010"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0805_2012Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty/C_0805_2012Metric.kicad_mod",
+          "sha256": "c764106b8f174e95901c40228c4d40dec3055e10973dd042c1a7e6a267f90da1"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_0402_1005Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_0402_1005Metric.kicad_mod",
+          "sha256": "e22c4ca0adfeb68c30bf76b929692c0db9e82ff2041423f9a8f6b74e66d89598"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_1206_3216Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_1206_3216Metric.kicad_mod",
+          "sha256": "c95030751c4152789faaa3f2bdce55d4b4d0d894c25a039b443bb7558e779ba7"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_2512_6332Metric.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty/R_2512_6332Metric.kicad_mod",
+          "sha256": "d7a14fa43aa28ab5eef5d71ccca44f1e977218c514cfa88ce77878691591087e"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ec0499f492a504a191b9223c.pretty/D_SOD-323.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ec0499f492a504a191b9223c.pretty/D_SOD-323.kicad_mod",
+          "sha256": "ffa8cc9e0264a455f59aed40981d5c82fbf0e634059bb8d670444a209310a9b7"
+        }
+      },
+      "references": [
+        [
+          "cec",
+          "RJ45_FTP_Shielded_Horizontal"
+        ],
+        [
+          "cec-Button_Switch_SMD",
+          "TS-1088-AR02016"
+        ],
+        [
+          "cec-Capacitor_SMD",
+          "C_0402_1005Metric"
+        ],
+        [
+          "cec-Capacitor_SMD",
+          "C_0603_1608Metric"
+        ],
+        [
+          "cec-Capacitor_SMD",
+          "C_0805_2012Metric"
+        ],
+        [
+          "cec-Connector_Molex",
+          "Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal"
+        ],
+        [
+          "cec-Connector_Screw",
+          "XFCN_TTR32100127-0600_THT_M3_60A"
+        ],
+        [
+          "cec-Connector_USB",
+          "USB_C_Receptacle_GCT_USB4215-03-A"
+        ],
+        [
+          "cec-Diode_SMD",
+          "D_SOD-323"
+        ],
+        [
+          "cec-Fiducial",
+          "Fiducial_1mm_Mask2mm"
+        ],
+        [
+          "cec-MountingHole",
+          "MountingHole_2.2mm_M2_Pad_Via"
+        ],
+        [
+          "cec-Package_DFN_QFN",
+          "RUX0012A"
+        ],
+        [
+          "cec-Package_SO",
+          "SOIC-8_3.9x4.9mm_P1.27mm"
+        ],
+        [
+          "cec-Package_SO",
+          "VSSOP-10_3x3mm_P0.5mm"
+        ],
+        [
+          "cec-Package_TO_SOT_SMD",
+          "SOT-23-5"
+        ],
+        [
+          "cec-Package_TO_SOT_SMD",
+          "SOT-23-6"
+        ],
+        [
+          "cec-RF_Module",
+          "ESP32-C6-MINI-1"
+        ],
+        [
+          "cec-Resistor_SMD",
+          "R_0402_1005Metric"
+        ],
+        [
+          "cec-Resistor_SMD",
+          "R_1206_3216Metric"
+        ],
+        [
+          "cec-Resistor_SMD",
+          "R_2512_6332Metric"
+        ]
+      ],
+      "rendered_table_sha256": "ec66ae63872199cdc20049e1f4fe6add91524dd804bbadb52595695cad3b7bef",
+      "rows": {
+        "cec": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c8c74e9ca56f2d8079c61553.pretty"
+        },
+        "cec-Button_Switch_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/84bc73488de0cc5324f4d234.pretty"
+        },
+        "cec-Capacitor_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ca4c8469aaec63397123d098.pretty"
+        },
+        "cec-Common_Mode_Choke": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/83ef15a809f837357170db8e.pretty"
+        },
+        "cec-Connector_Blade": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a5a6db60db2d93471c962045.pretty"
+        },
+        "cec-Connector_JST": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/0aa4834bff1fd6b101003c1a.pretty"
+        },
+        "cec-Connector_Molex": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/beb8839d50f622596aa2c3f2.pretty"
+        },
+        "cec-Connector_RJ": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c69449029753d0ad9ea8d034.pretty"
+        },
+        "cec-Connector_Screw": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/7d70726fd8a07a923a49daaa.pretty"
+        },
+        "cec-Connector_USB": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/76073ef576941c9f81a0e0ff.pretty"
+        },
+        "cec-Diode_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/ec0499f492a504a191b9223c.pretty"
+        },
+        "cec-Fiducial": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/b586da6e4b72d896a8319483.pretty"
+        },
+        "cec-LED_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/8c82e70182e26548cdc1fe16.pretty"
+        },
+        "cec-MountingHole": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1ebfbe252645243c1ab96f62.pretty"
+        },
+        "cec-Package_DFN_QFN": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/930c119236f33c8b1bd30dff.pretty"
+        },
+        "cec-Package_SO": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/161be720af9a496dec2e5030.pretty"
+        },
+        "cec-Package_TO_SOT_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a37fa436a2588c81d3e13364.pretty"
+        },
+        "cec-RF_Module": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/69e845ffde6edd53ce18c269.pretty"
+        },
+        "cec-Resistor_SMD": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/e8b4958c3eca4c1a1c849ad2.pretty"
+        },
+        "cec-TestPoint": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1d4bd84379f0d0dbb20f03c9.pretty"
+        }
+      },
+      "table": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/library/fp-lib-table",
+      "table_sha256": "769b17aecd5a1d99849d6256129ce274478852a1f83bdae48f0cfd749bf2b49b",
+      "variables": {
+        "KIPRJMOD": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/library"
+      }
+    },
+    "bound": true,
+    "candidate_project_table_sha256": null,
+    "findings_suppressed": 0,
+    "isolated": true,
+    "original_user_configuration_edited": false,
+    "private_table": "/tmp/cec-native-library-j08zjqy3/10.0/fp-lib-table",
+    "private_table_sha256": "ec66ae63872199cdc20049e1f4fe6add91524dd804bbadb52595695cad3b7bef",
+    "source_and_context_unchanged": true,
+    "source_geometry_changed": false
+  },
+  "native_rules_validation": {
+    "complete": true,
+    "custom_rules_loaded_and_compiled": true,
+    "native_rules_fallback": false,
+    "native_tests_started": false,
+    "observation_sha256": "a61c43b9c1d23e5f0db20e0aabed5fcd7efd91eb0b02e99b6d3a06c1145c8c3f",
+    "observer": "/usr/bin/gdb",
+    "observer_commands_sha256": "f5a05ce011a075de701eae10a0dbfcc128a293ddca75adadc27c52613175d540",
+    "observer_sha256": "3832cc070ae1716e322105d3b39fb398695e5f031c9d39224cf227a8c2b889f6",
+    "ok": true,
+    "probe_elapsed_s": 0.816058,
+    "producer_stderr": "Function \"DRC_ENGINE::InitEngine(wxFileName const&)\" not defined.\nFunction \"DRC_ENGINE::loadRules(wxFileName const&)\" not defined.\nFunction \"DRC_ENGINE::RunTests\" not defined.\n",
+    "release_authority": false,
+    "source_modified": false,
+    "stopped_before_tests": true
+  },
+  "ok": true,
+  "producer_stderr": "",
+  "producer_stdout": "Found 19 violations\nFound 0 unconnected items\nSaved DRC Report to /home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/native.json\n",
+  "release_authority": false,
+  "report": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/native.json",
+  "report_sha256": "80469cbd98c44e3b2c8f96bff9eb14424a7abc7c796429d3d4ad9159385579c6",
+  "reporting_build": {
+    "artifacts": {
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/3d-viewer/3d_cache/sg/libkicad_3dsg.so.2.0.0": "6a94c55ea04fda5d17983947128b1df608585b1a64781b2af30bb9298a8c38a9",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/api/libkiapi.so.10.0.5": "491e126d1606f012b3b69d43ba6c1b74fef777935f418c35978daa98dc432cc7",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/common/gal/libkigal.so.10.0.5": "4f171c78e28abb572f35d38cc033e598404163751ff4a9b6075e1ac735f5d955",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/common/libkicommon.so.10.0.5": "5a885f8dcc7845dad3f9142a6ddce5dbc4097c3aaafd6c14062dd3e5fbce5dc8",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli": "7bf6c577bdf7f5c048b693c50234dfefaf05614ce40086482e030d76fc7b252e",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface": "5231762f26fd62737b77ee9260691f7d361ee5ada42634ed51b50b8d2b2a56c7"
+    },
+    "build": "/home/codex/.cache/cec/native-drc-10.0.5/build",
+    "cli": "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "cmake_cache_sha256": "b4e94962d623a222c7652819699f92e77f203a4497eea6af7c51a50d4d477f23",
+    "engine": "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface",
+    "extended_report_limit": 20000,
+    "geometry_or_rule_source_changed": false,
+    "installed_toolchain_replaced": false,
+    "official_commit": "18fb9289ff0efdca53c0352ed81a0973f0a6b58c",
+    "ordinary_report_limit": 20000,
+    "patch_sha256": "45c0e985895d3e8c62c5f40ff6d2746b151ee3858e2a93e25436f51f426fc12b",
+    "root": "/home/codex/.cache/cec/native-drc-10.0.5",
+    "source_sha256": "4ed079fa722005e7e0008fb4b54b96e629b25e01a5994a7f812e25ce1bd20566"
+  },
+  "severity_all": true,
+  "source_and_producer_unchanged": true,
+  "source_files": {
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/board.kicad_dru": "a613c5f0dbb5dea07698ff20f28e47c33e267edcc3e795ac0f919da704ee5888",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/board.kicad_pcb": "cfb92ab09702a5999846de3eb2f25624c4090092f6b75602fb86138c09648595",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/pcie-8pin-2port/board.kicad_pro": "4f6e42f41786b56550b33921596df88125e5fbc744662cb9afc78c839e1293ff"
+  }
+}

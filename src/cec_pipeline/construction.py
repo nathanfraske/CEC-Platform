@@ -48,6 +48,21 @@ def _construct_connected(source, candidate, request, board_hint):
         )
         affected, retired = set(), set()
         added = set(record["added_track_uuids"])
+    elif kind == "ground_plane_extension":
+        from . import groundplanes
+
+        record = groundplanes.construct(
+            board, source, operation, board_hint=board_hint, request=request
+        )
+        affected, retired, added = {operation["zone_uuid"]}, set(), set()
+    elif kind == "outline_trim":
+        from . import outlines
+
+        record = outlines.construct(
+            board, source, operation, board_hint=board_hint, request=request
+        )
+        affected = {row["uuid"] for row in record["edge_updates"]}
+        retired, added = set(), set()
     elif kind in ("power_contour", "power_route", "bank_collector"):
         record = power.construct(
             board, source, operation, board_hint=board_hint, request=request
@@ -61,7 +76,8 @@ def _construct_connected(source, candidate, request, board_hint):
             affected.add(group)
     else:
         raise ValueError("unknown_source_owned_macro_operation")
-    syntax._ground_refill(board)
+    if kind not in ("ground_plane_extension", "outline_trim"):
+        syntax._ground_refill(board)
     temporary = candidate.parent / "native-construction.kicad_pcb"
     field._save_field_snapshot(board, temporary)
     if kind == "place_cell":
@@ -80,11 +96,12 @@ def _construct_connected(source, candidate, request, board_hint):
                 affected.add(proof["group_uuid"])
     root, original = syntax._nodes(source)
     _, fresh = syntax._nodes(temporary)
-    affected.update(
-        str(zone.m_Uuid.AsString())
-        for zone in board.Zones()
-        if not zone.GetIsRuleArea() and zone.GetNetname() == "GND"
-    )
+    if kind != "ground_plane_extension":
+        affected.update(
+            str(zone.m_Uuid.AsString())
+            for zone in board.Zones()
+            if not zone.GetIsRuleArea() and zone.GetNetname() == "GND"
+        )
     mapping = {id(node): key for key, node in original.items()}
     out = []
     for node in root[1:]:

@@ -1,0 +1,182 @@
+{
+  "actual_private_modules_observed": [
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/3d-viewer/3d_cache/sg/libkicad_3dsg.so.2.0.0",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/api/libkiapi.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/common/gal/libkigal.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/common/libkicommon.so.10.0.5",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface"
+  ],
+  "admission_unchanged": true,
+  "all_track_errors": true,
+  "cli_sha256": "7bf6c577bdf7f5c048b693c50234dfefaf05614ce40086482e030d76fc7b252e",
+  "command": [
+    "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "pcb",
+    "drc",
+    "--format",
+    "json",
+    "--severity-all",
+    "--all-track-errors",
+    "--output",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/native.json",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/pcie-out-db-board.kicad_pcb"
+  ],
+  "complete": true,
+  "elapsed_s": 1.426703,
+  "errors": [],
+  "faults_suppressed": 0,
+  "native_elapsed_s": 0.488085,
+  "native_inventory": {
+    "admission_unchanged": true,
+    "category_limits_checked": true,
+    "counts_are_reported_observations_not_exhaustive_totals": true,
+    "errors": [],
+    "faults_suppressed": 0,
+    "full_native_inventory_proved": false,
+    "native_version": "10.0.5",
+    "potentially_truncated": false,
+    "release_authority": false,
+    "reported_unconnected_count": 0,
+    "reported_violation_counts": {},
+    "saturated_categories": [],
+    "schema": 1,
+    "verified_native_limit_source": {
+      "actual_loaded_engine_sha256": "5231762f26fd62737b77ee9260691f7d361ee5ada42634ed51b50b8d2b2a56c7",
+      "cap_only_patch_sha256": "45c0e985895d3e8c62c5f40ff6d2746b151ee3858e2a93e25436f51f426fc12b",
+      "official_commit": "18fb9289ff0efdca53c0352ed81a0973f0a6b58c",
+      "official_source": "https://gitlab.com/kicad/code/kicad/-/blob/10.0.5/pcbnew/drc/drc_engine.cpp"
+    }
+  },
+  "native_library_context": {
+    "authority": {
+      "directory_entries": {
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/720f6be18e86cbf87578274f.pretty": [
+          "XFCN_T34069_Daughterboard_BoltPad_M3_PROVISIONAL.kicad_mod",
+          "XFCN_T34069_THT_M3_40A.kicad_mod",
+          "XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL.kicad_mod",
+          "XFCN_TTR32100127-0600_THT_M3_60A.kicad_mod"
+        ],
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/fff48679d89dfe84065459ce.pretty": [
+          "ATX24_Daughterboard_Field_P4.20mm.kicad_mod",
+          "CEC_SR_Pad_DNP.kicad_mod",
+          "EPS8_Daughterboard_Field_P4.20mm.kicad_mod",
+          "PCIe8_Daughterboard_Field_P4.20mm.kicad_mod"
+        ]
+      },
+      "referenced_files": {
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/720f6be18e86cbf87578274f.pretty/XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/720f6be18e86cbf87578274f.pretty/XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL.kicad_mod",
+          "sha256": "39f15039aa518c375ff777d3da50301b33cbfadd9f242af2021bc1ca1f2e6a20"
+        },
+        "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/fff48679d89dfe84065459ce.pretty/PCIe8_Daughterboard_Field_P4.20mm.kicad_mod": {
+          "resolved_path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/fff48679d89dfe84065459ce.pretty/PCIe8_Daughterboard_Field_P4.20mm.kicad_mod",
+          "sha256": "5c0c5a38d9210f9400e7abeb2e5b4f8b1daaf85b830af8dab92b7adaad889133"
+        }
+      },
+      "references": [
+        [
+          "cec-Connector_Generic",
+          "PCIe8_Daughterboard_Field_P4.20mm"
+        ],
+        [
+          "cec-Connector_Screw",
+          "XFCN_TTR32100127-0600_Daughterboard_BoltPad_M3_PROVISIONAL"
+        ]
+      ],
+      "rendered_table_sha256": "8750bf6bbc21152f8afdfd22278b74bf35a827c1cdedd723142e54d1b5ced401",
+      "rows": {
+        "cec": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/c8c74e9ca56f2d8079c61553.pretty"
+        },
+        "cec-Connector_Blade": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/a5a6db60db2d93471c962045.pretty"
+        },
+        "cec-Connector_Generic": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/fff48679d89dfe84065459ce.pretty"
+        },
+        "cec-Connector_Screw": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/720f6be18e86cbf87578274f.pretty"
+        },
+        "cec-MountingHole": {
+          "enabled": true,
+          "hidden": false,
+          "path": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/libraries/1ebfbe252645243c1ab96f62.pretty"
+        }
+      },
+      "table": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/library/fp-lib-table",
+      "table_sha256": "af4b9bdbab485eb12f2fe09b7f767851eb7a1387255ee6de695b864a38b74037",
+      "variables": {
+        "KIPRJMOD": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/library"
+      }
+    },
+    "bound": true,
+    "candidate_project_table_sha256": null,
+    "findings_suppressed": 0,
+    "isolated": true,
+    "original_user_configuration_edited": false,
+    "private_table": "/tmp/cec-native-library-2a4w8c_t/10.0/fp-lib-table",
+    "private_table_sha256": "8750bf6bbc21152f8afdfd22278b74bf35a827c1cdedd723142e54d1b5ced401",
+    "source_and_context_unchanged": true,
+    "source_geometry_changed": false
+  },
+  "native_rules_validation": {
+    "complete": true,
+    "custom_rules_loaded_and_compiled": true,
+    "native_rules_fallback": false,
+    "native_tests_started": false,
+    "observation_sha256": "a61c43b9c1d23e5f0db20e0aabed5fcd7efd91eb0b02e99b6d3a06c1145c8c3f",
+    "observer": "/usr/bin/gdb",
+    "observer_commands_sha256": "f5a05ce011a075de701eae10a0dbfcc128a293ddca75adadc27c52613175d540",
+    "observer_sha256": "3832cc070ae1716e322105d3b39fb398695e5f031c9d39224cf227a8c2b889f6",
+    "ok": true,
+    "probe_elapsed_s": 0.865307,
+    "producer_stderr": "Function \"DRC_ENGINE::InitEngine(wxFileName const&)\" not defined.\nFunction \"DRC_ENGINE::loadRules(wxFileName const&)\" not defined.\nFunction \"DRC_ENGINE::RunTests\" not defined.\n",
+    "release_authority": false,
+    "source_modified": false,
+    "stopped_before_tests": true
+  },
+  "ok": true,
+  "producer_stderr": "",
+  "producer_stdout": "Found 0 violations\nFound 0 unconnected items\nSaved DRC Report to /home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/native.json\n",
+  "release_authority": false,
+  "report": "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/native.json",
+  "report_sha256": "4d3194d3a6be045ef86e11ae22af0a06b92b7cdb8e43b37f350b651bc108c3bf",
+  "reporting_build": {
+    "artifacts": {
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/3d-viewer/3d_cache/sg/libkicad_3dsg.so.2.0.0": "6a94c55ea04fda5d17983947128b1df608585b1a64781b2af30bb9298a8c38a9",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/api/libkiapi.so.10.0.5": "491e126d1606f012b3b69d43ba6c1b74fef777935f418c35978daa98dc432cc7",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/common/gal/libkigal.so.10.0.5": "4f171c78e28abb572f35d38cc033e598404163751ff4a9b6075e1ac735f5d955",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/common/libkicommon.so.10.0.5": "5a885f8dcc7845dad3f9142a6ddce5dbc4097c3aaafd6c14062dd3e5fbce5dc8",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli": "7bf6c577bdf7f5c048b693c50234dfefaf05614ce40086482e030d76fc7b252e",
+      "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface": "5231762f26fd62737b77ee9260691f7d361ee5ada42634ed51b50b8d2b2a56c7"
+    },
+    "build": "/home/codex/.cache/cec/native-drc-10.0.5/build",
+    "cli": "/home/codex/.cache/cec/native-drc-10.0.5/build/kicad/kicad-cli",
+    "cmake_cache_sha256": "b4e94962d623a222c7652819699f92e77f203a4497eea6af7c51a50d4d477f23",
+    "engine": "/home/codex/.cache/cec/native-drc-10.0.5/build/pcbnew/_pcbnew.kiface",
+    "extended_report_limit": 20000,
+    "geometry_or_rule_source_changed": false,
+    "installed_toolchain_replaced": false,
+    "official_commit": "18fb9289ff0efdca53c0352ed81a0973f0a6b58c",
+    "ordinary_report_limit": 20000,
+    "patch_sha256": "45c0e985895d3e8c62c5f40ff6d2746b151ee3858e2a93e25436f51f426fc12b",
+    "root": "/home/codex/.cache/cec/native-drc-10.0.5",
+    "source_sha256": "4ed079fa722005e7e0008fb4b54b96e629b25e01a5994a7f812e25ce1bd20566"
+  },
+  "severity_all": true,
+  "source_and_producer_unchanged": true,
+  "source_files": {
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/pcie-out-db-board.kicad_dru": "85550ee5e3b124b054c9a2eff4a9f66e7604e22fc49c9d862658bbd4b50e4e3a",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/pcie-out-db-board.kicad_pcb": "ea12d133262dfd18551d38a5e31a9551de11026b904937c9f396871573247ea1",
+    "/home/codex/src/CEC-Platform/checkpoints/review-20261105-compaction-refinement/boards/output-daughterboards--pcie-out-db/pcie-out-db-board.kicad_pro": "4ae3c49547af6140bdb068ecb861e5c1a3797598eefb4ef5eb2ee97497437228"
+  }
+}

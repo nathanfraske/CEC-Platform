@@ -1,4 +1,4 @@
 {
-  "receipt": "checkpoints/review-20261105-simulation-refinement/receipt.json",
-  "sha256": "3f3ac1f9adc7ddf4429e081b9927ee1de6a2d1460bdfca4e8650999ab16ebab5"
+  "receipt": "checkpoints/review-20261105-compaction-refinement/receipt.json",
+  "sha256": "0409dbd1890d2f47ccc728649f36f64e32b189bf6a4b51aa370d67417187379f"
 }
