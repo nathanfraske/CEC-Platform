@@ -160,7 +160,12 @@ def _stationary_bypass_return_peers(parent,child,assigned,refs):
     return result
 
 
-def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
+def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
+           allow_linear_power_stage_reconstruction=False):
+    if type(allow_linear_power_stage_reconstruction) is not bool:
+        raise ValueError('explicit_pose_linear_power_stage_boolean_required')
+    stage_options=(dict(allow_linear_power_stage_reconstruction=True)
+                   if allow_linear_power_stage_reconstruction else {})
     lease=_PoseSelectionLease(phase_timeouts_s)
     before={force._uid(f):f for f in parent.GetFootprints()}
     after={force._uid(f):f for f in child.GetFootprints()}
@@ -192,7 +197,8 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
         import cec_control_gate_bias_placement as gate_bias
         gate_biases=gate_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_programming_resistor_placement as programming
-        programming_resistors=programming.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
+        programming_resistors=programming.plan(parent,actual,board_hint=hint,
+            reference_group_uuids=reference_group_uuids,**stage_options)
         programming_refs=programming.participant_refs(programming_resistors)
         import cec_source_series_link_placement as series_link
         series_links=series_link.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
@@ -227,7 +233,7 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
         gate_bias.requests(parent,child,dict(poses=actual,selected_control_gate_biases=gate_biases,board_hint=hint,
             reference_group_uuids=reference_group_uuids))
         programming.requests(parent,child,dict(poses=actual,selected_programming_resistors=programming_resistors,
-            board_hint=hint,reference_group_uuids=reference_group_uuids))
+            board_hint=hint,reference_group_uuids=reference_group_uuids,**stage_options))
         series_link.requests(parent,child,dict(poses=actual,selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         signal_bias.requests(parent,child,dict(poses=actual,selected_signal_bias_resistors=bias_resistors,
@@ -683,7 +689,9 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         families=[force._family(p,board_hint) for p in paths];epoch=force._code_identity()
         deadline=time.monotonic()+timeout_s
         parent,child=[pcbnew.LoadBoard(str(p)) for p in paths]
-        poses,moved=_poses(parent,child,board_hint,reference_group_uuids)
+        poses,moved=_poses(parent,child,board_hint,reference_group_uuids,
+            **(dict(allow_linear_power_stage_reconstruction=True)
+                if allow_linear_power_stage_reconstruction else {}))
         plan=escape.prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
             allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
             allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,

@@ -436,7 +436,8 @@ def _ground_boundary_typer(parent,transport,proposal,deadline):
             if programming_context is None:
                 programming_context=programming.plan(parent,proposal['poses'],board_hint=proposal['board_hint'],
                     reference_group_uuids=proposal.get('reference_group_uuids',()),
-                    timeout_s=min(10.,max(.001,deadline-time.monotonic())))
+                    timeout_s=min(10.,max(.001,deadline-time.monotonic())),
+                    **programming.replay_options(proposal))
             fresh=programming_context
             if fresh!=proposal['selected_programming_resistors']:
                 raise ValueError('fresh_programming_resistor_Ground_boundary_authority_required')

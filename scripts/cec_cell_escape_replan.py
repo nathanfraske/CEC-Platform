@@ -175,7 +175,9 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         reference_group_uuids=reference_group_uuids)
     import cec_programming_resistor_placement as programming
     programming_resistors=programming.plan(board,poses,board_hint=board_hint,
-        reference_group_uuids=reference_group_uuids)
+        reference_group_uuids=reference_group_uuids,
+        **(dict(allow_linear_power_stage_reconstruction=True)
+            if allow_linear_power_stage_reconstruction else {}))
     programming_refs=programming.participant_refs(programming_resistors)
     import cec_source_series_link_placement as series_link
     series_links=series_link.plan(board,poses,board_hint=board_hint,reference_group_uuids=reference_group_uuids)
@@ -208,8 +210,32 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         # A separate positive Source role, never a low-power-device alias.
         # This replays every existing input AND output current domain; it
         # grants no cuts, barrels, placement, route or current authority.
-        linear_stages=linear_stage.collect(board,poses,board_hint=board_hint,
-            reference_group_uuids=reference_group_uuids,enabled=True)
+        # A coherent programming follower has JUST rederived its complete
+        # owner/current identity in this invocation. Reuse that result, not
+        # a caller packet or persisted pass. Repeating the same canonical
+        # export/current scan here spent the entire bounded ownership lease.
+        for item in programming_resistors.values():
+            motion=item.get('coherent_owner_motion')
+            if motion is None:continue
+            ref=item['control_owner'];proof=motion['source_linear_stage']
+            if ref in linear_stages and linear_stages[ref]!=proof:
+                raise ValueError('inconsistent_fresh_coherent_programming_stage_identity')
+            linear_stages[ref]=proof
+        unproved=False
+        for ref,target in poses.items():
+            fp=board.FindFootprintByReference(ref)
+            model=roles.footprint_contract(fp)if fp is not None else None
+            if (model and set(model['pins'].values())&{'power_output','switch','feedback'}
+                    and (tuple(fp.GetPosition())!=tuple(round(v*1e6)for v in target[:2])
+                        or (fp.GetOrientationDegrees()-target[2])%360!=0)
+                    and ref not in linear_stages):
+                unproved=True
+        if not linear_stages or unproved:
+            fresh=linear_stage.collect(board,poses,board_hint=board_hint,
+                reference_group_uuids=reference_group_uuids,enabled=True)
+            if any(fresh.get(ref)!=proof for ref,proof in linear_stages.items()):
+                raise ValueError('fresh_coherent_programming_stage_replay_changed')
+            linear_stages=fresh
     # A wired bypass may slide without cutting any Source metal. This is a
     # separate positive tier, NOT a relaxed unwired/projected-return test:
     # every original surface contact and every independent full-width

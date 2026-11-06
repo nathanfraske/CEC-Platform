@@ -155,6 +155,14 @@ _OPERATIONS.append(dict(type="object",
         allow_locked_transport_uuids=dict(type="array",items=dict(type="string"),maxItems=128,uniqueItems=True)),
     required=[*_old_cell["required"], "native_macro", "allow_locked_transport_uuids"], additionalProperties=False))
 
+# Explicit existing stage-role opt-in; preserve both original closed schemas.
+for _cell_variant in (_old_cell, _OPERATIONS[-1]):
+    _OPERATIONS.append(dict(type="object",
+        properties=dict(_cell_variant["properties"],
+            allow_linear_power_stage_reconstruction=dict(type="boolean")),
+        required=[*_cell_variant["required"], "allow_linear_power_stage_reconstruction"],
+        additionalProperties=False))
+
 TOOL_PARAMETERS = {
     "boards": {},
     "inspect": {
@@ -206,6 +214,7 @@ TOOL_PARAMETERS = {
     },
     "plan_cell": {
         "board": dict(type="string"),
+        "allow_linear_power_stage_reconstruction": dict(type="boolean"),
         "poses": _POSES,
         "reference_group_uuids": dict(type="array", items=dict(type="string", minLength=1), maxItems=8, uniqueItems=True),
         "allow_locked_footprint_uuids": _UIDS,

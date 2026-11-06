@@ -33,7 +33,8 @@ def _positive_signal_terminal(parent, proposal, pad, deadline, cache):
             raise ValueError('source_boundary_composition_deadline')
         fresh = programming.plan(parent, proposal['poses'], board_hint=proposal['board_hint'],
             timeout_s=min(10., remaining),
-            reference_group_uuids=proposal.get('reference_group_uuids', ()))
+            reference_group_uuids=proposal.get('reference_group_uuids', ()),
+            **programming.replay_options(proposal))
         if fresh != selected:
             raise ValueError('source_boundary_programming_owner_changed')
         cache['programming'] = fresh

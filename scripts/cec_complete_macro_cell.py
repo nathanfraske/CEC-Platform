@@ -272,8 +272,10 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         epoch=force._code_identity();families=[force._family(p,board_hint) for p in paths]
         parent,child=[pcbnew.LoadBoard(str(p)) for p in paths]
         if selection_budgets is None:
-            poses,moved=(cell._poses(parent,child,board_hint,reference_group_uuids)
-                if reference_group_uuids else cell._poses(parent,child,board_hint))
+            stage_options=(dict(allow_linear_power_stage_reconstruction=True)
+                           if allow_linear_power_stage_reconstruction else {})
+            poses,moved=(cell._poses(parent,child,board_hint,reference_group_uuids,**stage_options)
+                if reference_group_uuids else cell._poses(parent,child,board_hint,**stage_options))
         else:
             stage=selection_stages[0];lease.advance(stage)
             def observe_selection(event):
@@ -283,7 +285,9 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
                 lease.remaining()
             with cell.observe_pose_selection_phases(observe_selection):
                 poses,moved=cell._poses(parent,child,board_hint,reference_group_uuids,
-                    phase_timeouts_s=selection_budgets)
+                    phase_timeouts_s=selection_budgets,
+                    **(dict(allow_linear_power_stage_reconstruction=True)
+                        if allow_linear_power_stage_reconstruction else {}))
         lease.advance(compile_stages[0])
         stage=compile_stages[0]
         def compile_source():

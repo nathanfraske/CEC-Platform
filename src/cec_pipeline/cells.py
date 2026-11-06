@@ -18,6 +18,12 @@ from .legacy import bootstrap
 bootstrap()
 
 
+def linear_stage_option(operation):
+    value = operation.get("allow_linear_power_stage_reconstruction", False)
+    require(type(value) is bool, "explicit_linear_power_stage_boolean_required")
+    return value
+
+
 def normalize_poses(values, *, limit=8):
     require(type(limit) is int and 1 <= limit <= 32, "bounded_pose_inventory_required")
     require(
@@ -45,6 +51,7 @@ def normalize_poses(values, *, limit=8):
 def plan(board, operation, board_hint):
     import cec_cell_escape_replan as escape
 
+    linear_stage = linear_stage_option(operation)
     uid = lambda item: str(item.m_Uuid.AsString())
     poses = normalize_poses(operation["poses"])
     footprints = {fp.GetReference(): fp for fp in board.GetFootprints()}
@@ -98,6 +105,7 @@ def plan(board, operation, board_hint):
         allow_owned_locked_escapes=bool(track_allow),
         rebuild_projected_ground=False,
         reference_group_uuids=reference_groups,
+        allow_linear_power_stage_reconstruction=linear_stage,
     )
     retired = set(proposal["retired_track_uuids"])
     tracks = {uid(item): item for item in board.GetTracks()}
@@ -252,6 +260,7 @@ def _emit_connections(board, routes, vias, *, identity):
 def construct(board, operation, *, board_hint, request):
     import cec_cell_escape_replan as escape
 
+    linear_stage_option(operation)
     require(
         not operation.get("vias"),
         "new_barrels_require_add_connections_before_connected_pose_reconstruction",
@@ -270,6 +279,7 @@ def construct(board, operation, *, board_hint, request):
             "reference_group_uuids",
             "native_macro",
             "allow_locked_transport_uuids",
+            "allow_linear_power_stage_reconstruction",
         }
         and {
             "kind",
@@ -332,6 +342,7 @@ def compile_macro(board, operation, board_hint, *, enforce_locks=True):
     import cec_force_current as force
     import pcbnew
     import cec_cell_row_rebuild as row
+    linear_stage = linear_stage_option(operation)
     require(row._source_binding(board)==row._source_binding(
         pcbnew.LoadBoard(str(board.GetFileName()))), "native_macro_requires_exact_saved_source")
     poses = normalize_poses(operation["poses"])
@@ -355,7 +366,8 @@ def compile_macro(board, operation, board_hint, *, enforce_locks=True):
         # choose a different ownership model by being empty/nonempty.
         timeout_s=10., allow_owned_locked_escapes=True,
         reference_group_uuids=operation.get("reference_group_uuids", ()),
-        compilation_phase_timeouts_s=(10.,)*8)
+        compilation_phase_timeouts_s=(10.,)*8,
+        allow_linear_power_stage_reconstruction=linear_stage)
     require(packet.get("schema") == 1 and packet.get("scope") ==
             "source_typed_complete_native_macro_requests", "typed_native_macro_packet_required")
     old = {force._uid(t): native._track(board,t) for t in board.GetTracks()}
@@ -427,6 +439,7 @@ def receive_macro(source, candidate, operation, record, board_hint):
     """Receipt claims cannot replace fresh compiler and independent receiving."""
     import pcbnew
     import cec_complete_macro_cell as receiving
+    linear_stage = linear_stage_option(operation)
     require(operation.get("native_macro") is True, "explicit_native_macro_mode_required")
     _, packet, transported = compile_macro(pcbnew.LoadBoard(str(source)), operation, board_hint)
     require(record.get("native_macro_packet_version") == 1
@@ -439,4 +452,5 @@ def receive_macro(source, candidate, operation, record, board_hint):
         reference_group_uuids=operation.get("reference_group_uuids",()),
         compilation_phase_timeouts_s=(10.,)*8,
         native_pose_phase_timeouts_s=(10.,)*3,
-        pose_selection_phase_timeouts_s=(10.,)*4)
+        pose_selection_phase_timeouts_s=(10.,)*4,
+        allow_linear_power_stage_reconstruction=linear_stage)

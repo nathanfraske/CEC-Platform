@@ -31,7 +31,8 @@ def derive(parent,posed,proposal,requests,*,timeout_s=10.):
         import cec_programming_resistor_placement as programming
         actual=programming.plan(parent,proposal['poses'],board_hint=proposal['board_hint'],
             reference_group_uuids=proposal.get('reference_group_uuids',()),
-            timeout_s=min(10.,max(.001,deadline-time.monotonic())))
+            timeout_s=min(10.,max(.001,deadline-time.monotonic())),
+            **programming.replay_options(proposal))
         programming_by_pad={q['ground_pad_uuid']:q for q in actual.values()}
         if by_pad.keys()&programming_by_pad.keys():raise ValueError('disjoint_Source_control_return_roles_required')
     lands=[{force._uid(p):p for f in b.GetFootprints()for p in f.Pads()}for b in(parent,posed)]
