@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "scope": "Read-only layout-investment decision bound to current best closed pair; not a trim/copper/current admission",
+  "carrier_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "fresh_native_measurement": "experiments/busbars/part-model-20261106/stack-envelope-potential.json",
+  "before_mm": {"carrier_laminate": [78, 87.5], "stack_laminate_bounds": [0, 0, 86.49, 87.5], "declared_body_plus_laminate_bounds": [0, -1.295, 89.585, 91.795], "declared_body_plus_laminate_size": [89.585, 93.09]},
+  "conditional_best_case_for_carrier_left_trim_only_mm": {"declared_size": [87.585, 93.09], "delta": [2, 0], "bounding_area_saved_mm2": 186.18, "bounding_area_saved_percent": 2.2325166043422606, "actual_native_carrier_area_removed_mm2": 172.3287426857114},
+  "why_saving_is_not_zero": "The carrier's existing left laminate edge at carrierX0 is the present whole declared stack minimum. The unchanged reflected cover starts atX2. Therefore removing the carrier's complete2mm left strip can genuinely move the stack's left bound from0 to2, even though the cover connectors fix the opposite side. It is not merely an isolated board-width improvement.",
+  "hard_bound_for_unchanged_cover_and_bodies": "Exactly2mm maximum additional declared stackX reduction from this carrier-only left-corridor operation. Trimming carrier farther cannot improve globalX: reflected cover laminate remains atX2. Next declared body is coverC1 atX2.85, but the existing cover laminate reaches farther left and cannot be ignored.",
+  "limiting_objects": {
+    "left_after_carrier_trim": "Unchanged cover laminate at carrierX2; fixed transform[-1,0,0,1,86,9.8]",
+    "right": "HubJ2/J3/J5 declared courtyards at carrierX89.585",
+    "top": "ATXTB1/TB2/etc declared courtyards atY-1.295",
+    "bottom": "ATXJ3 declared body/courtyard atY91.795",
+    "Y_saving": "Zero for this bar/left-trim topology. The bottom12V loop and carrierPCB bottom are inside the unchanged J3 body envelope."
+  },
+  "local_geometry_work_remaining": [
+    "Full left12V rated-bus retirement, not just a lower-loop cut; all original source terminals and Kelvin topology must be restored through actual declared bar transport",
+    "Prospective MJP feet(30.6,41.5)/(30.6,66.9) have only nominal screening evidence, not an accepted native current path; six small owners and foreign rated5V land copper require source-owned reconstruction",
+    "Existing native tracks/vias other than12V do not reach left ofX2.3, but Ground fills and any other outline-intersecting geometry still require exact trim receiving; no physical cut is authorized by this dimensional bound"
+  ],
+  "qualification_and_cost_limits": [
+    "Current guard deliberately refuses unmodelled native jumper transport. Bar plus two solder joints and the source-owned layer-access/stubs need independent current/thermal evidence",
+    "Manufacturer's1.8mm underside/2.3mm top are nominal; complete assembledZ-neutral status is unproved without guaranteed part/seating/solder bounds",
+    "Verified direct seller minimum is a700 reel or1000 bulk pack, not a verified100-piece purchase; assembler acceptance/fees remain unresolved",
+    "Declared envelope includes native courtyards/design allocations, not all supplier-guaranteed body maxima. External plugs/cables, global hardware extents, housing and service access are excluded; no guaranteed complete-product2mm saving follows"
+  ],
+  "decision": "The topology has a real but modest conditional2mmX/0mmY upside, about2.23% of this declared bounding area. It cannot produce a larger stack-compaction result without additionally changing the cover/connector boundaries. Finish the reusable safe constructor, but evaluate further layout/qualification effort against this2mm ceiling rather than treating carrier width alone as the goal. No new stack reduction has yet been demonstrated.",
+  "existing_related_evidence": ["docs/evidence/20261105-bottom-compaction/vertical-mjp-prospective-decision.json", "docs/evidence/20261105-bottom-compaction/vertical-mjp-native-scout.json", "docs/evidence/20261106-mjp-part-qualification.json", "experiments/busbars/part-model-20261106/integration-proposal.json", "experiments/busbars/part-model-20261106/transport-guard-receipt.json"],
+  "demonstrated_additional_stack_reduction_mm": [0, 0],
+  "source_boards_changed": false,
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "release_authority": false
+}
