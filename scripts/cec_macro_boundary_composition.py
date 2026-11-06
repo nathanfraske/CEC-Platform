@@ -14,6 +14,125 @@ import cec_force_current as force
 import cec_ordinary_route_receiving as ordinary
 
 
+def _positive_signal_terminal(parent, proposal, pad, deadline, cache):
+    """Reprove an IC signal or a selected programming passive's NODE only."""
+    fp = pad.GetParentFootprint()
+    contract = roles.footprint_contract(fp)
+    if (contract and contract == proposal.get('device_contracts', {}).get(fp.GetReference())
+            and set(p.GetNumber() for p in fp.Pads()) == set(contract['pins'])
+            and contract['pins'].get(pad.GetNumber()) in
+                ('signal_input','signal_output','signal_io','address','enable','reset','mode')):
+        return True
+    selected = proposal.get('selected_programming_resistors', {})
+    if not selected:
+        return False
+    if 'programming' not in cache:
+        import cec_programming_resistor_placement as programming
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ValueError('source_boundary_composition_deadline')
+        fresh = programming.plan(parent, proposal['poses'], board_hint=proposal['board_hint'],
+            timeout_s=min(10., remaining),
+            reference_group_uuids=proposal.get('reference_group_uuids', ()))
+        if fresh != selected:
+            raise ValueError('source_boundary_programming_owner_changed')
+        cache['programming'] = fresh
+    for item in cache['programming'].values():
+        nodes = {item['signal_pad_uuid']}
+        divider = item.get('source_monitor_divider', {})
+        if divider.get('upper_motion') is True:
+            nodes.add(divider['upper_node_pad_uuid'])
+        if force._uid(pad) in nodes and pad.GetNetname() == item['net']:
+            return True
+    return False
+
+
+def _compose_base_pairs(parent, source, proposal, requests, extras, deadline, cache):
+    """Replace two already-owned stubs' anonymous join by their real ports.
+
+    The native cut-component receiver below inventories ALL surviving copper
+    contacts. This does not discard a bend that still meets a pad, via, zone,
+    or third trace: that contact remains a mandatory component port. No new
+    source cut, width, lock permission, or current authority is introduced.
+    """
+    tracks = {force._uid(t): t for t in parent.GetTracks()}
+    pads = {force._uid(p): p for f in parent.GetFootprints() for p in f.Pads()}
+    base = set(proposal['retired_track_uuids'])
+    extra_ids = {r['change']['uuid'] for r in extras}
+    groups = {}
+    for key, request in requests.items():
+        uid = key[len('boundary:'):] if key.startswith('boundary:') else ''
+        if uid not in base or uid in extra_ids or request.get('kind') != 'source_boundary':
+            continue
+        for side, other in (('a', 'b'), ('b', 'a')):
+            node, end = request.get(side, {}), request.get(other, {})
+            if (set(node) != {'at_nm', 'layers'} or not end.get('pad_uuid')
+                    or type(node['at_nm']) not in (list, tuple) or len(node['at_nm']) != 2
+                    or any(type(n) is not int for n in node['at_nm'])
+                    or type(node['layers']) not in (list, tuple) or len(node['layers']) != 1):
+                continue
+            group = (request.get('net'), tuple(node['layers']), tuple(node['at_nm']))
+            groups.setdefault(group, []).append((key, uid, request, end))
+    remaining = copy.deepcopy(requests); result = copy.deepcopy(extras); composed = []
+    eligible = None
+    for (net, layers, point), entries in groups.items():
+        if len(entries) != 2 or len({e[1] for e in entries}) != 2:
+            continue
+        if time.monotonic() >= deadline:
+            raise ValueError('source_boundary_composition_deadline')
+        if eligible is None:
+            eligible = ordinary.eligible_nets(parent, source, proposal['board_hint'])
+        if net == 'GND' or net not in eligible:
+            continue
+        face = layers[0]
+        for key, uid, request, end in entries:
+            edge, pad = tracks.get(uid), pads.get(end['pad_uuid'])
+            if (edge is None or pad is None or edge.GetClass() != 'PCB_TRACK'
+                    or edge.GetNetname() != net or pad.GetNetname() != net
+                    or edge.GetLayer() != face or end.get('layers') != list(layers)
+                    or not pad.IsOnLayer(face) or pad.HasHole()
+                    or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD
+                    or pad.GetParentFootprint().GetReference() not in proposal['poses']
+                    or edge.GetParentGroup() is not None or edge.HasSolderMask()
+                    or not 0 < edge.GetWidth() <= 350000
+                    or not 0 < edge.GetLength() <= 8000000
+                    # The source producer uses the literal old width. A wider
+                    # demand cannot be replaced by a narrower native component.
+                    or type(request.get('width_nm')) is not int
+                    or request['width_nm'] != edge.GetWidth()):
+                raise ValueError('positive_existing_ordinary_base_pair_required')
+            ends = (tuple(edge.GetStart()), tuple(edge.GetEnd()))
+            if point not in ends or ends[0] == ends[1]:
+                raise ValueError('literal_owned_base_pair_endpoint_required')
+            other = ends[1] if point == ends[0] else ends[0]
+            if not pad.GetEffectiveShape(face).Collide(pcbnew.VECTOR2I(*other), 0):
+                raise ValueError('actual_base_pair_source_pad_contact_required')
+            if not _positive_signal_terminal(parent, proposal, pad, deadline, cache):
+                raise ValueError('source_boundary_positive_manufacturer_signal_terminal_required')
+        # Both original demands are replaced, never silently dropped. The
+        # existing cut-component builder projects source contacts to the
+        # actual moved pads and retains any third contact at this old join.
+        for key, uid, request, end in entries:
+            edge = tracks[uid]
+            proof = dict(source_base_boundary_uuid=uid,
+                original_base_pair_uuids=sorted(e[1] for e in entries),
+                original_internal_join_nm=list(point), original_pad_uuid=end['pad_uuid'],
+                base_edge_was_already_positively_retired=True,
+                no_additional_source_edge_retired=True,
+                actual_native_component_ports_still_independently_required=True)
+            result.append(dict(change=dict(uuid=uid, net=net,
+                source_nm=[list(edge.GetStart()), list(edge.GetEnd())]),
+                authority=dict(kind='positive_source_ordinary', native_source_uuid=uid),
+                source_base_boundary_composition=proof))
+            composed.append(dict(original_request_id=key, original_request=copy.deepcopy(request),
+                required_replacement_request_id='macro_boundary:'+uid,
+                source_base_boundary_composition=True, source_base_boundary_uuid=uid,
+                source_composition_proof=proof,
+                exact_source_edge_endpoint_obligation_composed_not_omitted=True))
+            del remaining[key]
+    return remaining, result, composed
+
+
 def compose_rated_forks(parent,source,proposal,extras,retired,*,deadline):
     """Compose an already-owned full-current fork and its already-cut port.
 
@@ -139,9 +258,11 @@ def compose(parent,source,proposal,requests,extras,*,deadline):
     tracks={force._uid(t):t for t in parent.GetTracks()}
     pads={force._uid(p):p for f in parent.GetFootprints() for p in f.Pads()}
     base=set(proposal['retired_track_uuids'])
+    cache={}
+    requests,extras,base_pairs=_compose_base_pairs(parent,source,proposal,requests,extras,deadline,cache)
     by_id={r['change']['uuid']:r for r in extras}
     if len(by_id)!=len(extras):raise ValueError('unique_original_extra_boundary_scope_required')
-    eligible=None;remaining={};composed=[];result=copy.deepcopy(extras)
+    eligible=None;remaining={};composed=base_pairs;result=copy.deepcopy(extras)
     for key,request in requests.items():
         if time.monotonic()>=deadline:raise ValueError('source_boundary_composition_deadline')
         targets=request.get('b',{}).get('native_uuids',[])
@@ -161,15 +282,12 @@ def compose(parent,source,proposal,requests,extras,*,deadline):
                 or stub.GetNetname()!=request['net'] or stub.GetLayer()!=peer.GetLayer()
                 or stub.GetParentGroup() is not None or stub.HasSolderMask()
                 or not 0<stub.GetWidth()<=350000 or not 0<stub.GetLength()<=8000000
-                or request['width_nm']<stub.GetWidth() or pad.HasHole()
+                or type(request.get('width_nm')) is not int
+                or request['width_nm']!=stub.GetWidth() or pad.HasHole()
                 or pad.GetAttribute()!=pcbnew.PAD_ATTRIB_SMD
                 or pad.GetParentFootprint().GetReference() not in proposal['poses']):
             raise ValueError('positive_existing_ordinary_base_boundary_required')
-        fp=pad.GetParentFootprint();contract=roles.footprint_contract(fp)
-        if (not contract or contract!=proposal['device_contracts'].get(fp.GetReference())
-                or set(p.GetNumber() for p in fp.Pads())!=set(contract['pins'])
-                or contract['pins'].get(pad.GetNumber()) not in
-                    ('signal_input','signal_output','signal_io','address','enable','reset','mode')):
+        if not _positive_signal_terminal(parent,proposal,pad,deadline,cache):
             raise ValueError('source_boundary_positive_manufacturer_signal_terminal_required')
         face=int(stub.GetLayer());at=request['b'].get('at_nm')
         if (type(at) not in (list,tuple) or len(at)!=2 or any(type(n) is not int for n in at)

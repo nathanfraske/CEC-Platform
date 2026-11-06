@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "scope": "NO_CUT_NATIVE_DERIVED_BOUNDARY_PACKET_IDENTITY_ONLY_NOT_ROLE_PLACEMENT_OR_ROUTING_RECEIVING",
+  "historical_role_receipt": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/cross-board-replay.json",
+    "sha256": "1b571ab3e737325883dd32f597cf5785c3eeed7b4f3d3376bef4f0e8aaa33863",
+    "preserved": true
+  },
+  "code": {
+    "path": "/home/codex/src/CEC-Platform/scripts/cec_macro_boundary_composition.py",
+    "sha256": "d8f3ddec615a033ff0599aeec690543ba325331c8ae5ccdf59964407b8409a7c"
+  },
+  "rows": [
+    {
+      "board": "12vhpwr-standard",
+      "source_sha256": "92c6924b69b93b1280128d3e551e9a244f9c13a75bae73fc61221abc680cf631",
+      "native_thin_track_boundaries": 1087,
+      "batches": 17,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.5654467819986166
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "source_sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+      "native_thin_track_boundaries": 1676,
+      "batches": 27,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 1.1715630800026702
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "source_sha256": "949f6204126b25902553d5558702292f345ed68a6135a65ab61e63e2a315de30",
+      "native_thin_track_boundaries": 459,
+      "batches": 8,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.1984042780022719
+    },
+    {
+      "board": "hub-standard-rev2",
+      "source_sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+      "native_thin_track_boundaries": 767,
+      "batches": 12,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.3702034369998728
+    },
+    {
+      "board": "output-daughterboards--atx24-out-db",
+      "source_sha256": "97f78fdd4039c6b3c2f2c801d1affed86be80bce1d73f641591b507f93c36204",
+      "native_thin_track_boundaries": 18,
+      "batches": 1,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.0057659650046844035
+    },
+    {
+      "board": "output-daughterboards--eps-out-db",
+      "source_sha256": "a6cee74a84dcd493fec62cd9791ca35fb330be92f26a155af70b625838a4fc78",
+      "native_thin_track_boundaries": 0,
+      "batches": 0,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.0014163510059006512
+    },
+    {
+      "board": "output-daughterboards--pcie-out-db",
+      "source_sha256": "ea12d133262dfd18551d38a5e31a9551de11026b904937c9f396871573247ea1",
+      "native_thin_track_boundaries": 0,
+      "batches": 0,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.00048660999891581014
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "source_sha256": "cfb92ab09702a5999846de3eb2f25624c4090092f6b75602fb86138c09648595",
+      "native_thin_track_boundaries": 501,
+      "batches": 8,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.1715863029967295
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "source_sha256": "7b237c22df8f4e5f43c53061447a2d804d7d4bf911b6ab11c5b67c78b51c5767",
+      "native_thin_track_boundaries": 561,
+      "batches": 9,
+      "exact_no_cut_packet_parity": true,
+      "no_authority_or_additional_cuts": true,
+      "source_file_and_RAM_unchanged": true,
+      "elapsed_s": 0.2515471750011784
+    }
+  ],
+  "boards": 9,
+  "native_boundaries": 5069,
+  "limitations": "These packets use literal native endpoints/layers/widths with an EMPTY retired set and no poses. This proves inert behavior when no Source base pair is owned; it does not recompile placements or qualify new ordinary cuts. Positive programming-node rotation/face/contact preservation is separately exercised by existing synthetic tests.",
+  "source_boards_or_selector_modified": false
+}
