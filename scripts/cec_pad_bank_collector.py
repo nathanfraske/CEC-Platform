@@ -5,6 +5,8 @@ retires conductors, changes a current contract, or grants release authority.
 The envelope is derived from explicit native pads and retained source tracks.
 Foreign copper and material constraints are checked before construction and
 again after a native fill and saved-board replay. No renderer-only copper.
+Sources must be an exact cardinal row or complete Cartesian pad grid; nearby
+or almost-aligned pads do not authorize filling their bounding rectangle.
 """
 from __future__ import annotations
 
@@ -81,10 +83,10 @@ def _geometry(board, pad_uuids, track_uuids, layer, policy, deadline):
                    or p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH for p in selected)):
         raise Refused("same_actual_net_and_enabled_pad_bank_layer_required")
     centers = [tuple(p.GetPosition()) for p in selected]
+    xs, ys = {p[0] for p in centers}, {p[1] for p in centers}
     if (len(set(centers)) != len(centers)
-            or not (len({p[0] for p in centers}) == 1
-                    or len({p[1] for p in centers}) == 1)):
-        raise Refused("distinct_cardinal_native_pad_row_required")
+            or set(centers) != {(x,y) for x in xs for y in ys}):
+        raise Refused("distinct_cardinal_native_pad_row_or_complete_grid_required")
     shapes = [_pad_shape(p, layer) for p in selected]
     rows = [owner._track_row(tracks[u]) for u in sorted(track_uuids)]
     if any(r["kind"] != "PCB_TRACK" or r["net"] != net or r["layer_id"] != layer

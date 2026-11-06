@@ -172,7 +172,9 @@ guides from printed silk; references and functional markings are preserved.
   chain; every branch contact must still survive saved native receiving.
   Omitting a short redundant tail must not leave a dangling remnant.
 * `bank_collector`: literal same-net pad-bank collector with solid actual
-  saved fill and deliberate chamfers. Original pads and support conductors
+  saved fill and deliberate chamfers. Explicit native pads must form an exact
+  cardinal row or complete Cartesian grid; incomplete/jittered grids and
+  foreign interior copper are refused. Original pads and support conductors
   remain. Its outline does not create a new current rating.
 * `ground_plane_extension`: extend one exact existing Ground-zone outline,
   retaining its layers, settings, holes and all other native objects. Actual
