@@ -1,0 +1,5524 @@
+{
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "nets": {
+    "+5VSB": {
+      "pads": [
+        {
+          "ref": "C55",
+          "pin": "1",
+          "value": "10uF",
+          "xy_mm": [
+            18.5,
+            48.0
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "9",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            26.749999,
+            77.4
+          ]
+        },
+        {
+          "ref": "U13",
+          "pin": "10",
+          "value": "INA238",
+          "xy_mm": [
+            35.2,
+            48.7
+          ]
+        },
+        {
+          "ref": "C54",
+          "pin": "1",
+          "value": "100nF",
+          "xy_mm": [
+            16.92499,
+            47.725001
+          ]
+        },
+        {
+          "ref": "R57",
+          "pin": "1",
+          "value": "100k\u03a9",
+          "xy_mm": [
+            29.11,
+            58.7
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "7",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.67499,
+            47.775001
+          ]
+        },
+        {
+          "ref": "R55",
+          "pin": "1",
+          "value": "43.2k\u03a9",
+          "xy_mm": [
+            27.2,
+            57.21
+          ]
+        },
+        {
+          "ref": "U65VSB1",
+          "pin": "3",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            43.15,
+            48.8
+          ]
+        },
+        {
+          "ref": "RS4",
+          "pin": "1",
+          "value": "R025",
+          "xy_mm": [
+            38.2,
+            50.4625
+          ]
+        }
+      ],
+      "tracks": []
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX": {
+      "pads": [
+        {
+          "ref": "C20",
+          "pin": "1",
+          "value": "100nF",
+          "xy_mm": [
+            33.747099,
+            65.642202
+          ]
+        },
+        {
+          "ref": "C21",
+          "pin": "1",
+          "value": "10uF",
+          "xy_mm": [
+            26.79999,
+            54.500002
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "1",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.32499,
+            47.075002
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "8",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.67499,
+            47.075002
+          ]
+        },
+        {
+          "ref": "U5",
+          "pin": "2",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            34.9471,
+            64.642202
+          ]
+        },
+        {
+          "ref": "C27",
+          "pin": "1",
+          "value": "100nF",
+          "xy_mm": [
+            13.04399,
+            45.8
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "08cc0362-f176-4c56-940a-efe92299b427",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            34.3,
+            65.142202
+          ],
+          "end_mm": [
+            33.947099,
+            65.495103
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "25af80be-a846-4aaa-befb-f3d5e34304aa",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            34.3,
+            65.501042
+          ],
+          "end_mm": [
+            34.3,
+            65.115001
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3b391743-cec6-400d-86f0-47b4ef93a289",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.04399,
+            46.355002
+          ],
+          "end_mm": [
+            13.04399,
+            46.55
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3c727d42-09c5-4472-bc34-3db5bae025f8",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.317675,
+            53.0
+          ],
+          "end_mm": [
+            25.317675,
+            53.500002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3cc66a37-7f3c-453e-8255-8dcd2dfde323",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            34.7,
+            64.742202
+          ],
+          "end_mm": [
+            34.3,
+            65.142202
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3d10dcca-a3a9-45b4-b640-3a15a4595b8b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            26.799992,
+            54.5
+          ],
+          "end_mm": [
+            26.79999,
+            54.500002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "42e97862-3ac2-4df5-9462-74ae10a43379",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.434365,
+            54.187502
+          ],
+          "end_mm": [
+            27.703115,
+            54.187502
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "432254fb-87c7-5e2c-a2ec-4861176c1f6a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.04399,
+            46.55
+          ],
+          "end_mm": [
+            13.443988,
+            46.949998
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "4563a2e7-1abe-4de4-9f3d-f6ad5ca5bfcd",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            33.947099,
+            65.495103
+          ],
+          "end_mm": [
+            33.947099,
+            65.642202
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "48082e21-4c1b-5ca4-8132-bd72552fe017",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.443988,
+            46.949998
+          ],
+          "end_mm": [
+            13.865615,
+            46.949998
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "81306663-47eb-4aee-8287-25d2af59deff",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            35.0,
+            58.5
+          ],
+          "end_mm": [
+            37.0,
+            56.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "922a42a7-206c-4861-9905-673eb7550b7f",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            33.7495,
+            65.642202
+          ],
+          "end_mm": [
+            33.7495,
+            65.662202
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b0330345-d48a-43d2-8a09-10d2be239d00",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            33.947099,
+            65.642202
+          ],
+          "end_mm": [
+            34.15884,
+            65.642202
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "be2bc496-6db7-40e3-babd-e593734b2a9e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.317675,
+            53.500002
+          ],
+          "end_mm": [
+            26.317675,
+            54.500002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "be46e0bf-92ad-432d-bae7-80004c1e0091",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            34.15884,
+            65.642202
+          ],
+          "end_mm": [
+            34.3,
+            65.501042
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "c819a2f7-7d2d-4aec-bb0f-384cd8ac4e40",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.215615,
+            47.000002
+          ],
+          "end_mm": [
+            14.784365,
+            47.000002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "d1174e18-0134-4b39-bc13-21abb26387b0",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            33.947099,
+            65.642202
+          ],
+          "end_mm": [
+            33.7495,
+            65.642202
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "e8423b59-60d2-43af-80d8-87a50896c80d",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.5,
+            54.5
+          ],
+          "end_mm": [
+            26.799992,
+            54.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "eaab5f1d-23eb-4750-8917-9c6e42a6a432",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            28.0,
+            54.0
+          ],
+          "end_mm": [
+            27.5,
+            54.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "ebee51fc-4df1-403e-894e-d5c209ade1f7",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.703115,
+            54.187502
+          ],
+          "end_mm": [
+            27.940615,
+            54.425002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "15ba127e-b3a7-4bfe-aabd-0d615a43a89a",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.317675,
+            53.0
+          ],
+          "end_mm": [
+            25.317675,
+            53.0
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "1be90b56-85b2-4449-8d78-6e32931bc9c0",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            33.7495,
+            65.642202
+          ],
+          "end_mm": [
+            33.7495,
+            65.642202
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.018989,
+            46.525002
+          ],
+          "end_mm": [
+            13.018989,
+            46.525002
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "aa085ce4-86b2-4660-8010-3d1b1689924f",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            28.0,
+            54.0
+          ],
+          "end_mm": [
+            28.0,
+            54.0
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "c06ac6bd-879d-41a0-8f4e-14a2cf66247b",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            35.0,
+            58.5
+          ],
+          "end_mm": [
+            35.0,
+            58.5
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "d25da204-ae0b-423d-9b71-2130db9e2672",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            37.0,
+            56.5
+          ],
+          "end_mm": [
+            37.0,
+            56.5
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "081c0273-c492-4b0a-9707-a250f0db0424",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            32.5,
+            52.5
+          ],
+          "end_mm": [
+            30.5,
+            52.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "0b968fce-74bf-45d8-95ea-85825063b7ef",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            34.5,
+            54.5
+          ],
+          "end_mm": [
+            32.5,
+            52.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "11e23a82-d4c0-40ee-ae43-74d59257b231",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            30.5,
+            52.5
+          ],
+          "end_mm": [
+            29.5,
+            53.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "16f4a372-7623-4c83-a12d-47ca794b6f86",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            13.018989,
+            46.810001
+          ],
+          "end_mm": [
+            13.208988,
+            47.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "1873d69a-9d32-4593-b30f-296e9c4d29d4",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            29.0,
+            53.5
+          ],
+          "end_mm": [
+            28.5,
+            54.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "25bba609-ee8a-4547-9df7-c906cfc0979c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.0,
+            47.0
+          ],
+          "end_mm": [
+            22.0,
+            53.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "273df74f-18f6-4980-8b93-d570a578d2ce",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            29.5,
+            53.5
+          ],
+          "end_mm": [
+            29.0,
+            53.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "27a96430-9818-46a5-8aef-79612b24ef9e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            28.5,
+            54.0
+          ],
+          "end_mm": [
+            28.0,
+            54.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "2b2b5381-814e-4165-949f-e27774b34b5b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            33.8497,
+            64.5
+          ],
+          "end_mm": [
+            33.7495,
+            64.6002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "3a004506-f197-4afb-a848-daccdc2dc832",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            35.5,
+            59.0
+          ],
+          "end_mm": [
+            35.0,
+            58.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "53814c53-4bb9-481f-a4a9-0ef3846a7d07",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            13.018989,
+            46.525002
+          ],
+          "end_mm": [
+            13.018989,
+            46.810001
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "57598e07-197c-412f-89d0-b07235644a5b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            22.0,
+            53.0
+          ],
+          "end_mm": [
+            25.317675,
+            53.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "7953d734-da02-4259-8c4a-d032eac79435",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            34.0,
+            64.5
+          ],
+          "end_mm": [
+            35.5,
+            63.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "8be38614-b74c-4c8a-834a-88517648c4f5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            33.7495,
+            65.642202
+          ],
+          "end_mm": [
+            33.7495,
+            64.6002
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "ce87700c-30d7-439e-b3db-eba7d0ab58d1",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            13.208988,
+            47.0
+          ],
+          "end_mm": [
+            16.0,
+            47.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "d3c0148c-dac0-44ea-b5f7-f1967086bb78",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            35.0,
+            54.5
+          ],
+          "end_mm": [
+            34.5,
+            54.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "e3ba3af2-fb6d-4339-a1de-cd7b9aa8772a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            37.0,
+            56.5
+          ],
+          "end_mm": [
+            35.0,
+            54.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "eef45d4d-1d3b-4da9-b6eb-73d13649ea82",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            35.5,
+            63.0
+          ],
+          "end_mm": [
+            35.5,
+            59.0
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "ffdfd847-ddc8-4344-a856-2e5cb4fcf79e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "B.Cu",
+          "start_mm": [
+            33.8497,
+            64.5
+          ],
+          "end_mm": [
+            34.0,
+            64.5
+          ],
+          "width_nm": 477370,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "5c8ea661-aa1f-5e9f-9c72-a1002a97d0d7",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.04399,
+            45.8
+          ],
+          "end_mm": [
+            13.04399,
+            46.355002
+          ],
+          "width_nm": 477370,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        }
+      ]
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM": {
+      "pads": [
+        {
+          "ref": "R54",
+          "pin": "1",
+          "value": "100k\u03a9",
+          "xy_mm": [
+            12.8,
+            48.115
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "10",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.24999,
+            46.250002
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.24999,
+            45.460004
+          ],
+          "end_mm": [
+            15.309994,
+            45.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.24999,
+            46.250002
+          ],
+          "end_mm": [
+            15.24999,
+            45.460004
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.309994,
+            45.4
+          ],
+          "end_mm": [
+            15.4,
+            45.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.4,
+            45.4
+          ],
+          "end_mm": [
+            15.4,
+            45.4
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            12.6,
+            48.25
+          ],
+          "end_mm": [
+            12.6,
+            48.25
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            12.735,
+            48.115
+          ],
+          "end_mm": [
+            12.6,
+            48.25
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "67076073-bd5d-4048-b454-df5ca6d4fe71",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "SIG2",
+          "start_mm": [
+            15.4,
+            45.4
+          ],
+          "end_mm": [
+            15.4,
+            45.45
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_mm": [
+            12.8,
+            48.115
+          ],
+          "end_mm": [
+            12.735,
+            48.115
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "c73d68b5-5c91-4704-ba04-7bae449aea42",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "SIG2",
+          "start_mm": [
+            15.4,
+            45.45
+          ],
+          "end_mm": [
+            12.6,
+            48.25
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        }
+      ]
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1": {
+      "pads": [
+        {
+          "ref": "R56",
+          "pin": "1",
+          "value": "10k\u03a9",
+          "xy_mm": [
+            29.1,
+            56.19
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "5",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.24999,
+            48.55
+          ]
+        },
+        {
+          "ref": "R55",
+          "pin": "2",
+          "value": "43.2k\u03a9",
+          "xy_mm": [
+            27.2,
+            56.19
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.24999,
+            48.55
+          ],
+          "end_mm": [
+            15.24999,
+            49.1
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.24999,
+            49.1
+          ],
+          "end_mm": [
+            15.24999,
+            49.1
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.2,
+            56.19
+          ],
+          "end_mm": [
+            27.2,
+            56.19
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "b67e0192-c0c8-4519-9d2b-39441ad20578",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "SIG2",
+          "start_mm": [
+            15.24999,
+            49.1
+          ],
+          "end_mm": [
+            23.42499,
+            57.275
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "152dcaa7-3f7f-54ff-9cc0-3230a48a4607",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "SIG2",
+          "start_mm": [
+            27.2,
+            56.19
+          ],
+          "end_mm": [
+            24.50999,
+            56.19
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "65ffe0d6-0b6f-555f-90c7-1c1b831d8e4d",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.2,
+            56.046844
+          ],
+          "end_mm": [
+            27.23,
+            56.016844
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "71abe491-ddce-51bc-ad26-7d09a4f91b78",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.23,
+            56.016844
+          ],
+          "end_mm": [
+            29.07,
+            56.016844
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "9186b3d8-831d-58d5-a424-857f7174fe2a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            29.07,
+            56.016844
+          ],
+          "end_mm": [
+            29.1,
+            56.046844
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "ae1535d8-d7af-500b-904e-cd79832e9a43",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            29.1,
+            56.046844
+          ],
+          "end_mm": [
+            29.1,
+            56.19
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b47ab27a-4262-5fab-9240-98eb1f4b4586",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "SIG2",
+          "start_mm": [
+            24.50999,
+            56.19
+          ],
+          "end_mm": [
+            23.42499,
+            57.275
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "f9dd4073-bf2a-59c8-9e60-0bdf5665efa8",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.2,
+            56.19
+          ],
+          "end_mm": [
+            27.2,
+            56.046844
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        }
+      ]
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1": {
+      "pads": [
+        {
+          "ref": "R58",
+          "pin": "1",
+          "value": "33k\u03a9",
+          "xy_mm": [
+            29.11,
+            59.8
+          ]
+        },
+        {
+          "ref": "R57",
+          "pin": "2",
+          "value": "100k\u03a9",
+          "xy_mm": [
+            28.09,
+            58.7
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "6",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.749991,
+            48.55
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.749991,
+            48.55
+          ],
+          "end_mm": [
+            16.103544,
+            48.903553
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_mm": [
+            16.103544,
+            48.903553
+          ],
+          "end_mm": [
+            16.103544,
+            48.903553
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "73f6f3bc-f537-4a51-b0ee-8a680570afdd",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_mm": [
+            29.11,
+            59.8
+          ],
+          "end_mm": [
+            29.11,
+            59.8
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "5c26b33c-1ed7-4ee6-baa7-bb8ef5244c40",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.703544,
+            60.525
+          ],
+          "end_mm": [
+            16.103544,
+            59.925
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "6bae995b-213f-49bb-af9b-7daee096b494",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.703544,
+            60.525
+          ],
+          "end_mm": [
+            28.37499,
+            60.525
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "be78cc58-17f6-41e7-9b89-3cb48aad190a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.103544,
+            48.903553
+          ],
+          "end_mm": [
+            16.103544,
+            59.925
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "d24fa259-efd2-4422-8986-43c0584bdabc",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            28.37499,
+            60.525
+          ],
+          "end_mm": [
+            28.57499,
+            60.325
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "1b04b43b-9af0-5083-bc51-8c73d2068509",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_mm": [
+            29.11,
+            59.72
+          ],
+          "end_mm": [
+            28.09,
+            58.7
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "2b86d942-6da7-5239-a964-6c8554ee07a4",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            28.635,
+            60.325
+          ],
+          "end_mm": [
+            28.57499,
+            60.325
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "4e892786-8c2c-5bd3-a52a-b40c08e170c0",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            29.11,
+            59.8
+          ],
+          "end_mm": [
+            29.11,
+            59.85
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "879d8b6f-25e6-5dd8-9fe1-a08ea89c8a4b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_mm": [
+            29.11,
+            59.8
+          ],
+          "end_mm": [
+            29.11,
+            59.72
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "e8f25e55-f99b-5b8e-92b4-6183daa2d98b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "B.Cu",
+          "start_mm": [
+            29.11,
+            59.85
+          ],
+          "end_mm": [
+            28.635,
+            60.325
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            2
+          ]
+        }
+      ]
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS": {
+      "pads": [
+        {
+          "ref": "U6",
+          "pin": "11",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.74999,
+            46.250002
+          ]
+        },
+        {
+          "ref": "C51",
+          "pin": "1",
+          "value": "2.2uF",
+          "xy_mm": [
+            19.275,
+            50.125
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "0318e59e-3e60-4adb-9594-3edd58a3acf5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.0,
+            44.6
+          ],
+          "end_mm": [
+            15.2,
+            44.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            19.2,
+            51.4
+          ],
+          "end_mm": [
+            19.2,
+            50.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3e971352-53e6-4f3a-984d-f7114935c619",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            22.8,
+            47.4
+          ],
+          "end_mm": [
+            22.8,
+            53.791215
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "472916d1-63df-4c2f-af11-9ec2708db9b9",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.94999,
+            44.6
+          ],
+          "end_mm": [
+            15.0,
+            44.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "52a04a71-84b6-47f0-a167-096b97b1e37a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.54999,
+            45.4
+          ],
+          "end_mm": [
+            14.54999,
+            45.0
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.74999,
+            45.6
+          ],
+          "end_mm": [
+            14.54999,
+            45.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.74999,
+            46.250002
+          ],
+          "end_mm": [
+            14.74999,
+            45.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            19.8,
+            44.4
+          ],
+          "end_mm": [
+            22.8,
+            47.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "bc5b2534-36a3-4c73-b73a-d812fd4aae81",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            19.2,
+            50.2
+          ],
+          "end_mm": [
+            19.275,
+            50.125
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "de8d643b-943d-4a09-9fe0-cdaa540fbd43",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            15.2,
+            44.4
+          ],
+          "end_mm": [
+            19.8,
+            44.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "f2167589-f7c7-47e3-98bb-5a5abd6c42b6",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.54999,
+            45.0
+          ],
+          "end_mm": [
+            14.94999,
+            44.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "094f8d74-39cf-469b-909a-7b38e82679da",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            22.8,
+            53.791215
+          ],
+          "end_mm": [
+            22.8,
+            53.791215
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "d2fedf54-0311-4cc8-a12e-77fc07fd3d4c",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_mm": [
+            19.2,
+            51.4
+          ],
+          "end_mm": [
+            19.2,
+            51.4
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "1ebd24ba-7232-523d-99a5-619aeeef93a0",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "B.Cu",
+          "start_mm": [
+            19.2,
+            51.4
+          ],
+          "end_mm": [
+            21.591215,
+            53.791215
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "a544070f-5835-5d7e-b857-47b0973973bb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "B.Cu",
+          "start_mm": [
+            21.591215,
+            53.791215
+          ],
+          "end_mm": [
+            22.8,
+            53.791215
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        }
+      ]
+    },
+    "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS": {
+      "pads": [
+        {
+          "ref": "C9",
+          "pin": "1",
+          "value": "10uF",
+          "xy_mm": [
+            11.0,
+            47.05
+          ]
+        },
+        {
+          "ref": "C53",
+          "pin": "1",
+          "value": "10uF",
+          "xy_mm": [
+            24.929989,
+            55.3
+          ]
+        },
+        {
+          "ref": "FB1",
+          "pin": "2",
+          "value": "600R@100MHz FB (MPZ2012S601AT000)",
+          "xy_mm": [
+            67.7222,
+            37.3472
+          ]
+        },
+        {
+          "ref": "C52",
+          "pin": "1",
+          "value": "100nF",
+          "xy_mm": [
+            25.9769,
+            60.743201
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "2",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.32499,
+            47.775001
+          ]
+        }
+      ],
+      "tracks": [
+        {
+          "uuid": "1d05e892-3997-46b1-87ce-d71332df19bf",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.74599,
+            47.871
+          ],
+          "end_mm": [
+            13.7,
+            47.871
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "1d42bfb0-8ab7-445d-bdc0-013c7a6c8a61",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.27124,
+            56.745001
+          ],
+          "end_mm": [
+            25.59124,
+            56.425001
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "1e0f9569-73e3-4380-8d5a-4ad04eb12a99",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.7,
+            47.871
+          ],
+          "end_mm": [
+            13.5,
+            48.071
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "1f641818-cb23-468a-89c2-972ec8449b20",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            65.2,
+            62.6
+          ],
+          "end_mm": [
+            66.55,
+            62.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "21b98b82-dfcb-43e0-92cc-83b52216492a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.929989,
+            55.3
+          ],
+          "end_mm": [
+            24.929989,
+            55.3
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "2cc1ee63-0772-4b10-ab69-41900b5486b5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.646504,
+            60.568201
+          ],
+          "end_mm": [
+            25.27124,
+            60.192937
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "37b10db5-01f5-4df2-b085-c2e135e7e8d5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.5,
+            49.5
+          ],
+          "end_mm": [
+            13.8,
+            49.8
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3c5b0a04-be76-4b10-81d6-47ff87498203",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            77.4,
+            53.2
+          ],
+          "end_mm": [
+            77.2,
+            53.0
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "401365dd-4ace-5b7f-bed1-392f47a32fa9",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            66.85,
+            53.6
+          ],
+          "end_mm": [
+            67.15,
+            53.3
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "4116a2ec-fc34-541c-9fd0-0e390d8e74dd",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            67.15,
+            53.3
+          ],
+          "end_mm": [
+            70.5,
+            53.3
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "43d86c94-ba8a-5d07-9142-9ae3e328aa78",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            70.5,
+            53.3
+          ],
+          "end_mm": [
+            71.4,
+            54.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "453ec525-d8de-4cf7-98ed-fb07c1bc16af",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.5,
+            48.265616
+          ],
+          "end_mm": [
+            13.865615,
+            47.900001
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "4998b173-5936-589a-ad04-e1dfd993e86e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.8,
+            49.8
+          ],
+          "end_mm": [
+            16.45,
+            49.8
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "5ebc89d7-9da7-4960-b7cd-290080367fdb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.88624,
+            56.425001
+          ],
+          "end_mm": [
+            25.59124,
+            56.425001
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "66e504ea-0e39-44fb-8d65-e1a3d376e976",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            64.8,
+            63.21
+          ],
+          "end_mm": [
+            64.66,
+            63.35
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "6a7e564f-4c45-4f9e-a2fd-7c1bc5388ca4",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            77.2,
+            52.4
+          ],
+          "end_mm": [
+            74.64,
+            49.84
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "6dfd341e-806f-45dd-80ce-454b5712bd01",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.88624,
+            56.425001
+          ],
+          "end_mm": [
+            25.88624,
+            58.13624
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "717a069a-aa9c-4282-be7e-58441bae9e4d",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            73.0,
+            50.2
+          ],
+          "end_mm": [
+            72.9,
+            50.1
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "72d05df4-9d14-447c-aecf-8504cb3f09ea",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            64.8,
+            63.0
+          ],
+          "end_mm": [
+            65.2,
+            62.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "7452ca20-87c0-4ddc-9807-051bb7f95c04",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            77.2,
+            53.0
+          ],
+          "end_mm": [
+            77.2,
+            52.4
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "75daf2bc-a7bb-4921-8a22-d01ac70a65d5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            74.16,
+            49.84
+          ],
+          "end_mm": [
+            74.64,
+            49.84
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "7676b71f-4e2a-40e7-b183-9572be582673",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            64.8,
+            63.21
+          ],
+          "end_mm": [
+            64.8,
+            63.0
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "7877805f-20e2-45d1-9678-5f4407fa3a83",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            57.4,
+            63.75
+          ],
+          "end_mm": [
+            57.8,
+            63.35
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "81f7a2ac-97b7-44b8-881a-040f54328db9",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            54.95,
+            63.55
+          ],
+          "end_mm": [
+            55.15,
+            63.35
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "84108845-ed6a-4e4c-9713-e828fa514214",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            67.7222,
+            37.3472
+          ],
+          "end_mm": [
+            67.7222,
+            36.26
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "8582fc99-8502-4d8b-8534-fd0a3123e83e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            56.2,
+            63.35
+          ],
+          "end_mm": [
+            56.6,
+            63.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "8dc49fb6-eb27-4994-9020-50621f513577",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.646504,
+            60.568201
+          ],
+          "end_mm": [
+            26.2094,
+            60.568201
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "961d93fa-8c6e-536f-9106-6448b0540da7",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            66.85,
+            62.3
+          ],
+          "end_mm": [
+            66.85,
+            53.6
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "9b6a45eb-7c7b-420e-8249-3b1aa4738d43",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            54.75,
+            65.25
+          ],
+          "end_mm": [
+            54.75,
+            63.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "aec904f9-f4a2-4f54-bf58-108ece0c7260",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.5,
+            48.071
+          ],
+          "end_mm": [
+            13.5,
+            49.5
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b485d419-71cb-4b71-b834-55be041c2012",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.27124,
+            56.745001
+          ],
+          "end_mm": [
+            25.27124,
+            60.192937
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b543a85b-fdd0-4432-abe5-5651ddbd285a",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            54.75,
+            63.75
+          ],
+          "end_mm": [
+            54.95,
+            63.55
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b91018cd-821c-435b-99b1-5988b4436d4e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            57.8,
+            63.35
+          ],
+          "end_mm": [
+            64.66,
+            63.35
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b96c1296-5963-5fac-b0c2-d518233e9827",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            66.55,
+            62.6
+          ],
+          "end_mm": [
+            66.85,
+            62.3
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "b9a12100-0bed-5729-97dd-fdbf48bfd49e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.535001,
+            47.775001
+          ],
+          "end_mm": [
+            14.32499,
+            47.775001
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "bbcd844e-d328-49e2-aa1f-6f1c178a462e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            55.15,
+            63.35
+          ],
+          "end_mm": [
+            56.2,
+            63.35
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "c036f865-0545-443c-a620-6177eec20304",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.88624,
+            58.13624
+          ],
+          "end_mm": [
+            27.0,
+            59.25
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "c2c51b0e-3e6d-4c67-b7a1-284afc828c89",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            73.8,
+            50.2
+          ],
+          "end_mm": [
+            73.0,
+            50.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "cb3744c4-f186-45a6-bd9f-a3a0185aa081",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            74.16,
+            49.84
+          ],
+          "end_mm": [
+            73.8,
+            50.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "d47f815a-4194-5035-96f4-85ce9d6e2cb3",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            16.45,
+            49.8
+          ],
+          "end_mm": [
+            16.75,
+            49.5
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "d969c8eb-d587-4add-973d-0fe2e52c9bfb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.88624,
+            56.425001
+          ],
+          "end_mm": [
+            25.304989,
+            55.84375
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "dc3ab94a-68ca-4cf6-9dfa-b05b03ea7b00",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            56.6,
+            63.75
+          ],
+          "end_mm": [
+            57.4,
+            63.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "3238ac2c-d107-485b-a85d-0a5ec423b531",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            67.7222,
+            36.26
+          ],
+          "end_mm": [
+            67.7222,
+            36.26
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "491dea16-b22a-45ef-8b89-dd2b26a7bb85",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            72.9,
+            50.1
+          ],
+          "end_mm": [
+            72.9,
+            50.1
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "55854f89-ed41-4d19-a9cf-3973838c13d3",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            16.75,
+            49.5
+          ],
+          "end_mm": [
+            16.75,
+            49.5
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "5d9bc4b8-ddbb-4047-8132-ffdbb5343f5a",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            25.929989,
+            55.3
+          ],
+          "end_mm": [
+            25.929989,
+            55.3
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "7473fde4-7af1-49e9-bf14-acb1fbc062e0",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            54.75,
+            65.25
+          ],
+          "end_mm": [
+            54.75,
+            65.25
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "ec3acfd5-e08e-4565-8f1f-49f32453d58f",
+          "kind": "PCB_VIA",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            27.0,
+            59.25
+          ],
+          "end_mm": [
+            27.0,
+            59.25
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        },
+        {
+          "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.75,
+            52.75
+          ],
+          "end_mm": [
+            16.75,
+            49.5
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "4e9cbbd9-dad0-443d-b14f-2885887a2094",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            16.75,
+            52.75
+          ],
+          "end_mm": [
+            18.75,
+            54.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "7d785201-960f-492e-a774-4df21f81e026",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            68.25,
+            39.75
+          ],
+          "end_mm": [
+            71.25,
+            42.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "83612a68-0c53-41d2-b501-a5fd79de6e72",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            73.5,
+            42.75
+          ],
+          "end_mm": [
+            74.25,
+            43.5
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "843621c3-af4e-48b2-9ec4-6ebb9e47ebcb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            22.5,
+            54.75
+          ],
+          "end_mm": [
+            18.75,
+            54.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "87700c7b-9b14-40c6-a5f9-b025f8b5e3ff",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            25.929989,
+            54.95
+          ],
+          "end_mm": [
+            25.929989,
+            55.3
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "9386a009-7cea-4c03-9444-bd2510b09b3c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            74.25,
+            43.5
+          ],
+          "end_mm": [
+            74.25,
+            48.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "a5086124-7a5a-46ab-8076-b9c4eb083ede",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            25.929989,
+            54.95
+          ],
+          "end_mm": [
+            25.729989,
+            54.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "a88eac58-8552-4067-9bcc-da0936410589",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            71.25,
+            42.75
+          ],
+          "end_mm": [
+            73.5,
+            42.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "aea123b7-d7d0-455f-877e-b2672890357c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            67.93332,
+            39.75
+          ],
+          "end_mm": [
+            67.7222,
+            39.53888
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "be9f5eb1-b719-41d5-84a5-4ad6e00d9276",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            67.7222,
+            36.26
+          ],
+          "end_mm": [
+            67.7222,
+            39.53888
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "c0260e43-25c7-436e-a80a-bc2794c848c4",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            22.5,
+            54.75
+          ],
+          "end_mm": [
+            25.729989,
+            54.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "df356404-ec1e-4e63-ad7b-ab731594eb89",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            74.25,
+            48.75
+          ],
+          "end_mm": [
+            72.9,
+            50.1
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "f02026d3-2fed-4101-9d09-22caaac1e1ba",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "B.Cu",
+          "start_mm": [
+            67.93332,
+            39.75
+          ],
+          "end_mm": [
+            68.25,
+            39.75
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            2
+          ]
+        },
+        {
+          "uuid": "266982f4-76d2-4511-a2e0-e183e57b61c9",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            26.25,
+            62.25
+          ],
+          "end_mm": [
+            27.0,
+            61.5
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "2bd51b9e-4fe1-489c-938e-f469fba4c376",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            27.0,
+            63.75
+          ],
+          "end_mm": [
+            26.25,
+            63.0
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "34df1dd5-ffc9-489a-aad1-ab8d74bf63fb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            27.0,
+            61.5
+          ],
+          "end_mm": [
+            27.0,
+            59.25
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "7ac4bdac-a21a-47fd-8cf8-6e303849e605",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            26.25,
+            63.0
+          ],
+          "end_mm": [
+            26.25,
+            62.25
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "a283b7d0-96ba-4f01-97a8-1912bf246c1d",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            54.75,
+            65.25
+          ],
+          "end_mm": [
+            53.25,
+            65.25
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "bba869de-dca8-4367-b90a-5df00245a93c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            27.0,
+            64.5
+          ],
+          "end_mm": [
+            30.4,
+            67.9
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "bc940bc1-c3c9-448f-83a9-6c2ad708215e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            27.0,
+            64.5
+          ],
+          "end_mm": [
+            27.0,
+            63.75
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "d796dfeb-b24e-56d2-9f9c-515cb8a41e25",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            30.4,
+            67.9
+          ],
+          "end_mm": [
+            50.6,
+            67.9
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "fdd5e636-96f2-531f-91bc-7975e2a19c1e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "SIG2",
+          "start_mm": [
+            50.6,
+            67.9
+          ],
+          "end_mm": [
+            53.25,
+            65.25
+          ],
+          "width_nm": 845075,
+          "locked": true,
+          "layers": [
+            6
+          ]
+        },
+        {
+          "uuid": "0446deeb-8821-58f7-b665-e56ce864082d",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            13.3,
+            47.54
+          ],
+          "end_mm": [
+            13.535001,
+            47.775001
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "12f0ebf9-8175-5508-a8b9-c694ec9deda5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            11.49,
+            47.54
+          ],
+          "end_mm": [
+            13.3,
+            47.54
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "d8408191-ce40-5dd6-b364-56b7b0309ebe",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            11.0,
+            47.05
+          ],
+          "end_mm": [
+            11.49,
+            47.54
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "4484fbff-5d3e-4609-96ba-3ebf2de09ddb",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            76.9,
+            55.0
+          ],
+          "end_mm": [
+            77.4,
+            54.5
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "5814a0ba-03d1-4a48-9a4a-341b117db723",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            71.4,
+            54.2
+          ],
+          "end_mm": [
+            73.8,
+            54.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "7d30f9be-860b-4e9b-bed1-e13c1e08bd4b",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            77.4,
+            54.5
+          ],
+          "end_mm": [
+            77.4,
+            53.2
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "f0d8d399-a20e-4717-98e7-fdaa64cc9b2c",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            74.6,
+            55.0
+          ],
+          "end_mm": [
+            76.9,
+            55.0
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "f786887f-21c2-426d-91fb-ad5dc6868ca8",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_mm": [
+            73.8,
+            54.2
+          ],
+          "end_mm": [
+            74.6,
+            55.0
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        }
+      ]
+    },
+    "GND": {
+      "pads": [
+        {
+          "ref": "U4",
+          "pin": "3",
+          "value": "74LVC1G17",
+          "xy_mm": [
+            16.1822,
+            13.19
+          ]
+        },
+        {
+          "ref": "C55",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            20.4,
+            48.0
+          ]
+        },
+        {
+          "ref": "C14",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            41.4125,
+            55.245001
+          ]
+        },
+        {
+          "ref": "U8",
+          "pin": "3",
+          "value": "74LVC1G17",
+          "xy_mm": [
+            44.017651,
+            62.9972
+          ]
+        },
+        {
+          "ref": "D_USB1",
+          "pin": "2",
+          "value": "USBLC6-2SC6",
+          "xy_mm": [
+            73.6225,
+            51.82
+          ]
+        },
+        {
+          "ref": "C62",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            15.790498,
+            11.79
+          ]
+        },
+        {
+          "ref": "R9",
+          "pin": "2",
+          "value": "5.1k\u03a9",
+          "xy_mm": [
+            75.535,
+            38.629999
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "3",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            51.949999,
+            77.4
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "5",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            43.549999,
+            77.4
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "7",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            35.149999,
+            77.4
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "15",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            51.949999,
+            71.9
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "17",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            43.549999,
+            71.9
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "18",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            39.349999,
+            71.9
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "19",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            35.149999,
+            71.9
+          ]
+        },
+        {
+          "ref": "J3",
+          "pin": "24",
+          "value": "ATX-24 PSU",
+          "xy_mm": [
+            14.149999,
+            71.9
+          ]
+        },
+        {
+          "ref": "D3",
+          "pin": "2",
+          "value": "PESD5V0S1BA",
+          "xy_mm": [
+            76.5475,
+            15.92
+          ]
+        },
+        {
+          "ref": "U3",
+          "pin": "3",
+          "value": "TLV75533PDRVR",
+          "xy_mm": [
+            40.425,
+            59.570001
+          ]
+        },
+        {
+          "ref": "U3",
+          "pin": "7",
+          "value": "TLV75533PDRVR",
+          "xy_mm": [
+            41.3125,
+            58.920001
+          ]
+        },
+        {
+          "ref": "D4",
+          "pin": "2",
+          "value": "PESD5V0S1BA",
+          "xy_mm": [
+            73.7875,
+            9.22
+          ]
+        },
+        {
+          "ref": "C25",
+          "pin": "2",
+          "value": "22uF",
+          "xy_mm": [
+            24.7,
+            63.55
+          ]
+        },
+        {
+          "ref": "U11",
+          "pin": "1",
+          "value": "INA238",
+          "xy_mm": [
+            47.2,
+            44.3
+          ]
+        },
+        {
+          "ref": "U11",
+          "pin": "7",
+          "value": "INA238",
+          "xy_mm": [
+            45.7,
+            48.7
+          ]
+        },
+        {
+          "ref": "C9",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            11.0,
+            48.95
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            16.2,
+            20.159899
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            16.727208,
+            18.887107
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            16.727208,
+            21.432691
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            18.0,
+            18.359899
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            18.0,
+            20.159899
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            18.0,
+            21.959899
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            19.272792,
+            18.887107
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            19.272792,
+            21.432691
+          ]
+        },
+        {
+          "ref": "H1",
+          "pin": "1",
+          "value": "M2 GND lug",
+          "xy_mm": [
+            19.8,
+            20.159899
+          ]
+        },
+        {
+          "ref": "SW1",
+          "pin": "1",
+          "value": "BOOT",
+          "xy_mm": [
+            30.235,
+            16.6591
+          ]
+        },
+        {
+          "ref": "Q1",
+          "pin": "2",
+          "value": "AO3400A",
+          "xy_mm": [
+            76.3975,
+            12.07
+          ]
+        },
+        {
+          "ref": "C18",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            37.6471,
+            65.482202
+          ]
+        },
+        {
+          "ref": "R54",
+          "pin": "2",
+          "value": "100k\u03a9",
+          "xy_mm": [
+            12.8,
+            49.135
+          ]
+        },
+        {
+          "ref": "U10",
+          "pin": "1",
+          "value": "INA238",
+          "xy_mm": [
+            48.685001,
+            28.237599
+          ]
+        },
+        {
+          "ref": "U10",
+          "pin": "2",
+          "value": "INA238",
+          "xy_mm": [
+            48.185001,
+            28.237599
+          ]
+        },
+        {
+          "ref": "U10",
+          "pin": "7",
+          "value": "INA238",
+          "xy_mm": [
+            47.185001,
+            32.637599
+          ]
+        },
+        {
+          "ref": "C612V1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            55.757501,
+            28.694649
+          ]
+        },
+        {
+          "ref": "C1",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            43.4,
+            59.520001
+          ]
+        },
+        {
+          "ref": "J6C",
+          "pin": "1",
+          "value": "TO-HUB-STACK-COMMS",
+          "xy_mm": [
+            67.0,
+            20.159899
+          ]
+        },
+        {
+          "ref": "J6C",
+          "pin": "2",
+          "value": "TO-HUB-STACK-COMMS",
+          "xy_mm": [
+            67.0,
+            22.699899
+          ]
+        },
+        {
+          "ref": "J6C",
+          "pin": "7",
+          "value": "TO-HUB-STACK-COMMS",
+          "xy_mm": [
+            59.38,
+            20.159899
+          ]
+        },
+        {
+          "ref": "J6C",
+          "pin": "8",
+          "value": "TO-HUB-STACK-COMMS",
+          "xy_mm": [
+            59.38,
+            22.699899
+          ]
+        },
+        {
+          "ref": "J_SIG1",
+          "pin": "4",
+          "value": "SSQ-102-03-G-D",
+          "xy_mm": [
+            66.975,
+            14.615
+          ]
+        },
+        {
+          "ref": "C3",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            29.895,
+            32.7591
+          ]
+        },
+        {
+          "ref": "R53",
+          "pin": "2",
+          "value": "33k\u03a9",
+          "xy_mm": [
+            41.01,
+            65.599999
+          ]
+        },
+        {
+          "ref": "J6D",
+          "pin": "2",
+          "value": "TO-HUB-STACK-ID",
+          "xy_mm": [
+            62.105002,
+            57.994999
+          ]
+        },
+        {
+          "ref": "J6D",
+          "pin": "4",
+          "value": "TO-HUB-STACK-ID",
+          "xy_mm": [
+            64.645002,
+            57.994999
+          ]
+        },
+        {
+          "ref": "D5",
+          "pin": "1",
+          "value": "BAT54S",
+          "xy_mm": [
+            37.1,
+            34.736
+          ]
+        },
+        {
+          "ref": "U2",
+          "pin": "2",
+          "value": "TJA1051T/3",
+          "xy_mm": [
+            43.77,
+            26.655
+          ]
+        },
+        {
+          "ref": "U2",
+          "pin": "8",
+          "value": "TJA1051T/3",
+          "xy_mm": [
+            45.04,
+            31.605
+          ]
+        },
+        {
+          "ref": "C26",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            43.38,
+            65.0
+          ]
+        },
+        {
+          "ref": "C19",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            19.43,
+            11.0
+          ]
+        },
+        {
+          "ref": "C16",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            55.5893,
+            37.4676
+          ]
+        },
+        {
+          "ref": "R58",
+          "pin": "2",
+          "value": "33k\u03a9",
+          "xy_mm": [
+            28.09,
+            59.8
+          ]
+        },
+        {
+          "ref": "TB9",
+          "pin": "1",
+          "value": "TTR32100127-0600",
+          "xy_mm": [
+            53.565,
+            4.9
+          ]
+        },
+        {
+          "ref": "TB9",
+          "pin": "1",
+          "value": "TTR32100127-0600",
+          "xy_mm": [
+            62.565,
+            4.9
+          ]
+        },
+        {
+          "ref": "D7",
+          "pin": "2",
+          "value": "PESD5V0S1BA",
+          "xy_mm": [
+            76.505,
+            50.67
+          ]
+        },
+        {
+          "ref": "U13",
+          "pin": "7",
+          "value": "INA238",
+          "xy_mm": [
+            33.7,
+            48.7
+          ]
+        },
+        {
+          "ref": "D1",
+          "pin": "2",
+          "value": "PESD5V0S1BA",
+          "xy_mm": [
+            63.801003,
+            66.331399
+          ]
+        },
+        {
+          "ref": "U12",
+          "pin": "2",
+          "value": "INA238",
+          "xy_mm": [
+            58.7,
+            44.3
+          ]
+        },
+        {
+          "ref": "U12",
+          "pin": "7",
+          "value": "INA238",
+          "xy_mm": [
+            57.7,
+            48.7
+          ]
+        },
+        {
+          "ref": "C20",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            32.787099,
+            65.642202
+          ]
+        },
+        {
+          "ref": "U712V1",
+          "pin": "2",
+          "value": "TLV7011DBVR",
+          "xy_mm": [
+            63.685001,
+            33.300099
+          ]
+        },
+        {
+          "ref": "C712V1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            65.885001,
+            34.415099
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "A1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            71.805,
+            47.96
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "A12",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            71.805,
+            41.26
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "B1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            71.805,
+            41.56
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "B12",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            71.805,
+            47.66
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "S1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            72.38,
+            48.93
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "S1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            76.38,
+            48.93
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "S1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            72.38,
+            40.29
+          ]
+        },
+        {
+          "ref": "J5",
+          "pin": "S1",
+          "value": "USB-C 2.0",
+          "xy_mm": [
+            76.38,
+            40.29
+          ]
+        },
+        {
+          "ref": "R69",
+          "pin": "2",
+          "value": "10k\u03a9",
+          "xy_mm": [
+            28.19,
+            64.099999
+          ]
+        },
+        {
+          "ref": "C21",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            26.79999,
+            52.600002
+          ]
+        },
+        {
+          "ref": "R50",
+          "pin": "2",
+          "value": "20k\u03a9",
+          "xy_mm": [
+            37.1221,
+            61.097201
+          ]
+        },
+        {
+          "ref": "U65V1",
+          "pin": "2",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            54.2,
+            48.8
+          ]
+        },
+        {
+          "ref": "U65V1",
+          "pin": "5",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            54.2,
+            46.2
+          ]
+        },
+        {
+          "ref": "J6P",
+          "pin": "2",
+          "value": "TO-HUB-STACK-PWR",
+          "xy_mm": [
+            27.54,
+            37.3
+          ]
+        },
+        {
+          "ref": "J6P",
+          "pin": "4",
+          "value": "TO-HUB-STACK-PWR",
+          "xy_mm": [
+            27.54,
+            39.84
+          ]
+        },
+        {
+          "ref": "J6P",
+          "pin": "6",
+          "value": "TO-HUB-STACK-PWR",
+          "xy_mm": [
+            27.54,
+            42.38
+          ]
+        },
+        {
+          "ref": "C6",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            33.187099,
+            62.442203
+          ]
+        },
+        {
+          "ref": "C2",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            39.225,
+            59.720001
+          ]
+        },
+        {
+          "ref": "C15",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            61.075,
+            64.4
+          ]
+        },
+        {
+          "ref": "J2",
+          "pin": "2",
+          "value": "TO-HUB-PWR",
+          "xy_mm": [
+            76.35,
+            31.84
+          ]
+        },
+        {
+          "ref": "TB6",
+          "pin": "1",
+          "value": "TTR32100127-0600",
+          "xy_mm": [
+            9.064999,
+            4.9
+          ]
+        },
+        {
+          "ref": "TB6",
+          "pin": "1",
+          "value": "TTR32100127-0600",
+          "xy_mm": [
+            18.064999,
+            4.9
+          ]
+        },
+        {
+          "ref": "C22",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            69.6275,
+            9.71
+          ]
+        },
+        {
+          "ref": "C65V1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            54.935,
+            44.7141
+          ]
+        },
+        {
+          "ref": "C17",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            42.8543,
+            21.870099
+          ]
+        },
+        {
+          "ref": "C23",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            70.0975,
+            6.39
+          ]
+        },
+        {
+          "ref": "C4",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            43.609999,
+            24.955
+          ]
+        },
+        {
+          "ref": "C54",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            16.92499,
+            46.765001
+          ]
+        },
+        {
+          "ref": "C13",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            34.16,
+            50.705001
+          ]
+        },
+        {
+          "ref": "R56",
+          "pin": "2",
+          "value": "10k\u03a9",
+          "xy_mm": [
+            29.1,
+            57.21
+          ]
+        },
+        {
+          "ref": "C24",
+          "pin": "2",
+          "value": "1uF",
+          "xy_mm": [
+            37.4,
+            59.720001
+          ]
+        },
+        {
+          "ref": "C53",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            23.029989,
+            55.3
+          ]
+        },
+        {
+          "ref": "C5",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            38.525,
+            32.8291
+          ]
+        },
+        {
+          "ref": "U75V1",
+          "pin": "2",
+          "value": "TLV7011DBVR",
+          "xy_mm": [
+            54.2,
+            51.3625
+          ]
+        },
+        {
+          "ref": "C60",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            38.812001,
+            54.2751
+          ]
+        },
+        {
+          "ref": "C12",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            56.24,
+            50.45
+          ]
+        },
+        {
+          "ref": "U73V31",
+          "pin": "2",
+          "value": "TLV7011DBVR",
+          "xy_mm": [
+            58.2,
+            59.1375
+          ]
+        },
+        {
+          "ref": "C64",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            35.6423,
+            34.4351
+          ]
+        },
+        {
+          "ref": "C52",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            25.9769,
+            59.783201
+          ]
+        },
+        {
+          "ref": "C61",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            39.755,
+            20.3591
+          ]
+        },
+        {
+          "ref": "C75V1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            56.4,
+            52.4775
+          ]
+        },
+        {
+          "ref": "C10",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            47.165001,
+            35.097599
+          ]
+        },
+        {
+          "ref": "C63V31",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            66.30375,
+            44.735575
+          ]
+        },
+        {
+          "ref": "C50",
+          "pin": "2",
+          "value": "2u2",
+          "xy_mm": [
+            33.8221,
+            59.617201
+          ]
+        },
+        {
+          "ref": "R1",
+          "pin": "2",
+          "value": "2.2k\u03a9",
+          "xy_mm": [
+            65.535003,
+            63.204999
+          ]
+        },
+        {
+          "ref": "C8",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            44.409353,
+            64.3972
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "3",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.249989,
+            48.55
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "4",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.74999,
+            48.55
+          ]
+        },
+        {
+          "ref": "U6",
+          "pin": "12",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            14.249989,
+            46.250002
+          ]
+        },
+        {
+          "ref": "U75VSB1",
+          "pin": "2",
+          "value": "TLV7011DBVR",
+          "xy_mm": [
+            42.2,
+            51.3625
+          ]
+        },
+        {
+          "ref": "U5",
+          "pin": "3",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            34.872099,
+            65.417201
+          ]
+        },
+        {
+          "ref": "U5",
+          "pin": "4",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            35.3721,
+            65.417201
+          ]
+        },
+        {
+          "ref": "U5",
+          "pin": "12",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            34.872099,
+            63.117203
+          ]
+        },
+        {
+          "ref": "U612V1",
+          "pin": "2",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            55.685001,
+            32.575099
+          ]
+        },
+        {
+          "ref": "U612V1",
+          "pin": "5",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            55.685001,
+            30.300099
+          ]
+        },
+        {
+          "ref": "U65VSB1",
+          "pin": "2",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            42.2,
+            48.8
+          ]
+        },
+        {
+          "ref": "U65VSB1",
+          "pin": "5",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            42.2,
+            46.2
+          ]
+        },
+        {
+          "ref": "C63",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            19.3488,
+            14.7583
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "1",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            29.245,
+            31.4991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "2",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            30.055,
+            31.4991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "11",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            37.255,
+            31.4991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "14",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            38.125,
+            28.7991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "36",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            20.7991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "37",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            21.5991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "38",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            22.3991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "39",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            23.1991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "40",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            23.9991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "41",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            24.7991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "42",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            25.5991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "43",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            26.3991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "44",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            27.1991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "45",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            27.9991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "46",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            28.7991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "47",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            29.5991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "48",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.325,
+            30.3991
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            31.375,
+            27.3791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            33.175,
+            27.3791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            34.975,
+            27.3791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            31.375,
+            25.5791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            33.175,
+            25.5791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            34.975,
+            25.5791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            31.375,
+            23.7791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            33.175,
+            23.7791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "49",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            34.975,
+            23.7791
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "50",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.275,
+            19.6491
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "51",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            38.175,
+            19.6491
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "52",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            38.175,
+            31.5491
+          ]
+        },
+        {
+          "ref": "U1",
+          "pin": "53",
+          "value": "ESP32-C6-MINI-1-N4",
+          "xy_mm": [
+            28.275,
+            31.5491
+          ]
+        },
+        {
+          "ref": "C65VSB1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            42.515313,
+            44.533749
+          ]
+        },
+        {
+          "ref": "C27",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            12.08399,
+            45.8
+          ]
+        },
+        {
+          "ref": "R8",
+          "pin": "2",
+          "value": "5.1k\u03a9",
+          "xy_mm": [
+            70.065,
+            43.59
+          ]
+        },
+        {
+          "ref": "U63V31",
+          "pin": "2",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            66.2,
+            48.6375
+          ]
+        },
+        {
+          "ref": "U63V31",
+          "pin": "5",
+          "value": "INA181A2IDBVR",
+          "xy_mm": [
+            66.2,
+            46.3625
+          ]
+        },
+        {
+          "ref": "C73V31",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            56.0,
+            58.0225
+          ]
+        },
+        {
+          "ref": "C11",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            45.2,
+            51.21
+          ]
+        },
+        {
+          "ref": "C7",
+          "pin": "2",
+          "value": "10uF",
+          "xy_mm": [
+            64.5,
+            69.1
+          ]
+        },
+        {
+          "ref": "SW2",
+          "pin": "1",
+          "value": "RESET",
+          "xy_mm": [
+            72.22,
+            26.5
+          ]
+        },
+        {
+          "ref": "C51",
+          "pin": "2",
+          "value": "2.2uF",
+          "xy_mm": [
+            17.725,
+            50.125
+          ]
+        },
+        {
+          "ref": "C75VSB1",
+          "pin": "2",
+          "value": "100nF",
+          "xy_mm": [
+            44.4,
+            52.4775
+          ]
+        },
+        {
+          "ref": "R73",
+          "pin": "2",
+          "value": "100k\u03a9",
+          "xy_mm": [
+            34.285,
+            32.7491
+          ]
+        }
+      ],
+      "tracks": []
+    },
+    "unconnected-(U6-ST-Pad9)": {
+      "pads": [
+        {
+          "ref": "U6",
+          "pin": "9",
+          "value": "TPS2121RUXR",
+          "xy_mm": [
+            15.749991,
+            46.250002
+          ]
+        }
+      ],
+      "tracks": []
+    }
+  },
+  "ground_pad_direct_contacts": [
+    {
+      "ref": "C55",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            20.4,
+            48.0
+          ],
+          "end_mm": [
+            19.445406,
+            48.954594
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "R54",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            12.8,
+            49.135
+          ],
+          "end_mm": [
+            12.8,
+            49.135
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "C27",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "f5f88540-c47a-4ddc-9539-d0f0e3ddbb0f",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            12.08399,
+            45.8
+          ],
+          "end_mm": [
+            12.08399,
+            46.405002
+          ],
+          "width_nm": 200000,
+          "locked": false,
+          "layers": [
+            0
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "C9",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            11.245,
+            48.705
+          ],
+          "end_mm": [
+            11.245,
+            48.705
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "U6",
+      "pin": "3",
+      "native_direct_contacts": [
+        {
+          "uuid": "0b418030-3055-4204-9d78-d31bda5ba5f9",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.428239,
+            48.871751
+          ],
+          "end_mm": [
+            14.428239,
+            49.221751
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.74999,
+            48.55
+          ],
+          "end_mm": [
+            14.428239,
+            48.871751
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        },
+        {
+          "uuid": "5aa894fc-70de-4df8-9f7d-0c752203d214",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.249989,
+            48.55
+          ],
+          "end_mm": [
+            14.249989,
+            49.050001
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "U6",
+      "pin": "4",
+      "native_direct_contacts": [
+        {
+          "uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.74999,
+            48.55
+          ],
+          "end_mm": [
+            14.428239,
+            48.871751
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "U6",
+      "pin": "12",
+      "native_direct_contacts": [
+        {
+          "uuid": "b3634c11-95f9-46f5-bbda-540a1c919c03",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            14.249989,
+            46.250002
+          ],
+          "end_mm": [
+            13.86108,
+            45.861093
+          ],
+          "width_nm": 200000,
+          "locked": true,
+          "layers": [
+            0
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "C54",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            16.82499,
+            46.765001
+          ],
+          "end_mm": [
+            16.82499,
+            46.765001
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    },
+    {
+      "ref": "C51",
+      "pin": "2",
+      "native_direct_contacts": [
+        {
+          "uuid": "7f4e567d-2755-4c6e-a51c-2af6b999bc20",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_mm": [
+            17.725,
+            50.125
+          ],
+          "end_mm": [
+            17.725,
+            50.125
+          ],
+          "width_nm": null,
+          "locked": true,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ]
+        }
+      ],
+      "ownership_scope": "Direct native contact only; sharedground via/chain ownership must be independently derived"
+    }
+  ],
+  "existing_seven_part_scope": [
+    "C27",
+    "C51",
+    "C54",
+    "C55",
+    "C9",
+    "R54",
+    "U6"
+  ],
+  "unposed_monitor_dividers": [
+    "R55",
+    "R56",
+    "R57",
+    "R58"
+  ],
+  "external_output_participants": [
+    "C21",
+    "C20",
+    "U5"
+  ],
+  "coherent_scope_note": "C51 SS capacitor already included; C9 VBUS bypass,C27 outputbypass,C54/C55 standbybypass included. Monitor divider sourceanchors R55/R57 at+5VSB and returns R56/R58 remain remote; must reconnect exact U6_OV1/PR1 boundaries or explicitly expand cell. Do not move U5/C20/C21 implicitly.",
+  "usefulness": "Moving full return and ILM barrel population+4X can vacate original B.Cu blockers atx11.245..13.86,y45.86..49.135. Existing sourcecompiler does not yet prove that ownership; original+4Xbody/stackpass alone insufficient. C55.GND proposedposition(24.4,48)conflicts external5V_SYS_PORT track; external corridor reroute required even after internaltransport.",
+  "board_saved": false,
+  "accepted": false
+}

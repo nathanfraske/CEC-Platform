@@ -1,0 +1,124 @@
+{
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "roles": [
+    {
+      "ref": "C9",
+      "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "selected": true,
+      "selected_assignments": [
+        {
+          "id": "U6:2:local-ceramic",
+          "ref": "U6",
+          "pin": "2",
+          "pad": "<pcbnew.PAD; proxy of <Swig Object of type 'PAD *' at 0x747df0dc8270> >",
+          "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "kind": "local-ceramic",
+          "return_rail": "GND",
+          "return_pin": null,
+          "return_pad": null,
+          "max_mm": 3.5,
+          "source": "TPS2121:IN2"
+        }
+      ],
+      "declared_owner": null,
+      "rail_requirement_owners": [
+        [
+          "U6",
+          "2"
+        ]
+      ]
+    },
+    {
+      "ref": "C27",
+      "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "selected": true,
+      "selected_assignments": [
+        {
+          "id": "U6:1:local-ceramic",
+          "ref": "U6",
+          "pin": "1",
+          "pad": "<pcbnew.PAD; proxy of <Swig Object of type 'PAD *' at 0x747df0dc8210> >",
+          "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "kind": "local-ceramic",
+          "return_rail": "GND",
+          "return_pin": null,
+          "return_pad": null,
+          "max_mm": 3.5,
+          "source": "TPS2121:OUT"
+        }
+      ],
+      "declared_owner": null,
+      "rail_requirement_owners": [
+        [
+          "U5",
+          "2"
+        ],
+        [
+          "U6",
+          "1"
+        ]
+      ]
+    },
+    {
+      "ref": "C54",
+      "rail": "+5VSB",
+      "selected": true,
+      "selected_assignments": [
+        {
+          "id": "U6:7:local-ceramic",
+          "ref": "U6",
+          "pin": "7",
+          "pad": "<pcbnew.PAD; proxy of <Swig Object of type 'PAD *' at 0x747df0dc8030> >",
+          "rail": "+5VSB",
+          "kind": "local-ceramic",
+          "return_rail": "GND",
+          "return_pin": null,
+          "return_pad": null,
+          "max_mm": 3.5,
+          "source": "TPS2121:IN1"
+        }
+      ],
+      "declared_owner": null,
+      "rail_requirement_owners": [
+        [
+          "U6",
+          "7"
+        ]
+      ]
+    },
+    {
+      "ref": "C55",
+      "rail": "+5VSB",
+      "selected": false,
+      "selected_assignments": [],
+      "declared_owner": null,
+      "rail_requirement_owners": [
+        [
+          "U6",
+          "7"
+        ]
+      ]
+    },
+    {
+      "ref": "C51",
+      "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "selected": false,
+      "selected_assignments": [],
+      "declared_owner": null,
+      "rail_requirement_owners": []
+    }
+  ],
+  "collect_checks": [
+    {
+      "cap": "C51",
+      "ok": false,
+      "error": "additional_aggregate_old_Ground_copper_requires_separate_positive_owner:unique_positive_Source_capacitor_locality_owner_required"
+    },
+    {
+      "cap": "C55",
+      "ok": false,
+      "error": "additional_aggregate_old_Ground_copper_requires_separate_positive_owner:aggregate_cap_Ground_additional_supply_must_be_isolated"
+    }
+  ],
+  "source_unchanged": true
+}

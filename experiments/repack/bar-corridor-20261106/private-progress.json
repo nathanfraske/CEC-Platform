@@ -1,13 +1,20 @@
 {
   "schema": 1,
-  "recorded_at_utc": "2026-11-06T16:40:40Z",
+  "recorded_at_utc": "2026-11-06T17:19:48Z",
   "goal_status": "active",
-  "status": "component_drawing_and_exact_JLC_assembly_verified_connected_cell_repack_next",
+  "status": "coherent_owner_transport_implemented_source_overlap_repaired_contextual_reservoir_repack_next",
   "latest_verification": "experiments/busbars/keystone-verified-20261106/verification.json",
   "historical_blocker_superseded": "The exact JLC Economic/Standard SMT listing and toleranced manufacturer drawing are now available. No supplier inquiry is required merely to establish basic assembly availability. Application geometry and current/thermal receiving remain open.",
   "latest_blocked_audit": "experiments/busbars/keystone-topology-20261106/blocked-audit.json",
-  "latest_slice": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
-  "next_geometry_diagnosis": "experiments/busbars/keystone-verified-20261106/front-feed-scout/mux-compile.json",
+  "latest_slice": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/slice-closeout.json",
+  "next_geometry_diagnosis": "experiments/busbars/keystone-verified-20261106/front-feed-scout/repaired-mux-pose-plus2.json",
+  "latest_tooling_regressions": {
+    "directory": "experiments/busbars/coherent-mux-20261106",
+    "passed_unique_test_cases": 323,
+    "passed_test_executions": 334,
+    "reports": ["coherent-regression.xml", "test_macro_boundary_composition.xml", "test_macro_boundary_compilation.xml", "test_source_ground_continuation_observer.xml", "ordinary-regression.xml", "portal-regression.xml", "overlap-regression.xml", "source-stage-regression.xml"],
+    "scope": "coherent source-owned ILIM owner motion, same-invocation fresh stage-proof reuse, direct-control and independent-receiver propagation, explicit repair of a partial-overlap ordinary signal barrel; no fabrication waiver"
+  },
   "latest_topology_height_decision": "experiments/busbars/topology-20261106/decision.json",
   "latest_alternate_part_screen": "docs/evidence/20261106-keystone-jumper-screen.json",
   "latest_alternate_topology_decision": "experiments/busbars/keystone-topology-20261106/decision.json",
@@ -18,9 +25,22 @@
     "changed": false
   },
   "atx": {
-    "path": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
-    "sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
-    "receipt": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/slice-closeout.json",
+    "path": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+    "sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+    "receipt": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/slice-closeout.json",
+    "latest_operation": {
+      "kind": "explicit_source_pad_overlap_barrel_repair",
+      "parent_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+      "retired_vias": 1,
+      "new_vias": 1,
+      "same_diameter_drill_and_stack": true,
+      "placements_and_outline_literal_unchanged": true,
+      "native_opens_errors_warnings_before_after": [[0, 0, 94], [0, 0, 94]],
+      "all_16_clipped_force_sense_legs_preserved": true,
+      "field_blockers_before_after": [0, 0],
+      "whole_current_ground_pair_and_tracecraft_nonregression": true,
+      "review_selector_changed": false
+    },
     "last_routed_parent": {
       "path": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
       "sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
@@ -89,7 +109,9 @@
     }
   ],
   "remaining": [
-    "Do not repeat failed fixed one-bar poses. Three additional source-bound front placements also collide with retained 5V HI copper/J3 lands. The next coherent mux-cell translation +4mmX passes body/courtyard and declared paired-stack checks, but is NOT copper-admitted. Compile fails because R54's programming-resistor role assumes U6 stationary; implement source-owned coherent owner/passive transport rather than suppress the guard. C55's moved Ground land also conflicts with external +5V_SYS_PORT copper.",
+    "Coherent U6/R54 source-owned translation now passes fresh manufacturer/canonical/current ownership and direct-control/receiver tests. Default stationary-owner behavior remains unchanged. Live source ownership completes and reaches native copper transport; no accepted cell move exists yet.",
+    "The original partial-overlap R54 ILIM ordinary barrel was a genuine fabrication-geometry defect, not missing route permission. A new generic explicit repair retains its pad as a mandatory terminal and forbids ANY destination pad overlap. New private d4cf0b22 candidate passes exact saved barrel replay, zero opens/errors, and unchanged current/Ground/pair/field/clipped-sense evidence. Do not relabel a partial overlap as ordinary or relax POFV containment.",
+    "Do not reuse the earlier seven-part body/stack pass for the five-part cell. Keeping C55 and C51 stationary produces real courtyard conflicts at+4mmX; PR1 via29c6dd22 also intersects C55 Ground. The+2mmX minimum-corridor trial still overlaps C55 courtyards and its+5VSB pad. A+4X,-2Y trial additionally collides with opposite HubC1. Next useful action is contextual C55/C51 repack with positive source reservoir/control-cap roles and full reconnection, or coordinated paired-board topology reconsideration. Do not repeat equivalent fixed one-bar or five-part pose sweeps.",
     "Keystone5104TR / C7466142 has an exact JLC SMT Assembly listing for Economic and Standard service. Current JLC component price is USD0.3979 each at100-499, not the earlier DigiKey USD0.206 figure. Availability payload is not reserved stock or an all-in assembly quote. Manufacturer5104 RevA drawing gives10.7mm land pitch,2.6x2.8mm lands and conservative bare height max1.9304mm. Native application-pending symbol/footprint are built and read back; no bar is installed.",
     "The actual drawing rejects the prior backside guarantee:1.9304mm bare maximum exceeds the1.86mm minimum reference before solder. Its5.5mm tab dimension is not a flat-underbridge span; do not invent a constant-height crossing tunnel. Front trial may use an explicit2.5mm engineering height allocation, checked against the actual saved pair and installation, without calling it a supplier limit.",
     "The copper-only3V3 shortcut is blocked by mux Ground/control vias. Shared all-guards path probe now catches this with object identities, including actual plane fills and fresh edges; rule-area freedom alone is insufficient. Retire the complete lower3V3 chain when rebuilding, not a residual leftward endcap. A12V centerline atx4 permits at most1.884704mm left trim under the retained0.5mm edge guard; full2mm requiresx>=4.115296 and rechecked inter-bus clearance.",

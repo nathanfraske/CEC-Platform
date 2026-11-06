@@ -1,0 +1,11 @@
+{
+  "passed_unique_test_cases": 323,
+  "passed_test_executions": 334,
+  "accepted_private_prefix_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "reviewed_selector_unchanged": true,
+  "hub_unchanged": true,
+  "no_board_specific_shared_rule": true,
+  "goal_complete": false,
+  "remaining": "Contextual reservoir/control-cap repack; no accepted bus-bar compaction yet",
+  "release_authority": false
+}

@@ -1,0 +1,8 @@
+{
+  "label": "source",
+  "stage": "leg",
+  "output": "/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/sense-shards/source/leg-005.json",
+  "exit_code": 0,
+  "stdout": "{\"complete\":false,\"output\":\"/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/sense-shards/source/leg-005.json\",\"sha256\":\"d909e0e53b826927081e9acdf2096db3299d196867285cbac4a33be084e0452e\",\"shard_complete\":true,\"stop\":null}\n",
+  "stderr": "./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n"
+}

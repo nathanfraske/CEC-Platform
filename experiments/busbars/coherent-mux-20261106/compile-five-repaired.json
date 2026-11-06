@@ -1,0 +1,90 @@
+{
+  "source": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "mode": "five",
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "allow_linear_power_stage_reconstruction": true,
+    "poses": [
+      {
+        "reference": "C27",
+        "at_nm": [
+          16563990,
+          45800000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C54",
+        "at_nm": [
+          20924990,
+          47245001
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C9",
+        "at_nm": [
+          15000000,
+          48000000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "R54",
+        "at_nm": [
+          16800000,
+          48625000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "U6",
+        "at_nm": [
+          18999990,
+          47400000
+        ],
+        "rotation_deg": 0
+      }
+    ],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [],
+    "allow_locked_transport_uuids": [],
+    "reference_group_uuids": [],
+    "routes": [],
+    "vias": [],
+    "max_shift_nm": 4000000
+  },
+  "board_saved": false,
+  "accepted": false,
+  "status": "compile_refused",
+  "error_type": "ValueError",
+  "error": "native_smd_macro_destination_POFV_refused:29c6dd22-a1da-4ce9-9a58-b645a9a40da0:via and pad are not on the same assigned net",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/scout.py\", line 62, in worker\n    projected,packet,transported=cells.compile_macro(b,op,'atx-24pin-rev3',enforce_locks=False)\n                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/src/cec_pipeline/cells.py\", line 361, in compile_macro\n    projected, packet = compiler.compile(\n                        ^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 1118, in compile\n    private,transport=_frame(parent,source,proposal,reuse_ground_barrels=reuse_ground_barrels,\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 341, in _frame\n    transport=macro.apply(parent,private,**seating,maximum_shift_mm=shift_bound,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_smd_macro_transport.py\", line 946, in apply\n    if not ok:raise ValueError('native_smd_macro_destination_POFV_refused:'+r['uuid']+':'+reason)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: native_smd_macro_destination_POFV_refused:29c6dd22-a1da-4ce9-9a58-b645a9a40da0:via and pad are not on the same assigned net\n",
+  "elapsed_s": 10.327732293008012,
+  "events": [
+    {
+      "event": "start",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 74632.402546948,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 74632.402546948,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "native_frame_and_cuts",
+      "index": 1,
+      "deadline_monotonic": 74641.311841368,
+      "explicit_ordered_composition": true
+    }
+  ],
+  "python_profiling_enabled": false
+}

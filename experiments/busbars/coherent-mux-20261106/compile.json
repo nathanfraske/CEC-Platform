@@ -1,0 +1,81 @@
+{
+  "source": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "allow_linear_power_stage_reconstruction": true,
+    "poses": [
+      {
+        "reference": "C27",
+        "at_nm": [
+          16563990,
+          45800000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C51",
+        "at_nm": [
+          22500000,
+          50125000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C54",
+        "at_nm": [
+          20924990,
+          47245001
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C55",
+        "at_nm": [
+          23450000,
+          48000000
+        ],
+        "rotation_deg": 0
+      },
+      {
+        "reference": "C9",
+        "at_nm": [
+          15000000,
+          48000000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "R54",
+        "at_nm": [
+          16800000,
+          48625000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "U6",
+        "at_nm": [
+          18999990,
+          47400000
+        ],
+        "rotation_deg": 0
+      }
+    ],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [],
+    "allow_locked_transport_uuids": [],
+    "reference_group_uuids": [],
+    "routes": [],
+    "vias": [],
+    "max_shift_nm": 4000000
+  },
+  "board_saved": false,
+  "accepted": false,
+  "status": "compile_refused",
+  "error_type": "ValueError",
+  "error": "additional_aggregate_old_Ground_copper_requires_separate_positive_owner:unique_positive_Source_capacitor_locality_owner_required",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/codex/src/CEC-Platform/scripts/cec_additional_aggregate_macro.py\", line 95, in collect\n    ground_leaf = leaves.plan(board, cap.force._uid(ground), board_hint=board_hint,\n                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_aggregate_cap_ground_leaf.py\", line 177, in plan\n    canonical = cap._canonical(board, fp, board_hint, deadline)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_source_aggregate_capacitor_cell.py\", line 199, in _canonical\n    locality = _source_locality(board, fp, comps, nets, node_net, instances, deadline)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_source_aggregate_capacitor_cell.py\", line 226, in _source_locality\n    _need(len(candidates)==1,'unique_positive_Source_capacitor_locality_owner_required')\n  File \"/home/codex/src/CEC-Platform/scripts/cec_source_aggregate_capacitor_cell.py\", line 62, in _need\n    raise ValueError(reason)\nValueError: unique_positive_Source_capacitor_locality_owner_required\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/scout.py\", line 36, in worker\n    projected,packet,transported=cells.compile_macro(b,op,'atx-24pin-rev3',enforce_locks=False)\n                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/src/cec_pipeline/cells.py\", line 361, in compile_macro\n    projected, packet = compiler.compile(\n                        ^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 1107, in compile\n    proposal=escape.prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_escape_replan.py\", line 105, in prepare\n    return _prepare_source(board,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_escape_replan.py\", line 200, in _prepare_source\n    additional_caps=aggregate_caps.collect(board,poses,board_hint=board_hint,\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_additional_aggregate_macro.py\", line 98, in collect\n    raise ValueError('additional_aggregate_old_Ground_copper_requires_separate_positive_owner:'+str(exc)) from exc\nValueError: additional_aggregate_old_Ground_copper_requires_separate_positive_owner:unique_positive_Source_capacitor_locality_owner_required\n",
+  "elapsed_s": 5.695126464997884
+}
