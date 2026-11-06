@@ -172,7 +172,9 @@ guides from printed silk; references and functional markings are preserved.
   chain; every branch contact must still survive saved native receiving.
   Omitting a short redundant tail must not leave a dangling remnant.
 * `bank_collector`: literal same-net pad-bank collector with solid actual
-  saved fill and deliberate chamfers. Original pads and support conductors
+  saved fill and deliberate chamfers. Explicit native pads must form an exact
+  cardinal row or complete Cartesian grid; incomplete/jittered grids and
+  foreign interior copper are refused. Original pads and support conductors
   remain. Its outline does not create a new current rating.
 * `ground_plane_extension`: extend one exact existing Ground-zone outline,
   retaining its layers, settings, holes and all other native objects. Actual
@@ -453,6 +455,51 @@ The active busbar/compaction checkpoint is
 `docs/evidence/20261105-busbar-candidates/decision.json`. It preserves rejected
 5 V locations as well as the conditional 3V3 option, and distinguishes body
 envelope compaction from unchanged laminate and any unproven busbar benefit.
+
+`cec_pipeline.drafts` materializes explicitly authored, source-hashed paired
+engineering drafts for larger coordinated reconstruction, including THT owners.
+This is deliberately **not** a new accepted placement actuator. It keeps the
+review incumbents immutable and cannot promote a draft. Poses, existing-track
+redraws and existing-via translations are explicit bounded inputs; no nets,
+widths, layers, drill dimensions, locks or manufacturing rules are substituted.
+Only the named native nodes are spliced back into the source, with round-trip
+copper and metadata checks. `--refill` uses the native deterministic filler and
+splices zone nodes only; a wholesale command-line save is not trusted to retain
+board fabrication properties. New-only output directories and source checks
+before construction and completion prevent accidental source replacement.
+
+Draft schema 5 adds `zone_redraws` with explicit `carrier`/`cover` lists. Each
+entry selects an existing zone UUID and integer-nanometre `polygon_nm`; a
+hole-bearing source also requires explicit `holes_nm` with exactly the source
+hole count. Only ungrouped, named-net, solid-filled copper zones with full pad
+connections and one linear outline are supported. New contours must be simple,
+bounded and cardinal/45-degree; holes must be strictly interior and disjoint.
+The complete batch is validated before mutation. Native net/layers, clearance,
+priority, pad connection and other process settings stay intact. Any nonempty
+zone edit requires `--refill`; stale saved fill cannot be presented as its result.
+This is construction, not proof of current capacity, clearances or qualification.
+Bar land screens run before subsequent zone edits and explicitly do not certify
+the final edited/refilled copper. Typed consumer-allocation tracks remain
+protected: use their existing independently received reconstruction owner,
+not ordinary draft redraw/retirement to erase or reinterpret a current budget.
+
+The November 5 zone-edit regression record is
+`docs/evidence/20261105-bottom-compaction/regression.xml`: 920 passing tests,
+including 40 dedicated zone-edit cases. The private bottom-repack experiments
+are not accepted board replacements. Their intermediate DRC reports and source
+hashes remain separate from `checkpoints/current.json`.
+
+Reproduce the first connected paired step with `PYTHONPATH=src:scripts python3
+-m cec_pipeline.drafts --request
+docs/evidence/20261105-connected-repack/j6c-connected.json --directory
+/new/private/directory --refill`. The durable result is under
+`experiments/repack/j6c-connected-20261105`, **not** `checkpoints/current.json`.
+Both boards have fresh zero-open/zero-error native reports. Hub pair
+nonregression passes; ATX numeric pair metrics improve but its conservative
+receiver still rejects changed inherited reference-coverage debt. Full bus-bar
+construction, current/thermal/assembly receiving, complete coordinated
+placement and further compaction remain open. This step changes neither board
+outline nor assembled Z and earns no bus-bar compaction credit.
 
 `tests/test_agentic_*.py` covers geometry, protocol parity, durable campaigns,
 source/cache identities, native connected construction, power construction,

@@ -22,6 +22,25 @@ import cec_force_current as force
 import cec_ordinary_route_receiving as ordinary
 
 
+def _literal_pose_frame(source, replayed, moved):
+    """Native transforms own only selected footprints, not serializer defaults.
+
+    Preserve the literal original frame for independent additive receiving.
+    An unrelated optional text angle emitted by SaveBoard must not become
+    either a false refusal or authority to normalize unselected objects.
+    """
+    import cec_source_retaining_ses_import as raw
+    _, original=additive._nodes(source)
+    if (set(replayed)!=set(original) or not moved or not set(moved)<=original.keys()
+            or any(original[u][0]!='footprint' or replayed[u][0]!='footprint' for u in moved)):
+        raise ValueError('exact_native_selected_footprint_replay_required')
+    text=raw.raw_text(source);inventory=raw.inventory(text)
+    for uid in sorted(moved,key=lambda u:inventory[u][0],reverse=True):
+        start,end=inventory[uid]
+        text=text[:start]+additive._render(replayed[uid])+text[end:]
+    return text
+
+
 def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,max_caps=4,
             return_reach_mm=.8):
     result=dict(schema=1,scope='source_selected_bypass_pose_receiving',ok=False,
@@ -130,9 +149,11 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,max_caps
             projected=force._copy_family(paths[0],Path(work)/'projected')
             field._save_field_snapshot(parent,projected)
             _,replayed=additive._nodes(projected)
-            if (replayed.keys()!=old.keys() or any(sexpr._freeze(replayed[u])!=sexpr._freeze(
-                    new[u] if u in moved else old[u]) for u in old)):
+            if (replayed.keys()!=old.keys() or any(sexpr._freeze(replayed[u])!=sexpr._freeze(new[u])
+                    for u in moved)):
                 raise ValueError('received_pose_is_not_exact_native_source_transform')
+            import cec_source_retaining_ses_import as raw
+            raw.write_raw(projected,_literal_pose_frame(paths[0],replayed,moved))
             remaining=deadline-time.monotonic()
             if remaining<=0:raise ValueError('bypass_pose_receiving_deadline')
             proof=additive.receive(projected,paths[1],timeout_s=min(30.,remaining))

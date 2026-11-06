@@ -147,6 +147,29 @@ for _kind, _props in {
         )
     )
 
+# Preserve the old exact operation contract. The opt-in is a separate closed
+# schema alternative, not a newly mandatory field on all existing requests.
+_old_cell = next(v for v in _OPERATIONS if v["properties"]["kind"]["const"] == "place_cell")
+_OPERATIONS.append(dict(type="object",
+    properties=dict(_old_cell["properties"], native_macro=dict(type="boolean", const=True),
+        allow_locked_transport_uuids=dict(type="array",items=dict(type="string"),maxItems=128,uniqueItems=True)),
+    required=[*_old_cell["required"], "native_macro", "allow_locked_transport_uuids"], additionalProperties=False))
+
+# Explicit existing stage-role opt-in; preserve both original closed schemas.
+for _cell_variant in (_old_cell, _OPERATIONS[-1]):
+    _OPERATIONS.append(dict(type="object",
+        properties=dict(_cell_variant["properties"],
+            allow_linear_power_stage_reconstruction=dict(type="boolean")),
+        required=[*_cell_variant["required"], "allow_linear_power_stage_reconstruction"],
+        additionalProperties=False))
+
+# Optional native-only work span; preserve the old closed alternatives and
+# their required fields. Omission retains the original 8-mm compiler default.
+_SOURCE_BOUNDARY_SPAN = dict(type="integer", minimum=1, maximum=32000000, default=8000000)
+for _cell_variant in _OPERATIONS:
+    if _cell_variant["properties"]["kind"]["const"] == "place_cell" and "native_macro" in _cell_variant["properties"]:
+        _cell_variant["properties"]["max_source_boundary_span_nm"] = dict(_SOURCE_BOUNDARY_SPAN)
+
 TOOL_PARAMETERS = {
     "boards": {},
     "inspect": {
@@ -198,6 +221,7 @@ TOOL_PARAMETERS = {
     },
     "plan_cell": {
         "board": dict(type="string"),
+        "allow_linear_power_stage_reconstruction": dict(type="boolean"),
         "poses": _POSES,
         "reference_group_uuids": dict(type="array", items=dict(type="string", minLength=1), maxItems=8, uniqueItems=True),
         "allow_locked_footprint_uuids": _UIDS,

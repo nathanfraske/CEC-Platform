@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "scope": "Independent bounded native geometry, retained-partition and affected-leg Kelvin-cut review; not current/thermal/release qualification",
+  "source": {"path":"experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pcb","sha256":"b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1"},
+  "candidate": {"path":"experiments/repack/top-output-current-20261106/consolidated12-v1/carrier/board.kicad_pcb","sha256":"acf35631915c62f60e75a314f1d04469c8fc16647ddefc8c4ad3d4fb18c28dac"},
+  "review_method": "Fresh loaded native boards, exact UUID-owner AST comparison, bounded native polygon Boolean differences, native partition overlap-token receiver and four independently executed geometric Kelvin cut audits. Each explicit native proof budget8s; no board saves/refills/edits by reviewer.",
+  "native_owner_delta": {
+    "added":[],"removed":[],
+    "changed":["8299e7ca-b54e-408f-b4da-f843235b9b5a","28fb1d19-c582-4c57-aaf1-e0c9341b8a02","d973fe53-5c88-47cd-9e60-63dafba1de54"],
+    "all_tracks_pads_footprints_and_unlisted_owners_exact":true,
+    "selected_zone_settings_exact_excluding_polygon_and_filled_polygon":true
+  },
+  "selected_source_zone": {
+    "uuid":"8299e7ca-b54e-408f-b4da-f843235b9b5a","net":"/SENSE12V_LO","layer":"F.Cu",
+    "source_outline_minus_candidate_area_mm2":0,
+    "candidate_outline_minus_source_area_mm2":109.339166,
+    "source_saved_fill_minus_candidate_area_mm2":0,
+    "candidate_saved_fill_minus_source_area_mm2":109.337515330848,
+    "retained_terminal_tracks_fully_inside_actual_saved_fill":[
+      {"uuid":"0ea308d8-0916-4f7c-96f4-d428e85f5fe1","uncovered_native_track_polygon_area_mm2":0},
+      {"uuid":"d0b6d2b4-9cfe-47c3-8b24-d3a99d99fb06","uncovered_native_track_polygon_area_mm2":0},
+      {"uuid":"dcf4ab3a-cc44-4be4-8096-d77bbfebfa0e","uncovered_native_track_polygon_area_mm2":0},
+      {"uuid":"faf3f80b-7c71-40bf-a5b8-53efb056a54c","uncovered_native_track_polygon_area_mm2":0}
+    ],
+    "note":"Tested full native track polygon containment, not merely start/mid/end containment. It supports actual pour embedding; it does not qualify zone thermal/current cross-section."
+  },
+  "ground_refill_delta": [
+    {"uuid":"28fb1d19-c582-4c57-aaf1-e0c9341b8a02","layer":"GND","added_area_mm2":0.743212795181,"removed_area_mm2":0},
+    {"uuid":"d973fe53-5c88-47cd-9e60-63dafba1de54","layer":"GND2","added_area_mm2":0.743212795181,"removed_area_mm2":0}
+  ],
+  "ground_delta_warning":"Native refill adds material relative to the prior conservative trim clip; this is NOT a removal-only GND change. Exact native/current/return/fill receiving owns admission; no exception is inferred from small area or clean DRC.",
+  "retained_native_partition_proof": {
+    "entrypoint":"cec_native_partition_pair.compare(source,candidate,retired_uuids=(),timeout_s=8.)",
+    "available":true,"preserved":true,
+    "source_component_count":90,"child_component_count":90,
+    "native_source_component_count":90,"native_child_component_count":90,
+    "overlap_token_count":47,"intersection_pairs":63,
+    "exact_positive_native_island_overlap":true,"whole_zone_uuid_connectivity_credit":false,
+    "current_capacity_qualified":false,"routing_admitted":false,"release_authority":false
+  },
+  "affected_typed_lineage": {
+    "method":"cec_force_sense_evidence.audit candidate manifest shard, explicit8s deadline",
+    "manifest_inputs":8,"manifest_resolved":8,
+    "source_anchor":{"reference":"RS1","pad":"2","net":"/SENSE12V_LO"},
+    "changed_net_affected_negative_legs":[{"reference":"U10","device":"INA238","pin":"9"},{"reference":"U612V1","device":"INA181","pin":"4"}],
+    "force_authority":"All four physical TB1 pads numbered1 on /SENSE12V_LO"
+  },
+  "fresh_geometric_kelvin_cut_proofs": [
+    {"board":"source","sense":"U10.9","ok":true,"complete":true,"baseline_connected":true,"reason":"isolated_in_upper_copper_model","tracks_clipped":true,"exact_linear_identity_verified":true},
+    {"board":"source","sense":"U612V1.4","ok":true,"complete":true,"baseline_connected":true,"reason":"isolated_in_upper_copper_model","tracks_clipped":true,"exact_linear_identity_verified":true},
+    {"board":"candidate","sense":"U10.9","ok":true,"complete":true,"baseline_connected":true,"reason":"isolated_in_upper_copper_model","tracks_clipped":true,"exact_linear_identity_verified":true},
+    {"board":"candidate","sense":"U612V1.4","ok":true,"complete":true,"baseline_connected":true,"reason":"isolated_in_upper_copper_model","tracks_clipped":true,"exact_linear_identity_verified":true}
+  ],
+  "cut_scope": "cec_kelvin_copper_cut.audit(board,RS1.2,sense_pad,TB1_all_four_pads,deadline=now+8). Same-net native geometric copper clipping with1000nm approximation error and2nm guard. Not an electrical rating, full-board Kelvin pass or hardware physical-bypass certificate.",
+  "conclusion":"No source-material loss, retained-terminal partition loss or affected12V output Kelvin-cut regression found. Existing12V terminal neck track polygons are now embedded in actual saved pour. Two inner GND fills additionally recover0.7432mm2 each after refill and must remain declared receiving scope. No boards or gates modified by reviewer.",
+  "current_qualified":false,"full_kelvin_qualification":false,
+  "routing_admitted":false,"release_authority":false
+}

@@ -30,10 +30,19 @@ def _budget(seconds):
     return time.monotonic()+seconds
 
 
+def _destination_pad_contacts(board, at, diameter_nm):
+    """No pad overlap at a corrective destination, even valid POFV."""
+    return [force._uid(p) for fp in board.GetFootprints() for p in fp.Pads()
+        if any(p.IsOnLayer(l) and p.GetEffectiveShape(l).Collide(at,int(diameter_nm)//2)
+            for l in board.GetEnabledLayers().CuStack())]
+
+
 def plan(board, source, *, via_uuid, board_hint, allow_owned_locked=False,
-         max_additional_path_mm=4., max_source_leg_mm=8., timeout_s=10.):
+         max_additional_path_mm=4., max_source_leg_mm=8., timeout_s=10.,
+         repair_source_pad_overlap=False):
     deadline=_budget(timeout_s)
-    if type(allow_owned_locked) is not bool or type(via_uuid) is not str or not via_uuid:
+    if (type(allow_owned_locked) is not bool or type(repair_source_pad_overlap) is not bool
+            or type(via_uuid) is not str or not via_uuid):
         raise ValueError('explicit_source_barrel_reconstruction_policy_required')
     if (type(max_additional_path_mm) not in (int,float) or not math.isfinite(max_additional_path_mm)
             or not 0<=max_additional_path_mm<=16.):
@@ -53,7 +62,30 @@ def plan(board, source, *, via_uuid, board_hint, allow_owned_locked=False,
             or via.GetWidth(via.TopLayer())<round(dia*1e6)
             or via.GetDrillValue()<round(drill*1e6)):
         raise ValueError('unprotected_full_project_ordinary_through_barrel_required')
-    layers=list(board.GetEnabledLayers().CuStack());edges=[]
+    layers=list(board.GetEnabledLayers().CuStack());edges=[];repair_pad=None
+    if repair_source_pad_overlap:
+        contacts=[]
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if any(pad.IsOnLayer(l) and pad.GetEffectiveShape(l).Collide(
+                        via.GetPosition(),int(via.GetWidth(l))//2) for l in layers):
+                    contacts.append(pad)
+                if (pad.GetAttribute()==pcbnew.PAD_ATTRIB_NPTH and pad.HasHole()
+                        and pad.GetEffectiveHoleShape().Collide(via.GetEffectiveShape(pcbnew.F_Cu),0)):
+                    raise ValueError('ordinary_overlap_repair_has_NPTH_contact')
+        blocking,records=fab.via_at_pad_conflicts(board,via.GetPosition(),
+            via.GetWidth(via.TopLayer()),via.GetDrillValue(),via.GetNetCode())
+        if (len(contacts)!=1 or blocking is None or force._uid(blocking)!=force._uid(contacts[0])
+                or contacts[0].GetAttribute()!=pcbnew.PAD_ATTRIB_SMD
+                or contacts[0].GetNetCode()!=via.GetNetCode()
+                or force._uid(contacts[0]) in grouped
+                or force._uid(contacts[0].GetParentFootprint()) in grouped
+                or not records or records[-1]['reason']!='full via land is not contained by the SMD pad'):
+            raise ValueError('unique_native_same_net_partial_SMD_overlap_required')
+        repair_pad=contacts[0]
+        if any(not fr._tap_foreign_clear(board,via.GetPosition(),via.GetPosition(),
+                int(via.GetWidth(l)),l,0,{via.GetNetCode()}) for l in layers):
+            raise ValueError('ordinary_overlap_repair_has_foreign_source_contact')
     for item in [*(p for fp in board.GetFootprints() for p in fp.Pads()),
                  *board.GetTracks(),*[z for z in board.Zones() if not z.GetIsRuleArea()]]:
         if time.monotonic()>=deadline:raise ValueError('ordinary_barrel_source_inventory_deadline')
@@ -67,6 +99,7 @@ def plan(board, source, *, via_uuid, board_hint, allow_owned_locked=False,
             else:shape=item.GetEffectiveShape(layer)
             contact=contact or shape.Collide(via.GetEffectiveShape(layer),0)
         if not contact:continue
+        if repair_pad is not None and force._uid(item)==force._uid(repair_pad):continue
         if (item.GetClass()!='PCB_TRACK' or force._uid(item) in grouped
                 or item.IsLocked() and not allow_owned_locked
                 or not 0<item.GetWidth()<=350000
@@ -118,9 +151,13 @@ def plan(board, source, *, via_uuid, board_hint, allow_owned_locked=False,
             if (force._uid(item) in own or item.GetNetCode()!=via.GetNetCode()
                     or not item.IsOnLayer(edge.GetLayer())):continue
             shape=item.GetEffectiveShape(edge.GetLayer())
+            if repair_pad is not None and force._uid(item)==force._uid(repair_pad):
+                # This one source debt is an explicit surviving terminal,
+                # never general same-net-pad or nearby-owner permission.
+                if shape.Collide(edge.GetEffectiveShape(edge.GetLayer()),0):continue
             if shape.Collide(edge.GetEffectiveShape(edge.GetLayer()),0) and not shape.Collide(marker,0):
                 raise ValueError('source_barrel_leg_has_unowned_interior_contact')
-    return dict(schema=1,via_uuid=via_uuid,net=net,board_hint=board_hint,
+    result=dict(schema=1,via_uuid=via_uuid,net=net,board_hint=board_hint,
         allow_owned_locked=allow_owned_locked,source_binding=field._field_snapshot_inventory(board),
         max_additional_path_mm=float(max_additional_path_mm),
         max_source_leg_mm=float(max_source_leg_mm),
@@ -131,6 +168,12 @@ def plan(board, source, *, via_uuid, board_hint, allow_owned_locked=False,
         root_layers=[int(via.TopLayer()),int(via.BottomLayer())],
         source_path_mm=sum(t.GetLength()/1e6 for t in edges),
         release_authority=False,current_authority=False)
+    if repair_source_pad_overlap:
+        result.update(repair_source_pad_overlap=True,
+            mandatory_source_pad_uuid=force._uid(repair_pad),
+            mandatory_source_pad_reference=repair_pad.GetParentFootprint().GetReference(),
+            mandatory_source_pad_number=repair_pad.GetNumber())
+    return result
 
 
 def source_leg_budget_mm(value):
@@ -144,6 +187,7 @@ def source_leg_budget_mm(value):
 def subtract(board, source, proposal):
     if plan(board,source,via_uuid=proposal['via_uuid'],board_hint=proposal['board_hint'],
             allow_owned_locked=proposal['allow_owned_locked'],
+            repair_source_pad_overlap=proposal.get('repair_source_pad_overlap',False),
             max_additional_path_mm=proposal['max_additional_path_mm'],
             max_source_leg_mm=proposal['max_source_leg_mm'])!=proposal:
         raise ValueError('stale_or_forged_native_barrel_source_scope')
@@ -152,7 +196,8 @@ def subtract(board, source, proposal):
 
 
 def portal_candidates(source, *, via_uuid, board_hint, allow_owned_locked=False,
-                      radius_mm=1., grid_mm=.1, max_source_leg_mm=8., timeout_s=10.):
+                      radius_mm=1., grid_mm=.1, max_source_leg_mm=8., timeout_s=10.,
+                      repair_source_pad_overlap=False):
     """Test replacements on the exact private cut, not against the old hole.
 
     The source barrel remains a drill obstacle to an ordinary additive via
@@ -179,6 +224,7 @@ def portal_candidates(source, *, via_uuid, board_hint, allow_owned_locked=False,
         private=pcbnew.LoadBoard(str(source))
         q=plan(private,source,via_uuid=via_uuid,board_hint=board_hint,
             allow_owned_locked=allow_owned_locked,max_source_leg_mm=max_source_leg_mm,
+            repair_source_pad_overlap=repair_source_pad_overlap,
             timeout_s=max(.001,deadline-time.monotonic()))
         subtract(private,source,q)
         # Do not keep a SWIG pointer to the retired native via. Its scalar
@@ -193,6 +239,7 @@ def portal_candidates(source, *, via_uuid, board_hint, allow_owned_locked=False,
         for _,ix,iy in offsets:
             if time.monotonic()>=deadline:raise ValueError('source_barrel_portal_search_deadline')
             checked+=1;at=pcbnew.VECTOR2I(root[0]+ix*step,root[1]+iy*step)
+            if repair_source_pad_overlap and _destination_pad_contacts(private,at,width):continue
             if fr._via_spot_clear(private,at,width,gap,{code},drill_nm=drill,net_code=code,
                     foreign_cache=cache,refusal_counts=causes):
                 report['portals_nm'].append(list(at))
@@ -216,7 +263,8 @@ def reseat_distance_mm(value):
 
 
 def receive(source,candidate,*,via_uuid,board_hint,allow_owned_locked=False,
-            max_additional_path_mm=4.,max_source_leg_mm=8.,timeout_s=10.,max_reseat_mm=2.):
+            max_additional_path_mm=4.,max_source_leg_mm=8.,timeout_s=10.,max_reseat_mm=2.,
+            repair_source_pad_overlap=False):
     report=dict(schema=1,scope='ordinary_source_endpoint_barrel_reseat',ok=False,complete=False,
         errors=[],current_authority=False,release_authority=False,
         inherited_debt_qualified=False,full_saved_board_receiving_still_required=True)
@@ -228,6 +276,7 @@ def receive(source,candidate,*,via_uuid,board_hint,allow_owned_locked=False,
         parent,child=[pcbnew.LoadBoard(str(p)) for p in (source,candidate)]
         q=plan(parent,source,via_uuid=via_uuid,board_hint=board_hint,
             allow_owned_locked=allow_owned_locked,max_additional_path_mm=max_additional_path_mm,
+            repair_source_pad_overlap=repair_source_pad_overlap,
             max_source_leg_mm=max_source_leg_mm,
             timeout_s=max(.001,deadline-time.monotonic()))
         retired=set(q['retired_track_uuids'])|{via_uuid}
@@ -239,6 +288,8 @@ def receive(source,candidate,*,via_uuid,board_hint,allow_owned_locked=False,
                 or len(vias)+len(tracks)!=len(material) or any(t.GetNetname()!=q['net'] for t in material)):
             raise ValueError('one_ordinary_barrel_and_bounded_exact_same_net_legs_required')
         via=vias[0];layers=list(child.GetEnabledLayers().CuStack())
+        if repair_source_pad_overlap and _destination_pad_contacts(child,via.GetPosition(),via.GetWidth(via.TopLayer())):
+            raise ValueError('ordinary_overlap_repair_destination_must_clear_all_pads')
         source_widths={int(row['layer']):int(row['width_nm']) for row in q['source_points_nm']}
         if any(int(t.GetLayer()) not in source_widths or t.GetWidth()!=source_widths[int(t.GetLayer())]
                 for t in tracks):
@@ -273,6 +324,8 @@ def receive(source,candidate,*,via_uuid,board_hint,allow_owned_locked=False,
             raise ValueError('ordinary_barrel_reseat_lost_surviving_native_partition')
         native=fr._read_only_route_connectivity(child)
         reached={force._uid(via)}|{force._uid(t) for t in native.GetConnectedItems(via)}
+        if repair_source_pad_overlap and q['mandatory_source_pad_uuid'] not in reached:
+            raise ValueError('ordinary_overlap_repair_lost_original_pad_terminal')
         if any(force._uid(t) not in reached for t in tracks):
             raise ValueError('ordinary_barrel_has_disconnected_new_material')
         with tempfile.TemporaryDirectory(prefix='cec-ordinary-barrel-replay-') as work:

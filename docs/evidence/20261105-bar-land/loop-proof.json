@@ -1,0 +1,477 @@
+{
+  "schema": 1,
+  "scope": "Exact private copper retirement connectivity and land-collision evidence, NOT retirement admission or production qualification",
+  "source": {
+    "path": "experiments/repack/j6c-connected-20261105/carrier/board.kicad_pcb",
+    "sha256": "0510fc715b900b1c847b092a55f4e9a2b0150ada9555d64b02d61289e6b86064"
+  },
+  "candidate": {
+    "path": "experiments/repack/loop-proof-20261105/cut/board.kicad_pcb",
+    "sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3"
+  },
+  "retired_net": "+3V3",
+  "retired_track_count": 31,
+  "retired_track_uuids": [
+    "059c92b2-5b7c-4e60-8fd9-5f446dfb9a69",
+    "12b01a90-f7c4-45a4-99a8-1428409ff370",
+    "198f2b61-404d-4091-bc95-25bb9bff1ba1",
+    "1f320938-a083-4445-a8f9-d7b5e00fee85",
+    "203c6ed9-dc36-4ece-a9fa-f251fb6b789c",
+    "2261b7c6-35e3-4a21-a68f-f4e0acee920f",
+    "2541f504-2474-44b0-9fef-887f253496b4",
+    "270d58d9-f4d0-48d2-9917-a511efe6e8f8",
+    "278c4dc6-12b7-49a9-b588-73e495011d3a",
+    "2f55ed07-7d01-489a-a751-4b9ec5f1b4e5",
+    "3ec369d0-93e5-4639-96b0-951d468d7c47",
+    "48eac35d-7573-4afb-80b9-85da2ce061e4",
+    "4a00339c-d982-4550-b8bf-bf8d205de067",
+    "4cd41053-6bd2-4f77-9215-0bbd335ea894",
+    "4edf6b73-1e05-4577-aea7-d8dfdff98101",
+    "53e65bad-8e08-4c47-8f21-c311b28cfcce",
+    "5d7a3dcc-04d3-43cf-af3f-f9239fe77312",
+    "5f7fb0bb-3aaf-4322-9004-9f6bf7604035",
+    "62dc365d-3efd-402d-abf3-58ff3e0b8695",
+    "700c08fe-305e-4abc-9c04-4010435e47c5",
+    "755bbc46-f5a3-4257-8c3e-37ea5c7b1dc4",
+    "80ba367f-74fb-4b1a-8595-ece17f2a9409",
+    "8f84824e-99d8-4973-a36b-d859edbced1e",
+    "98323c82-f7c9-40a5-b67a-e61e7a4c580b",
+    "a4ed4148-8e7c-485d-a7f6-3e0cc29036e6",
+    "a953733f-eb5c-4b76-ba11-8c203319aadd",
+    "b8bc86b3-e998-4642-b8d4-b0f050004bb6",
+    "da20336b-0a99-42cf-bbb2-82d4ed2e2009",
+    "e1e881f9-6e61-4916-8f9b-8e443d714286",
+    "e5c936fa-1b07-46bb-99b3-4c8eea8b5e2b",
+    "f74b7019-3005-40e8-9281-09ffb875af94"
+  ],
+  "retired_layer": "F.Cu",
+  "retired_width_nm": 200000,
+  "all_retired_were_locked_and_ungrouped": true,
+  "retired_length_mm": 30.57235227302532,
+  "literal_retirement": {
+    "exact_opaque_source_subtraction": true,
+    "independent_full_native_inventory_equal": true,
+    "electrical_retirement_authority": false
+  },
+  "native_external_contacts": [
+    {
+      "cut_uuid": "2541f504-2474-44b0-9fef-887f253496b4",
+      "retained_uuid": "11c6be2f-906b-4962-97f4-03a76c255a5d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        55600000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "2541f504-2474-44b0-9fef-887f253496b4",
+      "retained_uuid": "96da7213-4ae2-48c6-bcce-70906d1a962d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        57200000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "2541f504-2474-44b0-9fef-887f253496b4",
+      "retained_uuid": "d22a6e92-2c95-4e06-8fb9-6ae992e5c73a",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        65400000,
+        62200000
+      ],
+      "end_nm": [
+        58400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "2f55ed07-7d01-489a-a751-4b9ec5f1b4e5",
+      "retained_uuid": "11c6be2f-906b-4962-97f4-03a76c255a5d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        55600000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "2f55ed07-7d01-489a-a751-4b9ec5f1b4e5",
+      "retained_uuid": "96da7213-4ae2-48c6-bcce-70906d1a962d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        57200000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "2f55ed07-7d01-489a-a751-4b9ec5f1b4e5",
+      "retained_uuid": "d22a6e92-2c95-4e06-8fb9-6ae992e5c73a",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        65400000,
+        62200000
+      ],
+      "end_nm": [
+        58400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "4cd41053-6bd2-4f77-9215-0bbd335ea894",
+      "retained_uuid": "11c6be2f-906b-4962-97f4-03a76c255a5d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        55600000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "4cd41053-6bd2-4f77-9215-0bbd335ea894",
+      "retained_uuid": "96da7213-4ae2-48c6-bcce-70906d1a962d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        57200000,
+        62200000
+      ],
+      "end_nm": [
+        65400000,
+        62200000
+      ]
+    },
+    {
+      "cut_uuid": "4cd41053-6bd2-4f77-9215-0bbd335ea894",
+      "retained_uuid": "d22a6e92-2c95-4e06-8fb9-6ae992e5c73a",
+      "kind": "PCB_TRACK",
+      "net": "+3V3",
+      "start_nm": [
+        65400000,
+        62200000
+      ],
+      "end_nm": [
+        58400000,
+        62200000
+      ]
+    }
+  ],
+  "external_contact_summary": {
+    "retained_tracks": [
+      "11c6be2f-906b-4962-97f4-03a76c255a5d",
+      "96da7213-4ae2-48c6-bcce-70906d1a962d",
+      "d22a6e92-2c95-4e06-8fb9-6ae992e5c73a"
+    ],
+    "common_retained_endpoint_nm": [
+      65400000,
+      62200000
+    ],
+    "native_pad_contacts": 0,
+    "native_via_contacts": 0,
+    "native_same_net_zone_contacts": 0,
+    "method": "All retained source pads and tracks queried using native effective shapes on common F.Cu; all same-net saved F.Cu zone polygons intersected. Full all-layer connectivity is independently compared below."
+  },
+  "partitions_before_refill": {
+    "available": true,
+    "preserved": true,
+    "source_component_count": 89,
+    "child_component_count": 89,
+    "native_source_component_count": 89,
+    "native_child_component_count": 89,
+    "reported_parts_contain_comparison_keys_only": true,
+    "overlap_token_count": 46,
+    "intersection_pairs": 60,
+    "exact_positive_native_island_overlap": true,
+    "whole_zone_uuid_connectivity_credit": false,
+    "current_capacity_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false,
+    "independent_delta_pose_current_receiving_still_required": true
+  },
+  "partitions_after_refill": {
+    "available": true,
+    "preserved": true,
+    "source_component_count": 89,
+    "child_component_count": 89,
+    "native_source_component_count": 89,
+    "native_child_component_count": 89,
+    "reported_parts_contain_comparison_keys_only": true,
+    "overlap_token_count": 46,
+    "intersection_pairs": 60,
+    "exact_positive_native_island_overlap": true,
+    "whole_zone_uuid_connectivity_credit": false,
+    "current_capacity_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false,
+    "independent_delta_pose_current_receiving_still_required": true
+  },
+  "zone_refill": {
+    "source_unchanged": true,
+    "cut_sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3",
+    "only_saved_zone_nodes_replaced": true
+  },
+  "native_delta": {
+    "removed_uuid_count": 31,
+    "added_uuid_count": 0,
+    "unexpected_native_node_changes": [],
+    "globals_unchanged": true,
+    "all_retained_nodes_exact_except_zone_filled_polygon": true,
+    "source_sidecars_preserved": true
+  },
+  "land_necessity": {
+    "bounds_nm": [
+      67150000,
+      54100000,
+      70850000,
+      74900000
+    ],
+    "proposed_land_net": "/SENSE3V3_HI",
+    "cut_net": "+3V3",
+    "contacts": [
+      {
+        "uuid": "059c92b2-5b7c-4e60-8fd9-5f446dfb9a69",
+        "positive_land_overlap": true,
+        "overlap_nm2": 131415530208
+      },
+      {
+        "uuid": "12b01a90-f7c4-45a4-99a8-1428409ff370",
+        "positive_land_overlap": true,
+        "overlap_nm2": 225022202349.5
+      },
+      {
+        "uuid": "198f2b61-404d-4091-bc95-25bb9bff1ba1",
+        "positive_land_overlap": true,
+        "overlap_nm2": 750695530208
+      },
+      {
+        "uuid": "1f320938-a083-4445-a8f9-d7b5e00fee85",
+        "positive_land_overlap": true,
+        "overlap_nm2": 39504929701.5
+      },
+      {
+        "uuid": "203c6ed9-dc36-4ece-a9fa-f251fb6b789c",
+        "positive_land_overlap": true,
+        "overlap_nm2": 134835530208
+      },
+      {
+        "uuid": "2261b7c6-35e3-4a21-a68f-f4e0acee920f",
+        "positive_land_overlap": true,
+        "overlap_nm2": 252495530208
+      },
+      {
+        "uuid": "2541f504-2474-44b0-9fef-887f253496b4",
+        "positive_land_overlap": true,
+        "overlap_nm2": 369260927886
+      },
+      {
+        "uuid": "270d58d9-f4d0-48d2-9917-a511efe6e8f8",
+        "positive_land_overlap": true,
+        "overlap_nm2": 187635530208
+      },
+      {
+        "uuid": "278c4dc6-12b7-49a9-b588-73e495011d3a",
+        "positive_land_overlap": true,
+        "overlap_nm2": 47495530208
+      },
+      {
+        "uuid": "2f55ed07-7d01-489a-a751-4b9ec5f1b4e5",
+        "positive_land_overlap": true,
+        "overlap_nm2": 312693961575
+      },
+      {
+        "uuid": "3ec369d0-93e5-4639-96b0-951d468d7c47",
+        "positive_land_overlap": true,
+        "overlap_nm2": 47495530208
+      },
+      {
+        "uuid": "48eac35d-7573-4afb-80b9-85da2ce061e4",
+        "positive_land_overlap": true,
+        "overlap_nm2": 46575992410
+      },
+      {
+        "uuid": "4a00339c-d982-4550-b8bf-bf8d205de067",
+        "positive_land_overlap": true,
+        "overlap_nm2": 323915530208
+      },
+      {
+        "uuid": "4cd41053-6bd2-4f77-9215-0bbd335ea894",
+        "positive_land_overlap": true,
+        "overlap_nm2": 199555442757
+      },
+      {
+        "uuid": "4edf6b73-1e05-4577-aea7-d8dfdff98101",
+        "positive_land_overlap": true,
+        "overlap_nm2": 144495530208
+      },
+      {
+        "uuid": "53e65bad-8e08-4c47-8f21-c311b28cfcce",
+        "positive_land_overlap": true,
+        "overlap_nm2": 205115530208
+      },
+      {
+        "uuid": "5d7a3dcc-04d3-43cf-af3f-f9239fe77312",
+        "positive_land_overlap": true,
+        "overlap_nm2": 43408141981.5
+      },
+      {
+        "uuid": "5f7fb0bb-3aaf-4322-9004-9f6bf7604035",
+        "positive_land_overlap": true,
+        "overlap_nm2": 46575992410
+      },
+      {
+        "uuid": "62dc365d-3efd-402d-abf3-58ff3e0b8695",
+        "positive_land_overlap": true,
+        "overlap_nm2": 38611128222.5
+      },
+      {
+        "uuid": "700c08fe-305e-4abc-9c04-4010435e47c5",
+        "positive_land_overlap": true,
+        "overlap_nm2": 43408141981.5
+      },
+      {
+        "uuid": "755bbc46-f5a3-4257-8c3e-37ea5c7b1dc4",
+        "positive_land_overlap": true,
+        "overlap_nm2": 56135946112.5
+      },
+      {
+        "uuid": "80ba367f-74fb-4b1a-8595-ece17f2a9409",
+        "positive_land_overlap": true,
+        "overlap_nm2": 199395530208
+      },
+      {
+        "uuid": "8f84824e-99d8-4973-a36b-d859edbced1e",
+        "positive_land_overlap": true,
+        "overlap_nm2": 62495530208
+      },
+      {
+        "uuid": "98323c82-f7c9-40a5-b67a-e61e7a4c580b",
+        "positive_land_overlap": true,
+        "overlap_nm2": 39995530208
+      },
+      {
+        "uuid": "a4ed4148-8e7c-485d-a7f6-3e0cc29036e6",
+        "positive_land_overlap": true,
+        "overlap_nm2": 39995530208
+      },
+      {
+        "uuid": "a953733f-eb5c-4b76-ba11-8c203319aadd",
+        "positive_land_overlap": true,
+        "overlap_nm2": 781775530208
+      },
+      {
+        "uuid": "b8bc86b3-e998-4642-b8d4-b0f050004bb6",
+        "positive_land_overlap": true,
+        "overlap_nm2": 472910530208
+      },
+      {
+        "uuid": "da20336b-0a99-42cf-bbb2-82d4ed2e2009",
+        "positive_land_overlap": true,
+        "overlap_nm2": 39504929701.5
+      },
+      {
+        "uuid": "e1e881f9-6e61-4916-8f9b-8e443d714286",
+        "positive_land_overlap": true,
+        "overlap_nm2": 44135530208
+      },
+      {
+        "uuid": "e5c936fa-1b07-46bb-99b3-4c8eea8b5e2b",
+        "positive_land_overlap": true,
+        "overlap_nm2": 190702530208
+      },
+      {
+        "uuid": "f74b7019-3005-40e8-9281-09ffb875af94",
+        "positive_land_overlap": true,
+        "overlap_nm2": 39047530208
+      }
+    ],
+    "all_31_positive": true
+  },
+  "native_producer": {
+    "ok": true,
+    "complete": true,
+    "faults_suppressed": 0,
+    "report_sha256": "5b50b34d57c2460df682fdb5ac4ee3503145a180c09022b10e0c2658d6f3ce44",
+    "all_track_errors": true,
+    "severity_all": true
+  },
+  "native_counts": {
+    "errors": 0,
+    "opens": 0,
+    "warnings": 67
+  },
+  "evidence_files": [
+    {
+      "path": "experiments/repack/loop-proof-20261105/construct.json",
+      "sha256": "9fc025266f8ef13a547e41e186ef34db9c2cd5576b5c7f9c0d17adb538116321"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/partition-before-refill.json",
+      "sha256": "249a7d72e14307ffe3efacaa98a992c655510a53b65555ec7bb5820d1dfbde71"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/partition-after-refill.json",
+      "sha256": "249a7d72e14307ffe3efacaa98a992c655510a53b65555ec7bb5820d1dfbde71"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/refill.json",
+      "sha256": "dc91d093a81051f33c5de628e1d70912f8d2afb270e1b5bb8c98232c9ec6e5d4"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/land.json",
+      "sha256": "d84cdf471c13da0481b7d1faba270d649130951ef428cc4f3161619ab1e0dc7d"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/native-drc.json",
+      "sha256": "5b50b34d57c2460df682fdb5ac4ee3503145a180c09022b10e0c2658d6f3ce44"
+    },
+    {
+      "path": "experiments/repack/loop-proof-20261105/native-producer.json",
+      "sha256": "dca75d45a6c85ee22188ba34408ac52b573cd147fb0a21e46e6d049efc181f80"
+    }
+  ],
+  "conclusion": {
+    "all_source_terminal_and_retained_copper_partitions_preserved": true,
+    "demoted_parts_before_refill": 0,
+    "demoted_parts_after_refill": 0,
+    "each_retired_track_has_positive_native_overlap_with_different_net_bar_land": true,
+    "keeping_any_of_31_under_this_land_would_create_foreign_net_copper_overlap": true,
+    "source_unchanged": true,
+    "reviewed_checkpoint_unchanged": true
+  },
+  "qualification_limits": [
+    "This proves native electrical connectivity preservation, not source-owned locked-track retirement admission.",
+    "No terminal/load is attached directly to this returning excursion; finite resistance/current-distribution or shielding effects are not qualified by connectivity alone.",
+    "Current capacity, Kelvin isolation, field/return obligations and thermal distribution must still receive independently.",
+    "The provisional bar land is not installed by this evidence and no bar ampacity or joint capacity is inferred.",
+    "Other VBUS/THRESH/SYS_PORT obstructions remain outside this cut proof."
+  ],
+  "routing_admitted": false,
+  "current_capacity_qualified": false,
+  "kelvin_qualified": false,
+  "release_authority": false
+}

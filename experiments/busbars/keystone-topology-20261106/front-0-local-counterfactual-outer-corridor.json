@@ -1,0 +1,3376 @@
+{
+  "schema": 1,
+  "source": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "case": 0,
+  "land_centers_mm": [
+    [
+      46,
+      39.5
+    ],
+    [
+      56.7,
+      39.5
+    ]
+  ],
+  "body_xy": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          57.5,
+          38.35
+        ],
+        [
+          57.5,
+          40.65
+        ],
+        [
+          45.2,
+          40.65
+        ],
+        [
+          45.2,
+          38.35
+        ],
+        [
+          57.5,
+          38.35
+        ]
+      ]
+    ]
+  },
+  "lands_xy": [
+    {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            47.3,
+            37.75
+          ],
+          [
+            47.3,
+            41.25
+          ],
+          [
+            44.7,
+            41.25
+          ],
+          [
+            44.7,
+            37.75
+          ],
+          [
+            47.3,
+            37.75
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            58.0,
+            37.75
+          ],
+          [
+            58.0,
+            41.25
+          ],
+          [
+            55.400000000000006,
+            41.25
+          ],
+          [
+            55.400000000000006,
+            37.75
+          ],
+          [
+            58.0,
+            37.75
+          ]
+        ]
+      ]
+    }
+  ],
+  "nominal_part": "Keystone5104TR",
+  "geometry": {
+    "id": "front-short-bridge-0",
+    "face": "F.Cu",
+    "land_conflicts": [],
+    "same_net_land_contacts": [
+      [
+        {
+          "uuid": "5491613b-e2de-4b7f-987c-edbcdccd811f",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "90d8bf0c-4e79-4bce-ab49-20fbad2d80d5",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "9bb8eb20-6733-4c26-b73f-4b60bd656da1",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "e3cd86b0-2ac7-592b-9f72-d06fd6ee18ad",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "ee0f78be-c4e1-4c35-8655-be556a5f71cb",
+          "kind": "PCB_TRACK",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "d1b329e0-bf27-447b-92eb-99c80bfb6972",
+          "kind": "PCB_VIA",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "62279ed9-4e20-4cee-923f-d3795932bef5",
+          "kind": "ZONE",
+          "net": "/SENSE12V_HI"
+        }
+      ],
+      []
+    ],
+    "source_copper_touches_both_feet": false,
+    "nearby_holes_or_leads": [],
+    "same_face_body_reservations": [],
+    "unknown": [],
+    "body_and_lands_inside_board": true,
+    "land_clearance_screen_ok": true,
+    "nominal_mechanical_screen_ok": true,
+    "mechanical_allocation_mm": 0.5,
+    "scope": "base/netclass land-clearance and nominal mechanical rejection screen",
+    "custom_rule_DRC_run": false,
+    "lead_geometry_basis": "native drill envelopes; solder unknown",
+    "mechanical_fit_qualified": false,
+    "added_assembly_height_known": false,
+    "current_connection_qualified": false,
+    "release_authority": false
+  },
+  "land_rule_hits": [
+    [],
+    []
+  ],
+  "links": [
+    {
+      "name": "source",
+      "found": true,
+      "elapsed_s": 0.05541787399852183,
+      "legs": [
+        {
+          "start_mm": [
+            47.4,
+            38.3582
+          ],
+          "end_mm": [
+            47.1418,
+            38.3582
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            47.1418,
+            38.3582
+          ],
+          "end_mm": [
+            46.0,
+            39.5
+          ],
+          "width_nm": 3230592
+        }
+      ],
+      "diagnostics": {}
+    },
+    {
+      "name": "to_right",
+      "found": false,
+      "elapsed_s": 0.18742463100352325,
+      "legs": [],
+      "diagnostics": {
+        "observed_segment_refusals": {
+          "scope": "observed_proposals_not_exhaustive_path_or_min_cut_proof",
+          "net": "/SENSE12V_HI",
+          "layer": "F.Cu",
+          "sample_limit": 6,
+          "events": {
+            "foreign_copper_or_hole": 1188
+          },
+          "samples": [
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                39500000
+              ],
+              "end_nm": [
+                67500000,
+                39500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "patch:/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "uuid": "04b1b0ba-5c8d-45df-921a-770a27d15213",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "CEC_SOURCE_SHUNT_COLLECTOR",
+                  "layer": "F.Cu",
+                  "uuid": "40d65e0a-4104-5c20-9c29-cef71c2d2c94",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "FB1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "94325c50-0290-4170-9308-4771315908ca",
+                  "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "FB1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+                  "layer": "F.Cu",
+                  "uuid": "a41e9ae9-7e80-4a8b-9ab3-d67280583df5",
+                  "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "0565dbe1-e71a-4b7a-afba-2bcfc6cdef19",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "5a7dad52-37fd-4a75-9318-23b6cdbb9b61",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.0,
+                    39.1
+                  ],
+                  "to_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "83db8c63-096f-41f3-a9bd-fb730f41b1c7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "7b072d42-c4ff-4448-b5ea-88a44ac3b310",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    62.2,
+                    43.472
+                  ],
+                  "to_mm": [
+                    62.2,
+                    42.0375
+                  ],
+                  "width_mm": 3.35,
+                  "uuid": "a63b6fcd-00dd-45d8-9476-c2aa8cecbeb8",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    63.5,
+                    40.7375
+                  ],
+                  "diameter_mm": 0.9,
+                  "uuid": "266ec9a5-6ac3-4916-892c-3bbe7ad436b2",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    62.2,
+                    40.7375
+                  ],
+                  "diameter_mm": 0.9,
+                  "uuid": "a0d73d7d-9d2d-40e9-85c8-3f150889873d",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    60.9,
+                    40.7375
+                  ],
+                  "diameter_mm": 0.9,
+                  "uuid": "fcd7f730-42a9-49c6-9270-b46a96987329",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SCL",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.335,
+                    38.4
+                  ],
+                  "to_mm": [
+                    59.36,
+                    38.425
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "eee2d51b-591a-4c0e-a440-e6f9d7907705",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/I2C_SCL",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    59.36,
+                    38.425
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "318a7901-01d3-4be4-9c9b-c397be71be8f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "to_mm": [
+                    71.454375,
+                    35.779374
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "00e70599-dc4b-42d0-9964-5f23d5e2e267",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.9347
+                  ],
+                  "to_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "f976c496-d39b-40f5-818c-4d945cc69ed0",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                39500000
+              ],
+              "end_nm": [
+                60200000,
+                36000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "patch:/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "uuid": "04b1b0ba-5c8d-45df-921a-770a27d15213",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    62.0,
+                    36.4
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "2bf9c467-c76e-4946-a32f-7af963b55f5f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    58.891156,
+                    37.375099
+                  ],
+                  "to_mm": [
+                    58.691156,
+                    37.175099
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "2e522552-9138-44e6-ab8b-67cf2d5fad54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    62.835001,
+                    37.375099
+                  ],
+                  "to_mm": [
+                    58.891156,
+                    37.375099
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "486ba549-fecf-4ca5-a7c8-212e441b0c27",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.858579,
+                    37.141421
+                  ],
+                  "to_mm": [
+                    60.141421,
+                    37.141421
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "6e002317-3571-4733-819a-442a1d493a3a",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.858579,
+                    37.141421
+                  ],
+                  "to_mm": [
+                    59.5,
+                    37.5
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "add8faf7-72e5-45d2-810c-370af383bae5",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    58.691156,
+                    37.175099
+                  ],
+                  "to_mm": [
+                    58.691156,
+                    35.518943
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "c4141fc0-d927-4634-96be-8983b1a23e09",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    60.5,
+                    37.5
+                  ],
+                  "to_mm": [
+                    60.141421,
+                    37.141421
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "d19b4e36-db2b-421d-b907-a72898e92c05",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    62.5,
+                    37.5
+                  ],
+                  "to_mm": [
+                    60.5,
+                    37.5
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "ef74e299-3ece-466e-a61a-de37e5da3d18",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    58.691156,
+                    35.518943
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "b87480ab-2a3d-4ad2-881b-fa12c5999a3e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "0565dbe1-e71a-4b7a-afba-2bcfc6cdef19",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "5a7dad52-37fd-4a75-9318-23b6cdbb9b61",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.0,
+                    39.1
+                  ],
+                  "to_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "83db8c63-096f-41f3-a9bd-fb730f41b1c7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "7b072d42-c4ff-4448-b5ea-88a44ac3b310",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    61.0,
+                    36.5
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "c608c310-207f-4aa4-8d38-3cd0726dd2e9",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/CAN_L_BUS",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    61.9,
+                    35.3
+                  ],
+                  "to_mm": [
+                    61.9,
+                    34.3
+                  ],
+                  "width_mm": 0.25,
+                  "uuid": "79c6727a-7475-4e94-881d-79802efa77b3",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                39500000
+              ],
+              "end_nm": [
+                71000000,
+                39500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "patch:/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "uuid": "04b1b0ba-5c8d-45df-921a-770a27d15213",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "CEC_SOURCE_SHUNT_COLLECTOR",
+                  "layer": "F.Cu",
+                  "uuid": "40d65e0a-4104-5c20-9c29-cef71c2d2c94",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A12",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "S1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "86ef7f00-b092-47ac-8a4a-9d36df529db6",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "FB1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "94325c50-0290-4170-9308-4771315908ca",
+                  "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "FB1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+                  "layer": "F.Cu",
+                  "uuid": "a41e9ae9-7e80-4a8b-9ab3-d67280583df5",
+                  "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.805,
+                    41.26
+                  ],
+                  "to_mm": [
+                    70.88,
+                    41.26
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "259e7916-ff07-4fba-a5d6-0500109bb228",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    70.88,
+                    41.26
+                  ],
+                  "diameter_mm": 0.35,
+                  "uuid": "5f93e472-98a8-49eb-86a1-eda82ce4b26f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "0565dbe1-e71a-4b7a-afba-2bcfc6cdef19",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "5a7dad52-37fd-4a75-9318-23b6cdbb9b61",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.0,
+                    39.1
+                  ],
+                  "to_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "83db8c63-096f-41f3-a9bd-fb730f41b1c7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "7b072d42-c4ff-4448-b5ea-88a44ac3b310",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    72.22,
+                    38.282499
+                  ],
+                  "to_mm": [
+                    70.891,
+                    38.282499
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "14e935fb-0c82-49a5-9319-1bfa5a115977",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    70.725,
+                    42.06
+                  ],
+                  "to_mm": [
+                    70.005,
+                    41.34
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "3c6b1dfe-661b-4e28-91f6-34f3d020b286",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    70.005,
+                    39.168499
+                  ],
+                  "to_mm": [
+                    70.005,
+                    41.34
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "b4a1e744-f00d-482d-8b0a-070fba736737",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                39500000
+              ],
+              "end_nm": [
+                56700000,
+                36000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    55.5893,
+                    35.287959
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "00cb6074-76c2-415d-8acb-96887d1af54f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    58.691156,
+                    35.518943
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "b87480ab-2a3d-4ad2-881b-fa12c5999a3e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/FOUR-RAIL PRECISION + FAST SENSING/THRESH",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    58.0,
+                    36.8
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "5cd62935-be27-4989-bdb0-e2fcf9232170",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                39500000
+              ],
+              "end_nm": [
+                56700000,
+                35500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    55.5893,
+                    35.287959
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "00cb6074-76c2-415d-8acb-96887d1af54f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "+3V3",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    58.691156,
+                    35.518943
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "b87480ab-2a3d-4ad2-881b-fa12c5999a3e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/FOUR-RAIL PRECISION + FAST SENSING/THRESH",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    58.0,
+                    36.8
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "5cd62935-be27-4989-bdb0-e2fcf9232170",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                56700000,
+                40000000
+              ],
+              "end_nm": [
+                71000000,
+                40000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "patch:/SENSE3V3_LO",
+                  "layer": "F.Cu",
+                  "uuid": "04b1b0ba-5c8d-45df-921a-770a27d15213",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_LO",
+                  "name": "CEC_SOURCE_SHUNT_COLLECTOR",
+                  "layer": "F.Cu",
+                  "uuid": "40d65e0a-4104-5c20-9c29-cef71c2d2c94",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A12",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "5f5b9b6b-9c93-4caa-b4ca-534482087cfc",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "S1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "86ef7f00-b092-47ac-8a4a-9d36df529db6",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "FB1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "94325c50-0290-4170-9308-4771315908ca",
+                  "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.805,
+                    41.26
+                  ],
+                  "to_mm": [
+                    70.88,
+                    41.26
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "259e7916-ff07-4fba-a5d6-0500109bb228",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.805,
+                    41.56
+                  ],
+                  "to_mm": [
+                    71.805,
+                    41.26
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "d5ba336d-e998-4281-843e-592f5c1104ca",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    71.805,
+                    41.56
+                  ],
+                  "diameter_mm": 0.3,
+                  "uuid": "3379d77c-0400-4998-aa29-4f870876543a",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    70.88,
+                    41.26
+                  ],
+                  "diameter_mm": 0.35,
+                  "uuid": "5f93e472-98a8-49eb-86a1-eda82ce4b26f",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "0565dbe1-e71a-4b7a-afba-2bcfc6cdef19",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    60.0767,
+                    38.6233
+                  ],
+                  "to_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "5a7dad52-37fd-4a75-9318-23b6cdbb9b61",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.0,
+                    39.1
+                  ],
+                  "to_mm": [
+                    59.6,
+                    39.1
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "83db8c63-096f-41f3-a9bd-fb730f41b1c7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "via",
+                  "net": "/I2C_SDA",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "at_mm": [
+                    60.0767,
+                    38.025
+                  ],
+                  "diameter_mm": 0.6,
+                  "uuid": "7b072d42-c4ff-4448-b5ea-88a44ac3b310",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    72.22,
+                    38.282499
+                  ],
+                  "to_mm": [
+                    70.891,
+                    38.282499
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "14e935fb-0c82-49a5-9319-1bfa5a115977",
+                  "contact": "clearance"
+                }
+              ]
+            }
+          ],
+          "release_authority": false
+        },
+        "maze_tiers": [
+          {
+            "grid_mm": 0.75,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": false,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 3,
+            "tier_lease_s": 0.6042691943366663,
+            "outer_deadline_monotonic": 55104.521199886,
+            "tier_deadline_monotonic": 55103.31266149734,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    56700000,
+                    39500000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": true
+                },
+                {
+                  "endpoint": "end",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 6.596199818886817e-05
+            }
+          },
+          {
+            "grid_mm": 0.5,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": false,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 2,
+            "tier_lease_s": 0.9063634260019171,
+            "outer_deadline_monotonic": 55104.521199886,
+            "tier_deadline_monotonic": 55103.61483646,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    56700000,
+                    39500000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": true
+                },
+                {
+                  "endpoint": "end",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 3.613899752963334e-05
+            }
+          },
+          {
+            "grid_mm": 0.25,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": true,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 1,
+            "tier_lease_s": 1.8126839010001277,
+            "outer_deadline_monotonic": 55104.521199886,
+            "tier_deadline_monotonic": 55104.521199886,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    56700000,
+                    39500000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": true
+                },
+                {
+                  "endpoint": "end",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 3.0244002118706703e-05
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "right_corridor",
+      "found": false,
+      "elapsed_s": 0.12634593399707228,
+      "legs": [],
+      "diagnostics": {
+        "observed_segment_refusals": {
+          "scope": "observed_proposals_not_exhaustive_path_or_min_cut_proof",
+          "net": "/SENSE12V_HI",
+          "layer": "F.Cu",
+          "sample_limit": 6,
+          "events": {
+            "foreign_copper_or_hole": 1185
+          },
+          "samples": [
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                71000000,
+                82000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "4",
+                  "net": "/USB_D_N",
+                  "layer": "F.Cu",
+                  "uuid": "59dc235b-0705-411e-b3d9-a38d01944ca1",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "3c73043c-ce32-4a2a-b259-4c6e7269e5ab",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "6",
+                  "net": "/USB_D_P",
+                  "layer": "F.Cu",
+                  "uuid": "a0ea1ce0-7190-45e2-8f0c-c3df6451b93a",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "dac84c22-f52c-4778-928e-2bcaa3760910",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A4",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "ba3fd611-10c5-4268-abc5-3fb10032940e",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/USB_CC1",
+                  "layer": "F.Cu",
+                  "uuid": "043253ec-169a-406e-ac54-04e7a03006c2",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A6",
+                  "net": "/USB_D_P",
+                  "layer": "F.Cu",
+                  "uuid": "47861ba2-45a3-46b7-8842-f8b8f3640795",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A7",
+                  "net": "/USB_D_N",
+                  "layer": "F.Cu",
+                  "uuid": "79c119c7-9796-4e8f-9318-714374272823",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A8",
+                  "net": "unconnected-(J5-SBU1-PadA8)",
+                  "layer": "F.Cu",
+                  "uuid": "6e946a96-5b3b-4ce4-829e-d7e15ee1eb71",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A9",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "acca73e5-e87c-4060-9cbb-3dc0ccb17db3",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A12",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "5f5b9b6b-9c93-4caa-b4ca-534482087cfc",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B4",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "5f8cf630-1181-4dd6-987b-644ac7435976",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/USB_CC2",
+                  "layer": "F.Cu",
+                  "uuid": "32c76394-9ef1-4442-862a-c2ccb40f3e44",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                71000000,
+                35500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "to_mm": [
+                    71.454375,
+                    35.779374
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "00e70599-dc4b-42d0-9964-5f23d5e2e267",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                71000000,
+                82500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "4",
+                  "net": "/USB_D_N",
+                  "layer": "F.Cu",
+                  "uuid": "59dc235b-0705-411e-b3d9-a38d01944ca1",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "3c73043c-ce32-4a2a-b259-4c6e7269e5ab",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "D_USB1",
+                  "pad": "6",
+                  "net": "/USB_D_P",
+                  "layer": "F.Cu",
+                  "uuid": "a0ea1ce0-7190-45e2-8f0c-c3df6451b93a",
+                  "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "dac84c22-f52c-4778-928e-2bcaa3760910",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A4",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "ba3fd611-10c5-4268-abc5-3fb10032940e",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/USB_CC1",
+                  "layer": "F.Cu",
+                  "uuid": "043253ec-169a-406e-ac54-04e7a03006c2",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A6",
+                  "net": "/USB_D_P",
+                  "layer": "F.Cu",
+                  "uuid": "47861ba2-45a3-46b7-8842-f8b8f3640795",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A7",
+                  "net": "/USB_D_N",
+                  "layer": "F.Cu",
+                  "uuid": "79c119c7-9796-4e8f-9318-714374272823",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A8",
+                  "net": "unconnected-(J5-SBU1-PadA8)",
+                  "layer": "F.Cu",
+                  "uuid": "6e946a96-5b3b-4ce4-829e-d7e15ee1eb71",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A9",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "acca73e5-e87c-4060-9cbb-3dc0ccb17db3",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "A12",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B1",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "5f5b9b6b-9c93-4caa-b4ca-534482087cfc",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B4",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "5f8cf630-1181-4dd6-987b-644ac7435976",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J5",
+                  "pad": "B5",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/USB_CC2",
+                  "layer": "F.Cu",
+                  "uuid": "32c76394-9ef1-4442-862a-c2ccb40f3e44",
+                  "footprint_uuid": "728c9bc8-487c-4bf4-88fa-9a12fdb87c32",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                70500000,
+                36000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "to_mm": [
+                    71.454375,
+                    35.779374
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "00e70599-dc4b-42d0-9964-5f23d5e2e267",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                71500000,
+                36000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "to_mm": [
+                    71.454375,
+                    35.779374
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "00e70599-dc4b-42d0-9964-5f23d5e2e267",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                36000000
+              ],
+              "end_nm": [
+                71000000,
+                35200000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "1",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_RAW",
+                  "layer": "F.Cu",
+                  "uuid": "10e4a214-e3d1-4b00-8812-ac21c8594216",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "F1",
+                  "pad": "2",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "uuid": "a972f3c3-a5b6-48f2-855b-ae6587fadcdf",
+                  "footprint_uuid": "32c57172-9e06-4adc-9764-4c3c88b5060e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS_F",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    68.356575,
+                    38.877174
+                  ],
+                  "to_mm": [
+                    71.454375,
+                    35.779374
+                  ],
+                  "width_mm": 0.2,
+                  "uuid": "00e70599-dc4b-42d0-9964-5f23d5e2e267",
+                  "contact": "clearance"
+                }
+              ]
+            }
+          ],
+          "release_authority": false
+        },
+        "maze_tiers": [
+          {
+            "grid_mm": 1.5,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": false,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 3,
+            "tier_lease_s": 0.6246073880029144,
+            "outer_deadline_monotonic": 55104.709290998,
+            "tier_deadline_monotonic": 55103.460076222,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 3.233699681004509e-05
+            }
+          },
+          {
+            "grid_mm": 0.5,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": false,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 2,
+            "tier_lease_s": 0.9368884899959085,
+            "outer_deadline_monotonic": 55104.709290998,
+            "tier_deadline_monotonic": 55103.772402507995,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 2.343700180063024e-05
+            }
+          },
+          {
+            "grid_mm": 0.25,
+            "path_found": false,
+            "path_accepted": false,
+            "same_deadline": true,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 1,
+            "tier_lease_s": 1.8737478769980953,
+            "outer_deadline_monotonic": 55104.709290998,
+            "tier_deadline_monotonic": 55104.709290998,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": false,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    71000000,
+                    36000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": false
+                }
+              ],
+              "stop": "native_endpoint_cap_blocked_before_lattice",
+              "search_counts": {
+                "expanded_states": 0,
+                "tested_hops": 0,
+                "clear_hops": 0,
+                "blocked_hops": 0,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": null,
+              "blocked_frontier": [],
+              "elapsed_s": 1.4212004316505045e-05
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "to_header",
+      "found": true,
+      "elapsed_s": 0.24702935400273418,
+      "legs": [
+        {
+          "start_mm": [
+            71.0,
+            82.0
+          ],
+          "end_mm": [
+            69.0,
+            84.0
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            69.0,
+            84.0
+          ],
+          "end_mm": [
+            69.0,
+            85.2
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            69.0,
+            85.2
+          ],
+          "end_mm": [
+            25.5,
+            85.2
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            25.5,
+            85.2
+          ],
+          "end_mm": [
+            25.5,
+            84.0
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            25.5,
+            84.0
+          ],
+          "end_mm": [
+            19.5,
+            78.0
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            19.5,
+            78.0
+          ],
+          "end_mm": [
+            19.5,
+            77.4
+          ],
+          "width_nm": 3230592
+        },
+        {
+          "start_mm": [
+            19.5,
+            77.4
+          ],
+          "end_mm": [
+            18.349999,
+            77.4
+          ],
+          "width_nm": 3230592
+        }
+      ],
+      "diagnostics": {
+        "observed_segment_refusals": {
+          "scope": "observed_proposals_not_exhaustive_path_or_min_cut_proof",
+          "net": "/SENSE12V_HI",
+          "layer": "F.Cu",
+          "sample_limit": 6,
+          "events": {
+            "foreign_copper_or_hole": 1108
+          },
+          "samples": [
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                82000000
+              ],
+              "end_nm": [
+                22949999,
+                82000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "+5VSB",
+                  "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                  "layer": "F.Cu",
+                  "uuid": "4d6fd6d5-8a6d-45b3-900a-ba464f12dcb1",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_HI",
+                  "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+                  "layer": "F.Cu",
+                  "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    27.5,
+                    79.65
+                  ],
+                  "to_mm": [
+                    28.0,
+                    80.15
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "36eade50-67e5-5abf-8109-e0529c08a55e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    32.1,
+                    80.15
+                  ],
+                  "to_mm": [
+                    33.0,
+                    79.25
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "64516e72-34c2-59cd-9b54-8ec7847ba8a7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    28.0,
+                    80.15
+                  ],
+                  "to_mm": [
+                    32.1,
+                    80.15
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "9f00ad6c-10e4-5ccb-9d0e-4fba75211a69",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.331249,
+                    78.092189
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.168749,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "4082d1c7-9c37-4995-a42d-d206a91fd98d",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                66400000,
+                77400000
+              ],
+              "end_nm": [
+                18349999,
+                77400000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE5V_HI",
+                  "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+                  "layer": "F.Cu",
+                  "uuid": "4298863e-593a-4614-93d4-b005e5fa434e",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "+5VSB",
+                  "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                  "layer": "F.Cu",
+                  "uuid": "4d6fd6d5-8a6d-45b3-900a-ba464f12dcb1",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "+5VSB",
+                  "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                  "layer": "F.Cu",
+                  "uuid": "b43fc00b-cc6b-4814-98ef-b11737c39f11",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_HI",
+                  "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+                  "layer": "F.Cu",
+                  "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "1",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "uuid": "2fef6eee-bcc6-4698-bc52-143ed5ab09a8",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "2",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "uuid": "c13153d3-1c1b-4d2d-a8c6-fd863b3a148b",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "3",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "52fdcd79-b5e5-4f67-bb33-d945b28062b6",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "4",
+                  "net": "/SENSE5V_HI",
+                  "layer": "F.Cu",
+                  "uuid": "59e14c1d-abc9-4064-842e-ef9650c6c1fc",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "5",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "61aa8d7a-f3eb-4908-b597-403227bb8649",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "6",
+                  "net": "/SENSE5V_HI",
+                  "layer": "F.Cu",
+                  "uuid": "4418f9e7-060d-48fa-948c-d6075d2c6b4e",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "7",
+                  "net": "GND",
+                  "layer": "F.Cu",
+                  "uuid": "16d9c45e-df4b-43e5-bc69-818283c69649",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "8",
+                  "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_PWROK",
+                  "layer": "F.Cu",
+                  "uuid": "81e00b5d-7791-4ec8-8766-f3d95a420f71",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "9",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    27.5,
+                    78.150001
+                  ],
+                  "to_mm": [
+                    27.5,
+                    79.65
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "1aa46deb-3942-598b-bca4-a351df260eec",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    33.0,
+                    73.954
+                  ],
+                  "to_mm": [
+                    33.0,
+                    77.2
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "3af25183-bd0a-48ce-bc81-36287cfb4097",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    26.749999,
+                    77.4
+                  ],
+                  "to_mm": [
+                    27.5,
+                    78.150001
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "61ee21af-b79c-5282-afcc-116a1d5e35bd",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                82000000
+              ],
+              "end_nm": [
+                18349999,
+                82000000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "+5VSB",
+                  "name": "CEC_RECTILINEAR_POWER_CONTOUR",
+                  "layer": "F.Cu",
+                  "uuid": "4d6fd6d5-8a6d-45b3-900a-ba464f12dcb1",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_HI",
+                  "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+                  "layer": "F.Cu",
+                  "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    27.5,
+                    79.65
+                  ],
+                  "to_mm": [
+                    28.0,
+                    80.15
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "36eade50-67e5-5abf-8109-e0529c08a55e",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    32.1,
+                    80.15
+                  ],
+                  "to_mm": [
+                    33.0,
+                    79.25
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "64516e72-34c2-59cd-9b54-8ec7847ba8a7",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "+5VSB",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    28.0,
+                    80.15
+                  ],
+                  "to_mm": [
+                    32.1,
+                    80.15
+                  ],
+                  "width_mm": 0.6,
+                  "uuid": "9f00ad6c-10e4-5ccb-9d0e-4fba75211a69",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.331249,
+                    78.092189
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.168749,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "4082d1c7-9c37-4995-a42d-d206a91fd98d",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                82000000
+              ],
+              "end_nm": [
+                71000000,
+                77400000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    67.15,
+                    75.45
+                  ],
+                  "to_mm": [
+                    71.2,
+                    75.45
+                  ],
+                  "width_mm": 0.371227,
+                  "uuid": "4b9bb514-4e6f-52aa-8daf-ff68191ec1b9",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.2,
+                    75.45
+                  ],
+                  "to_mm": [
+                    71.5,
+                    75.15
+                  ],
+                  "width_mm": 0.371227,
+                  "uuid": "7d09ed4e-b7c0-5e1b-80ab-bca4a31db624",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                82000000
+              ],
+              "end_nm": [
+                71000000,
+                76900000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    67.15,
+                    75.45
+                  ],
+                  "to_mm": [
+                    71.2,
+                    75.45
+                  ],
+                  "width_mm": 0.371227,
+                  "uuid": "4b9bb514-4e6f-52aa-8daf-ff68191ec1b9",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.2,
+                    75.45
+                  ],
+                  "to_mm": [
+                    71.5,
+                    75.15
+                  ],
+                  "width_mm": 0.371227,
+                  "uuid": "7d09ed4e-b7c0-5e1b-80ab-bca4a31db624",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    71.5,
+                    75.15
+                  ],
+                  "to_mm": [
+                    71.5,
+                    68.5
+                  ],
+                  "width_mm": 0.371227,
+                  "uuid": "a95f21bf-f435-5259-8832-952262c375bd",
+                  "contact": "clearance"
+                }
+              ]
+            },
+            {
+              "reason": "foreign_copper_or_hole",
+              "phase": "canonical_or_channel",
+              "start_nm": [
+                71000000,
+                82500000
+              ],
+              "end_nm": [
+                18349999,
+                82500000
+              ],
+              "width_nm": 3230592,
+              "clearance_nm": 200000,
+              "native_blockers": [
+                {
+                  "kind": "zone",
+                  "net": "/SENSE3V3_HI",
+                  "name": "CEC_NATIVE_POWER_CONTOUR_REGIONS",
+                  "layer": "F.Cu",
+                  "uuid": "bc1523e2-f8ed-4455-931d-ad33ff7559e4",
+                  "contact": "zone_clearance"
+                },
+                {
+                  "kind": "npth_hole",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "hole_clearance"
+                },
+                {
+                  "kind": "pad",
+                  "ref": "J3",
+                  "pad": "",
+                  "net": "",
+                  "layer": "F.Cu",
+                  "uuid": "6f7370b7-80e5-4cc7-8cc2-0483e6345f30",
+                  "footprint_uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.331249,
+                    78.092189
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "1290c5b9-1a3c-4945-a013-80fc8dac1597",
+                  "contact": "clearance"
+                },
+                {
+                  "kind": "track",
+                  "net": "/SENSE3V3_HI",
+                  "layer": "F.Cu",
+                  "locked": true,
+                  "from_mm": [
+                    59.168749,
+                    78.325
+                  ],
+                  "to_mm": [
+                    57.56406,
+                    78.325
+                  ],
+                  "width_mm": 6.535523,
+                  "uuid": "4082d1c7-9c37-4995-a42d-d206a91fd98d",
+                  "contact": "clearance"
+                }
+              ]
+            }
+          ],
+          "release_authority": false
+        },
+        "maze_tiers": [
+          {
+            "grid_mm": 1.5,
+            "path_found": true,
+            "path_accepted": true,
+            "same_deadline": false,
+            "same_outer_deadline": true,
+            "no_path_proof": false,
+            "remaining_tiers": 3,
+            "tier_lease_s": 0.6088852690008935,
+            "outer_deadline_monotonic": 55104.836117321,
+            "tier_deadline_monotonic": 55103.618346783,
+            "native_endpoint_check": {
+              "diagnostic_scope": "bounded_search_telemetry_only",
+              "lattice_constructed": true,
+              "no_path_proof": false,
+              "automatic_ripup_authorized": false,
+              "release_authority": false,
+              "native_endpoint_caps": [
+                {
+                  "endpoint": "start",
+                  "at_nm": [
+                    71000000,
+                    82000000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": true
+                },
+                {
+                  "endpoint": "end",
+                  "at_nm": [
+                    18349999,
+                    77400000
+                  ],
+                  "tested_widths_nm": [
+                    3230592
+                  ],
+                  "native_foreign_cap_clear": true
+                }
+              ],
+              "lattice_axis_counts": [
+                59,
+                27
+              ],
+              "returned_leg_count": 7,
+              "returned_length_mm": 58.96370949898476,
+              "stop": "path_found_receiving_required",
+              "search_counts": {
+                "expanded_states": 1051,
+                "tested_hops": 1123,
+                "clear_hops": 773,
+                "blocked_hops": 350,
+                "blocked_straight_runs": 0
+              },
+              "nearest_expanded_point": {
+                "point_nm": [
+                  18349999,
+                  77400000
+                ],
+                "target_distance_mm": 0.0
+              },
+              "blocked_frontier": [
+                {
+                  "start_nm": [
+                    18349999,
+                    78000000
+                  ],
+                  "end_nm": [
+                    16849999,
+                    76500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 1.7492855684535902,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    19500000,
+                    76500000
+                  ],
+                  "end_nm": [
+                    18000000,
+                    75000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 2.4253864228202895,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    18349999,
+                    78000000
+                  ],
+                  "end_nm": [
+                    16849999,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 2.580697580112788,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    19500000,
+                    76500000
+                  ],
+                  "end_nm": [
+                    21000000,
+                    75000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 3.5752629693493874,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    78900000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    77400000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.650001,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    78000000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    78000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.681770085105609,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    79500000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    78000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.681770085105609,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    78000000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    76500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.721233372272189,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    78900000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    78900000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.845725900177069,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    79500000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    78900000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 5.845725900177069,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    25500000,
+                    81000000
+                  ],
+                  "end_nm": [
+                    24000000,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 6.027645585135294,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    29950000,
+                    83500000
+                  ],
+                  "end_nm": [
+                    24450000,
+                    78000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 6.129438163486194,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    79500000
+                  ],
+                  "end_nm": [
+                    24450000,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 6.451357392053319,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24450000,
+                    80500000
+                  ],
+                  "end_nm": [
+                    24450000,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 6.451357392053319,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    79500000
+                  ],
+                  "end_nm": [
+                    25500000,
+                    78000000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 7.175131657328735,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    81000000
+                  ],
+                  "end_nm": [
+                    25500000,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 7.452014110292667,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    82000000
+                  ],
+                  "end_nm": [
+                    25500000,
+                    80500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 7.793106845154954,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    24450000,
+                    80500000
+                  ],
+                  "end_nm": [
+                    25500000,
+                    80500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 7.793106845154954,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    25500000,
+                    81000000
+                  ],
+                  "end_nm": [
+                    25500000,
+                    80500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 7.793106845154954,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    84000000
+                  ],
+                  "end_nm": [
+                    21000000,
+                    85500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 8.522470610098988,
+                  "refusal_stage": "caller_native_guard"
+                },
+                {
+                  "start_nm": [
+                    25500000,
+                    81000000
+                  ],
+                  "end_nm": [
+                    27000000,
+                    79500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 8.901264926964089,
+                  "refusal_stage": "native_foreign_shape_guard"
+                },
+                {
+                  "start_nm": [
+                    22500000,
+                    85200000
+                  ],
+                  "end_nm": [
+                    22500000,
+                    85500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 9.10123663575456,
+                  "refusal_stage": "caller_native_guard"
+                },
+                {
+                  "start_nm": [
+                    24000000,
+                    84000000
+                  ],
+                  "end_nm": [
+                    22500000,
+                    85500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 9.10123663575456,
+                  "refusal_stage": "caller_native_guard"
+                },
+                {
+                  "start_nm": [
+                    25500000,
+                    82000000
+                  ],
+                  "end_nm": [
+                    27000000,
+                    80500000
+                  ],
+                  "width_nm": 3230592,
+                  "target_distance_mm": 9.188716847307951,
+                  "refusal_stage": "native_foreign_shape_guard"
+                }
+              ],
+              "elapsed_s": 0.07336497499636607
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "source_copper_retained": false,
+  "ram_only_counterfactual_removed": [
+    {
+      "uuid": "490443be-ca7c-4652-be6e-954c55a043e8",
+      "kind": "PCB_TRACK",
+      "net": "GND"
+    },
+    {
+      "uuid": "32d34786-052c-4646-8027-ebed83b7e5de",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "5cd83c31-893a-4007-890c-0c3b9730f509",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "89e181bc-e98f-4fdf-90c6-a0459ea76c00",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "b88a1e08-7884-4d83-8245-1c9dc312c3a1",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "f97612a2-87cd-49ba-95d0-1cf217159309",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "fe6d911f-4d35-491e-90ff-c3739df27d2d",
+      "kind": "PCB_TRACK",
+      "net": "+3V3"
+    },
+    {
+      "uuid": "71cb2904-50cc-423d-890b-54988160555c",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SDA"
+    },
+    {
+      "uuid": "c177f7ca-1aed-47a0-96d5-74efd6b82852",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SDA"
+    },
+    {
+      "uuid": "247acb24-e8c5-4a6a-a31b-e735383b8627",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SCL"
+    },
+    {
+      "uuid": "7bd62057-023f-5112-9a33-9c9f0b9eff32",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SCL"
+    },
+    {
+      "uuid": "ce90149b-7393-45c5-aa04-005c9c4b8988",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SCL"
+    },
+    {
+      "uuid": "da7ea54d-4701-56eb-aa05-87ef742810ed",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SCL"
+    },
+    {
+      "uuid": "f0bfe83c-bbf2-4af7-8b93-cfb6998cf2d6",
+      "kind": "PCB_TRACK",
+      "net": "/I2C_SCL"
+    },
+    {
+      "uuid": "5e8aa370-b6a2-411c-ae60-cfa83cb17864",
+      "kind": "FOOTPRINT",
+      "ref": "C16"
+    }
+  ],
+  "removed_items_reconstruction_demonstrated": false,
+  "added_vias": 0,
+  "board_saved": false,
+  "scope": "Finite nominal geometry and guarded PCB link screen only; no mounted part, current, thermal, paired-stack or native DRC admission",
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "release_authority": false
+}

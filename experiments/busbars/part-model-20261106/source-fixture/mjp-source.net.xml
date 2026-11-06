@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/source-fixture/mjp-source.kicad_sch</source>
+    <date>2026-11-06T02:41:39</date>
+    <tool>Eeschema 10.0.5-10.0.5~ubuntu24.04.1</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title>MJP-1.0 SOURCE FIXTURE — NOMINAL PROTOTYPE NOT QUALIFIED</title>
+        <company/>
+        <rev/>
+        <date/>
+        <source>mjp-source.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="BB1">
+      <value>MJP-1.0</value>
+      <footprint>CEC_Busbar_Prototype:Mac8_MJP_1p0_NOMINAL_PROTOTYPE</footprint>
+      <datasheet>https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf</datasheet>
+      <description>PROTOTYPE nominal real formed conductor; one logical passive pin maps two separate solder feet; NOT QUALIFIED</description>
+      <fields>
+        <field name="Manufacturer">Mac8</field>
+        <field name="MPN">MJP-1.0</field>
+        <field name="Qualification">NOMINAL_PROTOTYPE_NOT_RELEASED</field>
+        <field name="Catalog_current_A">20_CATALOG_ONLY_NOT_PATH_OR_JOINT_QUALIFICATION</field>
+        <field name="Height_nominal_mm">2.3</field>
+        <field name="Underside_nominal_mm">1.8</field>
+        <field name="Source_footprint_sha256">238bcc1767a40ba51240fdf482a35e2dfd0d1d13afaad64f82a0e8b20dada719</field>
+        <field name="Footprint">CEC_Busbar_Prototype:Mac8_MJP_1p0_NOMINAL_PROTOTYPE</field>
+        <field name="Datasheet">https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf</field>
+        <field name="Description">PROTOTYPE nominal real formed conductor; one logical passive pin maps two separate solder feet; NOT QUALIFIED</field>
+      </fields>
+      <libsource lib="CEC_MJP_Prototype_Source" part="Mac8_MJP_1p0_NOMINAL_PROTOTYPE" description="PROTOTYPE nominal real formed conductor; one logical passive pin maps two separate solder feet; NOT QUALIFIED"/>
+      <property name="Manufacturer" value="Mac8"/>
+      <property name="MPN" value="MJP-1.0"/>
+      <property name="Qualification" value="NOMINAL_PROTOTYPE_NOT_RELEASED"/>
+      <property name="Catalog_current_A" value="20_CATALOG_ONLY_NOT_PATH_OR_JOINT_QUALIFICATION"/>
+      <property name="Height_nominal_mm" value="2.3"/>
+      <property name="Underside_nominal_mm" value="1.8"/>
+      <property name="Source_footprint_sha256" value="238bcc1767a40ba51240fdf482a35e2dfd0d1d13afaad64f82a0e8b20dada719"/>
+      <property name="Sheetname" value="Root"/>
+      <property name="Sheetfile" value="mjp-source.kicad_sch"/>
+      <duplicate_pin_numbers_are_jumpers>1</duplicate_pin_numbers_are_jumpers>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>0f94dbeb-4467-5aa4-b80c-7e69174bb0f0</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J1">
+      <value>FIXTURE_PORT</value>
+      <description>Isolated test terminal, not a product connector</description>
+      <fields>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Isolated test terminal, not a product connector</field>
+      </fields>
+      <libsource lib="CEC_MJP_Prototype_Source" part="Fixture_Port" description="Isolated test terminal, not a product connector"/>
+      <property name="Sheetname" value="Root"/>
+      <property name="Sheetfile" value="mjp-source.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1f6f0311-9ac3-555f-8fbb-031836ee74de</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J2">
+      <value>FIXTURE_PORT</value>
+      <description>Isolated test terminal, not a product connector</description>
+      <fields>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Isolated test terminal, not a product connector</field>
+      </fields>
+      <libsource lib="CEC_MJP_Prototype_Source" part="Fixture_Port" description="Isolated test terminal, not a product connector"/>
+      <property name="Sheetname" value="Root"/>
+      <property name="Sheetfile" value="mjp-source.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>47aff1b8-563d-5407-949d-7f74c93951fe</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="CEC_MJP_Prototype_Source" part="Fixture_Port">
+      <description>Isolated test terminal, not a product connector</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">FIXTURE_PORT</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Isolated test terminal, not a product connector</field>
+      </fields>
+      <pins>
+        <pin num="1" name="LINK" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="CEC_MJP_Prototype_Source" part="Mac8_MJP_1p0_NOMINAL_PROTOTYPE">
+      <description>PROTOTYPE nominal real formed conductor; one logical passive pin maps two separate solder feet; NOT QUALIFIED</description>
+      <docs>https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf</docs>
+      <fields>
+        <field name="Reference">BB</field>
+        <field name="Value">MJP-1.0</field>
+        <field name="Footprint">CEC_Busbar_Prototype:Mac8_MJP_1p0_NOMINAL_PROTOTYPE</field>
+        <field name="Datasheet">https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf</field>
+        <field name="Description">PROTOTYPE nominal real formed conductor; one logical passive pin maps two separate solder feet; NOT QUALIFIED</field>
+        <field name="Manufacturer">Mac8</field>
+        <field name="MPN">MJP-1.0</field>
+        <field name="Qualification">NOMINAL_PROTOTYPE_NOT_RELEASED</field>
+        <field name="Catalog_current_A">20_CATALOG_ONLY_NOT_PATH_OR_JOINT_QUALIFICATION</field>
+        <field name="Height_nominal_mm">2.3</field>
+        <field name="Underside_nominal_mm">1.8</field>
+        <field name="Source_footprint_sha256">238bcc1767a40ba51240fdf482a35e2dfd0d1d13afaad64f82a0e8b20dada719</field>
+      </fields>
+      <pins>
+        <pin num="1" name="LINK" type="passive"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="CEC_MJP_Prototype_Source">
+      <uri>${KIPRJMOD}/CEC_MJP_Prototype_Source.kicad_sym</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="/PWR" class="Default">
+      <node ref="BB1" pin="1" pinfunction="LINK_1" pintype="passive"/>
+      <node ref="J1" pin="1" pinfunction="LINK_1" pintype="passive"/>
+      <node ref="J2" pin="1" pinfunction="LINK_1" pintype="passive"/>
+    </net>
+  </nets>
+</export>

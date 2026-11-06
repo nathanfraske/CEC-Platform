@@ -1,0 +1,1248 @@
+{
+  "schema": 1,
+  "status": "read_only_private_geometry_revalidation_NOT_QUALIFICATION",
+  "source_files": {
+    "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+    "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  },
+  "source_files_unchanged": true,
+  "prior_C37_scout": {
+    "evidence_kind": "prior_RAM_observed_scout_summary_not_fresh_replay_or_saved_raw_pose_inventory",
+    "raw_sampled_pose_file_available": false,
+    "summary": "Small 1-3 mm C37 shifts and 90-to-0 rotation did not establish a usable C53 pocket. Downward Hub moves encountered opposing ATX J3; left shifts encountered Hub R38 and ATX neighbors; upward shifts encountered Hub C1 and ATX U6/C9/R54/C51. Right shifts retained the C53/C37 vent conflict; larger right shifts increased can extent. This is bounded sampled negative evidence, not an impossibility proof.",
+    "routing_contacts": {
+      "power_tracks": [
+        "a02d54b2-5398-492f-8839-bb45dce5b044",
+        "424e3a3b-3a83-54bb-b254-b73f6de7e78b"
+      ],
+      "power_via": "434aa75c-5627-464e-9437-06fb40f2f600",
+      "ground_via": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e"
+    },
+    "dependent_ATX_reservation": "cdb78967-3235-44b9-962b-6ce7aa574142",
+    "no_retirement_or_barrel_capacity_authority": true
+  },
+  "backside_Z": {
+    "conclusion": "unknown_installed_height_no_Z_neutrality_proof",
+    "existing_complete_outer_Z_envelope_qualified": false,
+    "profile_board_thickness_nominal_mm": 1.6,
+    "accepted_PCB_thickness_max_mm": null,
+    "exact_J3_part": "Molex39-29-1247/0039291247",
+    "exact_manufacturer_part_url": "https://www.molex.com/en-us/products/part-detail/0039291247",
+    "manufacturer_page_verified_fields": {
+      "orientation": "RightAngle",
+      "mounting": "ThroughHole",
+      "recommended_PCB_thickness_mm": 1.78
+    },
+    "exact_drawing_tail_min_and_datum_verified": false,
+    "drawing_locator_unqualified": "https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/556/5569/039291107_sd.pdf",
+    "drawing_limitation": "Family SD-5569-002 located; exact-part tail dimension/tolerance not reliably read in bounded inspection. Direct downloads timed out. No other 5569 variant dimension accepted.",
+    "MJP_1_0_height_nominal_mm": 2.3,
+    "MJP_installed_height_max_mm": null,
+    "existing_screw_head_nominal_height_mm": 2.0,
+    "needed_proof": "Minimum free lead from housing seating datum minus maximum PCB thickness, with explicit seating/trim/solder process bounds, must cover maximum installed bar height. Neither pin length nor bar-height nominal establishes a guarantee.",
+    "reference_arithmetic_only": {
+      "reference_PCB_mm": 1.78,
+      "nominal_bar_mm": 2.3,
+      "zero_allowance_required_tail_min_mm": 4.08
+    },
+    "lead_trim_seating_and_solder_bounds_qualified": false
+  },
+  "XY": {
+    "evidence_kind": "fresh_in_memory_replay",
+    "baseline": {
+      "schema": 1,
+      "complete": true,
+      "laminate": {
+        "bounds_mm": [
+          0.0,
+          0.0,
+          86.49,
+          87.5
+        ],
+        "size_mm": [
+          86.49,
+          87.5
+        ],
+        "bounding_area_mm2": 7567.875
+      },
+      "declared_body_plus_laminate": {
+        "bounds_mm": [
+          0.0,
+          -1.295,
+          89.585,
+          91.795
+        ],
+        "size_mm": [
+          89.585,
+          93.09
+        ],
+        "bounding_area_mm2": 8339.46765
+      },
+      "missing": [],
+      "geometry_bases": [
+        "declared_maximum_diameter",
+        "declared_post_width_at_native_pad_centres",
+        "design_allocation",
+        "native_courtyard"
+      ],
+      "exclusions": [
+        "external_cables_and_plugs",
+        "hardware_extents",
+        "tool_and_service_access"
+      ],
+      "scope": "declared-envelope sizing only; not physical-package qualification",
+      "release_authority": false
+    },
+    "conditional_carrier_laminate_clip_x_ge_2": {
+      "schema": 1,
+      "complete": true,
+      "laminate": {
+        "bounds_mm": [
+          2.0,
+          0.0,
+          86.49,
+          87.5
+        ],
+        "size_mm": [
+          84.49,
+          87.5
+        ],
+        "bounding_area_mm2": 7392.875
+      },
+      "declared_body_plus_laminate": {
+        "bounds_mm": [
+          2.0,
+          -1.295,
+          89.585,
+          91.795
+        ],
+        "size_mm": [
+          87.585,
+          93.09
+        ],
+        "bounding_area_mm2": 8153.287649999999
+      },
+      "missing": [],
+      "geometry_bases": [
+        "declared_maximum_diameter",
+        "declared_post_width_at_native_pad_centres",
+        "design_allocation",
+        "native_courtyard"
+      ],
+      "exclusions": [
+        "external_cables_and_plugs",
+        "hardware_extents",
+        "tool_and_service_access"
+      ],
+      "scope": "declared-envelope sizing only; not physical-package qualification",
+      "release_authority": false
+    },
+    "all_part_and_Hub_poses_unchanged_for_XY_calculation": true,
+    "conditional_gain_mm": [
+      2,
+      0
+    ],
+    "physical_outline_copper_hole_reconstruction_received": false,
+    "hardware_cables_access_included": false
+  },
+  "new_common_horizontal_row": {
+    "evidence_kind": "fresh_native_in_memory_scout",
+    "strategy": "Move both existing cans into one horizontal Hub row; 20.5 mm center pitch, 90 degree pad axes. Simultaneously put C53 near U6. All other parts, interfaces and source copper remain fixed.",
+    "gap_contract_mm": [
+      21.5,
+      22.5
+    ],
+    "xy_allowance_each_mm": 0.15,
+    "body_clearance_mm": 0.5,
+    "can_nominal_diameter_mm": 18,
+    "contract_max_diameter_mm": 18.5,
+    "can_max_height_mm": 17.2,
+    "vent_required_mm": 3,
+    "poses": [
+      {
+        "C1_pose_mm_deg": [
+          53.4,
+          12,
+          90
+        ],
+        "C37_pose_mm_deg": [
+          73.9,
+          12,
+          90
+        ],
+        "C53_pose_mm_deg": [
+          12.5,
+          50.8,
+          180
+        ],
+        "same_face_courtyard_ok": false,
+        "same_face_conflicts": [
+          [
+            "F5",
+            "C1"
+          ],
+          [
+            "R21",
+            "C1"
+          ],
+          [
+            "C6",
+            "C37"
+          ],
+          [
+            "R11",
+            "C1"
+          ],
+          [
+            "H1",
+            "C37"
+          ],
+          [
+            "U4",
+            "C37"
+          ],
+          [
+            "L1",
+            "C37"
+          ],
+          [
+            "FID1",
+            "C37"
+          ],
+          [
+            "J_KVM",
+            "C37"
+          ],
+          [
+            "J_KVM",
+            "C1"
+          ],
+          [
+            "R14",
+            "C1"
+          ],
+          [
+            "C4",
+            "C37"
+          ],
+          [
+            "R12",
+            "C1"
+          ],
+          [
+            "R23",
+            "C1"
+          ],
+          [
+            "R39",
+            "C37"
+          ],
+          [
+            "C37",
+            "U3"
+          ],
+          [
+            "C37",
+            "R40"
+          ],
+          [
+            "C37",
+            "C3"
+          ],
+          [
+            "C37",
+            "R2"
+          ],
+          [
+            "C37",
+            "C2"
+          ],
+          [
+            "C37",
+            "RJ_HOLD"
+          ],
+          [
+            "C1",
+            "R22"
+          ],
+          [
+            "C1",
+            "D7"
+          ],
+          [
+            "C1",
+            "R28"
+          ],
+          [
+            "C1",
+            "C14"
+          ],
+          [
+            "C1",
+            "R13"
+          ],
+          [
+            "C1",
+            "U1"
+          ],
+          [
+            "C1",
+            "R27"
+          ],
+          [
+            "C1",
+            "U8"
+          ],
+          [
+            "C1",
+            "U6"
+          ],
+          [
+            "C1",
+            "C13"
+          ],
+          [
+            "C1",
+            "C8"
+          ],
+          [
+            "C1",
+            "R24"
+          ],
+          [
+            "C1",
+            "C12"
+          ],
+          [
+            "C1",
+            "R26"
+          ]
+        ],
+        "paired_ok": false,
+        "paired_failures": [
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U4",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R70",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R10",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "SW1",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U2",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R4",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C17",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C61",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C63",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U1",
+              "C1"
+            ],
+            "margin_mm": -2.6999999999999993,
+            "ok": false,
+            "free_mm": 0.3000000000000007
+          }
+        ],
+        "declared_dimensions": [
+          89.585,
+          93.09
+        ]
+      },
+      {
+        "C1_pose_mm_deg": [
+          53.4,
+          18,
+          90
+        ],
+        "C37_pose_mm_deg": [
+          73.9,
+          18,
+          90
+        ],
+        "C53_pose_mm_deg": [
+          12.5,
+          50.8,
+          180
+        ],
+        "same_face_courtyard_ok": false,
+        "same_face_conflicts": [
+          [
+            "F5",
+            "C1"
+          ],
+          [
+            "R21",
+            "C1"
+          ],
+          [
+            "C6",
+            "C37"
+          ],
+          [
+            "R11",
+            "C1"
+          ],
+          [
+            "H1",
+            "C37"
+          ],
+          [
+            "U4",
+            "C37"
+          ],
+          [
+            "L1",
+            "C37"
+          ],
+          [
+            "J_KVM",
+            "C37"
+          ],
+          [
+            "J_KVM",
+            "C1"
+          ],
+          [
+            "R14",
+            "C1"
+          ],
+          [
+            "R12",
+            "C1"
+          ],
+          [
+            "R23",
+            "C1"
+          ],
+          [
+            "R39",
+            "C37"
+          ],
+          [
+            "C37",
+            "U3"
+          ],
+          [
+            "C37",
+            "R40"
+          ],
+          [
+            "C37",
+            "R2"
+          ],
+          [
+            "C37",
+            "C2"
+          ],
+          [
+            "C37",
+            "RJ_HOLD"
+          ],
+          [
+            "C1",
+            "R22"
+          ],
+          [
+            "C1",
+            "D7"
+          ],
+          [
+            "C1",
+            "R28"
+          ],
+          [
+            "C1",
+            "C14"
+          ],
+          [
+            "C1",
+            "R13"
+          ],
+          [
+            "C1",
+            "U1"
+          ],
+          [
+            "C1",
+            "R27"
+          ],
+          [
+            "C1",
+            "U8"
+          ],
+          [
+            "C1",
+            "C29"
+          ],
+          [
+            "C1",
+            "U6"
+          ],
+          [
+            "C1",
+            "DL1"
+          ],
+          [
+            "C1",
+            "C13"
+          ],
+          [
+            "C1",
+            "J6P"
+          ],
+          [
+            "C1",
+            "C8"
+          ],
+          [
+            "C1",
+            "R24"
+          ],
+          [
+            "C1",
+            "C12"
+          ],
+          [
+            "C1",
+            "R26"
+          ]
+        ],
+        "paired_ok": false,
+        "paired_failures": [
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R10",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C3",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "D5",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U2",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "J6P/housing",
+              "C1"
+            ],
+            "margin_mm": -1.4400000000000013,
+            "ok": false,
+            "free_mm": 1.5599999999999987
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R4",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C5",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C64",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C28",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U1",
+              "C1"
+            ],
+            "margin_mm": -2.6999999999999993,
+            "ok": false,
+            "free_mm": 0.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R2",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R72",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R73",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          }
+        ],
+        "declared_dimensions": [
+          89.585,
+          93.09
+        ]
+      },
+      {
+        "C1_pose_mm_deg": [
+          53.4,
+          25.45,
+          90
+        ],
+        "C37_pose_mm_deg": [
+          73.9,
+          25.45,
+          90
+        ],
+        "C53_pose_mm_deg": [
+          12.5,
+          50.8,
+          180
+        ],
+        "same_face_courtyard_ok": false,
+        "same_face_conflicts": [
+          [
+            "DL2",
+            "C1"
+          ],
+          [
+            "C30",
+            "C1"
+          ],
+          [
+            "R11",
+            "C1"
+          ],
+          [
+            "R14",
+            "C1"
+          ],
+          [
+            "R12",
+            "C1"
+          ],
+          [
+            "C1",
+            "C14"
+          ],
+          [
+            "C1",
+            "R13"
+          ],
+          [
+            "C1",
+            "U1"
+          ],
+          [
+            "C1",
+            "R27"
+          ],
+          [
+            "C1",
+            "C29"
+          ],
+          [
+            "C1",
+            "U6"
+          ],
+          [
+            "C1",
+            "DL1"
+          ],
+          [
+            "C1",
+            "J6P"
+          ],
+          [
+            "C1",
+            "C8"
+          ],
+          [
+            "C1",
+            "C12"
+          ],
+          [
+            "C1",
+            "R26"
+          ]
+        ],
+        "paired_ok": false,
+        "paired_failures": [
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R_BYP_L1",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C3",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R7",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "D5",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U2",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U13",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R76",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "J6P/housing",
+              "C1"
+            ],
+            "margin_mm": -1.4400000000000013,
+            "ok": false,
+            "free_mm": 1.5599999999999987
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "J6P",
+              "C1"
+            ],
+            "margin_mm": -17.391199999999998,
+            "ok": false,
+            "free_mm": -14.391199999999998
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C5",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C64",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C28",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U1",
+              "C1"
+            ],
+            "margin_mm": -2.6999999999999993,
+            "ok": false,
+            "free_mm": 0.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R2",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "RS4",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R72",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R73",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          }
+        ],
+        "declared_dimensions": [
+          89.585,
+          93.09
+        ]
+      },
+      {
+        "C1_pose_mm_deg": [
+          53.4,
+          36,
+          90
+        ],
+        "C37_pose_mm_deg": [
+          73.9,
+          36,
+          90
+        ],
+        "C53_pose_mm_deg": [
+          12.5,
+          50.8,
+          180
+        ],
+        "same_face_courtyard_ok": false,
+        "same_face_conflicts": [
+          [
+            "DL2",
+            "C1"
+          ],
+          [
+            "C30",
+            "C1"
+          ],
+          [
+            "DL4",
+            "C1"
+          ],
+          [
+            "C1",
+            "C31"
+          ],
+          [
+            "C1",
+            "U1"
+          ],
+          [
+            "C1",
+            "C29"
+          ],
+          [
+            "C1",
+            "DL3"
+          ],
+          [
+            "C1",
+            "DL1"
+          ],
+          [
+            "C1",
+            "J6P"
+          ]
+        ],
+        "paired_ok": false,
+        "paired_failures": [
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C55",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C9",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R54",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U13",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C21",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "R76",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "J6P/housing",
+              "C1"
+            ],
+            "margin_mm": -1.4400000000000013,
+            "ok": false,
+            "free_mm": 1.5599999999999987
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "J6P",
+              "C1"
+            ],
+            "margin_mm": -17.391199999999998,
+            "ok": false,
+            "free_mm": -14.391199999999998
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C54",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C13",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C53",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C60",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U6",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U75VSB1",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "U65VSB1",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C65VSB1",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C27",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "RS4",
+              "C1"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          },
+          {
+            "kind": "opposing_bodies",
+            "refs": [
+              "C51",
+              "C37"
+            ],
+            "margin_mm": -1.6999999999999993,
+            "ok": false,
+            "free_mm": 1.3000000000000007
+          }
+        ],
+        "declared_dimensions": [
+          89.585,
+          93.09
+        ]
+      }
+    ],
+    "conclusion": "All four authored rows fail both same-face and paired screens. No accepted pocket, shorter bar route or XY benefit. Rows at 18/25.45/36 encounter fixed J6P or its housing; the top row also hits H1/J_KVM and power devices. A coordinated repack would need many additional functional and fixed-interface obligations, not only two cans.",
+    "routing_or_process_admission": false
+  },
+  "release_authority": false,
+  "current_qualified": false,
+  "source_boards_written": false
+}

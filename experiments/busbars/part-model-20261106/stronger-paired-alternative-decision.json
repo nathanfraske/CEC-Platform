@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "scope": "One bounded paired geometric alternative, two deterministic RAM-only evaluations; no random search or board writes",
+  "source_carrier_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "source_cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "baseline_declared_stack_mm": [89.585, 93.09],
+  "existing_carrier_bar_ceiling": "2mm X,0mm Y;2.2325% declared bounding area, conditional on actual construction/current/Z qualification",
+  "alternative": "Move the complete Hub left-edge external RJ port bank J2/J3/J4/J5 inward in Hub+X, retaining rotations and native port ordering. Move its receiving left perimeter correspondingly to preserve existing mouth/edge relationship. This reduces the opposite/right stack body bound independently of the proposed ATX left-edge trim. Matched J6 headers, KVM non-left pose, caps, vents and22mm gap remain fixed in these previews.",
+  "full2mm_bank_trial": {
+    "receipt": "experiments/busbars/part-model-20261106/paired-port-bank-alternative.json",
+    "target_X_mm": 12.71,
+    "target_Y_mm": {"J2": 7.79, "J3": 24.69, "J4": 41.59, "J5": 58.49},
+    "rotation_deg": -90,
+    "conditional_total_delta_with_carrier2mm_trim_mm": [4, 0],
+    "paired_failures": ["ATXJ3 versus HubJ5 margin-0.249999mm", "ATXJ_SIG1 versus HubJ2 margin-0.45mm"],
+    "same_face_overlap_owners": ["C19", "C20", "C21", "D4", "F2", "F3", "F4", "R6", "R7", "R8"],
+    "native_source_contact_obligations_count": 26,
+    "accepted": false
+  },
+  "one_bounded_refinement": {
+    "receipt": "experiments/busbars/part-model-20261106/paired-port-bank-refined.json",
+    "bank_translation_X_mm": 1.4,
+    "bank_target_X_mm": 12.11,
+    "same_Y_and_rotations_as_above": true,
+    "translated_small_support_frame": ["C19", "C20", "C21", "F2", "F3", "F4", "R7", "R8"],
+    "conditional_total_declared_stack_mm": [86.185, 93.09],
+    "conditional_total_delta_with_carrier2mm_trim_mm": [3.4, 0],
+    "paired_blocker": {"carrier_ref": "J6D", "cover_ref": "F4", "margin_mm": -0.6912},
+    "same_face_remaining_overlaps": [["D4", "R7"], ["F4", "J6D"], ["D5", "R8"], ["C19", "D3"]],
+    "accepted": false
+  },
+  "exact_native_hard_obstacles": {
+    "Hub_J6D": {"uuid": "c2cc2180-fea3-4632-837b-0348b40d8220", "source_at_mm": [23.894998, 50.734999], "rotation_deg": -90, "native_courtyard_bounds_mm": [19.579998, 46.419999, 25.659998, 52.499999], "constraint": "Registered mating interface; must not be moved unilaterally. Inward F4 support translation collides both locally and across the stack."},
+    "Hub_F4": {"uuid": "27f95507-5dba-4944-b273-4ee6b2a6c273", "source_at_mm": [17.904997, 51.920001], "rotation_deg": 0, "native_courtyard_bounds_mm": [16.229997, 50.975001, 19.579997, 52.865001], "nets": ["+5VSB", "/CAN + FOUR MODULE PORTS + STACK/VCC_P4"]},
+    "more_than_small_part_cost": "Four eight-contact external connectors with native PTH/mechanical holes,26 observed source track contacts, at least eight support owners in the smaller frame, local DETECT returns/pullups/fused power routes, and a matched header obstruction. Staged construction would still owe each existing bounded owner/cut/current contract; this preview is not permission to enlarge any actor scope."
+  },
+  "interpretation": "The MJP carrier pilot can contribute to a larger genuine total-X reduction if the opposite Hub port/body bank is separately repacked. However, the direct2mm bank move and the one1.4mm support-frame refinement both fail exact existing mechanical screens. No feasible stronger paired manual pose has been established in this bounded study. A non-rigid per-port support reflow or coordinated J6D change would be a new construction study, not an accepted next pose. No Y improvement is implied; ATXJ3 and top output terminal bodies still fix Y.",
+  "recommendation": "Do not justify substantial additional routing by assuming a4mm stack saving. Retain the measured2mm carrier-only ceiling as the current credible conditional bound; the additional1.4-2mm opposite-edge upside is blocked, not a demonstrated benefit. Finish generic constructor/receivers, then choose any expanded port-bank effort explicitly against its larger owner/routing cost.",
+  "unresolved": ["Native copper/drill reconstruction after any port/edge relocation", "Source power/return/current/Kelvin and off-board bar transport qualification", "Both existing vent reservations remain obligatory", "Guaranteed assembledZ and connector plug/cable/housing access"],
+  "sources_and_selector_mutated": false,
+  "new_feasible_placement_claim": false,
+  "current_or_Z_or_release_qualified": false
+}

@@ -1,0 +1,9 @@
+{
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/mount-normalization-v1/candidate/board.kicad_pcb",
+  "candidate_sha256": "e227b66e6319645b74c1078d619403bea3596848fc5e178d6d4e8c6a0946bc4e",
+  "changed_root_uuids": [
+    "312bc6d3-63f7-4aa6-b46a-9647ec135d4b"
+  ],
+  "routing_admitted": false,
+  "release_authority": false
+}

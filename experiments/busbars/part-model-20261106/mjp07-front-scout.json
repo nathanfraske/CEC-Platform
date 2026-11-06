@@ -1,0 +1,18 @@
+{
+ "schema":1,
+ "status":"PROMISING_TWO_CAPACITOR_POSE_TO_CONSTRUCT_NOT_ADMITTED",
+ "source_sha256":"0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+ "part_source":"https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+ "part":"MJP-0.7 nominal phosphor bronze, series20A claim without qualified board/joint conditions",
+ "bar":{"center_mm":[23.2,54.73],"feet_mm":[[23.2,45.84],[23.2,63.62]],"pitch_mm":17.78,"body_mm":[1.8,19.18],"analytical_engineering_courtyard_mm":[21.955,44.595,24.445,64.865]},
+ "rejected_initial_poses":{"C25_26p2_65p5_0":"R69 courtyard overlap0.00479988mm2","C53_26_54p9_90":"C21 overlap2.34602270mm2 and R55 overlap0.1968mm2","C53_26_54p9_0":"C21 overlap2.46841694mm2, R55 overlap0.093mm2, barcourt overlap0.273mm2"},
+ "recommended_pose_trial":{"C25":{"position_mm":[26.2,65.6],"rotation_deg":0,"courtyard_mm":[24.505,64.625,27.895,66.575],"SYS_pad_mm":[25.25,65.6],"GND_pad_mm":[27.15,65.6]},"C53":{"position_mm":[25.45,57],"rotation_deg":90,"courtyard_mm":[24.475,55.305,26.425,58.695],"VBUS_pad_mm":[25.45,57.95],"GND_pad_mm":[25.45,56.05]}},
+ "recommended_pose_screens":{"same_face_ok":true,"paired_body_ok":true,"bar_court_disjoint":true,"C53_bar_court_gap_mm":0.030,"C25_bar_court_gap_mm":0.060},
+ "foot_conflicts":{"upper":["2298b048-015d-44d8-8bc1-8c23a2c7389e SYS_PORT .371227mm F.Cu","ae45861a-7d9c-47fb-a9fe-c4ca1dfccc72 U6_SS .2mm F.Cu"],"lower":["74a75a06-a200-478d-8ecb-d451935b453b +5VSB via23,64.5","2d967a6d-3110-4c0a-b465-20728fcd7872 +5VSB approach23,64.5 to22.2,65.3"]},
+ "source_copper_under_new_C53_ground_pad":["1d42bfb0-8ab7-445d-bdc0-013c7a6c8a61","5ebc89d7-9da7-4960-b7cd-290080367fdb","6dfd341e-806f-45dd-80ce-454b5712bd01","d969c8eb-d587-4add-973d-0fe2e52c9bfb"],
+ "source_copper_under_new_C53_ground_pad_net":"VBUS; explicit source-owned reroute required, not a permissible short",
+ "benefit":"Lower foot clears the SENSE5V_HI3.4mm railY68.15 and the prior5VSB via22.2,65.5. R59/R69/FB2/R55/R56/R57/R58 can retain source poses in this planar study.",
+ "vent":"Same X extent as MJP0.8: strict C37 projected vent maxX21.899979921 is disjoint from courtmin21.955; C1 also disjoint. No installed-Z/current claim.",
+ "limits":"No native MJP0.7 footprint, PCB save, refill, DRC, complete saved-fill/all-layer land check, source terminal restoration or current test. Court gaps small but explicitly positive within existing engineering-margin model. Source board unchanged.",
+ "decision":"Prefer this bounded two-capacitor topology for an actual private construction attempt over further front divider/FB2 replan, subject to named local copper repairs, genuine rated12V access and source-qualified part/process/installed-height evidence."
+}

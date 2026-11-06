@@ -581,6 +581,17 @@ def propose(source,seed_poses,*,board_hint,max_shift_mm=16.,radius_mm=4.,grid_mm
         if signal.GetNetname()!=selected['net']or ground.GetNetname()!='GND':
             raise ValueError('domain_Source_programming_resistor_nets_changed')
         roles[ref]=dict(signal=signal,ground=[ground],source_programming_resistor=True)
+        divider=selected.get('source_monitor_divider',{})
+        if divider.get('upper_motion') is True:
+            upper=divider['upper_reference'];upper_fp=fps[upper]
+            upper_pads={force._uid(p):p for p in upper_fp.Pads()}
+            if (upper in roles or force._uid(upper_fp)!=divider['upper_uuid']or len(upper_pads)!=2
+                    or divider['upper_node_pad_uuid']not in upper_pads or divider['upper_power_pad_uuid']not in upper_pads):
+                raise ValueError('domain_exact_source_monitor_upper_lands_required')
+            upper_signal=upper_pads[divider['upper_node_pad_uuid']];upper_supply=upper_pads[divider['upper_power_pad_uuid']]
+            if upper_signal.GetNetname()!=selected['net']or upper_supply.GetNetname()!=divider['supply_net']:
+                raise ValueError('domain_Source_monitor_upper_nets_changed')
+            roles[upper]=dict(signal=upper_signal,supply=upper_supply,ground=[],source_monitor_divider_upper=True)
     for ref,selected in plan.get('selected_control_gate_biases',{}).items():
         fp=fps[ref];pads={force._uid(p):p for p in fp.Pads()}
         if (ref in roles or force._uid(fp)!=selected['resistor_uuid']or len(pads)!=2

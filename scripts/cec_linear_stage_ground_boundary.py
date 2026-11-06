@@ -28,6 +28,9 @@ SCOPE = 'Source_linear_stage_existing_class_ground_boundary-v1'
 MAX_EDGES = 8
 MAX_EDGE_LENGTH_NM = 8000000
 MAX_TOTAL_LENGTH_NM = 32000000
+TRANSPORT_MODE = 'independently_rederived_literal_macro_frame-v1'
+FRAME_OPTIONS = frozenset(('reuse_ground_barrels','ordinary_via_poses',
+    'stationary_ground_barrel_uuids','local_signal_port_offsets','control_shunt_ground_return_axes'))
 
 
 def _need(value, reason):
@@ -42,6 +45,16 @@ def _wire(value):
 def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
                                     allow_nan=False).encode()).hexdigest()
+
+
+def _port_label(port,item,face):
+    if(type(port)is not dict or type(port.get('at_nm'))is not list or len(port['at_nm'])!=2
+            or any(type(v)is not int or abs(v)>2000000000 for v in port['at_nm'])
+            or port.get('layers')!=[face]):return False
+    if item['kind']=='PAD':
+        return set(port)=={'pad_uuid','at_nm','layers'}and port.get('pad_uuid')==item['uuid']
+    return (set(port)=={'native_uuids','at_nm','layers'}
+        and port.get('native_uuids')==[item['uuid']])
 
 
 def _tick(deadline):
@@ -143,7 +156,7 @@ def _context(parent, proposal, deadline):
     return context, roots, moved, live, files, epoch, family
 
 
-def _ownerships(parent, proposal, scopes, deadline):
+def _ownerships(parent, proposal, scopes, deadline, *, allow_locked_track_uuids=(), native_transport_options=None):
     _need(type(deadline) in (int, float) and math.isfinite(deadline)
           and time.monotonic() < deadline <= time.monotonic()+9.7,
           'linear_stage_ground_boundary_inherited_bounded_lease_required')
@@ -153,7 +166,30 @@ def _ownerships(parent, proposal, scopes, deadline):
         _need(type(ids) in (list, tuple) and 1 <= len(ids) <= MAX_EDGES
               and len(set(ids)) == len(ids) and all(type(u) is str and u for u in ids),
               'linear_stage_ground_boundary_exact_bounded_edges_required')
+    _need(type(allow_locked_track_uuids)in(list,tuple)and len(set(allow_locked_track_uuids))==len(allow_locked_track_uuids)
+        and all(type(u)is str and u for u in allow_locked_track_uuids),
+        'linear_stage_ground_boundary_exact_locked_consent_required')
+    options=None
+    if native_transport_options is not None:
+        _need(type(native_transport_options)is dict and set(native_transport_options)<=FRAME_OPTIONS
+            and all(type(v)in(list,tuple)for v in native_transport_options.values()),
+            'linear_stage_ground_boundary_literal_frame_options_required')
+        options=_wire(native_transport_options)
+        _need(len(json.dumps(options))<=1024*1024,'linear_stage_ground_boundary_bounded_frame_options_required')
     context, roots, moved, live, files, epoch, family = _context(parent, proposal, deadline)
+    selected_all=set().union(*map(set,scopes))
+    locked={u for u in selected_all if u in live and live[u].IsLocked()}
+    _need(set(allow_locked_track_uuids)==locked,
+        'linear_stage_ground_boundary_every_and_only_locked_Source_edge_consent_required')
+    frame=None;transport=None;transport_binding=None
+    if options is not None:
+        import cec_cell_macro_requests as compiler
+        frame,transport=compiler._frame(parent,Path(context['source']),proposal,
+            timeout_s=min(9.7,max(.001,deadline-time.monotonic())),**options)
+        _tick(deadline)
+        transport_binding=dict(mode=TRANSPORT_MODE,options=options,
+            independently_rederived_transport_sha256=_digest(_wire(transport)),
+            original_contact_dispositions_rederived=True,barrel_motion_authority=False)
     source = Path(context['source']); project = dimensions.project_path(source)
     _need(project is not None, 'linear_stage_ground_boundary_literal_project_required')
     project_digest = force._hash(project)
@@ -171,7 +207,7 @@ def _ownerships(parent, proposal, scopes, deadline):
         for uid in sorted(selected):
             _tick(deadline); edge = live[uid]; face = int(edge.GetLayer())
             _need(edge.GetClass() == 'PCB_TRACK' and edge.GetNetname() == 'GND'
-                  and face in (pcbnew.F_Cu, pcbnew.B_Cu) and not edge.IsLocked()
+                  and face in (pcbnew.F_Cu, pcbnew.B_Cu) and (not edge.IsLocked()or uid in locked)
                   and not edge.HasSolderMask() and not native._member_groups(parent, edge),
                   'linear_stage_ground_boundary_unlocked_ungrouped_surface_track_required')
             per_face = (spec.get('track_width_by_layer_mm') or {}).get(fab.COPPER_LAYER_IDS[face], 0.)
@@ -204,6 +240,26 @@ def _ownerships(parent, proposal, scopes, deadline):
                         positive_roots.append(dict(roots[other_uid], positive_native_body_contact=True,
                             endpoint_inside=[bool(obj.HitTest(p, 0)) for p in (edge.GetStart(), edge.GetEnd())]))
                 contacts.append(port)
+                if transport_binding is not None:
+                    import cec_cell_macro_requests as compiler
+                    co_cut=other_uid in selected|set(proposal.get('retired_track_uuids',()))
+                    if co_cut:
+                        port.update(independently_co_cut_source_edge=True,immutable_retained=False)
+                        continue
+                    if obj.GetClass()=='PAD':
+                        endpoint=dict(at_nm=list(obj.GetPosition()),layers=[face])
+                        endpoint['pad_uuid']=other_uid
+                        actual=next(p for fp in frame.GetFootprints()for p in fp.Pads()if force._uid(p)==other_uid)
+                        projected=[dict(pad_uuid=other_uid,at_nm=list(actual.GetPosition()),layers=[face])]
+                    else:
+                        site=native.components._contact_site(edge,obj,face)
+                        endpoint=dict(at_nm=list(site),layers=[face])
+                        endpoint['native_uuids']=[other_uid]
+                        projected=compiler._project_contacts(parent,frame,endpoint,transport,
+                            set(proposal.get('retired_track_uuids',()))|selected)
+                    port.update(source_contact_port=endpoint,independent_frame_contact_ports=projected,
+                        immutable_retained=[endpoint]==projected and port['immutable_retained'],
+                        every_original_contact_mandatory=True)
             _need(positive_roots, 'linear_stage_ground_boundary_each_edge_requires_moving_typed_material_root')
             for zone in parent.Zones():
                 _tick(deadline)
@@ -218,16 +274,25 @@ def _ownerships(parent, proposal, scopes, deadline):
             binding = dict(schema=1, scope=SCOPE, **context, exact_Source_edge=native._item(parent, edge),
                 explicit_selected_source_edge_uuids=sorted(selected), source_contacts=contacts,
                 no_unnamed_source_edges_acquired=True, every_original_contact_mandatory=True)
+            if locked or transport_binding is not None:
+                binding['exact_locked_Source_edge_consent']=sorted(locked&selected)
+            if transport_binding is not None:binding['independent_native_transport']=transport_binding
+            if transport_binding is not None:
+                binding['existing_retired_Source_edge_uuids']=sorted(proposal.get('retired_track_uuids',()))
             authority = dict(kind=KIND, native_source_uuid=uid, source_pad_roots=positive_roots,
                 source_owned_barrel_roots=[], source_width_nm=int(edge.GetWidth()),
                 source_full_class_width_nm=floor, source_class_geometry_origin='fresh_saved_source_project',
                 source_class_project=str(project.resolve()), source_class_project_sha256=project_digest,
                 source_linear_stage_ground_boundary=binding,
-                exact_retained_ports=[p for p in contacts if p['item']['uuid'] not in selected],
+                exact_retained_ports=[p for p in contacts if p['item']['uuid'] not in selected
+                    and (transport_binding is None or not p.get('independently_co_cut_source_edge',False))],
                 source_width_preserved_not_aggregate_ground_injection_rating=True,
                 every_source_partition_and_physical_return_still_requires_receiving=True,
                 grounded_controls_remain_controls=True, existing_barrels_must_survive_unchanged=True,
                 current_authority=False, new_barrel_authority=False, routing_admitted=False, release_authority=False)
+            if transport_binding is not None:
+                authority.update(existing_barrels_must_survive_unchanged=False,
+                    existing_barrel_dispositions_require_independent_frame=True)
             authority['Source_binding_sha256'] = _digest(binding)
             extras.append(dict(change=dict(uuid=uid, net='GND', source_nm=[list(edge.GetStart()), list(edge.GetEnd())]),
                                authority=authority))
@@ -243,17 +308,19 @@ def _ownerships(parent, proposal, scopes, deadline):
     return results
 
 
-def ownership(parent, proposal, track_uuids, *, deadline):
+def ownership(parent, proposal, track_uuids, *, deadline, allow_locked_track_uuids=(), native_transport_options=None):
     """Fresh union-cut ownership only; no construction or receiving implied."""
-    return _ownerships(parent, proposal, [track_uuids], deadline)[0]
+    return _ownerships(parent, proposal, [track_uuids], deadline,
+        allow_locked_track_uuids=allow_locked_track_uuids,native_transport_options=native_transport_options)[0]
 
 
-def single_edge_ownerships(parent, proposal, track_uuids, *, deadline):
+def single_edge_ownerships(parent, proposal, track_uuids, *, deadline, allow_locked_track_uuids=(), native_transport_options=None):
     """Existing selector row shape; singleton scopes share one fresh read-only frame."""
     _need(type(track_uuids) in (list, tuple) and 1 <= len(track_uuids) <= MAX_EDGES
           and len(set(track_uuids)) == len(track_uuids),
           'linear_stage_ground_boundary_exact_bounded_edges_required')
-    return [q['extras'][0] for q in _ownerships(parent, proposal, [[u] for u in track_uuids], deadline)]
+    return [q['extras'][0] for q in _ownerships(parent, proposal, [[u] for u in track_uuids], deadline,
+        allow_locked_track_uuids=allow_locked_track_uuids,native_transport_options=native_transport_options)]
 
 
 def source_root_label(root):
@@ -303,7 +370,7 @@ def _authority_label(authority):
             or any(authority.get(k) is not True for k in
                    ('source_width_preserved_not_aggregate_ground_injection_rating',
                     'every_source_partition_and_physical_return_still_requires_receiving',
-                    'grounded_controls_remain_controls', 'existing_barrels_must_survive_unchanged'))
+                    'grounded_controls_remain_controls'))
             or authority.get('source_owned_barrel_roots') != []
             or authority.get('source_class_geometry_origin') != 'fresh_saved_source_project'):
         return False
@@ -326,12 +393,46 @@ def _authority_label(authority):
             or type(edge) is not dict or edge.get('uuid') != uid or edge.get('kind') != 'PCB_TRACK'
             or edge.get('net') != 'GND' or edge.get('width_nm') != width
             or edge.get('layer_id') not in (pcbnew.F_Cu, pcbnew.B_Cu)
-            or edge.get('locked') is not False or edge.get('groups') != [] or edge.get('solder_mask') is not False
+            or edge.get('locked')is not False and uid not in proof.get('exact_locked_Source_edge_consent',[])
+            or edge.get('groups') != [] or edge.get('solder_mask') is not False
             or type(contacts) is not list or not 1 <= len(contacts) <= native.MAX_ITEMS
             or any(type(p) is not dict or p.get('every_original_contact_mandatory') is not True
                    or type(p.get('item')) is not dict or p['item'].get('net') != 'GND' for p in contacts)
-            or authority.get('exact_retained_ports') != [p for p in contacts if p['item']['uuid'] not in ids]):
+            or authority.get('exact_retained_ports') != [p for p in contacts if p['item']['uuid'] not in ids
+                and ('independent_native_transport'not in proof or not p.get('independently_co_cut_source_edge',False))]):
         return False
+    consent=proof.get('exact_locked_Source_edge_consent',[])
+    if(type(consent)is not list or consent!=sorted(set(consent))or not set(consent)<=set(ids)
+            or any(type(u)is not str or not u for u in consent)
+            or (uid in consent)is not edge.get('locked')):return False
+    frame=proof.get('independent_native_transport')
+    if frame is None:
+        if (authority.get('existing_barrels_must_survive_unchanged')is not True
+                or 'existing_barrel_dispositions_require_independent_frame'in authority):return False
+    elif not(type(frame)is dict and set(frame)=={'mode','options','independently_rederived_transport_sha256',
+            'original_contact_dispositions_rederived','barrel_motion_authority'}
+            and frame.get('mode')==TRANSPORT_MODE and type(frame.get('options'))is dict
+            and set(frame['options'])<=FRAME_OPTIONS and all(type(v)is list for v in frame['options'].values())
+            and type(frame.get('independently_rederived_transport_sha256'))is str
+            and len(frame['independently_rederived_transport_sha256'])==64
+            and all(c in '0123456789abcdef'for c in frame['independently_rederived_transport_sha256'])
+            and frame.get('original_contact_dispositions_rederived')is True
+            and frame.get('barrel_motion_authority')is False
+            and authority.get('existing_barrels_must_survive_unchanged')is False
+            and authority.get('existing_barrel_dispositions_require_independent_frame')is True):return False
+    if frame is not None:
+        retired=proof.get('existing_retired_Source_edge_uuids')
+        if type(retired)is not list or any(type(u)is not str for u in retired)or retired!=sorted(set(retired)):return False
+        for port in contacts:
+            if port.get('independently_co_cut_source_edge')is True:
+                if (port['item']['uuid']not in set(ids)|set(retired)
+                        or port['item']['kind']!='PCB_TRACK'or port.get('immutable_retained')is not False
+                        or 'source_contact_port'in port or 'independent_frame_contact_ports'in port):return False
+            elif (not _port_label(port.get('source_contact_port'),port['item'],edge['layer_id'])
+                    or type(port.get('independent_frame_contact_ports'))is not list
+                    or not port['independent_frame_contact_ports']
+                    or any(not _port_label(p,port['item'],edge['layer_id'])
+                        for p in port['independent_frame_contact_ports'])):return False
     for root in roots:
         matching = [p for p in contacts if p['item'].get('uuid') == root['pad_uuid']]
         if (len(matching) != 1 or matching[0].get('positive_native_material_contact') is not True
@@ -349,3 +450,14 @@ def authority_label(authority):
         return _authority_label(authority)
     except (KeyError, TypeError, ValueError, OverflowError, RecursionError):
         return False
+
+
+def transport_matches(authority,transport):
+    """Structural exact-frame hash equality only, never fresh Source admission."""
+    try:
+        return bool(type(transport)is dict
+            and transport.get('scope')=='provisional_source_owned_smd_cohort_endpoint_transport'
+            and authority_label(authority)and
+            authority['source_linear_stage_ground_boundary'].get('independent_native_transport',{}).get(
+                'independently_rederived_transport_sha256')==_digest(_wire(transport)))
+    except (KeyError,TypeError,ValueError,OverflowError,RecursionError):return False

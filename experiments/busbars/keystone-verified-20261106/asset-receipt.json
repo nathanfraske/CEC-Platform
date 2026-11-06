@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "scope": "SOURCE_BOUND_COMPONENT_ASSETS_NOT_INSTALLED_OR_APPLICATION_QUALIFIED",
+  "drawing_sha256": "102825d20bad022eba9cbd7be7689b5973dd9c6873462bd0f8452f5ebfcc8778",
+  "profile_sha256": "044792798801be72267570dd1fa51d168265f1861e28550500bc1169063c82bf",
+  "dimension_ranges_mm": {
+    "length": [
+      12.1666,
+      12.43
+    ],
+    "maximum_plan_width": [
+      2.17,
+      2.4384
+    ],
+    "typical_neck_width": [
+      1.67,
+      1.9304
+    ],
+    "height_from_foot_bottom": [
+      1.67,
+      1.9304
+    ],
+    "material_thickness": [
+      0.37,
+      0.635
+    ],
+    "outer_tab_span_not_flat_underside": [
+      5.37,
+      5.6388
+    ]
+  },
+  "bare_part_maximum_height_mm": 1.9304,
+  "conditional_central_underside_arithmetic_mm": 1.035,
+  "underside_arithmetic_is_not_guaranteed_clearance": true,
+  "guaranteed_underbridge_rectangle": null,
+  "backside_original_reference_rejected": true,
+  "footprint_sha256": "96b794b9829f5b5890ebc2532a81db5ae43df458b80621aef47099e7862e0cf6",
+  "symbol_sha256": "cb4d8b0d47675aa0642959dc1633d58d4e12b446339768e138803e232340934f",
+  "native_land_centers_nm": [
+    [
+      -5350000,
+      0
+    ],
+    [
+      5350000,
+      0
+    ]
+  ],
+  "land_size_nm": [
+    2600000,
+    2800000
+  ],
+  "native_cached_courtyard_bounds_mm": [
+    -6.895,
+    -1.645,
+    6.895,
+    1.645
+  ],
+  "native_readback_pass": true,
+  "span_PCB_copper_present": false,
+  "product_boards_written": 0,
+  "source_schematic_integrated": false,
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "release_authority": false
+}

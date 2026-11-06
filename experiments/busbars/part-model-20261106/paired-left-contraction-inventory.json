@@ -1,0 +1,1028 @@
+{
+  "schema": 1,
+  "scope": "ONE_READ_ONLY_INVENTORY_AND_ONE_C1_RAM_PREVIEW_NOT_ROUTE_OR_OUTLINE_ADMISSION",
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+      "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "inventory": {
+    "cover": {
+      "threshold_mm": 81,
+      "courtyards": [
+        {
+          "ref": "C1",
+          "uuid": "3dec7d98-b557-409f-8e47-3944e3ef9616",
+          "pose_mm": [
+            73.9,
+            25.45,
+            90.0
+          ],
+          "bounds_mm": [
+            63.805,
+            13.855,
+            83.995,
+            37.045
+          ]
+        },
+        {
+          "ref": "C37",
+          "uuid": "3aee6a4d-c364-461a-8f3c-649ab16f0f3e",
+          "pose_mm": [
+            73.5,
+            49.6,
+            90.0
+          ],
+          "bounds_mm": [
+            63.405,
+            38.005,
+            83.595,
+            61.195
+          ]
+        },
+        {
+          "ref": "U3",
+          "uuid": "3b99c451-1813-4b2f-ad2d-da7f29025804",
+          "pose_mm": [
+            81.605001,
+            10.165,
+            180.0
+          ],
+          "bounds_mm": [
+            80.160001,
+            9.39,
+            83.050001,
+            10.94
+          ]
+        },
+        {
+          "ref": "C3",
+          "uuid": "80c0a4b4-3497-42d4-b24b-ee1239091e59",
+          "pose_mm": [
+            81.430001,
+            4.114999,
+            0.0
+          ],
+          "bounds_mm": [
+            79.955001,
+            3.389999,
+            82.905001,
+            4.839999
+          ]
+        },
+        {
+          "ref": "R39",
+          "uuid": "3a5b11ac-34e6-4331-9a46-0a28c322f013",
+          "pose_mm": [
+            82.425,
+            7.255,
+            -90.0
+          ],
+          "bounds_mm": [
+            81.96,
+            6.33,
+            82.89,
+            8.18
+          ]
+        },
+        {
+          "ref": "RJ_HOLD",
+          "uuid": "c317a27e-14e4-4850-ad01-63a059204161",
+          "pose_mm": [
+            81.73,
+            13.389999,
+            180.0
+          ],
+          "bounds_mm": [
+            80.805,
+            12.924999,
+            82.655,
+            13.854999
+          ]
+        },
+        {
+          "ref": "L1",
+          "uuid": "2517b6f2-e719-4cd5-83c5-e70e6890f26a",
+          "pose_mm": [
+            80.655001,
+            6.564999,
+            90.0
+          ],
+          "bounds_mm": [
+            79.410001,
+            5.069999,
+            81.900001,
+            8.059999
+          ]
+        }
+      ],
+      "material": [
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "08f4430f-2b88-4d96-94ac-f4263c63989a",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            83.255001,
+            8.037,
+            83.455002,
+            11.095001
+          ],
+          "start_mm": [
+            83.355001,
+            8.137
+          ],
+          "end_mm": [
+            83.355001,
+            10.995
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "24ee12e6-9ab8-4f47-849f-c77c370ee6c5",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.935001,
+            10.895,
+            83.455002,
+            11.415001
+          ],
+          "start_mm": [
+            83.355001,
+            10.995
+          ],
+          "end_mm": [
+            83.035001,
+            11.315
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "bf922801-a9ee-4e51-b5dc-30f0d791c444",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.883001,
+            7.665,
+            83.455002,
+            8.237001
+          ],
+          "start_mm": [
+            82.983001,
+            7.765
+          ],
+          "end_mm": [
+            83.355001,
+            8.137
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "7bf907fd-511e-4b39-8d3a-3f54e2c66b43",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.455001,
+            11.215,
+            83.135002,
+            11.415001
+          ],
+          "start_mm": [
+            83.035001,
+            11.315
+          ],
+          "end_mm": [
+            82.555001,
+            11.315
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "a9074d13-809b-4953-a5ae-61fd317918dd",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.325,
+            7.665,
+            83.083002,
+            7.865001
+          ],
+          "start_mm": [
+            82.425,
+            7.765
+          ],
+          "end_mm": [
+            82.983001,
+            7.765
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "5bed0b34-3574-44d7-8efe-065b1618ff43",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            82.055001,
+            8.515,
+            83.055002,
+            9.915001
+          ],
+          "start_mm": [
+            82.555001,
+            9.415
+          ],
+          "end_mm": [
+            82.555001,
+            9.015
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "862140b8-5fb6-4346-8024-9f959c093d7f",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            80.155001,
+            8.915,
+            83.055002,
+            11.815001
+          ],
+          "start_mm": [
+            80.655001,
+            11.315
+          ],
+          "end_mm": [
+            82.555001,
+            9.415
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PAD",
+          "ref": "U3",
+          "pin": "1",
+          "uuid": "af642001-dfe7-4970-9215-e2d88c11b308",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            82.310001,
+            8.4365,
+            82.800001,
+            9.5935
+          ],
+          "at_mm": [
+            82.555001,
+            9.015
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PAD",
+          "ref": "U3",
+          "pin": "5",
+          "uuid": "eb6b99be-5fc2-4946-a236-988726030019",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.310001,
+            10.7275,
+            82.800001,
+            11.9025
+          ],
+          "at_mm": [
+            82.555001,
+            11.315
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PAD",
+          "ref": "R39",
+          "pin": "1",
+          "uuid": "0f4b70bb-8ebe-4ef7-9c78-250ffae5e69d",
+          "net": "+3V3",
+          "bounds_mm": [
+            82.105,
+            6.475,
+            82.745,
+            7.015
+          ],
+          "at_mm": [
+            82.425,
+            6.745
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PAD",
+          "ref": "R39",
+          "pin": "2",
+          "uuid": "575da013-143b-4d18-8243-3c9a9611ed94",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.105,
+            7.495,
+            82.745,
+            8.035
+          ],
+          "at_mm": [
+            82.425,
+            7.765
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "aaf48e23-06f8-4347-9705-7d6f607060af",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "bounds_mm": [
+            81.74,
+            12.889999,
+            82.740001,
+            24.210001
+          ],
+          "start_mm": [
+            82.24,
+            23.71
+          ],
+          "end_mm": [
+            82.24,
+            13.389999
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "ce50bc58-4222-4df7-b85c-5529d15245af",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "bounds_mm": [
+            73.4,
+            23.21,
+            82.740001,
+            32.550001
+          ],
+          "start_mm": [
+            73.9,
+            32.05
+          ],
+          "end_mm": [
+            82.24,
+            23.71
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PCB_VIA",
+          "uuid": "8c9d3e92-558d-4de6-95d0-a931985e4972",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            82.380001,
+            8.84,
+            82.730002,
+            9.190001
+          ],
+          "start_mm": [
+            82.555001,
+            9.015
+          ],
+          "end_mm": [
+            82.555001,
+            9.015
+          ],
+          "width_mm": 0.35
+        },
+        {
+          "kind": "PAD",
+          "ref": "C3",
+          "pin": "2",
+          "uuid": "9af21f6d-7555-4f2d-abc2-5b9677485875",
+          "net": "GND",
+          "bounds_mm": [
+            81.755001,
+            3.639999,
+            82.655001,
+            4.589999
+          ],
+          "at_mm": [
+            82.205001,
+            4.114999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_VIA",
+          "uuid": "d42270bd-40ad-483a-8ca7-8f53a8f20db0",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            82.25,
+            7.59,
+            82.600001,
+            7.940001
+          ],
+          "start_mm": [
+            82.425,
+            7.765
+          ],
+          "end_mm": [
+            82.425,
+            7.765
+          ],
+          "width_mm": 0.35
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "0eda0704-6ff9-475c-ab68-a69a739551a6",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_FB_3V3",
+          "bounds_mm": [
+            78.835,
+            7.665,
+            82.525001,
+            7.865001
+          ],
+          "start_mm": [
+            78.935,
+            7.765
+          ],
+          "end_mm": [
+            82.425,
+            7.765
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PAD",
+          "ref": "RJ_HOLD",
+          "pin": "1",
+          "uuid": "2a320cd5-0ad3-4ca5-aab2-6020a7634e9e",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "bounds_mm": [
+            81.97,
+            13.069999,
+            82.51,
+            13.709999
+          ],
+          "at_mm": [
+            82.24,
+            13.389999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_VIA",
+          "uuid": "6aebf549-9859-4ac9-8ee0-7fbb821ff462",
+          "net": "GND",
+          "bounds_mm": [
+            81.955001,
+            3.864999,
+            82.455002,
+            4.365
+          ],
+          "start_mm": [
+            82.205001,
+            4.114999
+          ],
+          "end_mm": [
+            82.205001,
+            4.114999
+          ],
+          "width_mm": 0.5
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "25ba744e-4763-4b8f-94a3-ebfb999b20a9",
+          "net": "+3V3",
+          "bounds_mm": [
+            81.791252,
+            6.47625,
+            82.285001,
+            6.676251
+          ],
+          "start_mm": [
+            82.185,
+            6.57625
+          ],
+          "end_mm": [
+            81.891252,
+            6.57625
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "8f44aedc-c575-441d-bd93-0abfd2051446",
+          "net": "+3V3",
+          "bounds_mm": [
+            81.055001,
+            5.739999,
+            81.991253,
+            6.676251
+          ],
+          "start_mm": [
+            81.891252,
+            6.57625
+          ],
+          "end_mm": [
+            81.155001,
+            5.839999
+          ],
+          "width_mm": 0.2
+        },
+        {
+          "kind": "PAD",
+          "ref": "U3",
+          "pin": "2",
+          "uuid": "07e7d4af-a4e3-4ece-9893-2c9896267cae",
+          "net": "GND",
+          "bounds_mm": [
+            81.360001,
+            8.4365,
+            81.850001,
+            9.5935
+          ],
+          "at_mm": [
+            81.605001,
+            9.015
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_VIA",
+          "uuid": "11cab127-e0eb-4253-8a14-cfa02c44323d",
+          "net": "GND",
+          "bounds_mm": [
+            81.430001,
+            8.84,
+            81.780002,
+            9.190001
+          ],
+          "start_mm": [
+            81.605001,
+            9.015
+          ],
+          "end_mm": [
+            81.605001,
+            9.015
+          ],
+          "width_mm": 0.35
+        },
+        {
+          "kind": "PAD",
+          "ref": "L1",
+          "pin": "1",
+          "uuid": "7f6f990f-80c9-43f3-b71b-e4e0b3f88970",
+          "net": "/HOLD-UP + 3V3 REGULATOR/BUCK_SW_3V3",
+          "bounds_mm": [
+            79.655001,
+            7.214999,
+            81.655001,
+            7.814999
+          ],
+          "at_mm": [
+            80.655001,
+            7.514999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PAD",
+          "ref": "L1",
+          "pin": "2",
+          "uuid": "7bb74f8f-f937-4f11-9eb3-54f7a6b5cc6f",
+          "net": "+3V3",
+          "bounds_mm": [
+            79.655001,
+            5.314999,
+            81.655001,
+            5.914999
+          ],
+          "at_mm": [
+            80.655001,
+            5.614999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PAD",
+          "ref": "RJ_HOLD",
+          "pin": "2",
+          "uuid": "7c95d458-ec33-46f3-a4e5-f50a40269026",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            80.95,
+            13.069999,
+            81.49,
+            13.709999
+          ],
+          "at_mm": [
+            81.22,
+            13.389999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "3d37b139-ef2b-4f35-9406-fc31eb2f2aac",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            80.155001,
+            12.325,
+            81.454836,
+            13.624835
+          ],
+          "start_mm": [
+            80.655001,
+            12.825
+          ],
+          "end_mm": [
+            80.954835,
+            13.124834
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "c660101d-3d49-4f02-94cf-1fd105e2dc18",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            80.819835,
+            12.989834,
+            81.355001,
+            13.525
+          ],
+          "start_mm": [
+            80.954835,
+            13.124834
+          ],
+          "end_mm": [
+            81.22,
+            13.389999
+          ],
+          "width_mm": 0.27
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "9eb6b29a-1f7c-4880-adf8-522464cd332d",
+          "net": "/HOLD-UP + 3V3 REGULATOR/LOGIC_REG_IN",
+          "bounds_mm": [
+            80.155001,
+            10.815,
+            81.155002,
+            13.325001
+          ],
+          "start_mm": [
+            80.655001,
+            11.315
+          ],
+          "end_mm": [
+            80.655001,
+            12.825
+          ],
+          "width_mm": 1.0
+        },
+        {
+          "kind": "PAD",
+          "ref": "C3",
+          "pin": "1",
+          "uuid": "fed1e5ce-0002-401b-a19f-42ef2ef788f5",
+          "net": "+3V3",
+          "bounds_mm": [
+            80.205001,
+            3.639999,
+            81.105001,
+            4.589999
+          ],
+          "at_mm": [
+            80.655001,
+            4.114999
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "holes": []
+    },
+    "carrier": {
+      "threshold_mm": 4.5,
+      "courtyards": [
+        {
+          "ref": "FID3",
+          "uuid": "d6368755-efc4-4792-943e-3a5ca8252f88",
+          "pose_mm": [
+            3.5,
+            85.0,
+            0.0
+          ],
+          "bounds_mm": [
+            2.252494,
+            83.75375,
+            4.744998,
+            86.246249
+          ]
+        },
+        {
+          "ref": "FID1",
+          "uuid": "ca3612ca-5fec-496f-b168-95431686f7f7",
+          "pose_mm": [
+            5.0,
+            22.5,
+            0.0
+          ],
+          "bounds_mm": [
+            3.752494,
+            21.25375,
+            6.244998,
+            23.746249
+          ]
+        }
+      ],
+      "material": [
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "2da4471e-2417-5dcb-85d3-ef0a1cb30272",
+          "net": "/SENSE12V_HI",
+          "bounds_mm": [
+            0.584704,
+            34.384704,
+            3.815297,
+            80.715297
+          ],
+          "start_mm": [
+            2.2,
+            79.1
+          ],
+          "end_mm": [
+            2.2,
+            36.0
+          ],
+          "width_mm": 3.230592
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "33af082a-6b01-54ef-a068-9a27059b3011",
+          "net": "/SENSE12V_HI",
+          "bounds_mm": [
+            0.584704,
+            77.484704,
+            9.915297,
+            86.815297
+          ],
+          "start_mm": [
+            8.3,
+            85.2
+          ],
+          "end_mm": [
+            2.2,
+            79.1
+          ],
+          "width_mm": 3.230592
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "9c0a3b2a-d397-4062-8dce-e7aa8d0d2693",
+          "net": "/SENSE12V_HI",
+          "bounds_mm": [
+            0.584704,
+            34.384704,
+            20.215297,
+            37.615297
+          ],
+          "start_mm": [
+            2.2,
+            36.0
+          ],
+          "end_mm": [
+            18.6,
+            36.0
+          ],
+          "width_mm": 3.230592
+        },
+        {
+          "kind": "PAD",
+          "ref": "FID3",
+          "pin": "",
+          "uuid": "113a8327-9dec-5a52-aa0d-a34193c128ec",
+          "net": "",
+          "bounds_mm": [
+            3.0,
+            84.5,
+            4.0,
+            85.5
+          ],
+          "at_mm": [
+            3.5,
+            85.0
+          ],
+          "drill_mm": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "3ace9012-8691-4de3-be94-98946715204b",
+          "net": "/SENSE3V3_HI",
+          "bounds_mm": [
+            4.204886,
+            39.282238,
+            14.417763,
+            45.817763
+          ],
+          "start_mm": [
+            7.472648,
+            42.55
+          ],
+          "end_mm": [
+            11.15,
+            42.55
+          ],
+          "width_mm": 6.535523
+        },
+        {
+          "kind": "PCB_TRACK",
+          "uuid": "e8ae802e-223d-4792-aa23-8e06299434b5",
+          "net": "/SENSE3V3_HI",
+          "bounds_mm": [
+            4.204886,
+            39.282238,
+            10.740411,
+            56.067763
+          ],
+          "start_mm": [
+            7.472648,
+            52.8
+          ],
+          "end_mm": [
+            7.472648,
+            42.55
+          ],
+          "width_mm": 6.535523
+        }
+      ],
+      "holes": []
+    }
+  },
+  "source_dimensions": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        89.585,
+        91.795
+      ],
+      "size_mm": [
+        89.585,
+        93.09
+      ],
+      "bounding_area_mm2": 8339.46765
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "C1_pose": {
+    "uuid": "3dec7d98-b557-409f-8e47-3944e3ef9616",
+    "source_at_nm": [
+      73900000,
+      25450000
+    ],
+    "target_at_nm": [
+      72900000,
+      25450000
+    ],
+    "rotation_deg": 90.0
+  },
+  "C1_minus1mm_preview": {
+    "paired_body_ok": false,
+    "paired_failures": [
+      {
+        "kind": "opposing_body_edge_clearance",
+        "refs": [
+          "U1",
+          "C1"
+        ],
+        "margin_mm": -0.1845783689059926,
+        "ok": false,
+        "lateral_free_mm": 0.09742076453202203,
+        "vertical_free_mm": 0.3000000000000007,
+        "spatial_clearance_mm": 0.3154216310940074
+      }
+    ],
+    "same_face": {
+      "ok": false,
+      "complete": true,
+      "conflicts": [
+        {
+          "references": [
+            "C1",
+            "R27"
+          ],
+          "overlap_area_mm2": 0.04878969000000024
+        },
+        {
+          "references": [
+            "C1",
+            "R26"
+          ],
+          "overlap_area_mm2": 0.11745900000000045
+        }
+      ],
+      "missing": [],
+      "fallback_references": [],
+      "scope": "moved-owner planar envelope screening only"
+    },
+    "existing_vent_reservations": [
+      {
+        "ref": "C37",
+        "copper_hits": [],
+        "native_rule_covers": true,
+        "ok": true
+      },
+      {
+        "ref": "C1",
+        "copper_hits": [
+          "track_or_via:e3991be9-9fcd-4662-aeab-b71e7e5c6e5c",
+          "track_or_via:0318e59e-3e60-4adb-9594-3edd58a3acf5",
+          "track_or_via:de8d643b-943d-4a09-9fe0-cdaa540fbd43"
+        ],
+        "native_rule_covers": false,
+        "ok": false
+      }
+    ],
+    "new_C1_declared_body_bounds_mm": [
+      63.650000000000006,
+      16.2,
+      82.15,
+      34.7
+    ]
+  },
+  "source_files_unchanged": true,
+  "interfaces_moved": false,
+  "gap_changed": false,
+  "KVM_moved": false,
+  "qualified_current_or_Z_or_release": false
+}

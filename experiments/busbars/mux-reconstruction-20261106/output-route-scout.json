@@ -1,0 +1,6723 @@
+{
+  "source": "experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "fixed_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      49925000,
+      180.0
+    ]
+  },
+  "original_cohort_pin_incident_copper": [
+    {
+      "pad": {
+        "uuid": "7be02285-9790-4d29-bdca-078813726555",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "C27",
+        "pin": "1",
+        "at_nm": [
+          13043990,
+          45800000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "5c8ea661-aa1f-5e9f-9c72-a1002a97d0d7",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_nm": [
+            13043990,
+            45800000
+          ],
+          "end_nm": [
+            13043990,
+            46355002
+          ],
+          "width_nm": 477370,
+          "locked": false
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C27",
+        "pin": "2",
+        "at_nm": [
+          12083990,
+          45800000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "f5f88540-c47a-4ddc-9539-d0f0e3ddbb0f",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            12083990,
+            45800000
+          ],
+          "end_nm": [
+            12083990,
+            46405002
+          ],
+          "width_nm": 200000,
+          "locked": false
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "ref": "C51",
+        "pin": "1",
+        "at_nm": [
+          19275000,
+          50125000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "20d98e3a-8f66-4be2-baf9-77e259e74306",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_nm": [
+            19200000,
+            51400000
+          ],
+          "end_nm": [
+            19200000,
+            50200000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "bc5b2534-36a3-4c73-b73a-d812fd4aae81",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_nm": [
+            19200000,
+            50200000
+          ],
+          "end_nm": [
+            19275000,
+            50125000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C51",
+        "pin": "2",
+        "at_nm": [
+          17725000,
+          50125000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "7f4e567d-2755-4c6e-a51c-2af6b999bc20",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            17725000,
+            50125000
+          ],
+          "end_nm": [
+            17725000,
+            50125000
+          ],
+          "width_nm": 500000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "C54",
+        "pin": "1",
+        "at_nm": [
+          16924990,
+          47725001
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            17057490,
+            48057490
+          ],
+          "end_nm": [
+            17000000,
+            48000000
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            17057490,
+            47900001
+          ],
+          "end_nm": [
+            17057490,
+            48057490
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            16824990,
+            47725001
+          ],
+          "end_nm": [
+            18225001,
+            47725001
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            15674990,
+            47775001
+          ],
+          "end_nm": [
+            16774990,
+            47775001
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            17000000,
+            48000000
+          ],
+          "end_nm": [
+            18500000,
+            46500000
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "fadba932-2d71-466c-8fab-c01735590521",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            16774990,
+            47775001
+          ],
+          "end_nm": [
+            16824990,
+            47725001
+          ],
+          "width_nm": 477370,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C54",
+        "pin": "2",
+        "at_nm": [
+          16924990,
+          46765001
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            16924990,
+            46765001
+          ],
+          "end_nm": [
+            16924990,
+            46765001
+          ],
+          "width_nm": 500000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "C55",
+        "pin": "1",
+        "at_nm": [
+          18500000,
+          48000000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            16824990,
+            47725001
+          ],
+          "end_nm": [
+            18225001,
+            47725001
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            18225001,
+            47725001
+          ],
+          "end_nm": [
+            18500000,
+            48000000
+          ],
+          "width_nm": 477370,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C55",
+        "pin": "2",
+        "at_nm": [
+          20400000,
+          48000000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            20400000,
+            48000000
+          ],
+          "end_nm": [
+            19445406,
+            48954594
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "C9",
+        "pin": "1",
+        "at_nm": [
+          11000000,
+          47050000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "12f0ebf9-8175-5508-a8b9-c694ec9deda5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            11490000,
+            47540000
+          ],
+          "end_nm": [
+            13300000,
+            47540000
+          ],
+          "width_nm": 200000,
+          "locked": false
+        },
+        {
+          "uuid": "d8408191-ce40-5dd6-b364-56b7b0309ebe",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            11000000,
+            47050000
+          ],
+          "end_nm": [
+            11490000,
+            47540000
+          ],
+          "width_nm": 200000,
+          "locked": false
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C9",
+        "pin": "2",
+        "at_nm": [
+          11000000,
+          48950000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            11245000,
+            48705000
+          ],
+          "end_nm": [
+            11245000,
+            48705000
+          ],
+          "width_nm": 500000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "ref": "R54",
+        "pin": "1",
+        "at_nm": [
+          12800000,
+          48115000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "30b4e49c-6538-41b3-bacf-2f382b4b5224",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_nm": [
+            12465000,
+            48450000
+          ],
+          "end_nm": [
+            12800000,
+            48115000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R54",
+        "pin": "2",
+        "at_nm": [
+          12800000,
+          49135000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+          "kind": "PCB_VIA",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            12800000,
+            49135000
+          ],
+          "end_nm": [
+            12800000,
+            49135000
+          ],
+          "width_nm": 350000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "a021ea00-3f04-4409-b666-0e4fa56f7081",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "U6",
+        "pin": "1",
+        "at_nm": [
+          14324990,
+          47075002
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "48082e21-4c1b-5ca4-8132-bd72552fe017",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_nm": [
+            13443988,
+            46949998
+          ],
+          "end_nm": [
+            13865615,
+            46949998
+          ],
+          "width_nm": 477370,
+          "locked": true
+        },
+        {
+          "uuid": "c819a2f7-7d2d-4aec-bb0f-384cd8ac4e40",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_nm": [
+            15215615,
+            47000002
+          ],
+          "end_nm": [
+            14784365,
+            47000002
+          ],
+          "width_nm": 477370,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "U6",
+        "pin": "2",
+        "at_nm": [
+          14324990,
+          47775001
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "1d05e892-3997-46b1-87ce-d71332df19bf",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            14745990,
+            47871000
+          ],
+          "end_nm": [
+            13700000,
+            47871000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "1e0f9569-73e3-4380-8d5a-4ad04eb12a99",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            13700000,
+            47871000
+          ],
+          "end_nm": [
+            13500000,
+            48071000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "453ec525-d8de-4cf7-98ed-fb07c1bc16af",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            13500000,
+            48265616
+          ],
+          "end_nm": [
+            13865615,
+            47900001
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "b9a12100-0bed-5729-97dd-fdbf48bfd49e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "layer": "F.Cu",
+          "start_nm": [
+            13535001,
+            47775001
+          ],
+          "end_nm": [
+            14324990,
+            47775001
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "3",
+        "at_nm": [
+          14249989,
+          48550000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "0b418030-3055-4204-9d78-d31bda5ba5f9",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            14428239,
+            48871751
+          ],
+          "end_nm": [
+            14428239,
+            49221751
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            14749990,
+            48550000
+          ],
+          "end_nm": [
+            14428239,
+            48871751
+          ],
+          "width_nm": 200000,
+          "locked": true
+        },
+        {
+          "uuid": "5aa894fc-70de-4df8-9f7d-0c752203d214",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            14249989,
+            48550000
+          ],
+          "end_nm": [
+            14249989,
+            49050001
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "4",
+        "at_nm": [
+          14749990,
+          48550000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "26c27aab-ab75-4f45-b93a-dbbb532a973d",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            14749990,
+            48550000
+          ],
+          "end_nm": [
+            14428239,
+            48871751
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "U6",
+        "pin": "5",
+        "at_nm": [
+          15249990,
+          48550000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "60d43bcc-0c9a-40f7-b9bc-37ff547de09f",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "layer": "F.Cu",
+          "start_nm": [
+            15249990,
+            48550000
+          ],
+          "end_nm": [
+            15249990,
+            49100000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "U6",
+        "pin": "6",
+        "at_nm": [
+          15749991,
+          48550000
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "daa85c51-cee0-4e9e-bb8b-b663fb577828",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "layer": "F.Cu",
+          "start_nm": [
+            15749991,
+            48550000
+          ],
+          "end_nm": [
+            16103544,
+            48903553
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "U6",
+        "pin": "7",
+        "at_nm": [
+          15674990,
+          47775001
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            15674990,
+            47775001
+          ],
+          "end_nm": [
+            16774990,
+            47775001
+          ],
+          "width_nm": 477370,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "U6",
+        "pin": "8",
+        "at_nm": [
+          15674990,
+          47075002
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "c819a2f7-7d2d-4aec-bb0f-384cd8ac4e40",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+          "layer": "F.Cu",
+          "start_nm": [
+            15215615,
+            47000002
+          ],
+          "end_nm": [
+            14784365,
+            47000002
+          ],
+          "width_nm": 477370,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "bd80c529-9c38-47a7-9b90-531839cabdba",
+        "kind": "PAD",
+        "net": "unconnected-(U6-ST-Pad9)",
+        "ref": "U6",
+        "pin": "9",
+        "at_nm": [
+          15749991,
+          46250002
+        ]
+      },
+      "actual_native_contacts": [],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "ref": "U6",
+        "pin": "10",
+        "at_nm": [
+          15249990,
+          46250002
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "layer": "F.Cu",
+          "start_nm": [
+            15249990,
+            46250002
+          ],
+          "end_nm": [
+            15249990,
+            45460004
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "ref": "U6",
+        "pin": "11",
+        "at_nm": [
+          14749990,
+          46250002
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+          "kind": "PCB_TRACK",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "layer": "F.Cu",
+          "start_nm": [
+            14749990,
+            46250002
+          ],
+          "end_nm": [
+            14749990,
+            45600000
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    },
+    {
+      "pad": {
+        "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "12",
+        "at_nm": [
+          14249989,
+          46250002
+        ]
+      },
+      "actual_native_contacts": [
+        {
+          "uuid": "b3634c11-95f9-46f5-bbda-540a1c919c03",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            14249989,
+            46250002
+          ],
+          "end_nm": [
+            13861080,
+            45861093
+          ],
+          "width_nm": 200000,
+          "locked": true
+        }
+      ],
+      "actual_filled_zone_contacts": []
+    }
+  ],
+  "source_output_current_evidence": "../reservoir-repack-20261106/MUX-diagonal-ownership.json",
+  "output_current_A": 3.0,
+  "geometry_margin": 1.25,
+  "width_nm": 477370,
+  "clearance_nm": 200000,
+  "output_pin_roles": {
+    "U6.1": "manufacturer OUT",
+    "U6.8": "manufacturer OUT"
+  },
+  "concrete_paths": [
+    {
+      "name": "OUT_common",
+      "layer": "F.Cu",
+      "points_mm": [
+        [
+          16.32499,
+          47.075002
+        ],
+        [
+          17.67499,
+          47.075002
+        ]
+      ],
+      "length_mm": 1.3500000000000014,
+      "legs": [
+        {
+          "start_mm": [
+            16.32499,
+            47.075002
+          ],
+          "end_mm": [
+            17.67499,
+            47.075002
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                16.82499,
+                47.725001
+              ],
+              "to_mm": [
+                18.225001,
+                47.725001
+              ],
+              "width_mm": 0.47737,
+              "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                17.0,
+                48.0
+              ],
+              "to_mm": [
+                18.5,
+                46.5
+              ],
+              "width_mm": 0.47737,
+              "uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "+5VSB",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                16.77499,
+                47.775001
+              ],
+              "to_mm": [
+                16.82499,
+                47.725001
+              ],
+              "width_mm": 0.47737,
+              "uuid": "fadba932-2d71-466c-8fab-c01735590521",
+              "contact": "clearance"
+            },
+            {
+              "kind": "via",
+              "net": "GND",
+              "layer": "F.Cu",
+              "locked": true,
+              "at_mm": [
+                16.92499,
+                46.765001
+              ],
+              "diameter_mm": 0.5,
+              "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OUT_to_existing_axis_transport",
+      "layer": "F.Cu",
+      "points_mm": [
+        [
+          16.32499,
+          47.075002
+        ],
+        [
+          15.568989,
+          47.075002
+        ],
+        [
+          15.018989,
+          46.525002
+        ]
+      ],
+      "length_mm": 1.5338184593052002,
+      "legs": [
+        {
+          "start_mm": [
+            16.32499,
+            47.075002
+          ],
+          "end_mm": [
+            15.568989,
+            47.075002
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "via",
+              "net": "GND",
+              "layer": "F.Cu",
+              "locked": true,
+              "at_mm": [
+                16.92499,
+                46.765001
+              ],
+              "diameter_mm": 0.5,
+              "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "start_mm": [
+            15.568989,
+            47.075002
+          ],
+          "end_mm": [
+            15.018989,
+            46.525002
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                15.24999,
+                46.250002
+              ],
+              "to_mm": [
+                15.24999,
+                45.460004
+              ],
+              "width_mm": 0.2,
+              "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                14.74999,
+                46.250002
+              ],
+              "to_mm": [
+                14.74999,
+                45.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "selected_C27_to_axis",
+      "layer": "F.Cu",
+      "points_mm": [
+        [
+          15.04399,
+          45.8
+        ],
+        [
+          15.04399,
+          46.5
+        ],
+        [
+          15.018989,
+          46.525002
+        ]
+      ],
+      "length_mm": 0.7353574603867459,
+      "legs": [
+        {
+          "start_mm": [
+            15.04399,
+            45.8
+          ],
+          "end_mm": [
+            15.04399,
+            46.5
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                15.24999,
+                45.460004
+              ],
+              "to_mm": [
+                15.309994,
+                45.4
+              ],
+              "width_mm": 0.2,
+              "uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                15.24999,
+                46.250002
+              ],
+              "to_mm": [
+                15.24999,
+                45.460004
+              ],
+              "width_mm": 0.2,
+              "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                15.309994,
+                45.4
+              ],
+              "to_mm": [
+                15.4,
+                45.4
+              ],
+              "width_mm": 0.2,
+              "uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+              "contact": "clearance"
+            },
+            {
+              "kind": "via",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "at_mm": [
+                15.4,
+                45.4
+              ],
+              "diameter_mm": 0.6,
+              "uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                14.74999,
+                45.6
+              ],
+              "to_mm": [
+                14.54999,
+                45.4
+              ],
+              "width_mm": 0.2,
+              "uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                14.74999,
+                46.250002
+              ],
+              "to_mm": [
+                14.74999,
+                45.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "start_mm": [
+            15.04399,
+            46.5
+          ],
+          "end_mm": [
+            15.018989,
+            46.525002
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                15.24999,
+                46.250002
+              ],
+              "to_mm": [
+                15.24999,
+                45.460004
+              ],
+              "width_mm": 0.2,
+              "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "F.Cu",
+              "locked": true,
+              "from_mm": [
+                14.74999,
+                46.250002
+              ],
+              "to_mm": [
+                14.74999,
+                45.6
+              ],
+              "width_mm": 0.2,
+              "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "B_output_to_preserved_boundary",
+      "layer": "B.Cu",
+      "points_mm": [
+        [
+          15.018989,
+          46.525002
+        ],
+        [
+          15.5,
+          47.006013
+        ],
+        [
+          15.5,
+          51.5
+        ],
+        [
+          17,
+          53
+        ],
+        [
+          22,
+          53
+        ]
+      ],
+      "length_mm": 12.295559623410286,
+      "legs": [
+        {
+          "start_mm": [
+            15.018989,
+            46.525002
+          ],
+          "end_mm": [
+            15.5,
+            47.006013
+          ],
+          "foreign_clear": true,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": []
+        },
+        {
+          "start_mm": [
+            15.5,
+            47.006013
+          ],
+          "end_mm": [
+            15.5,
+            51.5
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "via",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "layer": "B.Cu",
+              "locked": true,
+              "at_mm": [
+                16.103544,
+                48.903553
+              ],
+              "diameter_mm": 0.5,
+              "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+              "contact": "clearance"
+            },
+            {
+              "kind": "via",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "layer": "B.Cu",
+              "locked": true,
+              "at_mm": [
+                15.24999,
+                49.1
+              ],
+              "diameter_mm": 0.5,
+              "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "start_mm": [
+            15.5,
+            51.5
+          ],
+          "end_mm": [
+            17,
+            53
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                16.75,
+                52.75
+              ],
+              "to_mm": [
+                16.75,
+                49.5
+              ],
+              "width_mm": 0.2,
+              "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                16.75,
+                52.75
+              ],
+              "to_mm": [
+                18.75,
+                54.75
+              ],
+              "width_mm": 0.2,
+              "uuid": "4e9cbbd9-dad0-443d-b14f-2885887a2094",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                16.103544,
+                48.903553
+              ],
+              "to_mm": [
+                16.103544,
+                59.925
+              ],
+              "width_mm": 0.2,
+              "uuid": "be78cc58-17f6-41e7-9b89-3cb48aad190a",
+              "contact": "clearance"
+            }
+          ]
+        },
+        {
+          "start_mm": [
+            17,
+            53
+          ],
+          "end_mm": [
+            22,
+            53
+          ],
+          "foreign_clear": false,
+          "edge_clear": true,
+          "native_rule_hits": [],
+          "blockers": [
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                16.75,
+                52.75
+              ],
+              "to_mm": [
+                16.75,
+                49.5
+              ],
+              "width_mm": 0.2,
+              "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                16.75,
+                52.75
+              ],
+              "to_mm": [
+                18.75,
+                54.75
+              ],
+              "width_mm": 0.2,
+              "uuid": "4e9cbbd9-dad0-443d-b14f-2885887a2094",
+              "contact": "clearance"
+            },
+            {
+              "kind": "track",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "layer": "B.Cu",
+              "locked": true,
+              "from_mm": [
+                19.2,
+                51.4
+              ],
+              "to_mm": [
+                21.591215,
+                53.791215
+              ],
+              "width_mm": 0.2,
+              "uuid": "1ebd24ba-7232-523d-99a5-619aeeef93a0",
+              "contact": "clearance"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "source_output_via_to_transport": {
+    "uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+    "kind": "PCB_VIA",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+    "layer": "F.Cu",
+    "start_nm": [
+      13018989,
+      46525002
+    ],
+    "end_nm": [
+      13018989,
+      46525002
+    ],
+    "width_nm": 600000,
+    "locked": true
+  },
+  "preserved_unmoved_output_boundary_mm": [
+    22,
+    53
+  ],
+  "preserved_next_track": {
+    "uuid": "57598e07-197c-412f-89d0-b07235644a5b",
+    "kind": "PCB_TRACK",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+    "layer": "B.Cu",
+    "start_nm": [
+      22000000,
+      53000000
+    ],
+    "end_nm": [
+      25317675,
+      53000000
+    ],
+    "width_nm": 477370,
+    "locked": true
+  },
+  "next_unmoved_terminal": "C21.1 through original via15ba127e-b3a7-4bfe-aabd-0d615a43a89a; then C20.1/U5.2 remain restored",
+  "source_output_diagonal_to_reconstruct": "25bba609-ee8a-4547-9df7-c906cfc0979c",
+  "source_output_left_limb_to_reconstruct": "ce87700c-30d7-439e-b3db-eba7d0ab58d1",
+  "diagnostic_projected_via_obstacles": {
+    "57ede4e4-c2ae-4d0b-add6-924bb111003d": {
+      "source_uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+      "owner": "C9",
+      "source_owned_transport_not_received": true
+    },
+    "493a58bd-c1da-468e-a304-ff8628d44975": {
+      "source_uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+      "owner": "C27",
+      "source_owned_transport_not_received": true
+    },
+    "7e5b2f92-a75a-4674-a08f-54220a9a131e": {
+      "source_uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+      "owner": "R54",
+      "source_owned_transport_not_received": true
+    },
+    "8d34a769-69f7-4333-97e8-8206ed290073": {
+      "source_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "owner": "U6.6",
+      "source_owned_transport_not_received": true
+    },
+    "3b12adcd-e096-4d31-9019-1ff592d29dce": {
+      "source_uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "owner": "U6.5",
+      "source_owned_transport_not_received": true
+    },
+    "492a90eb-40f8-4122-ae42-772f87acb1ec": {
+      "source_uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+      "owner": "U6.10",
+      "source_owned_transport_not_received": true
+    },
+    "1ad2efee-2e34-4f97-a00f-40817350541e": {
+      "source_uuid": "442d8b20-7e51-4b59-ae72-a663f611a848",
+      "owner": "R54.1",
+      "source_owned_transport_not_received": true
+    },
+    "36f5d9ae-a782-4ac4-aa61-42776307382e": {
+      "source_uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+      "owner": "U6.12",
+      "source_owned_transport_not_received": true
+    },
+    "b717c6af-ce6b-4fe2-a449-48f7dda2d84b": {
+      "source_uuid": "72f21f4f-d1e3-487e-afb5-0ca3007fe56c",
+      "owner": "U6.GND",
+      "source_owned_transport_not_received": true
+    },
+    "1aa8ba87-586b-44d5-9efa-a5e2b52e24a8": {
+      "source_uuid": "6cd5980a-ac8b-4055-90b9-f6732057f828",
+      "owner": "C27/U6.OUT",
+      "source_owned_transport_not_received": true
+    },
+    "c607ba93-d7c2-4b19-8e32-9723309d994c": {
+      "owner": "C54",
+      "proposed_centered_or_contained_seat_not_constructed": true
+    },
+    "47321795-3d1d-4631-bed3-deceb264809d": {
+      "owner": "C55",
+      "proposed_centered_or_contained_seat_not_constructed": true
+    }
+  },
+  "source_copper_retained": true,
+  "conditional_source_device_copper_not_immutable": true,
+  "positive_exclusive_cut_scope_not_granted": true,
+  "old_control_pin_tails_require_complete_canonical_restoration": true,
+  "rated_barrel_ampacity_not_inferred": true,
+  "board_saved": false,
+  "accepted": false,
+  "release_authority": false,
+  "source_complete_native_net_terminal_inventory": {
+    "GND": [
+      {
+        "uuid": "4354dc64-f108-48fb-af92-a06ba7291551",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U4",
+        "pin": "3",
+        "at_nm": [
+          16182200,
+          13190000
+        ]
+      },
+      {
+        "uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C55",
+        "pin": "2",
+        "at_nm": [
+          20400000,
+          48000000
+        ]
+      },
+      {
+        "uuid": "2b813c3f-f034-4bdd-b293-e676b196e71b",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C14",
+        "pin": "2",
+        "at_nm": [
+          41412500,
+          55245001
+        ]
+      },
+      {
+        "uuid": "47bf60d1-46e4-5387-ab29-a2f2b0acb1d5",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U8",
+        "pin": "3",
+        "at_nm": [
+          44017651,
+          62997200
+        ]
+      },
+      {
+        "uuid": "693f0b7c-4653-4f72-afd6-ef6a72633fc6",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D_USB1",
+        "pin": "2",
+        "at_nm": [
+          73622500,
+          51820000
+        ]
+      },
+      {
+        "uuid": "b1f6b404-318f-43ad-b1ca-e704d590ede7",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C62",
+        "pin": "2",
+        "at_nm": [
+          15790498,
+          11790000
+        ]
+      },
+      {
+        "uuid": "19a0a762-ba28-4505-8bac-d76f358b3de9",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R9",
+        "pin": "2",
+        "at_nm": [
+          75535000,
+          38629999
+        ]
+      },
+      {
+        "uuid": "52fdcd79-b5e5-4f67-bb33-d945b28062b6",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "3",
+        "at_nm": [
+          51949999,
+          77400000
+        ]
+      },
+      {
+        "uuid": "61aa8d7a-f3eb-4908-b597-403227bb8649",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "5",
+        "at_nm": [
+          43549999,
+          77400000
+        ]
+      },
+      {
+        "uuid": "16d9c45e-df4b-43e5-bc69-818283c69649",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "7",
+        "at_nm": [
+          35149999,
+          77400000
+        ]
+      },
+      {
+        "uuid": "22d2362f-71ee-4221-bac9-970b2c4592fc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "15",
+        "at_nm": [
+          51949999,
+          71900000
+        ]
+      },
+      {
+        "uuid": "8807334c-79e0-4bc2-90e7-ee9dc6bf0782",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "17",
+        "at_nm": [
+          43549999,
+          71900000
+        ]
+      },
+      {
+        "uuid": "7366a60e-47cd-4b14-a339-b6115e12e44b",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "18",
+        "at_nm": [
+          39349999,
+          71900000
+        ]
+      },
+      {
+        "uuid": "70a19303-cd25-40cf-b11c-46b9c88963fc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "19",
+        "at_nm": [
+          35149999,
+          71900000
+        ]
+      },
+      {
+        "uuid": "0ffd6e28-65a8-4f61-b6e3-446c79d3a88c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J3",
+        "pin": "24",
+        "at_nm": [
+          14149999,
+          71900000
+        ]
+      },
+      {
+        "uuid": "c9761b48-9e0e-49d7-8a73-4e53ce23d384",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D3",
+        "pin": "2",
+        "at_nm": [
+          76547500,
+          15920000
+        ]
+      },
+      {
+        "uuid": "7b73d0c1-0d01-45d0-b4bb-90f29f2c493c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U3",
+        "pin": "3",
+        "at_nm": [
+          40425000,
+          59570001
+        ]
+      },
+      {
+        "uuid": "0acc3b4f-ff5f-4049-be46-7db3fab41e3d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U3",
+        "pin": "7",
+        "at_nm": [
+          41312500,
+          58920001
+        ]
+      },
+      {
+        "uuid": "e1c56e22-e710-535a-b719-28df7013aec4",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D4",
+        "pin": "2",
+        "at_nm": [
+          73787500,
+          9220000
+        ]
+      },
+      {
+        "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C25",
+        "pin": "2",
+        "at_nm": [
+          24700000,
+          63550000
+        ]
+      },
+      {
+        "uuid": "117dd80e-4a92-4463-a657-8ea196e34957",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U11",
+        "pin": "1",
+        "at_nm": [
+          47200000,
+          44300000
+        ]
+      },
+      {
+        "uuid": "d06a6e12-e6ca-4e5c-84f9-f5f6d9ab8a94",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U11",
+        "pin": "7",
+        "at_nm": [
+          45700000,
+          48700000
+        ]
+      },
+      {
+        "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C9",
+        "pin": "2",
+        "at_nm": [
+          11000000,
+          48950000
+        ]
+      },
+      {
+        "uuid": "91e75dd4-f1e6-4005-9392-63958c1fadb1",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          16200000,
+          20159899
+        ]
+      },
+      {
+        "uuid": "1b6c864f-69d6-454b-8525-b80b84f83400",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          16727208,
+          18887107
+        ]
+      },
+      {
+        "uuid": "7a4f92a5-a071-4c4a-bff4-a7db55ae4f4d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          16727208,
+          21432691
+        ]
+      },
+      {
+        "uuid": "f4014991-215d-4f3e-8956-c021ce839a87",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          18000000,
+          18359899
+        ]
+      },
+      {
+        "uuid": "7356a7ad-1864-4299-b595-ba2d137ccdd4",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          18000000,
+          20159899
+        ]
+      },
+      {
+        "uuid": "f9369836-45bc-40f2-a75e-27f0362159bb",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          18000000,
+          21959899
+        ]
+      },
+      {
+        "uuid": "64627cfe-cd9d-4dec-97fc-bce89d5aab60",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          19272792,
+          18887107
+        ]
+      },
+      {
+        "uuid": "e4ce73f2-1200-4390-a227-5d723b966517",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          19272792,
+          21432691
+        ]
+      },
+      {
+        "uuid": "3340c6eb-8069-49d5-b7b7-00e87f44676f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "H1",
+        "pin": "1",
+        "at_nm": [
+          19800000,
+          20159899
+        ]
+      },
+      {
+        "uuid": "bab3a219-9416-4d31-b77f-22c72f8a3979",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "SW1",
+        "pin": "1",
+        "at_nm": [
+          30235000,
+          16659100
+        ]
+      },
+      {
+        "uuid": "f22e4c41-cd6f-4de3-b6f5-896f11e4ac6c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "Q1",
+        "pin": "2",
+        "at_nm": [
+          76397500,
+          12070000
+        ]
+      },
+      {
+        "uuid": "f34c8ea7-b191-470c-8836-eaac20ee10eb",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C18",
+        "pin": "2",
+        "at_nm": [
+          37647100,
+          65482202
+        ]
+      },
+      {
+        "uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R54",
+        "pin": "2",
+        "at_nm": [
+          12800000,
+          49135000
+        ]
+      },
+      {
+        "uuid": "383d1bb3-35b3-5df9-8a53-85bab3e53233",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U10",
+        "pin": "1",
+        "at_nm": [
+          48685001,
+          28237599
+        ]
+      },
+      {
+        "uuid": "5fb3f915-017a-5794-958d-0fe20d569d48",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U10",
+        "pin": "2",
+        "at_nm": [
+          48185001,
+          28237599
+        ]
+      },
+      {
+        "uuid": "19e7ac8b-cd66-525b-855c-1f1fe9781fb9",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U10",
+        "pin": "7",
+        "at_nm": [
+          47185001,
+          32637599
+        ]
+      },
+      {
+        "uuid": "f8994889-68c5-4284-bc1c-c6061a7a5a5a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C612V1",
+        "pin": "2",
+        "at_nm": [
+          55757501,
+          28694649
+        ]
+      },
+      {
+        "uuid": "1483799e-f306-4839-afe4-bf5fbf2398cc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C1",
+        "pin": "2",
+        "at_nm": [
+          43400000,
+          59520001
+        ]
+      },
+      {
+        "uuid": "e4d522c0-1819-4cac-95cf-19a89d7ef955",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6C",
+        "pin": "1",
+        "at_nm": [
+          67000000,
+          20159899
+        ]
+      },
+      {
+        "uuid": "020dc881-eb3f-4398-bc90-687edb8f34e8",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6C",
+        "pin": "2",
+        "at_nm": [
+          67000000,
+          22699899
+        ]
+      },
+      {
+        "uuid": "83663c67-af22-47c7-8337-2a0d9f8931b0",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6C",
+        "pin": "7",
+        "at_nm": [
+          59380000,
+          20159899
+        ]
+      },
+      {
+        "uuid": "bcb2581b-6446-4a77-9ecd-a86faa26dc47",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6C",
+        "pin": "8",
+        "at_nm": [
+          59380000,
+          22699899
+        ]
+      },
+      {
+        "uuid": "9f765edb-af89-4d72-9784-2d6a578a4453",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J_SIG1",
+        "pin": "4",
+        "at_nm": [
+          66975000,
+          14615000
+        ]
+      },
+      {
+        "uuid": "43a86f7d-187d-4aee-910f-0ca0a4ef7034",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C3",
+        "pin": "2",
+        "at_nm": [
+          29895000,
+          32759100
+        ]
+      },
+      {
+        "uuid": "33428bcd-e480-446a-8698-df2ee7e40c62",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R53",
+        "pin": "2",
+        "at_nm": [
+          41010000,
+          65599999
+        ]
+      },
+      {
+        "uuid": "ad1d3d60-aa2a-47d0-b71d-a7101a92e5f2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6D",
+        "pin": "2",
+        "at_nm": [
+          62105002,
+          57994999
+        ]
+      },
+      {
+        "uuid": "e62f59ad-a214-4360-a028-62e8fb9d0a30",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6D",
+        "pin": "4",
+        "at_nm": [
+          64645002,
+          57994999
+        ]
+      },
+      {
+        "uuid": "1e72f051-4769-4857-ae9f-535f09ec5634",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D5",
+        "pin": "1",
+        "at_nm": [
+          37100000,
+          34736000
+        ]
+      },
+      {
+        "uuid": "556ee744-6dd8-4221-9b7f-640f827ac899",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U2",
+        "pin": "2",
+        "at_nm": [
+          43770000,
+          26655000
+        ]
+      },
+      {
+        "uuid": "5635eba1-4396-446e-8311-b509fc674ce5",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U2",
+        "pin": "8",
+        "at_nm": [
+          45040000,
+          31605000
+        ]
+      },
+      {
+        "uuid": "cd956561-a98a-4094-8e4d-0f6c37d5f0bc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C26",
+        "pin": "2",
+        "at_nm": [
+          43380000,
+          65000000
+        ]
+      },
+      {
+        "uuid": "df7a4521-8275-46ed-8d6a-b3e6e7352027",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C19",
+        "pin": "2",
+        "at_nm": [
+          19430000,
+          11000000
+        ]
+      },
+      {
+        "uuid": "f03f739e-5b4b-4469-b3bc-f94ca612644c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C16",
+        "pin": "2",
+        "at_nm": [
+          55589300,
+          37467600
+        ]
+      },
+      {
+        "uuid": "813bbdca-8aa6-43aa-894f-edc184c5bf84",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R58",
+        "pin": "2",
+        "at_nm": [
+          28090000,
+          59800000
+        ]
+      },
+      {
+        "uuid": "5cda6306-6eaa-4ae3-848e-640bd0302537",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "TB9",
+        "pin": "1",
+        "at_nm": [
+          53565000,
+          4900000
+        ]
+      },
+      {
+        "uuid": "52cce007-b7c5-48b5-87d6-d12aa89d7df8",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "TB9",
+        "pin": "1",
+        "at_nm": [
+          62565000,
+          4900000
+        ]
+      },
+      {
+        "uuid": "b77aea8a-c3b8-5871-9ddd-620d44496374",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D7",
+        "pin": "2",
+        "at_nm": [
+          76505000,
+          50670000
+        ]
+      },
+      {
+        "uuid": "37851435-731a-5b7c-a524-272b1f02ef0e",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U13",
+        "pin": "7",
+        "at_nm": [
+          33700000,
+          48700000
+        ]
+      },
+      {
+        "uuid": "c6b4d215-a00a-559c-83d5-d1b06ca0ec6a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "D1",
+        "pin": "2",
+        "at_nm": [
+          63801003,
+          66331399
+        ]
+      },
+      {
+        "uuid": "ca9f77f7-b9e7-5ca5-9aae-9c6bbed373e3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U12",
+        "pin": "2",
+        "at_nm": [
+          58700000,
+          44300000
+        ]
+      },
+      {
+        "uuid": "0211353c-c44d-5d6f-aa9f-ad042172c691",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U12",
+        "pin": "7",
+        "at_nm": [
+          57700000,
+          48700000
+        ]
+      },
+      {
+        "uuid": "89af8e5d-daf2-4c16-9dc3-a4c342de347d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C20",
+        "pin": "2",
+        "at_nm": [
+          32787099,
+          65642202
+        ]
+      },
+      {
+        "uuid": "7d886410-fb85-5ebb-8e7c-976d41f386cf",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U712V1",
+        "pin": "2",
+        "at_nm": [
+          63685001,
+          33300099
+        ]
+      },
+      {
+        "uuid": "48bf4cd4-1ad0-45b6-8aaa-da413dc7f511",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C712V1",
+        "pin": "2",
+        "at_nm": [
+          65885001,
+          34415099
+        ]
+      },
+      {
+        "uuid": "dac84c22-f52c-4778-928e-2bcaa3760910",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "A1",
+        "at_nm": [
+          71805000,
+          47960000
+        ]
+      },
+      {
+        "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "A12",
+        "at_nm": [
+          71805000,
+          41260000
+        ]
+      },
+      {
+        "uuid": "5f5b9b6b-9c93-4caa-b4ca-534482087cfc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "B1",
+        "at_nm": [
+          71805000,
+          41560000
+        ]
+      },
+      {
+        "uuid": "ff3638ab-f24f-4337-9e29-4cb413c5f8d4",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "B12",
+        "at_nm": [
+          71805000,
+          47660000
+        ]
+      },
+      {
+        "uuid": "349b922c-4b57-4a5a-b9e9-fbd2200ecc79",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "S1",
+        "at_nm": [
+          72380000,
+          48930000
+        ]
+      },
+      {
+        "uuid": "30e55750-5283-490a-8687-4be74b145ce7",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "S1",
+        "at_nm": [
+          76380000,
+          48930000
+        ]
+      },
+      {
+        "uuid": "86ef7f00-b092-47ac-8a4a-9d36df529db6",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "S1",
+        "at_nm": [
+          72380000,
+          40290000
+        ]
+      },
+      {
+        "uuid": "9384f131-71cb-498f-9829-60301a016f43",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J5",
+        "pin": "S1",
+        "at_nm": [
+          76380000,
+          40290000
+        ]
+      },
+      {
+        "uuid": "d9206c40-b3f1-4c5c-84e4-b46ec7d671ac",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R69",
+        "pin": "2",
+        "at_nm": [
+          28190000,
+          64099999
+        ]
+      },
+      {
+        "uuid": "23f97a35-a056-4f57-8cb1-97cb938eade0",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C21",
+        "pin": "2",
+        "at_nm": [
+          26799990,
+          52600002
+        ]
+      },
+      {
+        "uuid": "d2ea67f1-66cc-4145-b82e-be9e0382148c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R50",
+        "pin": "2",
+        "at_nm": [
+          37122100,
+          61097201
+        ]
+      },
+      {
+        "uuid": "e941d6d4-829b-50f1-82c7-cab5d52328f1",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U65V1",
+        "pin": "2",
+        "at_nm": [
+          54200000,
+          48800000
+        ]
+      },
+      {
+        "uuid": "7f0aab5a-da8a-5fe3-942e-b3617bc1aec3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U65V1",
+        "pin": "5",
+        "at_nm": [
+          54200000,
+          46200000
+        ]
+      },
+      {
+        "uuid": "c482e23a-f8f5-42b9-ac52-7e670f8cea90",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6P",
+        "pin": "2",
+        "at_nm": [
+          27540000,
+          37300000
+        ]
+      },
+      {
+        "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6P",
+        "pin": "4",
+        "at_nm": [
+          27540000,
+          39840000
+        ]
+      },
+      {
+        "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J6P",
+        "pin": "6",
+        "at_nm": [
+          27540000,
+          42380000
+        ]
+      },
+      {
+        "uuid": "e75d07fe-33a0-4660-af37-459ba51d5b4f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C6",
+        "pin": "2",
+        "at_nm": [
+          33187099,
+          62442203
+        ]
+      },
+      {
+        "uuid": "e8d7ef16-cc83-4fd2-a319-8ea82236b1d7",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C2",
+        "pin": "2",
+        "at_nm": [
+          39225000,
+          59720001
+        ]
+      },
+      {
+        "uuid": "1f633e57-2a87-4a2e-9882-03d874743069",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C15",
+        "pin": "2",
+        "at_nm": [
+          61075000,
+          64400000
+        ]
+      },
+      {
+        "uuid": "dd2191c9-ecdc-4d4b-993f-5b2a8b25b19f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "J2",
+        "pin": "2",
+        "at_nm": [
+          76350000,
+          31840000
+        ]
+      },
+      {
+        "uuid": "4a7a4f75-a8e4-574d-abde-55a74fff1459",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "TB6",
+        "pin": "1",
+        "at_nm": [
+          9064999,
+          4900000
+        ]
+      },
+      {
+        "uuid": "f1b1c840-bc3c-5ae1-9db4-94e0cc54f6fe",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "TB6",
+        "pin": "1",
+        "at_nm": [
+          18064999,
+          4900000
+        ]
+      },
+      {
+        "uuid": "2b5d794b-2cb1-41e3-8d2c-230632b88681",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C22",
+        "pin": "2",
+        "at_nm": [
+          69627500,
+          9710000
+        ]
+      },
+      {
+        "uuid": "0a6c8814-2417-4aea-8f4d-4e70c6342c19",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C65V1",
+        "pin": "2",
+        "at_nm": [
+          54935000,
+          44714100
+        ]
+      },
+      {
+        "uuid": "ec36f65b-645c-4a76-97e5-a1de56379201",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C17",
+        "pin": "2",
+        "at_nm": [
+          42854300,
+          21870099
+        ]
+      },
+      {
+        "uuid": "351f39b9-c650-49ce-8a42-f8fd6ee0bcb0",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C23",
+        "pin": "2",
+        "at_nm": [
+          70097500,
+          6390000
+        ]
+      },
+      {
+        "uuid": "863a9e9d-2f13-440b-9d77-43063574fdf2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C4",
+        "pin": "2",
+        "at_nm": [
+          43609999,
+          24955000
+        ]
+      },
+      {
+        "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C54",
+        "pin": "2",
+        "at_nm": [
+          16924990,
+          46765001
+        ]
+      },
+      {
+        "uuid": "7e04bb74-3cd8-494b-8075-34e26a472b4d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C13",
+        "pin": "2",
+        "at_nm": [
+          34160000,
+          50705001
+        ]
+      },
+      {
+        "uuid": "1fcfb2a7-956d-4a87-8a40-387b4997b373",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R56",
+        "pin": "2",
+        "at_nm": [
+          29100000,
+          57210000
+        ]
+      },
+      {
+        "uuid": "9c468f96-7cf1-4256-8a05-f0687d1a9ede",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C24",
+        "pin": "2",
+        "at_nm": [
+          37400000,
+          59720001
+        ]
+      },
+      {
+        "uuid": "6b5f51aa-4079-4b0b-9b6e-f24e894858ad",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C53",
+        "pin": "2",
+        "at_nm": [
+          23029989,
+          55300000
+        ]
+      },
+      {
+        "uuid": "a8f5a930-aab3-446c-abb0-cd1d9408c898",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C5",
+        "pin": "2",
+        "at_nm": [
+          38525000,
+          32829100
+        ]
+      },
+      {
+        "uuid": "9fc222cc-d165-5507-bf1e-c15b8aedf5c1",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U75V1",
+        "pin": "2",
+        "at_nm": [
+          54200000,
+          51362500
+        ]
+      },
+      {
+        "uuid": "3969de7a-7b56-4e53-b7e5-2b9f4fae6809",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C60",
+        "pin": "2",
+        "at_nm": [
+          38812001,
+          54275100
+        ]
+      },
+      {
+        "uuid": "d9e8c903-717a-4ee6-9533-e5e951fc7b6d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C12",
+        "pin": "2",
+        "at_nm": [
+          56240000,
+          50450000
+        ]
+      },
+      {
+        "uuid": "5dd4bf09-6c94-515b-a03f-c2ae3ea94b0b",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U73V31",
+        "pin": "2",
+        "at_nm": [
+          58200000,
+          59137500
+        ]
+      },
+      {
+        "uuid": "f8a87695-0271-4dfa-90f4-d46833c0d459",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C64",
+        "pin": "2",
+        "at_nm": [
+          35642300,
+          34435100
+        ]
+      },
+      {
+        "uuid": "efc707ff-8a77-45e4-a06f-f7d284366a78",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C52",
+        "pin": "2",
+        "at_nm": [
+          25976900,
+          59783201
+        ]
+      },
+      {
+        "uuid": "185b7e2e-7a41-4c64-979b-21a348a026ee",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C61",
+        "pin": "2",
+        "at_nm": [
+          39755000,
+          20359100
+        ]
+      },
+      {
+        "uuid": "a89e4c11-9e65-4b7e-9a90-27ce9fba99ba",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C75V1",
+        "pin": "2",
+        "at_nm": [
+          56400000,
+          52477500
+        ]
+      },
+      {
+        "uuid": "c631a37f-9cf9-431f-85f2-21bac71161a6",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C10",
+        "pin": "2",
+        "at_nm": [
+          47165001,
+          35097599
+        ]
+      },
+      {
+        "uuid": "78922028-7fe7-4533-b298-1bc0f0aaf933",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C63V31",
+        "pin": "2",
+        "at_nm": [
+          66303750,
+          44735575
+        ]
+      },
+      {
+        "uuid": "c3921843-a21c-44f0-a5e8-ed2d3c870d2c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C50",
+        "pin": "2",
+        "at_nm": [
+          33822100,
+          59617201
+        ]
+      },
+      {
+        "uuid": "16b8bbc9-a530-4f3a-bc84-6e5746090616",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R1",
+        "pin": "2",
+        "at_nm": [
+          65535003,
+          63204999
+        ]
+      },
+      {
+        "uuid": "b4e76429-2446-4fd2-a8bb-4f1458d69c1f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C8",
+        "pin": "2",
+        "at_nm": [
+          44409353,
+          64397200
+        ]
+      },
+      {
+        "uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "3",
+        "at_nm": [
+          14249989,
+          48550000
+        ]
+      },
+      {
+        "uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "4",
+        "at_nm": [
+          14749990,
+          48550000
+        ]
+      },
+      {
+        "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U6",
+        "pin": "12",
+        "at_nm": [
+          14249989,
+          46250002
+        ]
+      },
+      {
+        "uuid": "80652b17-f9d1-5d7f-a312-db6c14d6b63c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U75VSB1",
+        "pin": "2",
+        "at_nm": [
+          42200000,
+          51362500
+        ]
+      },
+      {
+        "uuid": "b56f3464-491c-5d75-8123-8fb5b8babdb3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U5",
+        "pin": "3",
+        "at_nm": [
+          34872099,
+          65417201
+        ]
+      },
+      {
+        "uuid": "b86f0bde-b9dd-5610-b604-7bcbf94a4200",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U5",
+        "pin": "4",
+        "at_nm": [
+          35372100,
+          65417201
+        ]
+      },
+      {
+        "uuid": "f729f43e-7dd6-5f2d-8941-c3d5e2f3c73b",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U5",
+        "pin": "12",
+        "at_nm": [
+          34872099,
+          63117203
+        ]
+      },
+      {
+        "uuid": "f4c7b341-25d9-5661-ac6f-ffd27f627ef6",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U612V1",
+        "pin": "2",
+        "at_nm": [
+          55685001,
+          32575099
+        ]
+      },
+      {
+        "uuid": "a257435b-182b-5861-abb9-e68a09a9ec16",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U612V1",
+        "pin": "5",
+        "at_nm": [
+          55685001,
+          30300099
+        ]
+      },
+      {
+        "uuid": "32b061a6-c345-5402-ba6b-9e989a90af89",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U65VSB1",
+        "pin": "2",
+        "at_nm": [
+          42200000,
+          48800000
+        ]
+      },
+      {
+        "uuid": "f3438e75-af15-58d8-94b9-f26b6898f204",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U65VSB1",
+        "pin": "5",
+        "at_nm": [
+          42200000,
+          46200000
+        ]
+      },
+      {
+        "uuid": "8986c9d5-6a83-4f7f-9600-1bca0bef9fd4",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C63",
+        "pin": "2",
+        "at_nm": [
+          19348800,
+          14758300
+        ]
+      },
+      {
+        "uuid": "baea01a7-6823-4007-9659-0c83fc027642",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "1",
+        "at_nm": [
+          29245000,
+          31499100
+        ]
+      },
+      {
+        "uuid": "faf5aa24-4b9d-4f49-a8d1-e29d033f11f0",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "2",
+        "at_nm": [
+          30055000,
+          31499100
+        ]
+      },
+      {
+        "uuid": "774b5892-62d7-4483-a8d7-d5aa21c5dad2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "11",
+        "at_nm": [
+          37255000,
+          31499100
+        ]
+      },
+      {
+        "uuid": "b0ebc301-37c7-43b8-81d6-1808a91a0101",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "14",
+        "at_nm": [
+          38125000,
+          28799100
+        ]
+      },
+      {
+        "uuid": "ef9a8165-d801-4119-8cc1-340665c441b9",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "36",
+        "at_nm": [
+          28325000,
+          20799100
+        ]
+      },
+      {
+        "uuid": "6570c8ea-3943-48bd-a98a-3a667e4b4b13",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "37",
+        "at_nm": [
+          28325000,
+          21599100
+        ]
+      },
+      {
+        "uuid": "6f157d5a-d136-48db-9729-4bd0dd247f5a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "38",
+        "at_nm": [
+          28325000,
+          22399100
+        ]
+      },
+      {
+        "uuid": "20522638-00fd-4df9-8a60-7c21e3ff9520",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "39",
+        "at_nm": [
+          28325000,
+          23199100
+        ]
+      },
+      {
+        "uuid": "74e87f59-e20e-49a4-a0b8-8224ca4d8635",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "40",
+        "at_nm": [
+          28325000,
+          23999100
+        ]
+      },
+      {
+        "uuid": "25d13003-9554-418a-8e21-a66231fe1b86",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "41",
+        "at_nm": [
+          28325000,
+          24799100
+        ]
+      },
+      {
+        "uuid": "731ca6cc-862a-4e90-9d58-8b14caade79c",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "42",
+        "at_nm": [
+          28325000,
+          25599100
+        ]
+      },
+      {
+        "uuid": "9a398cbe-9430-4eb2-ae6e-70fdaf2f02e8",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "43",
+        "at_nm": [
+          28325000,
+          26399100
+        ]
+      },
+      {
+        "uuid": "87577e8d-5971-475c-aa61-5eab08afa12e",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "44",
+        "at_nm": [
+          28325000,
+          27199100
+        ]
+      },
+      {
+        "uuid": "9dcf78a3-27e2-47fa-b3ee-c6fd8886f3e5",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "45",
+        "at_nm": [
+          28325000,
+          27999100
+        ]
+      },
+      {
+        "uuid": "a4dad5f2-28a6-4371-8d56-2fb97350924d",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "46",
+        "at_nm": [
+          28325000,
+          28799100
+        ]
+      },
+      {
+        "uuid": "12fc76d9-5fe2-4623-aee7-78bedf27f280",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "47",
+        "at_nm": [
+          28325000,
+          29599100
+        ]
+      },
+      {
+        "uuid": "36e9ee11-61d9-453f-9cb2-409a6ff0196a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "48",
+        "at_nm": [
+          28325000,
+          30399100
+        ]
+      },
+      {
+        "uuid": "b8cb7cd4-64fe-4855-8885-1974251b4e65",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          31375000,
+          27379100
+        ]
+      },
+      {
+        "uuid": "7fad3095-aebd-44b1-8f9a-4153e5ad426f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          33175000,
+          27379100
+        ]
+      },
+      {
+        "uuid": "914fe391-db10-4765-88b3-bff70af3e7e2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          34975000,
+          27379100
+        ]
+      },
+      {
+        "uuid": "25cc590c-7c85-49e3-8e77-17244e26f8ed",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          31375000,
+          25579100
+        ]
+      },
+      {
+        "uuid": "f32406dc-60c3-4740-84af-b76d1031386b",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          33175000,
+          25579100
+        ]
+      },
+      {
+        "uuid": "6a0dd0f5-194b-4042-bf6a-4c5cc6486671",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          34975000,
+          25579100
+        ]
+      },
+      {
+        "uuid": "d9d9adbe-761e-4418-8f95-fc6befcc63ec",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          31375000,
+          23779100
+        ]
+      },
+      {
+        "uuid": "acc5ab82-775f-4f2f-a014-50ee3472ef94",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          33175000,
+          23779100
+        ]
+      },
+      {
+        "uuid": "1f213f6c-c5a7-43c4-b659-e63fe5a3ab30",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "49",
+        "at_nm": [
+          34975000,
+          23779100
+        ]
+      },
+      {
+        "uuid": "0bcccd80-7e09-4157-a1b1-5f9c9c93ea72",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "50",
+        "at_nm": [
+          28275000,
+          19649100
+        ]
+      },
+      {
+        "uuid": "28ba6f4d-bd0f-4fd2-9891-f825559157be",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "51",
+        "at_nm": [
+          38175000,
+          19649100
+        ]
+      },
+      {
+        "uuid": "689e39ea-945a-4bc8-a207-207ca0157de2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "52",
+        "at_nm": [
+          38175000,
+          31549100
+        ]
+      },
+      {
+        "uuid": "8b176259-3345-4135-ab44-5352891570b3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U1",
+        "pin": "53",
+        "at_nm": [
+          28275000,
+          31549100
+        ]
+      },
+      {
+        "uuid": "2d1c66cd-badf-4ffc-ae20-4aad2a2dc44a",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C65VSB1",
+        "pin": "2",
+        "at_nm": [
+          42515313,
+          44533749
+        ]
+      },
+      {
+        "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C27",
+        "pin": "2",
+        "at_nm": [
+          12083990,
+          45800000
+        ]
+      },
+      {
+        "uuid": "cd7e08eb-c5a8-49c9-81ad-0cfda2734861",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R8",
+        "pin": "2",
+        "at_nm": [
+          70065000,
+          43590000
+        ]
+      },
+      {
+        "uuid": "4de8523e-761e-500b-a6a0-5f6ab1da26bc",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U63V31",
+        "pin": "2",
+        "at_nm": [
+          66200000,
+          48637500
+        ]
+      },
+      {
+        "uuid": "ca912e30-7682-55dd-ab87-e0bf2f1bb2c1",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "U63V31",
+        "pin": "5",
+        "at_nm": [
+          66200000,
+          46362500
+        ]
+      },
+      {
+        "uuid": "ad5cce6e-3c63-41cc-b500-139b372aa345",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C73V31",
+        "pin": "2",
+        "at_nm": [
+          56000000,
+          58022500
+        ]
+      },
+      {
+        "uuid": "68d2aa50-4089-4f84-9375-b2dde28b1382",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C11",
+        "pin": "2",
+        "at_nm": [
+          45200000,
+          51210000
+        ]
+      },
+      {
+        "uuid": "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C7",
+        "pin": "2",
+        "at_nm": [
+          64500000,
+          69100000
+        ]
+      },
+      {
+        "uuid": "1025436d-6077-5858-8503-e956c5f3b424",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "SW2",
+        "pin": "1",
+        "at_nm": [
+          72220000,
+          26500000
+        ]
+      },
+      {
+        "uuid": "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C51",
+        "pin": "2",
+        "at_nm": [
+          17725000,
+          50125000
+        ]
+      },
+      {
+        "uuid": "0fd1c900-5153-4cb5-a186-6d56b7e18a8f",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "C75VSB1",
+        "pin": "2",
+        "at_nm": [
+          44400000,
+          52477500
+        ]
+      },
+      {
+        "uuid": "48d125fd-1974-4fd6-b6a0-3a770f760a29",
+        "kind": "PAD",
+        "net": "GND",
+        "ref": "R73",
+        "pin": "2",
+        "at_nm": [
+          34285000,
+          32749100
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS": [
+      {
+        "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "C9",
+        "pin": "1",
+        "at_nm": [
+          11000000,
+          47050000
+        ]
+      },
+      {
+        "uuid": "63430b53-02e3-49b3-9963-990134283437",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "C53",
+        "pin": "1",
+        "at_nm": [
+          24929989,
+          55300000
+        ]
+      },
+      {
+        "uuid": "a41e9ae9-7e80-4a8b-9ab3-d67280583df5",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "FB1",
+        "pin": "2",
+        "at_nm": [
+          67722200,
+          37347200
+        ]
+      },
+      {
+        "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "C52",
+        "pin": "1",
+        "at_nm": [
+          25976900,
+          60743201
+        ]
+      },
+      {
+        "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "ref": "U6",
+        "pin": "2",
+        "at_nm": [
+          14324990,
+          47775001
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX": [
+      {
+        "uuid": "c80cded5-3ee1-481e-90d2-c480307e3146",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "C20",
+        "pin": "1",
+        "at_nm": [
+          33747099,
+          65642202
+        ]
+      },
+      {
+        "uuid": "04a8b81a-ce56-4a4e-bb72-67f54bf05325",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "C21",
+        "pin": "1",
+        "at_nm": [
+          26799990,
+          54500002
+        ]
+      },
+      {
+        "uuid": "a021ea00-3f04-4409-b666-0e4fa56f7081",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "U6",
+        "pin": "1",
+        "at_nm": [
+          14324990,
+          47075002
+        ]
+      },
+      {
+        "uuid": "94e4f555-c7dd-46cd-ae83-328ffd577f59",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "U6",
+        "pin": "8",
+        "at_nm": [
+          15674990,
+          47075002
+        ]
+      },
+      {
+        "uuid": "78a33e40-be01-5d51-ae60-5e6c5f9695ac",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "U5",
+        "pin": "2",
+        "at_nm": [
+          34947100,
+          64642202
+        ]
+      },
+      {
+        "uuid": "7be02285-9790-4d29-bdca-078813726555",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "ref": "C27",
+        "pin": "1",
+        "at_nm": [
+          13043990,
+          45800000
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1": [
+      {
+        "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "R58",
+        "pin": "1",
+        "at_nm": [
+          29110000,
+          59800000
+        ]
+      },
+      {
+        "uuid": "d458f7b4-688e-4868-8686-3bcf2b4898c3",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "R57",
+        "pin": "2",
+        "at_nm": [
+          28090000,
+          58700000
+        ]
+      },
+      {
+        "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "U6",
+        "pin": "6",
+        "at_nm": [
+          15749991,
+          48550000
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS": [
+      {
+        "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "ref": "U6",
+        "pin": "11",
+        "at_nm": [
+          14749990,
+          46250002
+        ]
+      },
+      {
+        "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+        "ref": "C51",
+        "pin": "1",
+        "at_nm": [
+          19275000,
+          50125000
+        ]
+      }
+    ],
+    "+5VSB": [
+      {
+        "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "C55",
+        "pin": "1",
+        "at_nm": [
+          18500000,
+          48000000
+        ]
+      },
+      {
+        "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "J3",
+        "pin": "9",
+        "at_nm": [
+          26749999,
+          77400000
+        ]
+      },
+      {
+        "uuid": "f6f134ba-dd9b-5c5f-be12-c5fe7b06fdc3",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "U13",
+        "pin": "10",
+        "at_nm": [
+          35200000,
+          48700000
+        ]
+      },
+      {
+        "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "C54",
+        "pin": "1",
+        "at_nm": [
+          16924990,
+          47725001
+        ]
+      },
+      {
+        "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "R57",
+        "pin": "1",
+        "at_nm": [
+          29110000,
+          58700000
+        ]
+      },
+      {
+        "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "U6",
+        "pin": "7",
+        "at_nm": [
+          15674990,
+          47775001
+        ]
+      },
+      {
+        "uuid": "7475104c-b608-4514-9095-e89dfd7d7005",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "R55",
+        "pin": "1",
+        "at_nm": [
+          27200000,
+          57210000
+        ]
+      },
+      {
+        "uuid": "03d4cb6a-9ac0-5e10-bda2-4e6decadf9ba",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "U65VSB1",
+        "pin": "3",
+        "at_nm": [
+          43150000,
+          48800000
+        ]
+      },
+      {
+        "uuid": "94d43d68-7874-42fa-8585-925f6ae165a6",
+        "kind": "PAD",
+        "net": "+5VSB",
+        "ref": "RS4",
+        "pin": "1",
+        "at_nm": [
+          38200000,
+          50462500
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM": [
+      {
+        "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "ref": "R54",
+        "pin": "1",
+        "at_nm": [
+          12800000,
+          48115000
+        ]
+      },
+      {
+        "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+        "ref": "U6",
+        "pin": "10",
+        "at_nm": [
+          15249990,
+          46250002
+        ]
+      }
+    ],
+    "unconnected-(U6-ST-Pad9)": [
+      {
+        "uuid": "bd80c529-9c38-47a7-9b90-531839cabdba",
+        "kind": "PAD",
+        "net": "unconnected-(U6-ST-Pad9)",
+        "ref": "U6",
+        "pin": "9",
+        "at_nm": [
+          15749991,
+          46250002
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1": [
+      {
+        "uuid": "6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "R56",
+        "pin": "1",
+        "at_nm": [
+          29100000,
+          56190000
+        ]
+      },
+      {
+        "uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "U6",
+        "pin": "5",
+        "at_nm": [
+          15249990,
+          48550000
+        ]
+      },
+      {
+        "uuid": "b2b2b674-192b-4c55-9373-f1670b4f6f20",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "R55",
+        "pin": "2",
+        "at_nm": [
+          27200000,
+          56190000
+        ]
+      }
+    ]
+  },
+  "blocker_custody_obligations": [
+    {
+      "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+      "net": "+5VSB",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        },
+        {
+          "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C55",
+          "pin": "1",
+          "at_nm": [
+            18500000,
+            48000000
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C55",
+          "pin": "1",
+          "at_nm": [
+            18500000,
+            48000000
+          ]
+        },
+        {
+          "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "J3",
+          "pin": "9",
+          "at_nm": [
+            26749999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "f6f134ba-dd9b-5c5f-be12-c5fe7b06fdc3",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U13",
+          "pin": "10",
+          "at_nm": [
+            35200000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        },
+        {
+          "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R57",
+          "pin": "1",
+          "at_nm": [
+            29110000,
+            58700000
+          ]
+        },
+        {
+          "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U6",
+          "pin": "7",
+          "at_nm": [
+            15674990,
+            47775001
+          ]
+        },
+        {
+          "uuid": "7475104c-b608-4514-9095-e89dfd7d7005",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R55",
+          "pin": "1",
+          "at_nm": [
+            27200000,
+            57210000
+          ]
+        },
+        {
+          "uuid": "03d4cb6a-9ac0-5e10-bda2-4e6decadf9ba",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U65VSB1",
+          "pin": "3",
+          "at_nm": [
+            43150000,
+            48800000
+          ]
+        },
+        {
+          "uuid": "94d43d68-7874-42fa-8585-925f6ae165a6",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "RS4",
+          "pin": "1",
+          "at_nm": [
+            38200000,
+            50462500
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+      "net": "+5VSB",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C55",
+          "pin": "1",
+          "at_nm": [
+            18500000,
+            48000000
+          ]
+        },
+        {
+          "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "J3",
+          "pin": "9",
+          "at_nm": [
+            26749999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "f6f134ba-dd9b-5c5f-be12-c5fe7b06fdc3",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U13",
+          "pin": "10",
+          "at_nm": [
+            35200000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        },
+        {
+          "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R57",
+          "pin": "1",
+          "at_nm": [
+            29110000,
+            58700000
+          ]
+        },
+        {
+          "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U6",
+          "pin": "7",
+          "at_nm": [
+            15674990,
+            47775001
+          ]
+        },
+        {
+          "uuid": "7475104c-b608-4514-9095-e89dfd7d7005",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R55",
+          "pin": "1",
+          "at_nm": [
+            27200000,
+            57210000
+          ]
+        },
+        {
+          "uuid": "03d4cb6a-9ac0-5e10-bda2-4e6decadf9ba",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U65VSB1",
+          "pin": "3",
+          "at_nm": [
+            43150000,
+            48800000
+          ]
+        },
+        {
+          "uuid": "94d43d68-7874-42fa-8585-925f6ae165a6",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "RS4",
+          "pin": "1",
+          "at_nm": [
+            38200000,
+            50462500
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "fadba932-2d71-466c-8fab-c01735590521",
+      "net": "+5VSB",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C55",
+          "pin": "1",
+          "at_nm": [
+            18500000,
+            48000000
+          ]
+        },
+        {
+          "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "J3",
+          "pin": "9",
+          "at_nm": [
+            26749999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "f6f134ba-dd9b-5c5f-be12-c5fe7b06fdc3",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U13",
+          "pin": "10",
+          "at_nm": [
+            35200000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "C54",
+          "pin": "1",
+          "at_nm": [
+            16924990,
+            47725001
+          ]
+        },
+        {
+          "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R57",
+          "pin": "1",
+          "at_nm": [
+            29110000,
+            58700000
+          ]
+        },
+        {
+          "uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U6",
+          "pin": "7",
+          "at_nm": [
+            15674990,
+            47775001
+          ]
+        },
+        {
+          "uuid": "7475104c-b608-4514-9095-e89dfd7d7005",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "R55",
+          "pin": "1",
+          "at_nm": [
+            27200000,
+            57210000
+          ]
+        },
+        {
+          "uuid": "03d4cb6a-9ac0-5e10-bda2-4e6decadf9ba",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "U65VSB1",
+          "pin": "3",
+          "at_nm": [
+            43150000,
+            48800000
+          ]
+        },
+        {
+          "uuid": "94d43d68-7874-42fa-8585-925f6ae165a6",
+          "kind": "PAD",
+          "net": "+5VSB",
+          "ref": "RS4",
+          "pin": "1",
+          "at_nm": [
+            38200000,
+            50462500
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+      "net": "GND",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C54",
+          "pin": "2",
+          "at_nm": [
+            16924990,
+            46765001
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "4354dc64-f108-48fb-af92-a06ba7291551",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U4",
+          "pin": "3",
+          "at_nm": [
+            16182200,
+            13190000
+          ]
+        },
+        {
+          "uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C55",
+          "pin": "2",
+          "at_nm": [
+            20400000,
+            48000000
+          ]
+        },
+        {
+          "uuid": "2b813c3f-f034-4bdd-b293-e676b196e71b",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C14",
+          "pin": "2",
+          "at_nm": [
+            41412500,
+            55245001
+          ]
+        },
+        {
+          "uuid": "47bf60d1-46e4-5387-ab29-a2f2b0acb1d5",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U8",
+          "pin": "3",
+          "at_nm": [
+            44017651,
+            62997200
+          ]
+        },
+        {
+          "uuid": "693f0b7c-4653-4f72-afd6-ef6a72633fc6",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D_USB1",
+          "pin": "2",
+          "at_nm": [
+            73622500,
+            51820000
+          ]
+        },
+        {
+          "uuid": "b1f6b404-318f-43ad-b1ca-e704d590ede7",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C62",
+          "pin": "2",
+          "at_nm": [
+            15790498,
+            11790000
+          ]
+        },
+        {
+          "uuid": "19a0a762-ba28-4505-8bac-d76f358b3de9",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R9",
+          "pin": "2",
+          "at_nm": [
+            75535000,
+            38629999
+          ]
+        },
+        {
+          "uuid": "52fdcd79-b5e5-4f67-bb33-d945b28062b6",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "3",
+          "at_nm": [
+            51949999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "61aa8d7a-f3eb-4908-b597-403227bb8649",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "5",
+          "at_nm": [
+            43549999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "16d9c45e-df4b-43e5-bc69-818283c69649",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "7",
+          "at_nm": [
+            35149999,
+            77400000
+          ]
+        },
+        {
+          "uuid": "22d2362f-71ee-4221-bac9-970b2c4592fc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "15",
+          "at_nm": [
+            51949999,
+            71900000
+          ]
+        },
+        {
+          "uuid": "8807334c-79e0-4bc2-90e7-ee9dc6bf0782",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "17",
+          "at_nm": [
+            43549999,
+            71900000
+          ]
+        },
+        {
+          "uuid": "7366a60e-47cd-4b14-a339-b6115e12e44b",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "18",
+          "at_nm": [
+            39349999,
+            71900000
+          ]
+        },
+        {
+          "uuid": "70a19303-cd25-40cf-b11c-46b9c88963fc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "19",
+          "at_nm": [
+            35149999,
+            71900000
+          ]
+        },
+        {
+          "uuid": "0ffd6e28-65a8-4f61-b6e3-446c79d3a88c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J3",
+          "pin": "24",
+          "at_nm": [
+            14149999,
+            71900000
+          ]
+        },
+        {
+          "uuid": "c9761b48-9e0e-49d7-8a73-4e53ce23d384",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D3",
+          "pin": "2",
+          "at_nm": [
+            76547500,
+            15920000
+          ]
+        },
+        {
+          "uuid": "7b73d0c1-0d01-45d0-b4bb-90f29f2c493c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U3",
+          "pin": "3",
+          "at_nm": [
+            40425000,
+            59570001
+          ]
+        },
+        {
+          "uuid": "0acc3b4f-ff5f-4049-be46-7db3fab41e3d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U3",
+          "pin": "7",
+          "at_nm": [
+            41312500,
+            58920001
+          ]
+        },
+        {
+          "uuid": "e1c56e22-e710-535a-b719-28df7013aec4",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D4",
+          "pin": "2",
+          "at_nm": [
+            73787500,
+            9220000
+          ]
+        },
+        {
+          "uuid": "957667c7-0699-4c06-b800-e411503d64df",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C25",
+          "pin": "2",
+          "at_nm": [
+            24700000,
+            63550000
+          ]
+        },
+        {
+          "uuid": "117dd80e-4a92-4463-a657-8ea196e34957",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U11",
+          "pin": "1",
+          "at_nm": [
+            47200000,
+            44300000
+          ]
+        },
+        {
+          "uuid": "d06a6e12-e6ca-4e5c-84f9-f5f6d9ab8a94",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U11",
+          "pin": "7",
+          "at_nm": [
+            45700000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C9",
+          "pin": "2",
+          "at_nm": [
+            11000000,
+            48950000
+          ]
+        },
+        {
+          "uuid": "91e75dd4-f1e6-4005-9392-63958c1fadb1",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            16200000,
+            20159899
+          ]
+        },
+        {
+          "uuid": "1b6c864f-69d6-454b-8525-b80b84f83400",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            16727208,
+            18887107
+          ]
+        },
+        {
+          "uuid": "7a4f92a5-a071-4c4a-bff4-a7db55ae4f4d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            16727208,
+            21432691
+          ]
+        },
+        {
+          "uuid": "f4014991-215d-4f3e-8956-c021ce839a87",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            18000000,
+            18359899
+          ]
+        },
+        {
+          "uuid": "7356a7ad-1864-4299-b595-ba2d137ccdd4",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            18000000,
+            20159899
+          ]
+        },
+        {
+          "uuid": "f9369836-45bc-40f2-a75e-27f0362159bb",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            18000000,
+            21959899
+          ]
+        },
+        {
+          "uuid": "64627cfe-cd9d-4dec-97fc-bce89d5aab60",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            19272792,
+            18887107
+          ]
+        },
+        {
+          "uuid": "e4ce73f2-1200-4390-a227-5d723b966517",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            19272792,
+            21432691
+          ]
+        },
+        {
+          "uuid": "3340c6eb-8069-49d5-b7b7-00e87f44676f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "H1",
+          "pin": "1",
+          "at_nm": [
+            19800000,
+            20159899
+          ]
+        },
+        {
+          "uuid": "bab3a219-9416-4d31-b77f-22c72f8a3979",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "SW1",
+          "pin": "1",
+          "at_nm": [
+            30235000,
+            16659100
+          ]
+        },
+        {
+          "uuid": "f22e4c41-cd6f-4de3-b6f5-896f11e4ac6c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "Q1",
+          "pin": "2",
+          "at_nm": [
+            76397500,
+            12070000
+          ]
+        },
+        {
+          "uuid": "f34c8ea7-b191-470c-8836-eaac20ee10eb",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C18",
+          "pin": "2",
+          "at_nm": [
+            37647100,
+            65482202
+          ]
+        },
+        {
+          "uuid": "e70dced9-2010-49dc-938d-bbbe340f6d25",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R54",
+          "pin": "2",
+          "at_nm": [
+            12800000,
+            49135000
+          ]
+        },
+        {
+          "uuid": "383d1bb3-35b3-5df9-8a53-85bab3e53233",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U10",
+          "pin": "1",
+          "at_nm": [
+            48685001,
+            28237599
+          ]
+        },
+        {
+          "uuid": "5fb3f915-017a-5794-958d-0fe20d569d48",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U10",
+          "pin": "2",
+          "at_nm": [
+            48185001,
+            28237599
+          ]
+        },
+        {
+          "uuid": "19e7ac8b-cd66-525b-855c-1f1fe9781fb9",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U10",
+          "pin": "7",
+          "at_nm": [
+            47185001,
+            32637599
+          ]
+        },
+        {
+          "uuid": "f8994889-68c5-4284-bc1c-c6061a7a5a5a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C612V1",
+          "pin": "2",
+          "at_nm": [
+            55757501,
+            28694649
+          ]
+        },
+        {
+          "uuid": "1483799e-f306-4839-afe4-bf5fbf2398cc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C1",
+          "pin": "2",
+          "at_nm": [
+            43400000,
+            59520001
+          ]
+        },
+        {
+          "uuid": "e4d522c0-1819-4cac-95cf-19a89d7ef955",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6C",
+          "pin": "1",
+          "at_nm": [
+            67000000,
+            20159899
+          ]
+        },
+        {
+          "uuid": "020dc881-eb3f-4398-bc90-687edb8f34e8",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6C",
+          "pin": "2",
+          "at_nm": [
+            67000000,
+            22699899
+          ]
+        },
+        {
+          "uuid": "83663c67-af22-47c7-8337-2a0d9f8931b0",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6C",
+          "pin": "7",
+          "at_nm": [
+            59380000,
+            20159899
+          ]
+        },
+        {
+          "uuid": "bcb2581b-6446-4a77-9ecd-a86faa26dc47",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6C",
+          "pin": "8",
+          "at_nm": [
+            59380000,
+            22699899
+          ]
+        },
+        {
+          "uuid": "9f765edb-af89-4d72-9784-2d6a578a4453",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J_SIG1",
+          "pin": "4",
+          "at_nm": [
+            66975000,
+            14615000
+          ]
+        },
+        {
+          "uuid": "43a86f7d-187d-4aee-910f-0ca0a4ef7034",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C3",
+          "pin": "2",
+          "at_nm": [
+            29895000,
+            32759100
+          ]
+        },
+        {
+          "uuid": "33428bcd-e480-446a-8698-df2ee7e40c62",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R53",
+          "pin": "2",
+          "at_nm": [
+            41010000,
+            65599999
+          ]
+        },
+        {
+          "uuid": "ad1d3d60-aa2a-47d0-b71d-a7101a92e5f2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6D",
+          "pin": "2",
+          "at_nm": [
+            62105002,
+            57994999
+          ]
+        },
+        {
+          "uuid": "e62f59ad-a214-4360-a028-62e8fb9d0a30",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6D",
+          "pin": "4",
+          "at_nm": [
+            64645002,
+            57994999
+          ]
+        },
+        {
+          "uuid": "1e72f051-4769-4857-ae9f-535f09ec5634",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D5",
+          "pin": "1",
+          "at_nm": [
+            37100000,
+            34736000
+          ]
+        },
+        {
+          "uuid": "556ee744-6dd8-4221-9b7f-640f827ac899",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U2",
+          "pin": "2",
+          "at_nm": [
+            43770000,
+            26655000
+          ]
+        },
+        {
+          "uuid": "5635eba1-4396-446e-8311-b509fc674ce5",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U2",
+          "pin": "8",
+          "at_nm": [
+            45040000,
+            31605000
+          ]
+        },
+        {
+          "uuid": "cd956561-a98a-4094-8e4d-0f6c37d5f0bc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C26",
+          "pin": "2",
+          "at_nm": [
+            43380000,
+            65000000
+          ]
+        },
+        {
+          "uuid": "df7a4521-8275-46ed-8d6a-b3e6e7352027",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C19",
+          "pin": "2",
+          "at_nm": [
+            19430000,
+            11000000
+          ]
+        },
+        {
+          "uuid": "f03f739e-5b4b-4469-b3bc-f94ca612644c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C16",
+          "pin": "2",
+          "at_nm": [
+            55589300,
+            37467600
+          ]
+        },
+        {
+          "uuid": "813bbdca-8aa6-43aa-894f-edc184c5bf84",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R58",
+          "pin": "2",
+          "at_nm": [
+            28090000,
+            59800000
+          ]
+        },
+        {
+          "uuid": "5cda6306-6eaa-4ae3-848e-640bd0302537",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "TB9",
+          "pin": "1",
+          "at_nm": [
+            53565000,
+            4900000
+          ]
+        },
+        {
+          "uuid": "52cce007-b7c5-48b5-87d6-d12aa89d7df8",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "TB9",
+          "pin": "1",
+          "at_nm": [
+            62565000,
+            4900000
+          ]
+        },
+        {
+          "uuid": "b77aea8a-c3b8-5871-9ddd-620d44496374",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D7",
+          "pin": "2",
+          "at_nm": [
+            76505000,
+            50670000
+          ]
+        },
+        {
+          "uuid": "37851435-731a-5b7c-a524-272b1f02ef0e",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U13",
+          "pin": "7",
+          "at_nm": [
+            33700000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "c6b4d215-a00a-559c-83d5-d1b06ca0ec6a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "D1",
+          "pin": "2",
+          "at_nm": [
+            63801003,
+            66331399
+          ]
+        },
+        {
+          "uuid": "ca9f77f7-b9e7-5ca5-9aae-9c6bbed373e3",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U12",
+          "pin": "2",
+          "at_nm": [
+            58700000,
+            44300000
+          ]
+        },
+        {
+          "uuid": "0211353c-c44d-5d6f-aa9f-ad042172c691",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U12",
+          "pin": "7",
+          "at_nm": [
+            57700000,
+            48700000
+          ]
+        },
+        {
+          "uuid": "89af8e5d-daf2-4c16-9dc3-a4c342de347d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C20",
+          "pin": "2",
+          "at_nm": [
+            32787099,
+            65642202
+          ]
+        },
+        {
+          "uuid": "7d886410-fb85-5ebb-8e7c-976d41f386cf",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U712V1",
+          "pin": "2",
+          "at_nm": [
+            63685001,
+            33300099
+          ]
+        },
+        {
+          "uuid": "48bf4cd4-1ad0-45b6-8aaa-da413dc7f511",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C712V1",
+          "pin": "2",
+          "at_nm": [
+            65885001,
+            34415099
+          ]
+        },
+        {
+          "uuid": "dac84c22-f52c-4778-928e-2bcaa3760910",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "A1",
+          "at_nm": [
+            71805000,
+            47960000
+          ]
+        },
+        {
+          "uuid": "b31575f1-9e38-4318-b460-fba61cc3ad31",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "A12",
+          "at_nm": [
+            71805000,
+            41260000
+          ]
+        },
+        {
+          "uuid": "5f5b9b6b-9c93-4caa-b4ca-534482087cfc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "B1",
+          "at_nm": [
+            71805000,
+            41560000
+          ]
+        },
+        {
+          "uuid": "ff3638ab-f24f-4337-9e29-4cb413c5f8d4",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "B12",
+          "at_nm": [
+            71805000,
+            47660000
+          ]
+        },
+        {
+          "uuid": "349b922c-4b57-4a5a-b9e9-fbd2200ecc79",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "S1",
+          "at_nm": [
+            72380000,
+            48930000
+          ]
+        },
+        {
+          "uuid": "30e55750-5283-490a-8687-4be74b145ce7",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "S1",
+          "at_nm": [
+            76380000,
+            48930000
+          ]
+        },
+        {
+          "uuid": "86ef7f00-b092-47ac-8a4a-9d36df529db6",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "S1",
+          "at_nm": [
+            72380000,
+            40290000
+          ]
+        },
+        {
+          "uuid": "9384f131-71cb-498f-9829-60301a016f43",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J5",
+          "pin": "S1",
+          "at_nm": [
+            76380000,
+            40290000
+          ]
+        },
+        {
+          "uuid": "d9206c40-b3f1-4c5c-84e4-b46ec7d671ac",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R69",
+          "pin": "2",
+          "at_nm": [
+            28190000,
+            64099999
+          ]
+        },
+        {
+          "uuid": "23f97a35-a056-4f57-8cb1-97cb938eade0",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C21",
+          "pin": "2",
+          "at_nm": [
+            26799990,
+            52600002
+          ]
+        },
+        {
+          "uuid": "d2ea67f1-66cc-4145-b82e-be9e0382148c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R50",
+          "pin": "2",
+          "at_nm": [
+            37122100,
+            61097201
+          ]
+        },
+        {
+          "uuid": "e941d6d4-829b-50f1-82c7-cab5d52328f1",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U65V1",
+          "pin": "2",
+          "at_nm": [
+            54200000,
+            48800000
+          ]
+        },
+        {
+          "uuid": "7f0aab5a-da8a-5fe3-942e-b3617bc1aec3",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U65V1",
+          "pin": "5",
+          "at_nm": [
+            54200000,
+            46200000
+          ]
+        },
+        {
+          "uuid": "c482e23a-f8f5-42b9-ac52-7e670f8cea90",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6P",
+          "pin": "2",
+          "at_nm": [
+            27540000,
+            37300000
+          ]
+        },
+        {
+          "uuid": "61ed2180-4b9c-45fb-836c-13e871489662",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6P",
+          "pin": "4",
+          "at_nm": [
+            27540000,
+            39840000
+          ]
+        },
+        {
+          "uuid": "582fbdca-639a-4c6f-9260-4f743af37381",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J6P",
+          "pin": "6",
+          "at_nm": [
+            27540000,
+            42380000
+          ]
+        },
+        {
+          "uuid": "e75d07fe-33a0-4660-af37-459ba51d5b4f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C6",
+          "pin": "2",
+          "at_nm": [
+            33187099,
+            62442203
+          ]
+        },
+        {
+          "uuid": "e8d7ef16-cc83-4fd2-a319-8ea82236b1d7",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C2",
+          "pin": "2",
+          "at_nm": [
+            39225000,
+            59720001
+          ]
+        },
+        {
+          "uuid": "1f633e57-2a87-4a2e-9882-03d874743069",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C15",
+          "pin": "2",
+          "at_nm": [
+            61075000,
+            64400000
+          ]
+        },
+        {
+          "uuid": "dd2191c9-ecdc-4d4b-993f-5b2a8b25b19f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "J2",
+          "pin": "2",
+          "at_nm": [
+            76350000,
+            31840000
+          ]
+        },
+        {
+          "uuid": "4a7a4f75-a8e4-574d-abde-55a74fff1459",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "TB6",
+          "pin": "1",
+          "at_nm": [
+            9064999,
+            4900000
+          ]
+        },
+        {
+          "uuid": "f1b1c840-bc3c-5ae1-9db4-94e0cc54f6fe",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "TB6",
+          "pin": "1",
+          "at_nm": [
+            18064999,
+            4900000
+          ]
+        },
+        {
+          "uuid": "2b5d794b-2cb1-41e3-8d2c-230632b88681",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C22",
+          "pin": "2",
+          "at_nm": [
+            69627500,
+            9710000
+          ]
+        },
+        {
+          "uuid": "0a6c8814-2417-4aea-8f4d-4e70c6342c19",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C65V1",
+          "pin": "2",
+          "at_nm": [
+            54935000,
+            44714100
+          ]
+        },
+        {
+          "uuid": "ec36f65b-645c-4a76-97e5-a1de56379201",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C17",
+          "pin": "2",
+          "at_nm": [
+            42854300,
+            21870099
+          ]
+        },
+        {
+          "uuid": "351f39b9-c650-49ce-8a42-f8fd6ee0bcb0",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C23",
+          "pin": "2",
+          "at_nm": [
+            70097500,
+            6390000
+          ]
+        },
+        {
+          "uuid": "863a9e9d-2f13-440b-9d77-43063574fdf2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C4",
+          "pin": "2",
+          "at_nm": [
+            43609999,
+            24955000
+          ]
+        },
+        {
+          "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C54",
+          "pin": "2",
+          "at_nm": [
+            16924990,
+            46765001
+          ]
+        },
+        {
+          "uuid": "7e04bb74-3cd8-494b-8075-34e26a472b4d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C13",
+          "pin": "2",
+          "at_nm": [
+            34160000,
+            50705001
+          ]
+        },
+        {
+          "uuid": "1fcfb2a7-956d-4a87-8a40-387b4997b373",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R56",
+          "pin": "2",
+          "at_nm": [
+            29100000,
+            57210000
+          ]
+        },
+        {
+          "uuid": "9c468f96-7cf1-4256-8a05-f0687d1a9ede",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C24",
+          "pin": "2",
+          "at_nm": [
+            37400000,
+            59720001
+          ]
+        },
+        {
+          "uuid": "6b5f51aa-4079-4b0b-9b6e-f24e894858ad",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C53",
+          "pin": "2",
+          "at_nm": [
+            23029989,
+            55300000
+          ]
+        },
+        {
+          "uuid": "a8f5a930-aab3-446c-abb0-cd1d9408c898",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C5",
+          "pin": "2",
+          "at_nm": [
+            38525000,
+            32829100
+          ]
+        },
+        {
+          "uuid": "9fc222cc-d165-5507-bf1e-c15b8aedf5c1",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U75V1",
+          "pin": "2",
+          "at_nm": [
+            54200000,
+            51362500
+          ]
+        },
+        {
+          "uuid": "3969de7a-7b56-4e53-b7e5-2b9f4fae6809",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C60",
+          "pin": "2",
+          "at_nm": [
+            38812001,
+            54275100
+          ]
+        },
+        {
+          "uuid": "d9e8c903-717a-4ee6-9533-e5e951fc7b6d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C12",
+          "pin": "2",
+          "at_nm": [
+            56240000,
+            50450000
+          ]
+        },
+        {
+          "uuid": "5dd4bf09-6c94-515b-a03f-c2ae3ea94b0b",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U73V31",
+          "pin": "2",
+          "at_nm": [
+            58200000,
+            59137500
+          ]
+        },
+        {
+          "uuid": "f8a87695-0271-4dfa-90f4-d46833c0d459",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C64",
+          "pin": "2",
+          "at_nm": [
+            35642300,
+            34435100
+          ]
+        },
+        {
+          "uuid": "efc707ff-8a77-45e4-a06f-f7d284366a78",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C52",
+          "pin": "2",
+          "at_nm": [
+            25976900,
+            59783201
+          ]
+        },
+        {
+          "uuid": "185b7e2e-7a41-4c64-979b-21a348a026ee",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C61",
+          "pin": "2",
+          "at_nm": [
+            39755000,
+            20359100
+          ]
+        },
+        {
+          "uuid": "a89e4c11-9e65-4b7e-9a90-27ce9fba99ba",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C75V1",
+          "pin": "2",
+          "at_nm": [
+            56400000,
+            52477500
+          ]
+        },
+        {
+          "uuid": "c631a37f-9cf9-431f-85f2-21bac71161a6",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C10",
+          "pin": "2",
+          "at_nm": [
+            47165001,
+            35097599
+          ]
+        },
+        {
+          "uuid": "78922028-7fe7-4533-b298-1bc0f0aaf933",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C63V31",
+          "pin": "2",
+          "at_nm": [
+            66303750,
+            44735575
+          ]
+        },
+        {
+          "uuid": "c3921843-a21c-44f0-a5e8-ed2d3c870d2c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C50",
+          "pin": "2",
+          "at_nm": [
+            33822100,
+            59617201
+          ]
+        },
+        {
+          "uuid": "16b8bbc9-a530-4f3a-bc84-6e5746090616",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R1",
+          "pin": "2",
+          "at_nm": [
+            65535003,
+            63204999
+          ]
+        },
+        {
+          "uuid": "b4e76429-2446-4fd2-a8bb-4f1458d69c1f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C8",
+          "pin": "2",
+          "at_nm": [
+            44409353,
+            64397200
+          ]
+        },
+        {
+          "uuid": "b8968221-5e84-4875-9738-9832ac8552cf",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U6",
+          "pin": "3",
+          "at_nm": [
+            14249989,
+            48550000
+          ]
+        },
+        {
+          "uuid": "751cd169-4e9a-48e2-91b3-1786b8ed512f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U6",
+          "pin": "4",
+          "at_nm": [
+            14749990,
+            48550000
+          ]
+        },
+        {
+          "uuid": "c4005992-513a-4a89-bf8d-04ce8889113a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U6",
+          "pin": "12",
+          "at_nm": [
+            14249989,
+            46250002
+          ]
+        },
+        {
+          "uuid": "80652b17-f9d1-5d7f-a312-db6c14d6b63c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U75VSB1",
+          "pin": "2",
+          "at_nm": [
+            42200000,
+            51362500
+          ]
+        },
+        {
+          "uuid": "b56f3464-491c-5d75-8123-8fb5b8babdb3",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U5",
+          "pin": "3",
+          "at_nm": [
+            34872099,
+            65417201
+          ]
+        },
+        {
+          "uuid": "b86f0bde-b9dd-5610-b604-7bcbf94a4200",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U5",
+          "pin": "4",
+          "at_nm": [
+            35372100,
+            65417201
+          ]
+        },
+        {
+          "uuid": "f729f43e-7dd6-5f2d-8941-c3d5e2f3c73b",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U5",
+          "pin": "12",
+          "at_nm": [
+            34872099,
+            63117203
+          ]
+        },
+        {
+          "uuid": "f4c7b341-25d9-5661-ac6f-ffd27f627ef6",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U612V1",
+          "pin": "2",
+          "at_nm": [
+            55685001,
+            32575099
+          ]
+        },
+        {
+          "uuid": "a257435b-182b-5861-abb9-e68a09a9ec16",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U612V1",
+          "pin": "5",
+          "at_nm": [
+            55685001,
+            30300099
+          ]
+        },
+        {
+          "uuid": "32b061a6-c345-5402-ba6b-9e989a90af89",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U65VSB1",
+          "pin": "2",
+          "at_nm": [
+            42200000,
+            48800000
+          ]
+        },
+        {
+          "uuid": "f3438e75-af15-58d8-94b9-f26b6898f204",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U65VSB1",
+          "pin": "5",
+          "at_nm": [
+            42200000,
+            46200000
+          ]
+        },
+        {
+          "uuid": "8986c9d5-6a83-4f7f-9600-1bca0bef9fd4",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C63",
+          "pin": "2",
+          "at_nm": [
+            19348800,
+            14758300
+          ]
+        },
+        {
+          "uuid": "baea01a7-6823-4007-9659-0c83fc027642",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "1",
+          "at_nm": [
+            29245000,
+            31499100
+          ]
+        },
+        {
+          "uuid": "faf5aa24-4b9d-4f49-a8d1-e29d033f11f0",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "2",
+          "at_nm": [
+            30055000,
+            31499100
+          ]
+        },
+        {
+          "uuid": "774b5892-62d7-4483-a8d7-d5aa21c5dad2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "11",
+          "at_nm": [
+            37255000,
+            31499100
+          ]
+        },
+        {
+          "uuid": "b0ebc301-37c7-43b8-81d6-1808a91a0101",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "14",
+          "at_nm": [
+            38125000,
+            28799100
+          ]
+        },
+        {
+          "uuid": "ef9a8165-d801-4119-8cc1-340665c441b9",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "36",
+          "at_nm": [
+            28325000,
+            20799100
+          ]
+        },
+        {
+          "uuid": "6570c8ea-3943-48bd-a98a-3a667e4b4b13",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "37",
+          "at_nm": [
+            28325000,
+            21599100
+          ]
+        },
+        {
+          "uuid": "6f157d5a-d136-48db-9729-4bd0dd247f5a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "38",
+          "at_nm": [
+            28325000,
+            22399100
+          ]
+        },
+        {
+          "uuid": "20522638-00fd-4df9-8a60-7c21e3ff9520",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "39",
+          "at_nm": [
+            28325000,
+            23199100
+          ]
+        },
+        {
+          "uuid": "74e87f59-e20e-49a4-a0b8-8224ca4d8635",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "40",
+          "at_nm": [
+            28325000,
+            23999100
+          ]
+        },
+        {
+          "uuid": "25d13003-9554-418a-8e21-a66231fe1b86",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "41",
+          "at_nm": [
+            28325000,
+            24799100
+          ]
+        },
+        {
+          "uuid": "731ca6cc-862a-4e90-9d58-8b14caade79c",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "42",
+          "at_nm": [
+            28325000,
+            25599100
+          ]
+        },
+        {
+          "uuid": "9a398cbe-9430-4eb2-ae6e-70fdaf2f02e8",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "43",
+          "at_nm": [
+            28325000,
+            26399100
+          ]
+        },
+        {
+          "uuid": "87577e8d-5971-475c-aa61-5eab08afa12e",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "44",
+          "at_nm": [
+            28325000,
+            27199100
+          ]
+        },
+        {
+          "uuid": "9dcf78a3-27e2-47fa-b3ee-c6fd8886f3e5",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "45",
+          "at_nm": [
+            28325000,
+            27999100
+          ]
+        },
+        {
+          "uuid": "a4dad5f2-28a6-4371-8d56-2fb97350924d",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "46",
+          "at_nm": [
+            28325000,
+            28799100
+          ]
+        },
+        {
+          "uuid": "12fc76d9-5fe2-4623-aee7-78bedf27f280",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "47",
+          "at_nm": [
+            28325000,
+            29599100
+          ]
+        },
+        {
+          "uuid": "36e9ee11-61d9-453f-9cb2-409a6ff0196a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "48",
+          "at_nm": [
+            28325000,
+            30399100
+          ]
+        },
+        {
+          "uuid": "b8cb7cd4-64fe-4855-8885-1974251b4e65",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            31375000,
+            27379100
+          ]
+        },
+        {
+          "uuid": "7fad3095-aebd-44b1-8f9a-4153e5ad426f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            33175000,
+            27379100
+          ]
+        },
+        {
+          "uuid": "914fe391-db10-4765-88b3-bff70af3e7e2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            34975000,
+            27379100
+          ]
+        },
+        {
+          "uuid": "25cc590c-7c85-49e3-8e77-17244e26f8ed",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            31375000,
+            25579100
+          ]
+        },
+        {
+          "uuid": "f32406dc-60c3-4740-84af-b76d1031386b",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            33175000,
+            25579100
+          ]
+        },
+        {
+          "uuid": "6a0dd0f5-194b-4042-bf6a-4c5cc6486671",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            34975000,
+            25579100
+          ]
+        },
+        {
+          "uuid": "d9d9adbe-761e-4418-8f95-fc6befcc63ec",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            31375000,
+            23779100
+          ]
+        },
+        {
+          "uuid": "acc5ab82-775f-4f2f-a014-50ee3472ef94",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            33175000,
+            23779100
+          ]
+        },
+        {
+          "uuid": "1f213f6c-c5a7-43c4-b659-e63fe5a3ab30",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "49",
+          "at_nm": [
+            34975000,
+            23779100
+          ]
+        },
+        {
+          "uuid": "0bcccd80-7e09-4157-a1b1-5f9c9c93ea72",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "50",
+          "at_nm": [
+            28275000,
+            19649100
+          ]
+        },
+        {
+          "uuid": "28ba6f4d-bd0f-4fd2-9891-f825559157be",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "51",
+          "at_nm": [
+            38175000,
+            19649100
+          ]
+        },
+        {
+          "uuid": "689e39ea-945a-4bc8-a207-207ca0157de2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "52",
+          "at_nm": [
+            38175000,
+            31549100
+          ]
+        },
+        {
+          "uuid": "8b176259-3345-4135-ab44-5352891570b3",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U1",
+          "pin": "53",
+          "at_nm": [
+            28275000,
+            31549100
+          ]
+        },
+        {
+          "uuid": "2d1c66cd-badf-4ffc-ae20-4aad2a2dc44a",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C65VSB1",
+          "pin": "2",
+          "at_nm": [
+            42515313,
+            44533749
+          ]
+        },
+        {
+          "uuid": "e41393d0-c56f-4ce6-83b3-284ed48a39c2",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C27",
+          "pin": "2",
+          "at_nm": [
+            12083990,
+            45800000
+          ]
+        },
+        {
+          "uuid": "cd7e08eb-c5a8-49c9-81ad-0cfda2734861",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R8",
+          "pin": "2",
+          "at_nm": [
+            70065000,
+            43590000
+          ]
+        },
+        {
+          "uuid": "4de8523e-761e-500b-a6a0-5f6ab1da26bc",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U63V31",
+          "pin": "2",
+          "at_nm": [
+            66200000,
+            48637500
+          ]
+        },
+        {
+          "uuid": "ca912e30-7682-55dd-ab87-e0bf2f1bb2c1",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "U63V31",
+          "pin": "5",
+          "at_nm": [
+            66200000,
+            46362500
+          ]
+        },
+        {
+          "uuid": "ad5cce6e-3c63-41cc-b500-139b372aa345",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C73V31",
+          "pin": "2",
+          "at_nm": [
+            56000000,
+            58022500
+          ]
+        },
+        {
+          "uuid": "68d2aa50-4089-4f84-9375-b2dde28b1382",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C11",
+          "pin": "2",
+          "at_nm": [
+            45200000,
+            51210000
+          ]
+        },
+        {
+          "uuid": "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C7",
+          "pin": "2",
+          "at_nm": [
+            64500000,
+            69100000
+          ]
+        },
+        {
+          "uuid": "1025436d-6077-5858-8503-e956c5f3b424",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "SW2",
+          "pin": "1",
+          "at_nm": [
+            72220000,
+            26500000
+          ]
+        },
+        {
+          "uuid": "bc4847b8-2c49-451e-83b7-965e495b8eb3",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C51",
+          "pin": "2",
+          "at_nm": [
+            17725000,
+            50125000
+          ]
+        },
+        {
+          "uuid": "0fd1c900-5153-4cb5-a186-6d56b7e18a8f",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "C75VSB1",
+          "pin": "2",
+          "at_nm": [
+            44400000,
+            52477500
+          ]
+        },
+        {
+          "uuid": "48d125fd-1974-4fd6-b6a0-3a770f760a29",
+          "kind": "PAD",
+          "net": "GND",
+          "ref": "R73",
+          "pin": "2",
+          "at_nm": [
+            34285000,
+            32749100
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "6e23e3b2-a185-4062-a56f-7fa8db433f0e",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "U6",
+          "pin": "10",
+          "at_nm": [
+            15249990,
+            46250002
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "R54",
+          "pin": "1",
+          "at_nm": [
+            12800000,
+            48115000
+          ]
+        },
+        {
+          "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "U6",
+          "pin": "10",
+          "at_nm": [
+            15249990,
+            46250002
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "95d5af49-374c-4c3d-ad44-80288b7d4fa5",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "native_direct_cohort_pad_contacts": [
+        {
+          "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "U6",
+          "pin": "11",
+          "at_nm": [
+            14749990,
+            46250002
+          ]
+        }
+      ],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "U6",
+          "pin": "11",
+          "at_nm": [
+            14749990,
+            46250002
+          ]
+        },
+        {
+          "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "C51",
+          "pin": "1",
+          "at_nm": [
+            19275000,
+            50125000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "68959323-ae6b-4502-b8c6-a3e931e49efd",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "R54",
+          "pin": "1",
+          "at_nm": [
+            12800000,
+            48115000
+          ]
+        },
+        {
+          "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "U6",
+          "pin": "10",
+          "at_nm": [
+            15249990,
+            46250002
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "8939bc18-cd58-4e63-a12d-b553c8306638",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "R54",
+          "pin": "1",
+          "at_nm": [
+            12800000,
+            48115000
+          ]
+        },
+        {
+          "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "U6",
+          "pin": "10",
+          "at_nm": [
+            15249990,
+            46250002
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "64b46a25-6706-452e-98a9-48f545ed5a62",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "R54",
+          "pin": "1",
+          "at_nm": [
+            12800000,
+            48115000
+          ]
+        },
+        {
+          "uuid": "ffcf5603-1cac-4757-a686-d15975b73a34",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+          "ref": "U6",
+          "pin": "10",
+          "at_nm": [
+            15249990,
+            46250002
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "63d2a729-fcf8-4f66-b1dc-64e3d4767d9b",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "U6",
+          "pin": "11",
+          "at_nm": [
+            14749990,
+            46250002
+          ]
+        },
+        {
+          "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "C51",
+          "pin": "1",
+          "at_nm": [
+            19275000,
+            50125000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "R58",
+          "pin": "1",
+          "at_nm": [
+            29110000,
+            59800000
+          ]
+        },
+        {
+          "uuid": "d458f7b4-688e-4868-8686-3bcf2b4898c3",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "R57",
+          "pin": "2",
+          "at_nm": [
+            28090000,
+            58700000
+          ]
+        },
+        {
+          "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "U6",
+          "pin": "6",
+          "at_nm": [
+            15749991,
+            48550000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "ref": "R56",
+          "pin": "1",
+          "at_nm": [
+            29100000,
+            56190000
+          ]
+        },
+        {
+          "uuid": "ced55e46-eed5-4662-9720-b9a8db66c2fb",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "ref": "U6",
+          "pin": "5",
+          "at_nm": [
+            15249990,
+            48550000
+          ]
+        },
+        {
+          "uuid": "b2b2b674-192b-4c55-9373-f1670b4f6f20",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+          "ref": "R55",
+          "pin": "2",
+          "at_nm": [
+            27200000,
+            56190000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "417e2522-56da-4f05-a4db-bab4aea0488c",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C9",
+          "pin": "1",
+          "at_nm": [
+            11000000,
+            47050000
+          ]
+        },
+        {
+          "uuid": "63430b53-02e3-49b3-9963-990134283437",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C53",
+          "pin": "1",
+          "at_nm": [
+            24929989,
+            55300000
+          ]
+        },
+        {
+          "uuid": "a41e9ae9-7e80-4a8b-9ab3-d67280583df5",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "FB1",
+          "pin": "2",
+          "at_nm": [
+            67722200,
+            37347200
+          ]
+        },
+        {
+          "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C52",
+          "pin": "1",
+          "at_nm": [
+            25976900,
+            60743201
+          ]
+        },
+        {
+          "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "U6",
+          "pin": "2",
+          "at_nm": [
+            14324990,
+            47775001
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "4e9cbbd9-dad0-443d-b14f-2885887a2094",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "5578793c-8793-4a8f-b8df-186dc694a778",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C9",
+          "pin": "1",
+          "at_nm": [
+            11000000,
+            47050000
+          ]
+        },
+        {
+          "uuid": "63430b53-02e3-49b3-9963-990134283437",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C53",
+          "pin": "1",
+          "at_nm": [
+            24929989,
+            55300000
+          ]
+        },
+        {
+          "uuid": "a41e9ae9-7e80-4a8b-9ab3-d67280583df5",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "FB1",
+          "pin": "2",
+          "at_nm": [
+            67722200,
+            37347200
+          ]
+        },
+        {
+          "uuid": "7e0f40ee-01e5-457b-9d29-6aa8af381cd1",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "C52",
+          "pin": "1",
+          "at_nm": [
+            25976900,
+            60743201
+          ]
+        },
+        {
+          "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+          "ref": "U6",
+          "pin": "2",
+          "at_nm": [
+            14324990,
+            47775001
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "be78cc58-17f6-41e7-9b89-3cb48aad190a",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "R58",
+          "pin": "1",
+          "at_nm": [
+            29110000,
+            59800000
+          ]
+        },
+        {
+          "uuid": "d458f7b4-688e-4868-8686-3bcf2b4898c3",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "R57",
+          "pin": "2",
+          "at_nm": [
+            28090000,
+            58700000
+          ]
+        },
+        {
+          "uuid": "6c143a73-fb41-4e82-a0c6-0db516c89fa1",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+          "ref": "U6",
+          "pin": "6",
+          "at_nm": [
+            15749991,
+            48550000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    },
+    {
+      "uuid": "1ebd24ba-7232-523d-99a5-619aeeef93a0",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+      "native_direct_cohort_pad_contacts": [],
+      "canonical_pin_and_current_domain_related_to_moving_U6": true,
+      "source_terminal_members": [
+        {
+          "uuid": "6f6397f1-63d0-4694-b04f-4fad97ace0e2",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "U6",
+          "pin": "11",
+          "at_nm": [
+            14749990,
+            46250002
+          ]
+        },
+        {
+          "uuid": "d7761c3a-ae94-4515-a69e-8ff635f122fa",
+          "kind": "PAD",
+          "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+          "ref": "C51",
+          "pin": "1",
+          "at_nm": [
+            19275000,
+            50125000
+          ]
+        }
+      ],
+      "source_cut_not_admitted": true,
+      "obligation": "Derive complete positive source cut and retained same-net boundaries; rebuild this U6 control/input/bypass connection without moving unmoved terminal identities. Net membership alone does not permit subtraction."
+    }
+  ],
+  "preserved_external_control_anchors": {
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1": [
+      {
+        "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "R58",
+        "pin": "1",
+        "at_nm": [
+          29110000,
+          59800000
+        ]
+      },
+      {
+        "uuid": "d458f7b4-688e-4868-8686-3bcf2b4898c3",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "ref": "R57",
+        "pin": "2",
+        "at_nm": [
+          28090000,
+          58700000
+        ]
+      }
+    ],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS": [],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM": [],
+    "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1": [
+      {
+        "uuid": "6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "R56",
+        "pin": "1",
+        "at_nm": [
+          29100000,
+          56190000
+        ]
+      },
+      {
+        "uuid": "b2b2b674-192b-4c55-9373-f1670b4f6f20",
+        "kind": "PAD",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "ref": "R55",
+        "pin": "2",
+        "at_nm": [
+          27200000,
+          56190000
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "scope": "READ_ONLY_PROSPECTIVE_TOPOLOGY_NOT_ASSEMBLY_CURRENT_OR_RELEASE_QUALIFICATION",
+  "selected_prospective_topology": {
+    "net": "/SENSE12V_HI",
+    "amps": 12,
+    "retained_geometry_margin": 1.25,
+    "face": "B.Cu",
+    "required_copper_width_mm": 3.230592,
+    "bars": [
+      {"part": "MJP-1.0", "feet_mm": [[4,32.1],[4,57.5]], "nominal_material": "copper"},
+      {"part": "MJP-0.8", "feet_mm": [[4,60],[4,80.32]], "nominal_material": "phosphor bronze"}
+    ],
+    "physical_path": "retained native HI source at18.6,36 -> upper rated BCu link -> bar1 ->2.5mm rated link -> bar2 -> lower rated BCu link -> retained J3 HI hook11.4,85.2 -> J3.11/10; no layer transitions or shunt bypass",
+    "native_guarded_links": "route-probe.json: all three found, at original full3.230592mm width",
+    "native_square_foot_screen": "native-inventory.json: all four3.230592mm square lands clear native foreign pads/tracks/vias and saved foreign fills with0.2mm minimum screening clearance",
+    "retired_long_trunk_candidates": [
+      "2da4471e-2417-5dcb-85d3-ef0a1cb30272",
+      "33af082a-6b01-54ef-a068-9a27059b3011",
+      "938cd8ad-5585-58ee-a6a9-4d9115dc9fef",
+      "9c0a3b2a-d397-4062-8dce-e7aa8d0d2693"
+    ],
+    "retained_lower_hook": "7eb2c6ed-1f50-5bf6-b5d2-298bc6f2ac74",
+    "why_it_removes_limiting_material": "Replaces the x2.2 BCu43.1mm vertical bus and its lower-left diagonal using raised metal atx4. Existing source-connected short upper/lower copper remains. The nominal link left copper boundary isx2.384704, prospectively allowingx2 outline cut subject to actual clipped outline/clearance receiving.",
+    "compaction_bound": "Conditional2mm declared stack X gain only; no Y gain. Lower hook still reachesy85.2 and J3 declared housing still fixes maxY91.795. Previous paired declared envelope89.585x93.09 would become87.585x93.09 only if actual trim passes.",
+    "essential_unresolved": [
+      "No actual native bar construction or enlarged-land process acceptance yet. Manufacturer2x2 minimum land does not qualify this3.230592 square copper/paste/mask/contact design.",
+      "Both Bside bars require complete outer installed-Z/tail/solder qualification; nominal2.3mm height and1.8mm underside are not guaranteed installed bounds.",
+      "First bar raised body approaches/overpasses adjacent SENSE3V3_HI BCu copper; no insulation or coated-jumper clearance assumption is granted.",
+      "Actual bar footprint courtyard/body and all Bside hardware/contact geometry plus assembly process must be independently checked. Source BCu copper clearance alone is insufficient.",
+      "MJP0.8 uses bronze unlike copper MJP1.0; series20A catalog label does not establish this board12A thermal/joint rating.",
+      "Full physical transport/current/FEM and terminal partition proof must explicitly include both bars/joints before retiring sourcebus. Native duplicate-pad jumper0opens alone is not proof.",
+      "Source Kelvin force/sense association must remain exact using independent sharded receiving; no source thin-HI branch is a rated transport substitute."
+    ]
+  },
+  "bounded_rejected_variants": [
+    {"topology": "two MJP1.0 atx4 with feet32.1/57.5 and60/85.4", "reason": "lower85.4 source-hook route refused native caller/outline guard; shortening second bar toMJP0.8 solves tested links without board expansion"},
+    {"topology": "move left BCu endpoints tox5..8", "reason": "native6.535523mm SENSE3V3_HI trunk97e88707-e4ef-4c30-af4e-724ee6e7d22d blocks middle feet"},
+    {"topology": "right-front MJP1.0 feet71,56.6/71,82", "reason": "lower rated feed exists but upper FCu source routing blocked by5VMAIN landing e5995b05-b091-4a96-8a33-1088ebbc2a0e and3V3LO collectors04b1b0ba-5c8d-45df-921a-770a27d15213/40d65e0a-4104-5c20-9c29-cef71c2d2c94; new power transitions or collector reconstruction needed"}
+  ],
+  "no_board_mutation": true,
+  "qualified": false
+}

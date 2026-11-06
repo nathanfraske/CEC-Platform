@@ -1,0 +1,74 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "candidate_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "source_via_uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+  "new_via_uuid": "442d8b20-7e51-4b59-ae72-a663f611a848",
+  "retired_track_uuids": [
+    "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+    "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+    "c73d68b5-5c91-4704-ba04-7bae449aea42"
+  ],
+  "added_native_uuids": [
+    "30b4e49c-6538-41b3-bacf-2f382b4b5224",
+    "442d8b20-7e51-4b59-ae72-a663f611a848",
+    "e9b79eba-aa46-4cf5-8efa-b669c90b144d",
+    "efe90e23-c0f1-4cc8-a47d-000e8e9d5586",
+    "fb487a34-042d-4bf7-948e-0832b911b052"
+  ],
+  "ordinary_via_dimensions_preserved": true,
+  "source_pad_unchanged": true,
+  "source_pad_overlap_repair": true,
+  "trial": {
+    "at_nm": [
+      12200000,
+      48450000
+    ],
+    "via_clear": true,
+    "refusals": {},
+    "routes": [
+      {
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            12200000,
+            48450000
+          ],
+          [
+            12465000,
+            48450000
+          ],
+          [
+            12800000,
+            48115000
+          ]
+        ]
+      },
+      {
+        "layer": "SIG2",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            12200000,
+            48450000
+          ],
+          [
+            12400000,
+            48450000
+          ],
+          [
+            15400000,
+            45450000
+          ]
+        ]
+      }
+    ],
+    "complete": true
+  },
+  "elapsed_s": 5.790636309990077,
+  "board_saved": true,
+  "private_unadmitted": true,
+  "release_authority": false
+}

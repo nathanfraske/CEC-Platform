@@ -1,0 +1,199 @@
+{
+  "schema": 1,
+  "scope": "SYNTHETIC_NATIVE_ACTUAL_PROTOTYPE_GUARD_REGRESSION_NOT_CURRENT_QUALIFICATION",
+  "actual_prototype": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/actual_provisional_footprint/board.kicad_pcb",
+    "sha256": "77e62c2a8fe092696657453b43d46f053fe7d43b2f4846205bd7f4064883bf56"
+  },
+  "historical_receipt": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/transport-receipt.json",
+    "sha256": "997a7298412a3dc4c2159a7714037d6634c80b9217f4517239e58f4f58ab5e74",
+    "preserved": true
+  },
+  "implicit": {
+    "inventory": {
+      "PWR": [
+        {
+          "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+          "reference": "BB1",
+          "mode": "duplicate_pad_numbers",
+          "pad_uuids": [
+            "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+            "7ad95a05-0414-468a-8293-f466e08f689d"
+          ],
+          "pad_numbers": [
+            "1",
+            "1"
+          ],
+          "reason": "component_internal_transport_model_required",
+          "current_qualified": false
+        }
+      ]
+    },
+    "authority_connectivity": {
+      "available": false,
+      "connected": false,
+      "net": "PWR",
+      "reason": "component_internal_transport_model_required",
+      "domain": {
+        "complete": true,
+        "authority_refs": [
+          "J1",
+          "J2"
+        ],
+        "basis": "SYNTHETIC_FIXTURE_TERMINAL_SCOPE_ONLY_NOT_SOURCE_RATING"
+      },
+      "unmodelled_component_transports": [
+        {
+          "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+          "reference": "BB1",
+          "mode": "duplicate_pad_numbers",
+          "pad_uuids": [
+            "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+            "7ad95a05-0414-468a-8293-f466e08f689d"
+          ],
+          "pad_numbers": [
+            "1",
+            "1"
+          ],
+          "reason": "component_internal_transport_model_required",
+          "current_qualified": false
+        }
+      ]
+    },
+    "width_checker": [
+      false,
+      "component_internal_transport_model_required",
+      [
+        {
+          "type": "current_authority_binding",
+          "net": "PWR",
+          "evidence": {
+            "unmodelled_component_transports": [
+              {
+                "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+                "reference": "BB1",
+                "mode": "duplicate_pad_numbers",
+                "pad_uuids": [
+                  "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+                  "7ad95a05-0414-468a-8293-f466e08f689d"
+                ],
+                "pad_numbers": [
+                  "1",
+                  "1"
+                ],
+                "reason": "component_internal_transport_model_required",
+                "current_qualified": false
+              }
+            ],
+            "current_qualified": false
+          }
+        }
+      ]
+    ],
+    "unrelated_rated_net_inventory_empty": true,
+    "RAM_metadata_unchanged": true
+  },
+  "explicit": {
+    "inventory": {
+      "PWR": [
+        {
+          "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+          "reference": "BB1",
+          "mode": "explicit_jumper_pad_group",
+          "pad_uuids": [
+            "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+            "7ad95a05-0414-468a-8293-f466e08f689d"
+          ],
+          "pad_numbers": [
+            "1",
+            "2"
+          ],
+          "reason": "component_internal_transport_model_required",
+          "current_qualified": false
+        }
+      ]
+    },
+    "authority_connectivity": {
+      "available": false,
+      "connected": false,
+      "net": "PWR",
+      "reason": "component_internal_transport_model_required",
+      "domain": {
+        "complete": true,
+        "authority_refs": [
+          "J1",
+          "J2"
+        ],
+        "basis": "SYNTHETIC_FIXTURE_TERMINAL_SCOPE_ONLY_NOT_SOURCE_RATING"
+      },
+      "unmodelled_component_transports": [
+        {
+          "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+          "reference": "BB1",
+          "mode": "explicit_jumper_pad_group",
+          "pad_uuids": [
+            "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+            "7ad95a05-0414-468a-8293-f466e08f689d"
+          ],
+          "pad_numbers": [
+            "1",
+            "2"
+          ],
+          "reason": "component_internal_transport_model_required",
+          "current_qualified": false
+        }
+      ]
+    },
+    "width_checker": [
+      false,
+      "component_internal_transport_model_required",
+      [
+        {
+          "type": "current_authority_binding",
+          "net": "PWR",
+          "evidence": {
+            "unmodelled_component_transports": [
+              {
+                "footprint_uuid": "7519a18d-9754-4abe-ab7c-9599d03854ad",
+                "reference": "BB1",
+                "mode": "explicit_jumper_pad_group",
+                "pad_uuids": [
+                  "022b5fc2-9f90-47bc-9fd9-598f4c146a2b",
+                  "7ad95a05-0414-468a-8293-f466e08f689d"
+                ],
+                "pad_numbers": [
+                  "1",
+                  "2"
+                ],
+                "reason": "component_internal_transport_model_required",
+                "current_qualified": false
+              }
+            ],
+            "current_qualified": false
+          }
+        }
+      ]
+    ],
+    "unrelated_rated_net_inventory_empty": true,
+    "RAM_metadata_unchanged": true
+  },
+  "code": [
+    {
+      "path": "/home/codex/src/CEC-Platform/scripts/cec_current_topology.py",
+      "sha256": "938c93251a55a5f3c36f129d609bded87903430f38db36b232ea02c3d90ace32"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/scripts/cec_constraints.py",
+      "sha256": "f46d144d54b7f877c1fdf9c8b1303020fa587281c0ad51bd2dcb35a7b6adc40a"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/scripts/cec_component_jumper_metadata.py",
+      "sha256": "292b451e477a11606c7c08b1456188d27da3fec9c317672bd22e5590b3f2a861"
+    }
+  ],
+  "guard_fail_closed": true,
+  "no_qualification_opt_in": true,
+  "current_qualified": false,
+  "release_authority": false
+}

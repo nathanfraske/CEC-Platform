@@ -1,0 +1,8 @@
+{
+  "macro_boundary:696584d9-e143-4658-b00a-9e5625fc3b27": {
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+    "layer": "B.Cu",
+    "width_nm": 200000,
+    "points_nm": [[29110000,59800000],[29110000,59850000],[28635000,60325000],[28574990,60325000]]
+  }
+}

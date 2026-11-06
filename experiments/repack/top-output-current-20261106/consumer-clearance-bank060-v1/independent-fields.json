@@ -1,0 +1,35 @@
+{
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pcb",
+      "sha256": "b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb",
+      "sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "scope": "PRIVATE_READ_ONLY_INDEPENDENT_CHECK_NOT_RELEASE",
+  "mode": "fields",
+  "before_ok": true,
+  "after_ok": true,
+  "before_blockers": 0,
+  "after_blockers": 0,
+  "new_blockers": [],
+  "removed_blockers": [],
+  "report_paths": [
+    "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-fields-before.json",
+    "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/independent-fields-after.json"
+  ],
+  "authority_unchanged": true,
+  "current_or_thermal_qualified": false,
+  "release_authority": false
+}

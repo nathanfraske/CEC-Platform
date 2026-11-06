@@ -1,0 +1,51 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "candidate_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "via_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+  "pad_uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+  "source_at_nm": [
+    16824990,
+    46765001
+  ],
+  "target_at_nm": [
+    16924990,
+    46765001
+  ],
+  "barrel_geometry_preserved": true,
+  "changed_native_node_uuids": [
+    "c25714c1-f2d8-4e0e-9711-7d208ce1da97"
+  ],
+  "source_guard": {
+    "actual_native_pad_exclusions": [
+      {
+        "ref": "C54",
+        "pad": "2",
+        "net": "GND",
+        "layer": "F.Cu",
+        "native_diameter_nm": 500000,
+        "reason": "JLC06162H-3313 POFV accepted"
+      }
+    ],
+    "ok": true,
+    "at_mm": [
+      16.92499,
+      46.765001
+    ],
+    "diameter_mm": 0.5,
+    "clearance_mm": 0.2,
+    "actual_native_land_diameters_nm": {
+      "F.Cu": 500000,
+      "GND": 500000,
+      "SIG2": 500000,
+      "PWR": 500000,
+      "GND2": 500000,
+      "B.Cu": 500000
+    }
+  },
+  "no_tracks_or_components_changed": true,
+  "elapsed_s": 6.468085038999561,
+  "private_unadmitted": true,
+  "release_authority": false
+}

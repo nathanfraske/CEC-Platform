@@ -1,0 +1,25 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+  "source_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "copied_source_family_sha256": {
+    "board.kicad_prl": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+    "board.kicad_pro": "ebe44204b45a556aaaf5ecbddd8a74108bedb562ac277cc0bd855fd814c9a99c",
+    "board.pourfirst-skeleton.kicad_pcb": "5bc7e565ff0010d3078ab9f5082e30eaa847a2bb75662ca8fb4ee272a1974d4b",
+    "board.pourfirst-state.json": "c13651756811cf9ce6733422a5de16f9ea65b70906ca4e367dd0b34d4850da9c",
+    "board.route-lineage.json": "1df188d6178043fa5b170b3e0b62b3e5ae61c9657e3752386857a26ad20a24d8",
+    "board.pourplan.json": "cc269fed78e8229af7fd464a141b1f18c264935e6d0361833dd8d0e11fe7a3fd",
+    "board.kicad_dru": "fc0c1b050c2695482639e6e1dc7fcde2b132db54a1e7340f2108dbdc92df48eb",
+    "board.priority-replacements.json": "bc03f662cda4aa2141f34066e878247a134e4659beff32743f623447d9477240",
+    "board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+  },
+  "candidate_sha256": "6491053447eb3a0ac03a031f159d4ceefc71ddfd4508ae28561eeeb8be93e8c9",
+  "pose": [
+    73500000,
+    49700000,
+    90
+  ],
+  "no_copper_edits": true,
+  "board_private_only": true,
+  "current_qualified": false,
+  "release_authority": false
+}

@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "scope": "source_bound_topology_and_height_decision_not_fabrication_admission",
+  "previous_goal_turn": "progress: saved and independently received a 51.72 percent shorter VBUS chain with zero native errors/opens; commit41bd5c6a",
+  "this_goal_turn": "progress: identified actual controlling package edges, tested finite full-current bar topologies, and rejected the unsupported assumption that existing THT tails guarantee backside bar height neutrality",
+  "goal_status": "active_not_complete",
+  "source": {
+    "atx": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+    "atx_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+    "hub": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "hub_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "stack": "beta/assembly/hub-atx-stack.json",
+    "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "selector_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484"
+  },
+  "topology_findings": [
+    {
+      "concept": "Two inline backside bars near x4 replacing the left 12V detour",
+      "source": "main-scout/route-probe.json",
+      "positive": "Three required full-width 3.230592mm planar links found; no new via or shunt reassignment needed in this bounded routing preview",
+      "not_established": "Native installed part/courtyard and current transport receiving; both bars' minimum underside and maximum installed heights; second-side assembly; cost and qualification",
+      "decision": "Do not construct or promote as height-neutral. Existing selected hardware/tail data do not establish room for the nominal 2.3mm raised bars."
+    },
+    {
+      "concept": "One backside MJP1.0 at x20 or x22, feet y34.6 and60",
+      "source": "main-scout/single-bar-probe.json",
+      "positive": "Both upper full-width feeds reach existing 12V copper",
+      "negative": "All four lower-feed trials refused, including a counterfactual removal of one positively ordinary-owned PR1 track. Remaining protected 5VSB copper and foreign 5V header pads are real obstacles.",
+      "decision": "Not route-ready; not a global impossibility proof. Do not label it an ordinary signal-cleanup-only task."
+    },
+    {
+      "concept": "Right-front MJP1.0 previously screened at (71,69.3)",
+      "source": "../part-model-20261106/endpoint-first-20261106/feed-probe.json",
+      "positive": "Mechanically useful inward location and lower full-current feed; VBUS landing obstruction has since been removed by a received route change",
+      "negative": "Upper full-current feed still not found through retained power and monitor geometry",
+      "decision": "Remain a topology candidate only. Do not install redundant bar copper just to produce a zero-open preview."
+    }
+  ],
+  "compaction": {
+    "source": "stack-scout.json",
+    "atx_native_outline_mm": [78,87.5],
+    "declared_body_plus_laminate_before_mm": [89.585,93.09],
+    "conditional_after_left_2mm_trim_mm": [87.585,93.09],
+    "conditional_width_decrease_mm": 2,
+    "conditional_height_decrease_mm": 0,
+    "actual_compaction_achieved_this_turn_mm": [0,0],
+    "complete_package_qualification": false,
+    "excluded_from_declared_bound": ["external cables/plugs", "hardware extents", "tool/service access"],
+    "controllers": {
+      "left": "ATX long /SENSE12V_HI B.Cu detour; then reflected fixed Hub laminate at x2",
+      "right": "Hub four RJ connector mouths at x89.585",
+      "top": "ATX output terminal bodies at y-1.295",
+      "bottom": "ATX J3 body at y91.795"
+    },
+    "larger_alternative": "One additional millimeter via coordinated Hub port-bank/support and matching J6C motion passed the declared paired body/contact screen, but failed same-face owner overlaps. It is not an accepted placement or route. Can/KVM motion alone does not move the present envelope-controlling edges."
+  },
+  "external_height_evidence": {
+    "source": "z-datum-source.json",
+    "MJP_nominal_body_height_mm": 2.3,
+    "existing_conditional_tail_minima_mm": {"Molex39291247":1.04,"XFCN_T34069":1.74,"XFCN_TTR32100127-0600":1.34},
+    "screw_part_head_minimum_mm": 1.86,
+    "inference_boundary": "Conditional untrimmed/full-seated tail geometry and public PCB thickness bounds are not released installed-process guarantees. None establish >=2.3mm plus assembly margin; actual individual tails may be longer.",
+    "no_added_complete_Z_proven": false
+  },
+  "next_required_action": {
+    "type": "manufacturer_and_assembler_technical_evidence_before_qualified_bar_selection",
+    "prepared_inquiries": "docs/evidence/20261106-busbar-technical-inquiries.json",
+    "authorization": "Awaiting user response to technical-contact request; no contact or order sent",
+    "required": [
+      "Released part geometry, maximum installed top and minimum underside bounds",
+      "Catalog current conditions, resistance/derating, land/joint and assembly guidance",
+      "Actual sourceable quantity, exact JLC process acceptance and itemized landed assembly quote"
+    ],
+    "do_not_substitute": [
+      "Nominal footprint placement for complete assembled-height proof",
+      "Native jumper zero opens for rated component transport/current proof",
+      "A 2mm hypothetical edge trim for demonstrated meaningful full-stack compaction",
+      "Repeated unchanged local route sweeps for the missing external evidence"
+    ]
+  },
+  "boards_changed": false,
+  "source_ratings_or_rules_changed": false,
+  "bar_installed": false,
+  "current_qualified": false,
+  "fab_ready": false,
+  "release_authority": false
+}

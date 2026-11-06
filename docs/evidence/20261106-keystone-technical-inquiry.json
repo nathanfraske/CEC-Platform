@@ -1,0 +1,23 @@
+{
+  "schema":1,
+  "status":"DRAFT_NOT_SENT",
+  "authorization":"No outbound supplier inquiry or order authorized for this part yet",
+  "purchase_authority":false,
+  "part":"Keystone5104TR, LCSC C7466142",
+  "purpose":"Resolve actual usability of short12V source-to-shunt jumpers in a compact six-layer1.6mm PCB stack, retaining12A continuous requirement and1.25 conductor-sizing margin; no assumed current sharing",
+  "manufacturer_questions":[
+    "Please provide the released5104TR part drawing with tolerances, coplanarity and bend profile. The K75p60 mounting drawing appears to give8.10mm between land inner edges,13.30mm overall and derived10.70mm center spacing. Please confirm recommended land geometry; distributor metadata calls8.10mm pitch.",
+    "What are the maximum mounted top height and minimum underside clearance, including specified solder/seating conditions? The catalog shows1.8mm nominal height and0.51mm metal. We must not use1.29mm derived nominal underside as a guaranteed clearance, particularly under the bent regions.",
+    "For a foreign conductor crossing under the bridge, state allowable conductor/obstacle envelope, electrical clearances and whether the0.50mm minimum plan-view spacing also constrains that crossing. We will not rely on solder mask as qualified insulation.",
+    "Please provide the20A/70C/105C-connection rating test conditions, fixture copper, solder alloy/lands, resistance and derating/application guidance. Our unchanged planar12V feed is3.230592mm wide while nominal recommended land width is2.8mm. Confirm an acceptable enlarged-land/taper, paste and joint configuration for12A continuously with our retained15A sizing screen.",
+    "Please confirm tape/reel construction, reflow profile and any second-side retention or solder-joint reliability limits. This is a technical inquiry only, not an order."
+  ],
+  "assembler_questions":[
+    "Can JLC assemble exact Keystone5104TR/C7466142 through native sourcing or supplied cut tape? An LCSC identity listing alone does not establish availability or process acceptance.",
+    "Please specify feeder/leader/trailer, nozzle, paste/stencil, alignment/coplanarity, maximum installed height, minimum underside and inspection limits for this part and the proposed enlarged copper lands. State whether any second-side placement changes the process.",
+    "For comparison only, quote samples and100boards with one or two jumpers per board, separating parts, required overage, consignment/handling, setup, placement and inspection. No order, delivery commitment or payment is authorized."
+  ],
+  "public_sources_to_supply":["https://www.keyelco.com/userAssets/file/K75p60.pdf","https://www.lcsc.com/product-detail/C7466142.html"],
+  "do_not_send":["Entire repository","Credentials","Unrelated board files","Unverified production commitments"],
+  "required_evidence":"Original dated manufacturer/assembler response with exact MPN, drawing revision, accepted process and limits. A supplier quote does not by itself qualify current or thermal performance."
+}

@@ -1,0 +1,1 @@
+(fp_lib_table (lib (name "CEC_MJP08_Prototype") (type "KiCad") (uri "${KIPRJMOD}/CEC_MJP08_Prototype.pretty") (options "") (descr "MJP-0.8 PHOSPHOR BRONZE NOMINAL PROTOTYPE")))

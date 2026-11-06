@@ -1,0 +1,9 @@
+(version 1)
+# BEGIN CEC LOCAL POFV SIGNAL VIA
+# Filled/capped local signal dogbones under the selected profile.
+(rule "CEC local POFV signal via"
+  (condition "A.Type == 'Via' && A.memberOfGroup('CEC_LOCAL_POFV_SIGNAL_VIA')")
+  (constraint via_diameter (min 0.300mm))
+  (constraint hole_size (min 0.200mm))
+  (constraint annular_width (min 0.050mm)))
+# END CEC LOCAL POFV SIGNAL VIA

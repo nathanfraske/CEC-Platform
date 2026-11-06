@@ -1,0 +1,39 @@
+{
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "net": "+5VSB",
+  "kind": "aggregate_source_sink",
+  "actual_equals_wire": false,
+  "differences": [
+    {
+      "key": "routing_layers",
+      "actual_type": "tuple",
+      "wire_type": "list",
+      "actual": [
+        "F.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "B.Cu"
+      ],
+      "wire": [
+        "F.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "B.Cu"
+      ]
+    },
+    {
+      "key": "authority_refs",
+      "actual_type": "tuple",
+      "wire_type": "list",
+      "actual": [
+        "J3",
+        "RS4"
+      ],
+      "wire": [
+        "J3",
+        "RS4"
+      ]
+    }
+  ],
+  "read_only": true
+}

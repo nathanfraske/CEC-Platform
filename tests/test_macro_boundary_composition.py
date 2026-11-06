@@ -67,7 +67,7 @@ def test_composed_native_component_has_both_real_terminals_not_the_old_bend(tmp_
     assert all(r['every_surviving_source_component_port_mandatory'] for r in rebuilt.values())
 
 
-@pytest.mark.parametrize('fault',['join','interior','net','width','group','role','stale_source'])
+@pytest.mark.parametrize('fault',['join','interior','net','width','wider_demand','group','role','stale_source'])
 def test_false_source_boundaries_cannot_be_composed(tmp_path,monkeypatch,fault):
     board,path,plan,requests,extras,stub,peer=fixture(tmp_path,monkeypatch)
     request=next(iter(requests.values()))
@@ -75,6 +75,7 @@ def test_false_source_boundaries_cannot_be_composed(tmp_path,monkeypatch,fault):
     elif fault=='interior':request['b']['at_nm'][1]-=100000
     elif fault=='net':request['net']='GND_other'
     elif fault=='width':request['width_nm']=100000
+    elif fault=='wider_demand':request['width_nm']=300000
     elif fault=='group':
         group=pcbnew.PCB_GROUP(board);board.Add(group);group.AddItem(next(t for t in board.GetTracks() if force._uid(t)==stub))
         plan['source_native_binding']=row._source_binding(board)

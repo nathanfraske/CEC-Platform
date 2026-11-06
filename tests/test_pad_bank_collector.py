@@ -143,3 +143,96 @@ def test_pad_only_bank_closes_native_islands_without_inventing_stems_or_capacity
         tuple(saved_pads[pad.m_Uuid.AsString()].GetDrillSize()),
         tuple(saved_pads[pad.m_Uuid.AsString()].GetSize())) for pad in pads]==poses
     assert not proof['new_capacity_credited'] and not proof['release_authority']
+
+
+def grid_fixture(angle=0, mirror=False, layer=pcbnew.F_Cu, columns=2):
+    b, pads, tracks = fixture(angle,mirror,layer)
+    # Independent rectangular lattice, not a copied real board/refdes/pose.
+    for track in tracks:
+        b.Remove(track)
+    fp = pads[0].GetParentFootprint()
+    for pad in pads:
+        fp.Remove(pad)
+    def at(x,y):
+        if mirror: x = -x
+        for _ in range(angle//90): x,y = -y,x
+        return pcbnew.VECTOR2I_MM(30+x,30+y)
+    made = []
+    net = b.FindNet('/UNRELATED_RENAMED_BANK')
+    for x in range(columns):
+        for y in range(2):
+            pad = pcbnew.PAD(fp); fp.Add(pad); pad.SetNet(net)
+            pad.SetNumber(str(80+len(made)))
+            pad.SetShape(pcbnew.PAD_SHAPE_OVAL); pad.SetAttribute(pcbnew.PAD_ATTRIB_PTH)
+            pad.SetLayerSet(pcbnew.PAD.PTHMask()); pad.SetSize(pcbnew.VECTOR2I_MM(2.7,3.7))
+            pad.SetDrillSize(pcbnew.VECTOR2I_MM(1.8,1.8)); pad.SetPosition(at(x*5.5,y*5.0))
+            pad.SetOrientationDegrees(angle); made.append(pad)
+    return b,made,[]
+
+
+@pytest.mark.parametrize('angle',[0,90,180,270])
+@pytest.mark.parametrize('mirror',[False,True])
+@pytest.mark.parametrize('layer',[pcbnew.F_Cu,pcbnew.B_Cu])
+@pytest.mark.parametrize('columns',[2,3])
+def test_complete_grid_saved_fill_has_real_pad_contacts_without_capacity_claim(tmp_path,angle,mirror,layer,columns):
+    b,pads,tracks = grid_fixture(angle,mirror,layer,columns)
+    original = copper_inventory(b)
+    plan = proposal(b,pads,tracks,layer)
+    assert copper_inventory(b) == original
+    made = bank.materialize(b,plan); b.BuildConnectivity()
+    assert pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+    path = tmp_path/'grid.kicad_pcb'; pcbnew.SaveBoard(str(path),b)
+    saved = pcbnew.LoadBoard(str(path)); proof = bank.receive(saved,plan,made['zone_uuid'])
+    assert proof['ok'] and proof['complete'],proof
+    assert proof['pad_count'] == columns*2 and not proof['new_capacity_credited']
+    assert not proof['release_authority']
+    live = {p.m_Uuid.AsString():p for f in saved.GetFootprints() for p in f.Pads()}
+    connectivity = pcbnew.CONNECTIVITY_DATA()
+    for item in [*live.values(),*saved.GetTracks(),*saved.Zones()]:
+        assert connectivity.Add(item)
+    seed = live[pads[0].m_Uuid.AsString()]
+    connected = {seed.m_Uuid.AsString()} | {p.m_Uuid.AsString()
+        for p in connectivity.GetConnectedItems(seed)}
+    assert {p.m_Uuid.AsString() for p in pads} <= connected
+
+
+@pytest.mark.parametrize('fault',['missing_corner','one_nm_jitter','duplicate_center','foreign_interior'])
+def test_grid_is_exact_complete_and_foreign_clear_not_a_nearness_fill(fault):
+    b,pads,tracks = grid_fixture()
+    if fault == 'missing_corner':
+        pads = pads[:-1]
+    elif fault == 'one_nm_jitter':
+        pads[0].Move(pcbnew.VECTOR2I(1,0))
+    elif fault == 'duplicate_center':
+        pads[0].SetPosition(pads[1].GetPosition())
+    else:
+        net = pcbnew.NETINFO_ITEM(b,'/FOREIGN_INTERIOR'); b.Add(net)
+        fp = pcbnew.FOOTPRINT(b); b.Add(fp); pad = pcbnew.PAD(fp); fp.Add(pad)
+        pad.SetNet(net); pad.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        pad.SetShape(pcbnew.PAD_SHAPE_RECT); pad.SetLayerSet(pcbnew.PAD.SMDMask())
+        pad.SetSize(pcbnew.VECTOR2I_MM(.5,.5)); pad.SetPosition(pcbnew.VECTOR2I_MM(32.75,32.5))
+    original = copper_inventory(b)
+    with pytest.raises(bank.Refused):
+        proposal(b,pads,tracks)
+    assert copper_inventory(b) == original
+
+
+@pytest.mark.parametrize('layer',[pcbnew.F_Cu,pcbnew.B_Cu])
+def test_complete_grid_with_retained_leads_replays_saved_source_shapes(tmp_path,layer):
+    b,pads,_ = grid_fixture(layer=layer)
+    tracks = []
+    for pad in [p for p in pads if p.GetPosition().y == 35_000_000]:
+        track = pcbnew.PCB_TRACK(b); track.SetNet(pad.GetNet()); track.SetLayer(layer)
+        track.SetStart(pad.GetPosition()); track.SetEnd(pad.GetPosition()+pcbnew.VECTOR2I(0,5_000_000))
+        track.SetWidth(3_400_000); track.SetLocked(True); b.Add(track); tracks.append(track)
+    plan = proposal(b,pads,tracks,layer); before = copper_inventory(b)
+    made = bank.materialize(b,plan); b.BuildConnectivity()
+    assert pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+    path = tmp_path/'grid-with-retained-leads.kicad_pcb'; pcbnew.SaveBoard(str(path),b)
+    saved = pcbnew.LoadBoard(str(path)); result = bank.receive(saved,plan,made['zone_uuid'])
+    assert result['ok'] and result['complete'],result
+    assert result['retained_track_count'] == 2 and result['pad_count'] == 4
+    # Altering a source lead after construction cannot inherit this proof.
+    saved.GetTracks()[0].SetWidth(3_399_999)
+    rejected = bank.receive(saved,plan,made['zone_uuid'])
+    assert not rejected['ok'] and not rejected['complete']

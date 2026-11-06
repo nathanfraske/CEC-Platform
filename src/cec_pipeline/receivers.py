@@ -72,17 +72,22 @@ def worker(job_path, step, output):
             )
         elif kind == "place_cell":
             import cec_complete_cell_receiving as cell_receiving
+            from . import cells
 
             op = job["request"]["operations"][0]
-            result = cell_receiving.receive(
-                source,
-                candidate,
-                board_hint=job["board"],
-                timeout_s=10.0,
-                max_shift_mm=op.get("max_shift_nm", 6000000) / 1e6,
-                allow_owned_locked_escapes=bool(op["allow_locked_track_uuids"]),
-                reference_group_uuids=op.get("reference_group_uuids", ()),
-            )
+            if op.get("native_macro", False):
+                result = cells.receive_macro(source,candidate,op,construction["changes"][0],job["board"])
+            else:
+                result = cell_receiving.receive(
+                    source,
+                    candidate,
+                    board_hint=job["board"],
+                    timeout_s=10.0,
+                    max_shift_mm=op.get("max_shift_nm", 6000000) / 1e6,
+                    allow_owned_locked_escapes=bool(op["allow_locked_track_uuids"]),
+                    reference_group_uuids=op.get("reference_group_uuids", ()),
+                    allow_linear_power_stage_reconstruction=cells.linear_stage_option(op),
+                )
         elif kind == "add_connections":
             from .connections import receive
 

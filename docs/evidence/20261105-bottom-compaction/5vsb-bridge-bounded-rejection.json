@@ -1,0 +1,218 @@
+{
+  "status": "BOUNDED_TWO_TOPOLOGY_REJECTION_NO_BOARD_CREATED",
+  "source": {
+    "path": "experiments/repack/top-output-current-20261106/consolidated12-v1/carrier/board.kicad_pcb",
+    "sha256": "acf35631915c62f60e75a314f1d04469c8fc16647ddefc8c4ad3d4fb18c28dac"
+  },
+  "net": "/SENSE5VSB_LO",
+  "authority": {
+    "sustained_a": 3,
+    "geometry_margin": 1.25,
+    "design_a": 3.75,
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "required_width_mm": {
+      "F.Cu": 0.47736927907636145,
+      "PWR": 5.7190343613477115,
+      "B.Cu": 0.47736927907636145
+    },
+    "no_current_sharing_assumed": true,
+    "no_new_barrel_capacity_credited": true
+  },
+  "selected_source_bridge": {
+    "uuid": "664c316a-dc6f-436f-892e-af89f7b1ce4a",
+    "layer": "PWR",
+    "width_nm": 800000,
+    "points_nm": [
+      [
+        50815000,
+        7400000
+      ],
+      [
+        53150000,
+        7400000
+      ]
+    ]
+  },
+  "attempts": [
+    {
+      "kind": "Existing PWR owner additive lower-terminal-row plus retained bridge source-preserving collector",
+      "existing_zone_uuid": "171feffb-dca8-44d4-997a-95ebf3c20b9d",
+      "pad_uuids": [
+        "0ee1a8ee-9b64-57dc-948a-3c5274ef0877",
+        "afe64fbb-66ff-5ee8-88db-6d2fe5e7b6ed"
+      ],
+      "policy": {
+        "margin_nm": 1000,
+        "grid_nm": 1000,
+        "chamfer_nm": 600000
+      },
+      "actual_chamfer_nm": 587000,
+      "polygon_nm": [
+        [
+          44901000,
+          5899000
+        ],
+        [
+          52964000,
+          5899000
+        ],
+        [
+          53551000,
+          6486000
+        ],
+        [
+          53551000,
+          8314000
+        ],
+        [
+          52964000,
+          8901000
+        ],
+        [
+          44901000,
+          8901000
+        ],
+        [
+          44314000,
+          8314000
+        ],
+        [
+          44314000,
+          6486000
+        ]
+      ],
+      "result": "Refused before materialization by cec_pad_bank_collector._clear / native foreign-copper guard",
+      "reason": "foreign_native_copper_inside_proposed_outline: 5cda6306-6eaa-4ae3-848e-640bd0302537 PAD GND",
+      "blocker": {
+        "reference": "TB9",
+        "pad_number": "1",
+        "uuid": "5cda6306-6eaa-4ae3-848e-640bd0302537",
+        "net": "GND",
+        "position_nm": [
+          53565000,
+          4900000
+        ],
+        "native_PWR_copper_bounds_mm": [
+          52.415,
+          3.4,
+          54.715,
+          6.4
+        ],
+        "pad_size_local_nm": [
+          3000000,
+          2300000
+        ],
+        "drill_nm": [
+          2000000,
+          1500000
+        ]
+      }
+    },
+    {
+      "kind": "Existing-width0.8mm outer B.Cu alternative to existing source shunt-side via anchor; no new barrel",
+      "points_nm": [
+        [
+          50815000,
+          7400000
+        ],
+        [
+          52700000,
+          7400000
+        ],
+        [
+          53500000,
+          8200000
+        ],
+        [
+          53500000,
+          19800000
+        ],
+        [
+          52750000,
+          20550000
+        ],
+        [
+          40717767,
+          20550000
+        ],
+        [
+          39967767,
+          21300000
+        ],
+        [
+          39967767,
+          42769733
+        ]
+      ],
+      "target_existing_via": "f70819f0-f37a-4e8a-879e-436e93851a8b",
+      "result": "Rejected actual native B.Cu pad/track/via clearance screen before construction",
+      "representative_crossings": [
+        {
+          "uuid": "6abb77b4-527b-451f-8dc9-981348e816f9",
+          "net": "+3V3"
+        },
+        {
+          "uuid": "78b2b316-7e31-4927-9bf1-044deb2b33d1",
+          "net": "/I2C_SDA"
+        },
+        {
+          "uuid": "b406b17a-f112-4810-838c-0a62118ec98d",
+          "net": "/USB_D_P"
+        },
+        {
+          "uuid": "12d99035-dfd9-4c95-8de8-7994ee9c5946",
+          "net": "/USB_D_N"
+        },
+        {
+          "uuid": "3f6c90fc-8584-44fa-b5d0-6e63dd8ff8a5",
+          "net": "/SENSE12V_HI"
+        },
+        {
+          "uuid": "419be928-4e3d-4256-9c81-cfa974240ff8",
+          "net": "+5V_MAIN"
+        },
+        {
+          "uuid": "8c5c18eb-3755-4c5f-a1cd-bf501b46ce10",
+          "net": "/ATX INTERPOSER + CONTROL SIGNALS/PSON_GATE"
+        },
+        {
+          "uuid": "fdd25957-6515-4b10-9d91-d23968e88b9f",
+          "net": "/CAN_TX"
+        }
+      ]
+    }
+  ],
+  "fresh_parent_native_DRC": {
+    "errors": 0,
+    "opens": 0,
+    "complete": true,
+    "report": "experiments/repack/5vsb-bridge-20261106/rejection/parent-drc.json",
+    "sha256": "1f5827a48bf5f773d2fe79e31e981a220e0516ef90d46d3b899ab06859f3e242"
+  },
+  "fresh_current_debt_identity_check": {
+    "schema": 1,
+    "ok": true,
+    "complete": true,
+    "errors": [],
+    "new_faults": [],
+    "worsened_faults": [],
+    "current_qualified": false,
+    "release_authority": false,
+    "before_fault_objects": 5,
+    "after_fault_objects": 5,
+    "qualification_scope": "existing_current_width_check_only_not_whole_power_or_release",
+    "independent_native_evaluations": 1,
+    "exact_identical_saved_path_snapshot_reused": true,
+    "source_candidate_and_code_unchanged": true
+  },
+  "preservation": {
+    "source_PCB_unchanged": true,
+    "all_power_fill_AST_and_C37_guard_unchanged": "No candidate board was created or saved; exact source PCB hash is unchanged, so all native original pads/tracks/zones/saved fills/guards remain literal source.",
+    "original_terminal_partition": "Identity nonmutation only; no reconstructed candidate partition claimed."
+  },
+  "conclusion": "No legal candidate found in these two explicit topologies. This is a bounded routing rejection, not a proof that no other topology exists and not a current waiver. Other copper/placement, source rules and current authority were not changed.",
+  "boards_modified": false,
+  "gates_modified": false,
+  "current_qualified": false,
+  "release_authority": false
+}

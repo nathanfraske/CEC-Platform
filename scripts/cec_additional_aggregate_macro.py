@@ -32,7 +32,8 @@ def _left(deadline):
 
 
 def collect(board, poses, *, board_hint, reference_group_uuids=(), timeout_s=10., excluded_refs=(),
-            require_explicit_owner=True):
+            require_explicit_owner=True, allow_linear_power_stage_reconstruction=False,
+            allow_owned_locked_escapes=False):
     """Rederive positive roles from the literal unchanged original Source.
 
     Assigned capacitors are explicitly outside this role. Unknown unrelated
@@ -44,6 +45,8 @@ def collect(board, poses, *, board_hint, reference_group_uuids=(), timeout_s=10.
     from cec_footprint_fields import footprint_properties
     deadline = _deadline(timeout_s)
     _need(type(require_explicit_owner) is bool, 'explicit_additional_aggregate_owner_mode_required')
+    _need(type(allow_linear_power_stage_reconstruction) is bool
+        and type(allow_owned_locked_escapes) is bool, 'explicit_wired_aggregate_macro_policy_required')
     _need(type(poses) is dict and 1 <= len(poses) <= 64 and type(board_hint) is str and board_hint,
           'literal_additional_aggregate_macro_context_required')
     _need(all(type(p) in (list, tuple) and len(p) == 3
@@ -88,8 +91,29 @@ def collect(board, poses, *, board_hint, reference_group_uuids=(), timeout_s=10.
         old_ground = any(t.GetNetCode() == ground.GetNetCode() and any(
             t.IsOnLayer(face) and ground.GetEffectiveShape(face).Collide(t.GetEffectiveShape(face), 0)
             for face in ground.GetLayerSet().CuStack()) for t in board.GetTracks())
-        ground_leaf = None
-        if old_ground:
+        ground_leaf = None; wired_identity = None
+        old_supply = any(t.GetNetCode() == positive.GetNetCode() and any(
+            t.IsOnLayer(face) and positive.GetEffectiveShape(face).Collide(t.GetEffectiveShape(face), 0)
+            for face in positive.GetLayerSet().CuStack()) for t in board.GetTracks())
+        if allow_linear_power_stage_reconstruction and old_ground and old_supply:
+            import cec_wired_aggregate_ground_leaf as leaves
+            _need(group_uid is None, 'wired_aggregate_reference_map_needs_separate_transport')
+            ground_leaf = leaves.plan(board, cap.force._uid(ground), poses, board_hint=board_hint,
+                allow_linear_power_stage_reconstruction=True,
+                allow_owned_locked_escapes=allow_owned_locked_escapes, timeout_s=_left(deadline))
+            wired_identity = ground_leaf['wired_identity']
+            _need(ground_leaf['scope'] == leaves.SCOPE
+                and ground_leaf['source_native_binding'] == binding
+                and ground_leaf['source_family'] == family and ground_leaf['code_identity'] == epoch
+                and ground_leaf['pad_uuid'] == cap.force._uid(ground)
+                and wired_identity['footprint_uuid'] == cap.force._uid(fp),
+                'additional_aggregate_fresh_wired_Ground_role_required')
+            canonical = wired_identity['canonical_source']
+            original_assignment = wired_identity['unchanged_selected_bypass_assignments']
+            domain, contract = wired_identity['aggregate_domain'], wired_identity['aggregate_contract']
+            current = wired_identity['current_contract']; reference = None
+            kind = 'aggregate_source_sink'
+        elif old_ground:
             import cec_aggregate_cap_ground_leaf as leaves
             try:
                 ground_leaf = leaves.plan(board, cap.force._uid(ground), board_hint=board_hint,
@@ -132,7 +156,7 @@ def collect(board, poses, *, board_hint, reference_group_uuids=(), timeout_s=10.
                 reference, = cap.maps.inspect_many(source, [(cap.force._uid(fp), group_uid)], timeout_s=_left(deadline))
         locality = canonical['locality_owner']; owner = fps.get(locality['owner_ref'])
         _need(owner is not None and (owner.GetReference() in poses or not require_explicit_owner)
-            and (owner.GetReference() not in poses or
+            and (wired_identity is not None or owner.GetReference() not in poses or
                 list(poses[owner.GetReference()][:2]) == [owner.GetPosition().x / 1e6, owner.GetPosition().y / 1e6]
                 and (poses[owner.GetReference()][2] - owner.GetOrientationDegrees()) % 360 == 0),
             'additional_aggregate_requires_explicit_stationary_typed_owner')
@@ -152,14 +176,17 @@ def collect(board, poses, *, board_hint, reference_group_uuids=(), timeout_s=10.
             unchanged_selected_bypass_assignments=original_assignment, source_reference_map=reference,
             supply_pad_uuid=cap.force._uid(positive), ground_pad_uuid=cap.force._uid(ground),
             aggregate_domain=domain, aggregate_contract=contract, current_contract=current,
-            source_supply_inventory=inventory, source_supply_isolated=True,
+            source_supply_inventory=inventory, source_supply_isolated=wired_identity is None,
             source_Ground_leaf=ground_leaf,
             ground_width_nm=max(200000, int(board.GetDesignSettings().m_TrackMinWidth),
                 int(cap.cells._netclass(board, 'GND')['width'])), maximum_Ground_return_mm=.8,
-            no_Source_copper_retirement=ground_leaf is None,
+            no_Source_copper_retirement=ground_leaf is None and wired_identity is None,
             Source_Ground_leaf_retirement_requires_fresh_independent_ownership=ground_leaf is not None,
             routing_admitted=False, current_authority=False,
             new_barrel_authority=False, release_authority=False))
+        if wired_identity is not None:
+            result[ref]['source_wired_identity'] = wired_identity
+            result[ref]['source_wired_supply_cuts_require_separate_full_current_plan'] = True
     _need(binding == cap.row._source_binding(board) and epoch == cap.force._code_identity()
         and family == cap.force._family(source, board_hint), 'additional_aggregate_Source_epoch_changed')
     _left(deadline)
@@ -175,7 +202,9 @@ def _context(parent, child, proposal, deadline):
     if not roles: return roles
     fresh = collect(parent, proposal['poses'], board_hint=proposal['board_hint'],
         reference_group_uuids=proposal.get('reference_group_uuids', ()), timeout_s=_left(deadline),
-        excluded_refs=proposal.get('additional_aggregate_excluded_refs', ()))
+        excluded_refs=proposal.get('additional_aggregate_excluded_refs', ()),
+        **({k: proposal[k] for k in ('allow_linear_power_stage_reconstruction', 'allow_owned_locked_escapes')
+            if k in proposal}))
     _need(_wire(fresh) == _wire(roles), 'stale_or_forged_additional_aggregate_role')
     identities = set()
     for ref, proof in roles.items():
@@ -203,13 +232,89 @@ def _context(parent, child, proposal, deadline):
               'additional_aggregate_changed_minimum_bypass_assignment')
         owner = child.FindFootprintByReference(proof['source_locality_owner']['owner_ref'])
         original = parent.FindFootprintByReference(proof['source_locality_owner']['owner_ref'])
-        _need(owner is not None and original is not None
-            and identity._footprint(child, owner) == identity._footprint(parent, original),
+        expected_owner = pcbnew.FOOTPRINT(original) if original is not None else None
+        wired = proof.get('source_wired_identity')
+        if wired is not None and wired.get('coherent_owner_motion') is not None:
+            target = wired['coherent_owner_motion']['target_pose']
+            expected_owner.SetPosition(pcbnew.VECTOR2I(*(round(v*1e6) for v in target[:2])))
+            expected_owner.SetOrientationDegrees(target[2])
+        _need(owner is not None and expected_owner is not None
+            and identity._footprint(child, owner) == identity._footprint(child, expected_owner),
             'additional_aggregate_locality_owner_moved')
     return roles
 
 
-def _requests(parent, child, proposal, roles, deadline):
+def _incident_cut_requests(parent, child, proposal, proof, plans, retired, positive, deadline):
+    """Project every literal external full-current cut contact, not net peers.
+
+    Per-edge plans can name a bend on another simultaneously replaced edge.
+    Only those exact positively planned edges disappear here.  Every actual
+    surviving contact is a separate full-width obligation, even when several
+    shared an old coordinate.  Unproved conductor motion is never inferred.
+    """
+    import cec_source_aggregate_capacitor_cell as cap
+    import cec_control_gate_bias_placement as identity
+    planned = {u for plan in plans for u in plan['retired_track_uuids']}
+    old_tracks = {cap.force._uid(t):t for t in parent.GetTracks()}
+    live_tracks = {cap.force._uid(t):t for t in child.GetTracks()}
+    old_pads = [p for f in parent.GetFootprints() for p in f.Pads()]
+    live_pads = {cap.force._uid(p):p for f in child.GetFootprints() for p in f.Pads()}
+    result = {}; seen = set()
+    for plan in plans:
+        _left(deadline)
+        _need(plan['scope'] == 'exact_bounded_whole_current_planar_reflow'
+            and set(plan['retired_track_uuids']) <= planned
+            and plan['net'] == proof['aggregate_contract']['net'],
+            'wired_aggregate_exact_current_boundary_plan_required')
+        face = plan['layer_id']
+        for boundary in plan['source_boundaries']:
+            _need(boundary['restored'] is True and boundary['net'] == plan['net'],
+                'wired_aggregate_positive_Source_current_boundary_required')
+            for at in boundary.get('anchors_nm',[]):
+                point = pcbnew.VECTOR2I(*at)
+                contacts = [i for i in [*old_pads,*old_tracks.values()]
+                    if i.GetNetname() == plan['net'] and i.IsOnLayer(face)
+                    and i.GetEffectiveShape(face).Collide(point,0)]
+                _need(contacts, 'wired_aggregate_literal_current_anchor_missing')
+                for item in contacts:
+                    uid = cap.force._uid(item)
+                    if uid in planned: continue
+                    _need(uid not in retired, 'wired_aggregate_current_boundary_co_cut_needs_separate_projection')
+                    if item.GetClass() == 'PAD':
+                        _need(uid in live_pads, 'wired_aggregate_current_boundary_pad_missing')
+                        original = item.GetParentFootprint(); target = child.FindFootprintByReference(original.GetReference())
+                        expected = pcbnew.FOOTPRINT(original)
+                        pose = proposal['poses'].get(original.GetReference())
+                        if pose is not None:
+                            expected.SetPosition(pcbnew.VECTOR2I(*(round(v*1e6) for v in pose[:2])))
+                            expected.SetOrientationDegrees(pose[2])
+                        _need(target is not None and identity._footprint(child,target) == identity._footprint(child,expected),
+                            'wired_aggregate_current_boundary_exact_pad_owner_pose_required')
+                        terminal = cap.ports.port(live_pads[uid])
+                    else:
+                        _need(uid in live_tracks and identity._track(parent,item) == identity._track(child,live_tracks[uid]),
+                            'wired_aggregate_current_boundary_conductor_motion_needs_typed_projection')
+                        _need(live_tracks[uid].IsOnLayer(face)
+                            and live_tracks[uid].GetEffectiveShape(face).Collide(point,0),
+                            'wired_aggregate_current_boundary_literal_contact_lost')
+                        terminal = dict(at_nm=list(at),layers=[face],native_uuids=[uid])
+                    # Cap SUP itself is the graph root, not a zero-length
+                    # fictitious route. Other native contacts remain debts.
+                    if uid == cap.force._uid(positive): continue
+                    key = (uid,tuple(terminal['at_nm']),tuple(terminal['layers']),plan['width_nm'])
+                    if key in seen: continue
+                    seen.add(key)
+                    name = 'aggregate_incident_cut:'+proof['footprint_uuid']+':'+str(len(result))
+                    result[name] = dict(kind='source_boundary',net=plan['net'],a=cap.ports.port(positive),b=terminal,
+                        width_nm=max(plan['width_nm'],plan['full_current_floor_nm']),
+                        unchanged_full_rail_current_contract=proof['current_contract'],
+                        source_full_current_incident_cut_plan=plan,
+                        every_surviving_source_component_port_mandatory=True,
+                        complete_macro_projected_boundaries_and_partitions_still_mandatory=True)
+    return result
+
+
+def _requests(parent, child, proposal, roles, deadline, *, composed_current_cut_uuids=()):
     import cec_source_aggregate_capacitor_cell as cap
     import cec_control_gate_bias_placement as identity
     if not roles: return {}
@@ -235,10 +340,33 @@ def _requests(parent, child, proposal, roles, deadline):
             for p in original_fp.Pads() for face in p.GetLayerSet().CuStack())}
         leaf = proof.get('source_Ground_leaf')
         leaf_ids = set(leaf['track_uuids']) if leaf else set()
-        _need(not (incident & retired) - leaf_ids,
-              'additional_aggregate_cannot_retire_original_incident_metal')
+        supply_cuts = (incident & retired) - leaf_ids
+        current_cuts = []
+        if supply_cuts and proof.get('source_wired_identity') is not None:
+            # Wired identity does NOT grant retirement. Each actual incident
+            # edge needs the established full-current planar Source proof,
+            # including its complete fixed boundaries. The enclosing macro
+            # must project/restore those boundaries and all native partitions.
+            for uid in sorted(supply_cuts):
+                edge = old_tracks[uid]
+                _need(edge.GetNetname() == proof['aggregate_contract']['net'],
+                    'wired_aggregate_only_separately_owned_supply_cuts')
+                plan = cap.full.plan(parent, Path(proof['source']), board_hint=proposal['board_hint'],
+                    retired_track_uuids=[uid], timeout_s=_left(deadline))
+                # Roles are stable JSON receipts; the native planner still
+                # returns tuple-valued layer/ref inventories. Compare the
+                # same representation, not a weakened subset of the rating.
+                _need(_wire(plan['contract']) == proof['aggregate_contract']
+                    and plan['source_sha256'] == proof['source_sha256'],
+                    'wired_aggregate_same_full_current_cut_authority_required')
+                current_cuts.append(plan)
+        else:
+            _need(not supply_cuts, 'additional_aggregate_cannot_retire_original_incident_metal')
         if leaf:
-            import cec_aggregate_cap_ground_leaf as leaves
+            if proof.get('source_wired_identity') is not None:
+                import cec_wired_aggregate_ground_leaf as leaves
+            else:
+                import cec_aggregate_cap_ground_leaf as leaves
             _need(leaf_ids <= retired and not leaf_ids & live_tracks.keys(),
                 'additional_aggregate_complete_independently_owned_Ground_leaf_retirement_required')
             leaves.retained_contacts_unchanged(parent, child, leaf)
@@ -273,22 +401,31 @@ def _requests(parent, child, proposal, roles, deadline):
                 source_required_surface_layer=locality['face']),
             'ground:' + proof['ground_pad_uuid']: dict(kind='ground', net='GND',
                 a=cap.ports.port(pads[proof['ground_pad_uuid']]), reach_mm=.8, width_nm=proof['ground_width_nm'])}
+        if current_cuts:
+            if composed_current_cut_uuids:
+                import cec_aggregate_current_cut_cohort as cohort
+                entries.update(cohort.requests(parent,child,proposal,proof,current_cuts,retired,
+                    composed_current_cut_uuids,deadline))
+            else:
+                entries.update(_incident_cut_requests(parent,child,proposal,proof,current_cuts,retired,positive,deadline))
         _need(not requests.keys() & entries.keys(), 'duplicate_additional_aggregate_request_identity')
         requests.update(entries)
     return requests
 
 
-def requests(parent, child, proposal):
+def requests(parent, child, proposal, *, composed_current_cut_uuids=()):
     deadline = _deadline(10.)
-    return _requests(parent, child, proposal, _context(parent, child, proposal, deadline), deadline)
+    return _requests(parent, child, proposal, _context(parent, child, proposal, deadline), deadline,
+        composed_current_cut_uuids=composed_current_cut_uuids)
 
 
-def observe(parent, child, proposal, *, timeout_s=10.):
+def observe(parent, child, proposal, *, timeout_s=10., composed_current_cut_uuids=()):
     """Independently rederive intent and observe actual complete saved copper."""
     import cec_source_aggregate_capacitor_cell as cap
     deadline = _deadline(timeout_s)
     roles = _context(parent, child, proposal, deadline)
-    demands = _requests(parent, child, proposal, roles, deadline); rows = {}
+    demands = _requests(parent, child, proposal, roles, deadline,
+        composed_current_cut_uuids=composed_current_cut_uuids); rows = {}
     for ref, proof in roles.items():
         pads = {cap.force._uid(p): p for f in child.GetFootprints() for p in f.Pads()}
         positive = pads[proof['supply_pad_uuid']]; ground = pads[proof['ground_pad_uuid']]
@@ -316,6 +453,11 @@ def observe(parent, child, proposal, *, timeout_s=10.):
                 and root_connection.get('zone_and_foreign_net_edges_excluded') is True,
                 'additional_aggregate_actual_full_current_Source_root_path_required')
             roots.append(root_connection)
+        cut_connections = []
+        for key,request in demands.items():
+            if not key.startswith('aggregate_incident_cut:'+proof['footprint_uuid']+':'):continue
+            cut_connections.append(cap.ports.full_width_connection(parent,child,Path(proof['source']),request,
+                proposal['board_hint'],deadline))
         class GroundView:
             def GetTracks(self): return [t for t in child.GetTracks() if t.GetNetname() == 'GND'
                 and (t.GetClass() == 'PCB_VIA' or t.GetClass() in ('PCB_TRACK', 'PCB_ARC')
@@ -330,7 +472,8 @@ def observe(parent, child, proposal, *, timeout_s=10.):
         references = cap.reference._reference_contacts(child, via)
         rows[ref] = dict(actual_local_path_mm=local, actual_Ground_return_mm=immediate[0],
             Ground_via_uuid=cap.force._uid(via), actual_Ground_reference_contacts=references,
-            full_current_carrier_connection=connection, full_current_Source_root_connections=roots)
+            full_current_carrier_connection=connection, full_current_Source_root_connections=roots,
+            full_current_incident_cut_boundary_connections=cut_connections)
         _left(deadline)
     return _wire(dict(ok=True, complete=True, role='Source_additional_aggregate_macro_observation',
         capacitors=rows, routing_admitted=False, current_authority=False, new_barrel_authority=False,

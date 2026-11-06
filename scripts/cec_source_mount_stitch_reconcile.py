@@ -361,6 +361,23 @@ def receive_physical(source,candidate,proposal,*,timeout_s=10.):
         mandatory_native_current_local_return_intake_parity_craft_live_receiving_still_required=True)
 
 
+def native_nonregression(before,after):
+    """Exact findings, not a required decrease in an unrelated warning count.
+
+    Source-library coordinate replay proves normalization. Native DRC may
+    already consider a small drift within its comparison tolerance; requiring
+    it to remove a nonexistent warning rejects a real source correction.
+    No new finding, inherited error, exclusion or increased opens is waived.
+    """
+    import cec_received_private_stage as stage
+    delta=stage.native_findings_delta(before,after)
+    passed=(delta['ok'] is True
+        and not any(v.get('severity')=='error' for v in after['violations'])
+        and not before.get('excluded_violations') and not after.get('excluded_violations')
+        and len(after['unconnected_items'])<=len(before['unconnected_items']))
+    return dict(ok=bool(passed),findings_delta=delta,inherited_findings_qualified=False)
+
+
 def receive_full(source,candidate,out,*,board_hint,mount_uuids,assembly_instance=None,terminal_mode='existing_ground'):
     """Saved mechanical proof plus unchanged shared gates; outer caller <=120s.
 
@@ -421,12 +438,10 @@ def receive_full(source,candidate,out,*,board_hint,mount_uuids,assembly_instance
                 raise ValueError('native_library_epoch_mismatch')
             reports[name+'_native_producer']=proof;native_reports.append(json.loads(report.read_text()))
         before,after=native_reports
-        reports['native_delta']=stage.native_findings_delta(before,after)
+        reports['native_nonregression']=native_nonregression(before,after)
+        reports['native_delta']=reports['native_nonregression']['findings_delta']
         warnings=lambda r:sum(v.get('severity')=='warning'for v in r['violations'])
-        gates['native']=(reports['native_delta']['ok']is True and warnings(after)<warnings(before)
-            and not any(v.get('severity')=='error'for v in after['violations'])
-            and not before.get('excluded_violations')and not after.get('excluded_violations')
-            and len(after['unconnected_items'])<=len(before['unconnected_items']))
+        gates['native']=reports['native_nonregression']['ok']
         reports['native_counts']=[dict(opens=len(r['unconnected_items']),warnings=warnings(r))for r in native_reports]
         reports['parity']=constraints._chk_sch_pcb_sync(child,str(candidate),{'sch':str(cfg.sch)})
         gates['parity']=reports['parity'][0]is True

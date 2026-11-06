@@ -1,0 +1,8 @@
+{
+  "macro_boundary:cf5a91b2-78b3-482b-baca-67567f8b16a7:component_port:1": {
+    "net": "+5VSB",
+    "layer": "B.Cu",
+    "width_nm": 477370,
+    "points_nm": [[30094990,59325000],[29735000,59325000],[29110000,58700000]]
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "source_sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc",
+  "candidate_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "terminal_count": 401,
+  "source_terminal_component_count": 94,
+  "candidate_terminal_component_count": 94,
+  "native_source_copper_components": 94,
+  "native_candidate_copper_components": 94,
+  "preserved": true,
+  "demoted_terminal_components": [],
+  "moved_pads": [
+    {
+      "reference": "F5",
+      "number": "1",
+      "source_nm": [
+        34487501,
+        52000000
+      ],
+      "candidate_nm": [
+        62300000,
+        11962500
+      ]
+    },
+    {
+      "reference": "F5",
+      "number": "2",
+      "source_nm": [
+        37412501,
+        52000000
+      ],
+      "candidate_nm": [
+        62300000,
+        9037500
+      ]
+    },
+    {
+      "reference": "J_KVM",
+      "number": "1",
+      "source_nm": [
+        44030001,
+        59550000
+      ],
+      "candidate_nm": [
+        64100000,
+        5750000
+      ]
+    },
+    {
+      "reference": "J_KVM",
+      "number": "2",
+      "source_nm": [
+        42030001,
+        59550000
+      ],
+      "candidate_nm": [
+        62100000,
+        5750000
+      ]
+    },
+    {
+      "reference": "J_KVM",
+      "number": "3",
+      "source_nm": [
+        40030001,
+        59550000
+      ],
+      "candidate_nm": [
+        60100000,
+        5750000
+      ]
+    },
+    {
+      "reference": "J_KVM",
+      "number": "4",
+      "source_nm": [
+        38030001,
+        59550000
+      ],
+      "candidate_nm": [
+        58100000,
+        5750000
+      ]
+    },
+    {
+      "reference": "J_KVM",
+      "number": "5",
+      "source_nm": [
+        36030001,
+        59550000
+      ],
+      "candidate_nm": [
+        56100000,
+        5750000
+      ]
+    },
+    {
+      "reference": "C37",
+      "number": "1",
+      "source_nm": [
+        73000000,
+        56900000
+      ],
+      "candidate_nm": [
+        73500000,
+        56600000
+      ]
+    },
+    {
+      "reference": "C37",
+      "number": "2",
+      "source_nm": [
+        73000000,
+        42900000
+      ],
+      "candidate_nm": [
+        73500000,
+        42600000
+      ]
+    },
+    {
+      "reference": "C32",
+      "number": "1",
+      "source_nm": [
+        44820000,
+        50000000
+      ],
+      "candidate_nm": [
+        45850000,
+        49820000
+      ]
+    },
+    {
+      "reference": "C32",
+      "number": "2",
+      "source_nm": [
+        44820000,
+        50960000
+      ],
+      "candidate_nm": [
+        45850000,
+        50780000
+      ]
+    },
+    {
+      "reference": "D7",
+      "number": "1",
+      "source_nm": [
+        39300001,
+        52300000
+      ],
+      "candidate_nm": [
+        55000000,
+        11450000
+      ]
+    },
+    {
+      "reference": "D7",
+      "number": "2",
+      "source_nm": [
+        41400001,
+        52300000
+      ],
+      "candidate_nm": [
+        55000000,
+        9350000
+      ]
+    },
+    {
+      "reference": "R28",
+      "number": "1",
+      "source_nm": [
+        55831300,
+        10206300
+      ],
+      "candidate_nm": [
+        53390000,
+        12700000
+      ]
+    },
+    {
+      "reference": "R28",
+      "number": "2",
+      "source_nm": [
+        55831300,
+        9186300
+      ],
+      "candidate_nm": [
+        54410000,
+        12700000
+      ]
+    },
+    {
+      "reference": "C_bulk1",
+      "number": "1",
+      "source_nm": [
+        56300000,
+        4956299
+      ],
+      "candidate_nm": [
+        37800000,
+        53000000
+      ]
+    },
+    {
+      "reference": "C_bulk1",
+      "number": "2",
+      "source_nm": [
+        61700000,
+        4956299
+      ],
+      "candidate_nm": [
+        43200000,
+        53000000
+      ]
+    }
+  ],
+  "method": "Per-authored-net native CONNECTIVITY_DATA over real pads/tracks/vias and decomposed saved-fill islands; terminal partition comparison with exact moved-pad identity rebindings, not endpoint graph or whole-zone UUID shortcut.",
+  "retained_copper_partition_or_current_qualification": false,
+  "routing_admitted": false,
+  "release_authority": false
+}

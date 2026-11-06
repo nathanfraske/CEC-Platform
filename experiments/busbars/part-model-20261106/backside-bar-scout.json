@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "status": "PLANAR_ALTERNATIVE_WITH_UNQUALIFIED_UNDERSIDE_Z_AND_LOCAL_FOOT_CONFLICTS",
+  "source": "experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+  "source_sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+  "proposal": {"face": "B.Cu", "feet_mm": [[30.9,41.5],[30.9,66.9]], "nominal_courtyard_mm": [29.655,40.255,32.145,68.145]},
+  "native_bottom_footprint_count": 0,
+  "benefit": "Avoids front-face R56/R57/R58/R59/R69/FB2 body and courtyard repacking. Opposing Hub bodies are not on this external carrier face.",
+  "upper_2x2_land_copper_conflicts": [
+    {"uuid":"907b27b8-2225-47db-91ab-93d691e15292","net":"DETECT","kind":"via","intersection_mm2":0.194280},
+    {"uuid":"80ac9175-6bec-474e-9dca-8978c69673b6","net":"DETECT","kind":"track","intersection_mm2":0.192786},
+    {"uuid":"a3306e39-793d-43a2-8a98-ad10d44fe74d","net":"DETECT","kind":"track","intersection_mm2":0.157104}
+  ],
+  "lower_2x2_land_copper_conflicts": [
+    {"uuid":"2b938cba-5b3d-4866-bee1-15ba266cb16d","net":"+5V_MAIN","kind":"via","intersection_mm2":0.021752},
+    {"uuid":"25a03e8e-8921-581a-b49b-d81a14017875","net":"+5V_MAIN","kind":"track","intersection_mm2":0.035460},
+    {"uuid":"bdd5e91a-488d-56ff-bf23-ed465a2fa6b5","net":"+5V_MAIN","kind":"track","intersection_mm2":0.035460},
+    {"uuid":"566fc04b-17a4-55f2-98b2-9144bfeb96e0","net":"+5V_SYS","kind":"track","intersection_mm2":0.156325}
+  ],
+  "geometry_scope": "Track intersections use native integer endpoints and widths with buffered Shapely segments/circles. No full saved-fill clearance, refill, new lands, native DRC or routed candidate. No PTH pad bounding-box intersections found at either proposed foot.",
+  "span_crossings": "Existing B.Cu 3V3, 5VSB, MAIN, SYS and signal copper crosses the raised span; it must not be treated as same-layer PCB bridging. Guaranteed minimum installed underside and maximum solder/via protrusion are required.",
+  "height_evidence": {
+    "bar_nominal_top_mm":2.3,
+    "bar_nominal_underside_mm":1.8,
+    "guaranteed_installed_bounds":null,
+    "existing_terminal_pin_or_solder_protrusion_bound":null,
+    "contract": "beta/assembly/hub-atx-stack.json",
+    "contract_scope": "22 mm interboard gap plus inward bodies and mating insertion; no qualified outer underside terminal-pin/solder envelope. Hardware screw head is 2.0 mm, itself below bar nominal 2.3 mm.",
+    "conclusion": "Cannot establish Z neutrality. Native THT pads/model references do not establish installed exposed lead/solder length. Bar may create a new external underside limit."
+  },
+  "process": "Current native board has no B.Cu components. Backside SMT bar creates a new second-side attachment/inspection operation; retention during other reflow or selective/manual attach, access, solder acceptance and consignment availability require assembler confirmation. No process approval implied.",
+  "decision": "Useful alternate front-face-avoidance geometry, but not drop-in: clear the named land copper, establish actual B.Cu 12V access/current and external Z/process evidence before adopting it. Source unchanged."
+}

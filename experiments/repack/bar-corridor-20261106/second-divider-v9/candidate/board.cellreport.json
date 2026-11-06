@@ -1,0 +1,18 @@
+{
+  "board": "board.kicad_pcb",
+  "force_lanes": null,
+  "ground_portals": {},
+  "laid": 4,
+  "locked_segments": 0,
+  "preserved_nets": [
+    "+5VSB",
+    "+5V_MAIN",
+    "/SENSE3V3_HI",
+    "/SENSE3V3_LO",
+    "/SENSE5VSB_LO",
+    "/SENSE5V_HI"
+  ],
+  "refused": [],
+  "schema": 1,
+  "total": 4
+}

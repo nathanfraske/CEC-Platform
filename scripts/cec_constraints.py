@@ -4207,6 +4207,25 @@ def _chk_tw(board, path, ctx):
         return topology.current_contract_for_net(
             net, path, current_domains, ground_amps=gnd_current)
 
+    # A native jumper can close an assembled ratsnest without adding any PCB
+    # conductor. Refuse an unmodelled rated component bridge even when every
+    # adjacent track is wide enough (no undersized-subgraph proof would run).
+    # Enrolled signal-only groups on unrelated nets remain unaffected.
+    try:
+        transports = cec_current_topology.unmodelled_internal_transports(board, names)
+        rated_transports = {net: rows for net, rows in transports.items()
+            if (not include_current_nets or net in include_current_nets)
+            and (net in current_domains or (current_contract(net) or {}).get('amps', 0) > 0)}
+    except Exception as exc:                           # noqa: BLE001
+        return False, str(exc), [{"type": "current_authority_binding",
+            "evidence": {"error": str(exc)}}]
+    if rated_transports:
+        return False, "component_internal_transport_model_required", [
+            {"type": "current_authority_binding", "net": net,
+             "evidence": {"unmodelled_component_transports": rows,
+                          "current_qualified": False}}
+            for net, rows in sorted(rated_transports.items())]
+
     # A track fully embedded in its own filled zone is not the load-bearing
     # cross-section; the zone/pour-width gates own that copper. Merely having a
     # zone somewhere on the net is no exemption.

@@ -64,8 +64,8 @@ def fixture(tmp_path, monkeypatch, quarter=0, back=False, kind='C'):
         for x, y in [(1, 1), (29, 1), (29, 29), (1, 29)]: poly.Append(x*1000000, y*1000000)
         z.Outline().Append(poly); board.Add(z)
     # Existing real Ground entry near the translated cell, not a new-hole credit.
-    v = pcbnew.PCB_VIA(board); v.SetNet(gnd); v.SetPosition(pcbnew.VECTOR2I_MM(15, 14))
-    v.SetWidth(900000); v.SetDrill(400000); v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); board.Add(v)
+    v = pcbnew.PCB_VIA(board); v.SetNet(gnd); v.SetPosition(pcbnew.VECTOR2I_MM(15.2, 14))
+    v.SetWidth(600000); v.SetDrill(300000); v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); board.Add(v)
     op.additive._ground_refill(board); op.field._save_field_snapshot(board, source)
     authority = dict(source='board_design_basis', amps=.75, geometry_margin=1.25, margin_included=False)
     contract = dict(net='/ALPHA', current_authority=authority,
@@ -133,7 +133,7 @@ def saved(tmp_path, monkeypatch):
     # cross the adjacent Ground pad. Ground dogbone is immediately to the right.
     for a, b in [((13.5, 14), (15.5, 12)), ((15.5, 12), (16, 12))]:
         track(board, '/ALPHA', a, b, width=.5)
-    track(board, 'GND', (14.5, 14), (15, 14), width=.2)
+    track(board, 'GND', (14.5, 14), (15.2, 14), width=.2)
     child = op.force._copy_family(source, tmp_path/'child')
     op.additive._ground_refill(board); op.save_private(board, child, q)
     return source, child, q
@@ -159,11 +159,28 @@ def test_independent_saved_complete_supply_and_immediate_ground_paths(tmp_path, 
     source, child, q = saved(tmp_path, monkeypatch); originals = (source.read_bytes(), child.read_bytes())
     r = op.receive(source, child, q)
     assert r['ok'] and r['complete'], r
-    assert r['actual_cell_paths']['actual_Ground_return_mm'] == .5
+    assert r['actual_cell_paths']['actual_Ground_return_mm'] == pytest.approx(.7)
     assert r['native_partition_preservation']['preserved']
     assert r['all_Source_copper_retained_exactly']
     assert originals == (source.read_bytes(), child.read_bytes())
     assert not r['current_qualified'] and not r['routing_admitted'] and not r['release_authority']
+
+
+def test_partial_overlap_same_net_ground_via_is_not_ordinary_dogbone(tmp_path, monkeypatch):
+    source, root, uid = fixture(tmp_path, monkeypatch)
+    board = pcbnew.LoadBoard(str(source))
+    via = next(t for t in board.GetTracks()
+               if t.GetClass() == 'PCB_VIA' and t.GetNetname() == 'GND')
+    # Preserve the old invalid positive fixture as an explicit negative:
+    # 0.9 mm land, 0.5 mm centre offset from the future Ground pad.
+    via.SetPosition(pcbnew.VECTOR2I_MM(15,14)); via.SetWidth(900000); via.SetDrill(400000)
+    op.additive._ground_refill(board); op.field._save_field_snapshot(board, source)
+    _, q = proposal(source, root, uid)
+    assert not q['pose_screen']['ok']
+    conflicts = q['pose_screen']['surface']['conflicts']
+    assert any(c['kind'] == 'same_net_via_pad_process'
+               and c['reason'] == 'full via land is not contained by the SMD pad'
+               for c in conflicts)
 
 
 @pytest.mark.parametrize('fault', ['symbol', 'pin_type', 'mpn', 'manufacturer', 'lcsc', 'value', 'package', 'pin_net', 'missing_pin'])
@@ -278,8 +295,8 @@ def test_long_translation_is_not_long_routing_or_relaxed_saved_authority(tmp_pat
         zone.Outline().RemoveAllContours(); zone.Outline().Append(outline)
     ground = board.FindNet('GND')
     via = pcbnew.PCB_VIA(board); via.SetNet(ground)
-    return_x = 49 if back else 51
-    via.SetPosition(pcbnew.VECTOR2I_MM(return_x, 14)); via.SetWidth(900000); via.SetDrill(400000)
+    return_x = 48.8 if back else 51.2
+    via.SetPosition(pcbnew.VECTOR2I_MM(return_x, 14)); via.SetWidth(600000); via.SetDrill(300000)
     via.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); board.Add(via)
     op.additive._ground_refill(board); op.field._save_field_snapshot(board, source)
     raw_source = source.read_bytes()
@@ -311,7 +328,7 @@ def test_long_translation_is_not_long_routing_or_relaxed_saved_authority(tmp_pat
     assert source.read_bytes() == raw_source
     if fault is None:
         assert received['ok'] and received['complete'], received['errors']
-        assert received['actual_cell_paths']['actual_Ground_return_mm'] == .5
+        assert received['actual_cell_paths']['actual_Ground_return_mm'] == pytest.approx(.7)
         assert received['all_Source_copper_retained_exactly']
     else:
         assert not received['ok'] and not received['complete'] and received['errors']

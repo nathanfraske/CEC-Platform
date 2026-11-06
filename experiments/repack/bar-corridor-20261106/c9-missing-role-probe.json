@@ -1,0 +1,112 @@
+{
+  "scope": "source_canonical_missing_bypass_corrective_role-v1",
+  "role_only": true,
+  "source": "experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+  "source_unchanged": true,
+  "intent": {
+    "source_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "requirement_id": "U6:2:local-ceramic",
+    "capacitor_uuid": "2d002564-8cd0-4212-a921-11630e9b8c35",
+    "owner_pad_uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+  },
+  "complete": true,
+  "elapsed_s": 1.5708930229957332,
+  "source_distance_mm": 3.8439791817985953,
+  "requirement": {
+    "id": "U6:2:local-ceramic",
+    "kind": "local-ceramic",
+    "max_mm": 3.5,
+    "pin": "2",
+    "rail": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "ref": "U6",
+    "return_pin": null,
+    "return_rail": "GND",
+    "source": "TPS2121:IN2"
+  },
+  "canonical": {
+    "exporter": {
+      "exporter": "/usr/bin/kicad-cli",
+      "exporter_sha256": "7f1a23dee76c8d253d14caa5241983766347d1bedd6312143d654800732e34ab",
+      "netlist_semantic_policy": "full-export-tree-except-single-generated-design-date-v1",
+      "netlist_semantic_sha256": "594ad23296fa22659f7106338b6443a62ce68cef35399787a8465164d32ecdd0",
+      "netlist_sha256": "abe5b89b4d58898531017515b7dd761073f028eb9a5eb1c758f17f215547d566"
+    },
+    "files_sha256": {
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/01-atx-power-control.kicad_sch": "9a904b1803d6a10048ba90462b5ba1eb2e6a305489116144ef08a22dcded02f7",
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/02-power-usb.kicad_sch": "b52668794aef1a3c899bac2a4c97899f999a96a9197ff39dd90e386f3ece0a7d",
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/03-regulator-mcu.kicad_sch": "28c28d6a82974ff5b3ebf161d0a3f30267439c0472d4c4576f93b1610d4dd06e",
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/04-hub-can-stack.kicad_sch": "95fdfe7aac8526a04d3310f1730a49ae1848bcc1b06164ae48f6bc99a843ba7f",
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/05-rail-sensing.kicad_sch": "df6d111bf2f48bea67dbec98383fc581d952a9ceeaf6b9afe0b5b00ce19dab10",
+      "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_sch": "22464a3f45681ea71952e31efc4b217c0bd4f695b00d290bf466cb64d46dbc25"
+    },
+    "manufacturer_source": "https://www.ti.com/lit/ds/symlink/tps2121.pdf",
+    "root": "/home/codex/src/CEC-Platform/beta/atx-24pin-rev3/24pin-module.kicad_sch"
+  },
+  "unchanged_source_current_contract": {
+    "barrel_capacity_qualified": false,
+    "current_authority": {
+      "amps": 0.75,
+      "geometry_margin": 1.25,
+      "margin_included": false,
+      "pattern": "/VBUS",
+      "source": "board_design_basis"
+    },
+    "profile": "jlcpcb_6l_pofv_high_current",
+    "release_authority": false,
+    "required_by_layer_nm": {
+      "0": 70539,
+      "2": 70539,
+      "4": 845075,
+      "6": 845075,
+      "8": 845075,
+      "10": 845075
+    }
+  },
+  "source_ports": [
+    {
+      "at_nm": [
+        10550000,
+        47050000
+      ],
+      "layers": [
+        0
+      ],
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "pin": "1",
+      "uuid": "5578793c-8793-4a8f-b8df-186dc694a778"
+    },
+    {
+      "at_nm": [
+        10550000,
+        48950000
+      ],
+      "layers": [
+        0
+      ],
+      "net": "GND",
+      "pin": "2",
+      "uuid": "9c7c5c82-16ae-4314-beb5-b0a6b108a1fd"
+    }
+  ],
+  "owner_port": {
+    "at_nm": [
+      14324990,
+      47775001
+    ],
+    "layers": [
+      0
+    ],
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "pin": "2",
+    "ref": "U6",
+    "uuid": "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+  },
+  "json_roundtrip_exact": true,
+  "plan_sha256": "ac1f8dcfe6a5bbfed9ab0d3d6f9e0aa9c60744456181e605c540c8d7e34afada",
+  "admitted": false,
+  "cut_authority": false,
+  "route_authority": false,
+  "current_authority": false,
+  "physical_connectivity_proved": false
+}

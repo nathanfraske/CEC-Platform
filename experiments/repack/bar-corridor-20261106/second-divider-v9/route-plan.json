@@ -1,0 +1,371 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/native-pair-v20/board.kicad_pcb",
+  "sha256": "0bc7f970253d5c1f5246b10335034080fce1ad84ad2447c947b52b2d78bcc6d0",
+  "board_hint": "atx-24pin-rev3",
+  "transported_source_copper_uuids": [
+    "6185c50e-8d5b-4cd7-a683-9befa38fce39",
+    "6caa8386-5465-43ac-98a5-f18154ca838d",
+    "73f6f3bc-f537-4a51-b0ee-8a680570afdd"
+  ],
+  "routed": [
+    {
+      "request": "macro_boundary:5ad7830a-e405-5c6a-8453-c96b57ba4da6",
+      "route": {
+        "net": "+5VSB",
+        "layer": "F.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            29110000,
+            58700000
+          ],
+          [
+            29110000,
+            58479980
+          ],
+          [
+            30594990,
+            56994990
+          ]
+        ]
+      }
+    },
+    {
+      "request": "macro_boundary:cf5a91b2-78b3-482b-baca-67567f8b16a7",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "d289fa22-6879-4c5d-9b50-b2aae6186dc6"
+          ],
+          [
+            "38c4f370-579b-4c9a-aeeb-81779b4c933e"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "macro_boundary:cf5a91b2-78b3-482b-baca-67567f8b16a7:component_port:1",
+      "route": {
+        "net": "+5VSB",
+        "layer": "B.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            30094990,
+            59325000
+          ],
+          [
+            29735000,
+            59325000
+          ],
+          [
+            29110000,
+            58700000
+          ]
+        ]
+      },
+      "agent_authored": true
+    },
+    {
+      "request": "monitor_divider_supply:b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "b66c09eb-5f03-4d70-b1d9-f4cf4690b580"
+          ],
+          [
+            "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "macro_boundary:622cc4fd-7c18-4412-817c-8c6245ac9868",
+      "route": {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            29110000,
+            59800000
+          ],
+          [
+            29110000,
+            59720000
+          ],
+          [
+            28090000,
+            58700000
+          ]
+        ]
+      }
+    },
+    {
+      "request": "macro_boundary:696584d9-e143-4658-b00a-9e5625fc3b27",
+      "route": {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "layer": "B.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            29110000,
+            59800000
+          ],
+          [
+            29110000,
+            59850000
+          ],
+          [
+            28635000,
+            60325000
+          ],
+          [
+            28574990,
+            60325000
+          ]
+        ]
+      },
+      "agent_authored": true
+    },
+    {
+      "request": "monitor_divider_upper:3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "3cb0af72-7e34-48e3-80e6-dbaaab2cf497"
+          ],
+          [
+            "d458f7b4-688e-4868-8686-3bcf2b4898c3"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "programming_resistor:3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "3cb0af72-7e34-48e3-80e6-dbaaab2cf497"
+          ],
+          [
+            "6c143a73-fb41-4e82-a0c6-0db516c89fa1"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "retained_barrel:3cb0af72-7e34-48e3-80e6-dbaaab2cf497:73f6f3bc-f537-4a51-b0ee-8a680570afdd",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "3cb0af72-7e34-48e3-80e6-dbaaab2cf497"
+          ],
+          [
+            "73f6f3bc-f537-4a51-b0ee-8a680570afdd"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "retained_barrel:b66c09eb-5f03-4d70-b1d9-f4cf4690b580:6185c50e-8d5b-4cd7-a683-9befa38fce39",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "b66c09eb-5f03-4d70-b1d9-f4cf4690b580"
+          ],
+          [
+            "6185c50e-8d5b-4cd7-a683-9befa38fce39"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    }
+  ],
+  "unresolved": [],
+  "rejected_paths": [],
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "poses": [
+      {
+        "reference": "R57",
+        "at_nm": [
+          28600000,
+          58700000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "R58",
+        "at_nm": [
+          28600000,
+          59800000
+        ],
+        "rotation_deg": 180
+      }
+    ],
+    "routes": [
+      {
+        "net": "+5VSB",
+        "layer": "F.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            29110000,
+            58700000
+          ],
+          [
+            29110000,
+            58479980
+          ],
+          [
+            30594990,
+            56994990
+          ]
+        ]
+      },
+      {
+        "net": "+5VSB",
+        "layer": "B.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            30094990,
+            59325000
+          ],
+          [
+            29735000,
+            59325000
+          ],
+          [
+            29110000,
+            58700000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            29110000,
+            59800000
+          ],
+          [
+            29110000,
+            59720000
+          ],
+          [
+            28090000,
+            58700000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "layer": "B.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            29110000,
+            59800000
+          ],
+          [
+            29110000,
+            59850000
+          ],
+          [
+            28635000,
+            60325000
+          ],
+          [
+            28574990,
+            60325000
+          ]
+        ]
+      }
+    ],
+    "vias": [],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [
+      "622cc4fd-7c18-4412-817c-8c6245ac9868",
+      "696584d9-e143-4658-b00a-9e5625fc3b27",
+      "cf5a91b2-78b3-482b-baca-67567f8b16a7",
+      "f2fa3f85-645c-4cc2-8391-142d5a3e8555"
+    ],
+    "allow_locked_transport_uuids": [
+      "6185c50e-8d5b-4cd7-a683-9befa38fce39",
+      "6caa8386-5465-43ac-98a5-f18154ca838d",
+      "73f6f3bc-f537-4a51-b0ee-8a680570afdd"
+    ],
+    "reference_group_uuids": []
+  },
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+  "route_revision_source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/second-divider-power-junction.json",
+  "source_contact_choices": [
+    {
+      "request": "macro_boundary:cf5a91b2-78b3-482b-baca-67567f8b16a7:component_port:1",
+      "before_nm": [
+        30194990,
+        59425000
+      ],
+      "after_nm": [
+        30094990,
+        59325000
+      ],
+      "native_uuids": [
+        "d289fa22-6879-4c5d-9b50-b2aae6186dc6"
+      ],
+      "source_current_authority_changed": false
+    }
+  ]
+}

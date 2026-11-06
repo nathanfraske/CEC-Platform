@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "status": "PRIVATE_ANNOTATION_ONLY_RECEIVED_SOURCE_CHAIN_NOT_ADMITTED",
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/mount-normalization-v1/candidate/board.kicad_pcb",
+  "source_sha256": "e227b66e6319645b74c1078d619403bea3596848fc5e178d6d4e8c6a0946bc4e",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+  "candidate_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+  "changed_root_uuids": [
+    "0d939999-fb3c-56ed-aa7e-a08056907300",
+    "10168365-56fd-527d-a6af-ea706e79150c",
+    "19148570-3e49-5e2d-858f-79492e1472b2",
+    "2261b4ad-7a1f-5f62-a1a8-86f7ecd0e835",
+    "75d22392-24a2-596b-9eee-c2158ed931dd",
+    "fadec130-f8e1-5b96-afb5-5793885fc691"
+  ],
+  "exact_declared_scope": true,
+  "all_material_root_AST_and_literal_bytes_exact": true,
+  "material_root_count": 2643,
+  "all_other_source_bytes_exact": true,
+  "source_sidecars_exact": true,
+  "outline_unchanged": true,
+  "footprint_placements_and_Fab_unchanged": true,
+  "native_before": {
+    "errors": 0,
+    "warnings": 94,
+    "opens": 0
+  },
+  "native_after": {
+    "errors": 0,
+    "warnings": 94,
+    "opens": 0
+  },
+  "native_violation_inventory_exact": true,
+  "annotation_receiver": {
+    "ok": true,
+    "complete": true,
+    "source_sha256": "e227b66e6319645b74c1078d619403bea3596848fc5e178d6d4e8c6a0946bc4e",
+    "candidate_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+    "exact_changed_annotation_uuids": [
+      "0d939999-fb3c-56ed-aa7e-a08056907300",
+      "10168365-56fd-527d-a6af-ea706e79150c",
+      "19148570-3e49-5e2d-858f-79492e1472b2",
+      "2261b4ad-7a1f-5f62-a1a8-86f7ecd0e835",
+      "75d22392-24a2-596b-9eee-c2158ed931dd",
+      "fadec130-f8e1-5b96-afb5-5793885fc691"
+    ],
+    "all_other_source_bytes_exact": true,
+    "existing_source_association_inspector_passes": true,
+    "current_qualified": false,
+    "release_authority": false
+  },
+  "evidence": {
+    "proposal.json": "d5c8445b774aa567868f1ec1127ca2b7bf1ab27c9e2879110e4344cca136f2a5",
+    "construction.json": "4bdc3fbfccf25c50c66d8a44ee4e113c93cac1c61a55485ff82db630b08f1752",
+    "annotation-receiving.json": "e99295bf0e594d7b6538e1cd5e018d71bd5a86617003b1801bb018ee29d26ede",
+    "native-drc.json": "bdc836aa30e7b612596c0bd11f6474ac66e71157f9ad9fb8f4122c6068b228ad",
+    "native-drc-receiving.json": "5393a8a771933f056aed5e255151617d2e39f8fd98496fe9b25f8cefb1a67a29",
+    "source-native-drc.json": "82cd25b5472a4c3e65ed98e76b6de5aa500ef8aa213f433b8a2b7b8fdb79714e",
+    "source-native-drc-receiving.json": "f0349314efddc74a95fd1eda9059eef4658952d0d4dda7ff33068418ac4c6b9a"
+  },
+  "limits": [
+    "Mount-normalization source was explicitly private/not yet admitted.",
+    "Composed source-chain and matched-pair admission remain unproven here.",
+    "No XY reduction, bar/current/thermal/fabrication qualification."
+  ],
+  "release_authority": false
+}

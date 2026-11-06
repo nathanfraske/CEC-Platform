@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-06T21:02:00Z",
+  "goal_status": "active",
+  "status": "generic_group_projection_fixed_private_Hub_width_repaired_ATX_barrel_conflicts_named",
+  "generic_change": {
+    "module": "scripts/cec_source_literal_group_retention.py",
+    "receiver": "scripts/cec_pose_additive_reconstruction.py",
+    "scope": "Restore untouched Source group subtrees after an independent native projection only when every raw AST token is identical except quoting of a valid group UUID. Group population, ordered members, names, locks and opaque fields remain exact. Explicitly transported reference groups retain their existing typed receiving.",
+    "saved_child_gate_relaxed": false,
+    "real_Hub_group_refusal_resolved": true,
+    "remaining_real_Hub_receiver_refusal": "non-Ground power-zone fill is outside the existing additive receiver scope; no waiver added"
+  },
+  "regressions": {
+    "passed": 247,
+    "unique_cases": 247,
+    "failures": 0,
+    "timeouts": 0,
+    "external_seconds_per_case": 10,
+    "maximum_parallel": 2,
+    "summary": "experiments/busbars/mux-reconstruction-20261106/regression-literal-group-regression-v2/summary.json",
+    "summary_sha256": "640406b902d6a0ac6da3460cea437649d46366c5898e73fb32ef012a17064a3b",
+    "archive": "regressions-literal-group-v2.tar.gz",
+    "archive_sha256": "ebe86ee55a395e6fd78f20635d7dc4140cc3f0a6d4d695e8ecee96d5e6aa201f",
+    "full_product_cross_board_replacement_replay_claimed": false
+  },
+  "private_Hub": {
+    "candidate": "hub-C37-widen-v1/candidate/board.kicad_pcb",
+    "sha256": "a977b5da70742f0e49b28f9a3d7499eb84ab0f9e508ab171d0604c2635832975",
+    "parent_sha256": "4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992",
+    "root_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "verification": "hub-C37-widen-v1/verify.json",
+    "verification_sha256": "9b6febf9b1db88ecb35a0cd988adf740b1286f2cf4b72f048cdc3de991879197",
+    "actual_added_copper_mm2": 6.855771652483865,
+    "actual_removed_copper_mm2": 0,
+    "previous_local_minimum_mm": 0.5015,
+    "new_native_contained_bypass_width_mm": 1.0,
+    "routing_margin_or_width_floor_reduced": false,
+    "errors_before_after": [0, 0],
+    "opens_before_after": [0, 0],
+    "warnings_before_after": [166, 166],
+    "native_partitions_before_after": [94, 94],
+    "partition_demotions": 0,
+    "native_full_fill_replay_exact": true,
+    "paired_body_vent_geometry_passed": true,
+    "dimensions_or_stack_gap_changed": false,
+    "root_to_pose_to_widening_scoped_admission_complete": false,
+    "global_current_thermal_or_release_qualified": false,
+    "reviewed_incumbent_replaced": false
+  },
+  "ATX": {
+    "corrected_geometry": "geometry-paired-v3.json",
+    "corrected_compile": "compile-paired-corrected-v1.json",
+    "corrected_source_compile_all_nine_phases_passed": true,
+    "physical_courtyard_and_paired_geometry_passed": true,
+    "all_via_clearances_passed": false,
+    "source_requests": 42,
+    "pre_refill_fault_stack": "compile-paired-refilled-frame-v3.json",
+    "carried_or_stationary_barrels_examined": 10,
+    "barrel_refusals": 7,
+    "refusals_include": ["retained control track clearance", "via drill spacing", "retained power trace clearance", "VBUS barrel clearance", "stationary Ground local clearance"],
+    "earlier_rejected_save": "compile-paired-frame-diagnostic-v2.json",
+    "earlier_save_fault": "Reload of unfinished frame with stale Ground fill relabeled control barrel 022ac0d2 to GND. Exact native identity fence rejected the save. Never reuse those diagnostic boards as candidates.",
+    "source_geometry_sweep": "barrel-frame-stationary-ground.json",
+    "stationary_only_alternative_not_a_solution": true,
+    "construction_admitted": false,
+    "routing_started": false
+  },
+  "preserved_and_rehashed": {
+    "ATX_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+    "Hub_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "review_selector_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484"
+  },
+  "next": [
+    "Independently receive root Hub to translated C37 plus exact non-Ground refill and widened existing-zone outline. The source family, every other material item, contacts, native partitions, current/field and stack gates remain mandatory.",
+    "Resolve all seven actual ATX barrel conflicts with role-owned local port/return seat intents or fully owned adjacent conductor reconstruction. Use fast read-only native frame probes, then recompile exact complete obligations; do not start routing through invalid seats.",
+    "Receive opposing vent reservations from the saved matched Hub, construct all current/control/Ground obligations, then install/qualify the two-land bar and demonstrate real X/Y compaction without Z increase."
+  ],
+  "part_status": "Manufacturer drawing and exact JLC SMT listing verified previously; application joints, thermal/current performance and assembled height remain unqualified. No bar installed or new X/Y compaction demonstrated in this slice.",
+  "usage_reset": {"observed_remaining_percent": 5, "checked_at_utc": "2026-11-06T20:54:10Z", "redeemed": false},
+  "release_authority": false
+}

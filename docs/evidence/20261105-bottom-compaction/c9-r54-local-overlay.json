@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "kind": "SOURCE_BOUND_PRIVATE_DRAFT_OVERLAY",
+  "base_request": "docs/evidence/20261105-bottom-compaction/inward-v3-request.json",
+  "base_request_sha256": "047d2bd574e33d96400fcbe827f26a966aa5b8b3ba9da2ec6d479c1d94019ee8",
+  "source_carrier": {
+    "path": "experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb",
+    "sha256": "496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"
+  },
+  "required_poses": [
+    {"reference": "C9", "at_nm": [10550000, 48000000], "rotation_deg": 270},
+    {"reference": "R54", "at_nm": [12800000, 48625000], "rotation_deg": 270}
+  ],
+  "replace_or_append_carrier_redraws": [
+    {
+      "uuid": "c3d781c3-fd04-4865-b0d1-23b073a604dc",
+      "points_nm": [[10550000,47050000],[10550000,47240000],[10850000,47540000],[13300000,47540000],[13535001,47775001],[14324990,47775001]]
+    },
+    {
+      "uuid": "3b391743-cec6-400d-86f0-47b4ef93a289",
+      "points_nm": [[13043990,46355002],[13043990,46550000],[13443988,46949998],[13865615,46949998]]
+    }
+  ],
+  "append_carrier_retired_tracks": [
+    "d4934399-0510-4df5-b50f-ab5c2bddb5fd",
+    "f9c68773-9520-448e-a99b-acb3ee717381",
+    "3555d410-82cc-43bd-b14c-9248b610802b"
+  ],
+  "preserved_width_nm": {
+    "c3d781c3-fd04-4865-b0d1-23b073a604dc": 200000,
+    "3b391743-cec6-400d-86f0-47b4ef93a289": 477370
+  },
+  "topology": "Keep all other inward-v3 edits, source branches and pad definitions. VBUS moves to y47.54 before dropping to U6.2 at y47.775001. Existing 5VSB_MUX left approach rises to y46.949998 and ends inside U6.1 unchanged. R54 remains vertical. Original C9 GND via remains at11.23,49.46. Root ILM via11.9,48.8 and SIG2 anchor15.4,45.4 remain unchanged.",
+  "initial_native_polygon_check": {
+    "base_board": "experiments/repack/j3-inward-20261105/inward-v3/carrier/board.kicad_pcb",
+    "scope": "Edited native F.Cu tracks versus every foreign-net F.Cu native pad/track polygon, outside polygon approximation1nm. Excludes filled zones until native refill/full DRC.",
+    "clearance_threshold_mm": 0.2,
+    "violations": [],
+    "minimum_observed_foreign_gap_mm": 0.20499999999999827,
+    "next_gaps_mm": [0.25209558587536796,0.26863120192002643]
+  },
+  "actual_native_verification": {
+    "draft_receipt": "experiments/repack/j3-inward-20261105/c9-r54-local-repair/draft.json",
+    "carrier_pcb": "experiments/repack/j3-inward-20261105/c9-r54-local-repair/carrier/board.kicad_pcb",
+    "carrier_sha256": "38d3c22e11a351dae0146b06d0250325ac8a8999afd7c0d3467861f2fd5bdd62",
+    "source_unchanged": true,
+    "refill_stable": true,
+    "refill_ordered_passes": 2,
+    "compiled_zone_count": 40,
+    "native_DRC_report": "docs/evidence/20261105-bottom-compaction/c9-r54-local-drc.json",
+    "native_DRC_command": "kicad-cli pcb drc --exit-code-violations --format json --output REPORT BOARD",
+    "native_DRC_exit_code": 1,
+    "native_unconnected_items": 0,
+    "native_errors_involving_either_edited_track_or_derived_leg": [],
+    "native_electrical_errors_reported_in_C9_R54_U6_region": [],
+    "global_violation_count": 247,
+    "global_types": {"lib_footprint_issues":129,"silk_over_copper":49,"shorting_items":29,"silk_overlap":17,"solder_mask_bridge":13,"clearance":4,"silk_edge_clearance":4,"zones_intersect":1,"track_dangling":1},
+    "limitation": "This local repair is not a whole-board pass. Native CLI reported missing global footprint-library configuration warnings and substantial unrelated existing routing/zone errors, principally lower input-bank reconstruction. Do not compare raw global counts with a differently configured wrapper as proof of global improvement. Current/Kelvin/stack acceptance remains separate."
+  },
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false
+}

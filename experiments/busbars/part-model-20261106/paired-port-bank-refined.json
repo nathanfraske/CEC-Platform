@@ -1,0 +1,1714 @@
+{
+  "schema": 1,
+  "scope": "ONE_MANUAL_RAM_ONLY_PAIRED_ALTERNATIVE_NOT_ROUTED_OR_TRIMMED",
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+      "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "bank": [
+    "J2",
+    "J3",
+    "J4",
+    "J5"
+  ],
+  "support_frame": [
+    "C19",
+    "C20",
+    "C21",
+    "F2",
+    "F3",
+    "F4",
+    "R7",
+    "R8"
+  ],
+  "shift_nm": 1400000,
+  "poses": [
+    {
+      "reference": "J2",
+      "uuid": "81bfdc25-3378-42ee-b8a9-3af0e588dc58",
+      "source_at_nm": [
+        10710000,
+        7790000
+      ],
+      "target_at_nm": [
+        12110000,
+        7790000
+      ],
+      "rotation_deg": -90.0,
+      "pads": [
+        {
+          "uuid": "c8975198-ca4d-5bfd-a6bc-3d99266454f4",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            6550000
+          ]
+        },
+        {
+          "uuid": "5e8353b1-31e0-5842-ba1a-b1b5cf43a7ff",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            17850000
+          ]
+        },
+        {
+          "uuid": "bc9b2172-7fbc-5939-8d96-31fb5ba42a0c",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P1",
+          "source_at_nm": [
+            10710000,
+            7790000
+          ]
+        },
+        {
+          "uuid": "3ebbcbdb-1ae8-5f60-a017-1ef15d1cadd4",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            13250000,
+            9060000
+          ]
+        },
+        {
+          "uuid": "d275d715-2f3b-55e8-a75b-0d02e35746d4",
+          "pin": "3",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+          "source_at_nm": [
+            10710000,
+            10330000
+          ]
+        },
+        {
+          "uuid": "06c63a17-0a4e-5ae7-96b8-4e8da0f84598",
+          "pin": "4",
+          "net": "unconnected-(J2-STREAM_P-Pad4)",
+          "source_at_nm": [
+            13250000,
+            11600000
+          ]
+        },
+        {
+          "uuid": "29c5dc36-dd32-5ac4-b9e7-fc5aaa8d0a38",
+          "pin": "5",
+          "net": "unconnected-(J2-STREAM_N-Pad5)",
+          "source_at_nm": [
+            10710000,
+            12870000
+          ]
+        },
+        {
+          "uuid": "da0a2d0f-f898-5b8d-9966-f81a2fb46fcf",
+          "pin": "6",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+          "source_at_nm": [
+            13250000,
+            14140000
+          ]
+        },
+        {
+          "uuid": "d3d7eaa2-ad76-5b5f-b1b2-b3ecd199bb79",
+          "pin": "7",
+          "net": "unconnected-(J2-RSVD-Pad7)",
+          "source_at_nm": [
+            10710000,
+            15410000
+          ]
+        },
+        {
+          "uuid": "46869fc9-2560-5c18-a852-60e972889cd8",
+          "pin": "8",
+          "net": "/DETECT1",
+          "source_at_nm": [
+            13250000,
+            16680000
+          ]
+        },
+        {
+          "uuid": "944d7c06-f90d-52a9-a567-460d6a05255c",
+          "pin": "SH1",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            4300000
+          ]
+        },
+        {
+          "uuid": "3bbcdb83-14d1-5316-85a6-5e1504faf570",
+          "pin": "SH2",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            20100000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "J3",
+      "uuid": "25fdcaaf-910c-4325-aaf3-ece7b387af5d",
+      "source_at_nm": [
+        10710000,
+        24690000
+      ],
+      "target_at_nm": [
+        12110000,
+        24690000
+      ],
+      "rotation_deg": -90.0,
+      "pads": [
+        {
+          "uuid": "8314e4c1-e90a-46bb-aec9-602916cde18b",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            23450000
+          ]
+        },
+        {
+          "uuid": "3d7bc2ec-0226-4ccb-a946-d089193d760d",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            34750000
+          ]
+        },
+        {
+          "uuid": "646351d3-a9d2-4e44-b2b5-73244ec78334",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P2",
+          "source_at_nm": [
+            10710000,
+            24690000
+          ]
+        },
+        {
+          "uuid": "cf234a98-0164-418e-a523-011943b88e57",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            13250000,
+            25960000
+          ]
+        },
+        {
+          "uuid": "93cdef03-d48a-4568-88ec-b3d4b5efedd7",
+          "pin": "3",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+          "source_at_nm": [
+            10710000,
+            27230000
+          ]
+        },
+        {
+          "uuid": "363b2df6-218e-4954-aeb9-98c00678a178",
+          "pin": "4",
+          "net": "unconnected-(J3-STREAM_P-Pad4)",
+          "source_at_nm": [
+            13250000,
+            28500000
+          ]
+        },
+        {
+          "uuid": "65f2c523-3523-4b13-a505-cf68fcefdefe",
+          "pin": "5",
+          "net": "unconnected-(J3-STREAM_N-Pad5)",
+          "source_at_nm": [
+            10710000,
+            29770000
+          ]
+        },
+        {
+          "uuid": "594274e7-490f-4fc8-a42f-5e770abfea0a",
+          "pin": "6",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+          "source_at_nm": [
+            13250000,
+            31040000
+          ]
+        },
+        {
+          "uuid": "0e0f476c-6123-4cae-ada2-342786c28652",
+          "pin": "7",
+          "net": "unconnected-(J3-RSVD-Pad7)",
+          "source_at_nm": [
+            10710000,
+            32310000
+          ]
+        },
+        {
+          "uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+          "pin": "8",
+          "net": "/DETECT2",
+          "source_at_nm": [
+            13250000,
+            33580000
+          ]
+        },
+        {
+          "uuid": "e2c5e9d3-3754-494f-a4b1-85397b3780be",
+          "pin": "SH1",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            21200000
+          ]
+        },
+        {
+          "uuid": "35baef66-392f-4e39-930f-0b3c6f82a012",
+          "pin": "SH2",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            37000000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "J4",
+      "uuid": "ad10388a-3a8d-462c-afec-65c5911bb579",
+      "source_at_nm": [
+        10710000,
+        41590000
+      ],
+      "target_at_nm": [
+        12110000,
+        41590000
+      ],
+      "rotation_deg": -90.0,
+      "pads": [
+        {
+          "uuid": "15984e9b-3b41-5b74-bd94-b351a2472ca8",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            40350000
+          ]
+        },
+        {
+          "uuid": "80d44c7e-dc1e-5244-bb88-f49386e165d8",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            51650000
+          ]
+        },
+        {
+          "uuid": "13c7ac28-15f7-5bb7-8420-e017b43cad9b",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P3",
+          "source_at_nm": [
+            10710000,
+            41590000
+          ]
+        },
+        {
+          "uuid": "2a066e42-b47a-51fb-9c71-84aa51214a67",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            13250000,
+            42860000
+          ]
+        },
+        {
+          "uuid": "5e10c4b3-637b-501d-a07d-d383a085a9b2",
+          "pin": "3",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+          "source_at_nm": [
+            10710000,
+            44130000
+          ]
+        },
+        {
+          "uuid": "0e293f2f-5c9f-5f52-bd4c-1df11aecede7",
+          "pin": "4",
+          "net": "unconnected-(J4-STREAM_P-Pad4)",
+          "source_at_nm": [
+            13250000,
+            45400000
+          ]
+        },
+        {
+          "uuid": "84cdc80a-51b5-56df-b1b9-4880824d64c1",
+          "pin": "5",
+          "net": "unconnected-(J4-STREAM_N-Pad5)",
+          "source_at_nm": [
+            10710000,
+            46670000
+          ]
+        },
+        {
+          "uuid": "37372d0c-a260-5dd7-b6d9-0302a2130ab9",
+          "pin": "6",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+          "source_at_nm": [
+            13250000,
+            47940000
+          ]
+        },
+        {
+          "uuid": "a15c201a-470e-534d-81a0-cd8f5bf0813b",
+          "pin": "7",
+          "net": "unconnected-(J4-RSVD-Pad7)",
+          "source_at_nm": [
+            10710000,
+            49210000
+          ]
+        },
+        {
+          "uuid": "834211c1-b578-55d7-b55d-9aea0b5f441d",
+          "pin": "8",
+          "net": "/DETECT3",
+          "source_at_nm": [
+            13250000,
+            50480000
+          ]
+        },
+        {
+          "uuid": "14caed05-cff7-5438-9a87-805a4d628718",
+          "pin": "SH1",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            38100000
+          ]
+        },
+        {
+          "uuid": "e9e0c3d7-53f9-5ae5-893b-22b2f91435c8",
+          "pin": "SH2",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            53900000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "J5",
+      "uuid": "db69bc07-910d-4c3a-85fe-fb6435008f48",
+      "source_at_nm": [
+        10710000,
+        58490000
+      ],
+      "target_at_nm": [
+        12110000,
+        58490000
+      ],
+      "rotation_deg": -90.0,
+      "pads": [
+        {
+          "uuid": "b0f5cf22-a738-5625-90f3-b02a65662be6",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            57250000
+          ]
+        },
+        {
+          "uuid": "3a13a069-d52c-5bec-b056-28e8aae7c19f",
+          "pin": "",
+          "net": "",
+          "source_at_nm": [
+            4360000,
+            68550000
+          ]
+        },
+        {
+          "uuid": "14ffc8bc-db0f-55a0-9ec3-fc823a1ca3b4",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4",
+          "source_at_nm": [
+            10710000,
+            58490000
+          ]
+        },
+        {
+          "uuid": "11dfd204-daf1-586a-9e43-971664902e44",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            13250000,
+            59760000
+          ]
+        },
+        {
+          "uuid": "53284c5a-5d8d-5968-adb3-3e200a0c85b7",
+          "pin": "3",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+          "source_at_nm": [
+            10710000,
+            61030000
+          ]
+        },
+        {
+          "uuid": "23df2de3-4585-5027-81a7-6de3c649a473",
+          "pin": "4",
+          "net": "unconnected-(J5-STREAM_P-Pad4)",
+          "source_at_nm": [
+            13250000,
+            62300000
+          ]
+        },
+        {
+          "uuid": "8338bd0e-5a88-5a6c-93ca-afe7c8317fd9",
+          "pin": "5",
+          "net": "unconnected-(J5-STREAM_N-Pad5)",
+          "source_at_nm": [
+            10710000,
+            63570000
+          ]
+        },
+        {
+          "uuid": "67c66629-6bb3-59ad-a784-b2b35eeb546f",
+          "pin": "6",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+          "source_at_nm": [
+            13250000,
+            64840000
+          ]
+        },
+        {
+          "uuid": "8566fc13-4994-516c-90b0-f41057f0694f",
+          "pin": "7",
+          "net": "unconnected-(J5-RSVD-Pad7)",
+          "source_at_nm": [
+            10710000,
+            66110000
+          ]
+        },
+        {
+          "uuid": "a4b99bd3-b7fa-52dc-b713-8a7776128e55",
+          "pin": "8",
+          "net": "/DETECT4",
+          "source_at_nm": [
+            13250000,
+            67380000
+          ]
+        },
+        {
+          "uuid": "403b4b3f-6f22-520e-84d0-695ea7206747",
+          "pin": "SH1",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            55000000
+          ]
+        },
+        {
+          "uuid": "5bd99e92-aba7-58cb-8142-7d3d5b187559",
+          "pin": "SH2",
+          "net": "GND",
+          "source_at_nm": [
+            1410000,
+            70800000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "C19",
+      "uuid": "c6f4d1c1-597c-4be2-8487-62be680bbfd2",
+      "source_at_nm": [
+        15882599,
+        31207299
+      ],
+      "target_at_nm": [
+        17282599,
+        31207299
+      ],
+      "rotation_deg": 90.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "41cfe081-80bb-4a8a-89ed-9110c8b5498c",
+          "pin": "1",
+          "net": "/DETECT2",
+          "source_at_nm": [
+            15882599,
+            31687299
+          ]
+        },
+        {
+          "uuid": "ee8ff199-1a3e-4752-9f0a-b8493ab81c21",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            15882599,
+            30727299
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "C20",
+      "uuid": "12863af5-d3e8-4521-9496-9fdb7a426d93",
+      "source_at_nm": [
+        16328399,
+        46460800
+      ],
+      "target_at_nm": [
+        17728399,
+        46460800
+      ],
+      "rotation_deg": 0.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "449a3cc4-626e-4fb7-ad73-675ee57bcd0c",
+          "pin": "1",
+          "net": "/DETECT3",
+          "source_at_nm": [
+            15848399,
+            46460800
+          ]
+        },
+        {
+          "uuid": "191990a4-9223-4f1a-8be5-3557c6d9c276",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            16808399,
+            46460800
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "C21",
+      "uuid": "422547cc-6b92-43bd-a6eb-2f0b759a2171",
+      "source_at_nm": [
+        16046896,
+        58903300
+      ],
+      "target_at_nm": [
+        17446896,
+        58903300
+      ],
+      "rotation_deg": 180.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "3ef3ffad-003c-4571-b980-2ce0860d2e0e",
+          "pin": "1",
+          "net": "/DETECT4",
+          "source_at_nm": [
+            16526896,
+            58903300
+          ]
+        },
+        {
+          "uuid": "bdf1ce6f-232f-402a-87aa-e7b78a9a9162",
+          "pin": "2",
+          "net": "GND",
+          "source_at_nm": [
+            15566896,
+            58903300
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "F2",
+      "uuid": "896b1b54-0abe-4f52-a746-79c1d3562b39",
+      "source_at_nm": [
+        17809200,
+        19399300
+      ],
+      "target_at_nm": [
+        19209200,
+        19399300
+      ],
+      "rotation_deg": 0.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "5f001acc-0334-4732-bb1f-840dbf00ef88",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P2",
+          "source_at_nm": [
+            16896700,
+            19399300
+          ]
+        },
+        {
+          "uuid": "c42d6f65-11a8-42cc-b303-a6c80d0010c6",
+          "pin": "2",
+          "net": "+5VSB",
+          "source_at_nm": [
+            18721700,
+            19399300
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "F3",
+      "uuid": "642d62ba-0aac-4c6b-96dc-92aae3fb50db",
+      "source_at_nm": [
+        17310000,
+        35600000
+      ],
+      "target_at_nm": [
+        18710000,
+        35600000
+      ],
+      "rotation_deg": 0.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "242ee1c0-cd95-4a0b-bb8c-ba6e9d916df5",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P3",
+          "source_at_nm": [
+            16397500,
+            35600000
+          ]
+        },
+        {
+          "uuid": "269730fc-8786-4bb1-86f4-1c477cac737e",
+          "pin": "2",
+          "net": "+5VSB",
+          "source_at_nm": [
+            18222500,
+            35600000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "F4",
+      "uuid": "27f95507-5dba-4944-b273-4ee6b2a6c273",
+      "source_at_nm": [
+        17904997,
+        51920001
+      ],
+      "target_at_nm": [
+        19304997,
+        51920001
+      ],
+      "rotation_deg": 0.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "656d6508-2cee-4133-8b87-163866b04b6c",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4",
+          "source_at_nm": [
+            16992497,
+            51920001
+          ]
+        },
+        {
+          "uuid": "0d7ce01c-1591-4e9f-b24c-cb127718cf69",
+          "pin": "2",
+          "net": "+5VSB",
+          "source_at_nm": [
+            18817497,
+            51920001
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "R7",
+      "uuid": "33c1179c-411a-41b9-9ede-4150dbf51e76",
+      "source_at_nm": [
+        15790000,
+        49980000
+      ],
+      "target_at_nm": [
+        17190000,
+        49980000
+      ],
+      "rotation_deg": 90.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "2c05e1d2-ba05-4a88-9048-2c8c63a369ca",
+          "pin": "1",
+          "net": "+3V3",
+          "source_at_nm": [
+            15790000,
+            50490000
+          ]
+        },
+        {
+          "uuid": "cc09739b-2152-452f-8436-dc0ff834df17",
+          "pin": "2",
+          "net": "/DETECT3",
+          "source_at_nm": [
+            15790000,
+            49470000
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "R8",
+      "uuid": "c9d9ef10-9bfd-40c4-8834-1ac23ea9d730",
+      "source_at_nm": [
+        16239597,
+        56660600
+      ],
+      "target_at_nm": [
+        17639597,
+        56660600
+      ],
+      "rotation_deg": 90.0,
+      "small_support_frame": true,
+      "pads": [
+        {
+          "uuid": "b81d1616-4dfd-4f1c-ad8a-5e3d0cd79709",
+          "pin": "1",
+          "net": "+3V3",
+          "source_at_nm": [
+            16239597,
+            57170600
+          ]
+        },
+        {
+          "uuid": "40f57917-2e31-4841-a45c-2ba3501bcce3",
+          "pin": "2",
+          "net": "/DETECT4",
+          "source_at_nm": [
+            16239597,
+            56150600
+          ]
+        }
+      ]
+    }
+  ],
+  "source_incident_native_contacts": [
+    {
+      "ref": "J2",
+      "pad_uuid": "d275d715-2f3b-55e8-a75b-0d02e35746d4",
+      "track_uuid": "7b00b9fb-375d-445f-8f1e-fd4c77b9d37e",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J2",
+      "pad_uuid": "da0a2d0f-f898-5b8d-9966-f81a2fb46fcf",
+      "track_uuid": "6491e234-5465-4dc8-a9a5-6d2d66a08826",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J2",
+      "pad_uuid": "46869fc9-2560-5c18-a852-60e972889cd8",
+      "track_uuid": "29caf2a1-c2fe-4d9d-b5a8-9392e18b8888",
+      "net": "/DETECT1",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J2",
+      "pad_uuid": "46869fc9-2560-5c18-a852-60e972889cd8",
+      "track_uuid": "7f1bf8de-acae-467f-9c50-5562ab509d10",
+      "net": "/DETECT1",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J2",
+      "pad_uuid": "46869fc9-2560-5c18-a852-60e972889cd8",
+      "track_uuid": "933cf8c0-0125-408f-a341-f793550b282c",
+      "net": "/DETECT1",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "93cdef03-d48a-4568-88ec-b3d4b5efedd7",
+      "track_uuid": "5f9eb899-b02a-4210-a760-fcf1f27d8831",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "594274e7-490f-4fc8-a42f-5e770abfea0a",
+      "track_uuid": "3b8e1e14-2a26-4553-a44a-49b248c2a8b5",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+      "track_uuid": "23e526ab-4aa0-442a-b1ea-ed122a29f95b",
+      "net": "/DETECT2",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+      "track_uuid": "3db8ee23-9adc-4ea9-b72e-e4fe8312d0a1",
+      "net": "/DETECT2",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+      "track_uuid": "1a729849-cbba-4013-9e00-2e846b9f5efb",
+      "net": "/DETECT2",
+      "layer": "SIG2",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J3",
+      "pad_uuid": "eaa91f14-0775-4187-b341-ff4410340bf3",
+      "track_uuid": "d99fccc4-3cd0-4988-95b0-0233820120e1",
+      "net": "/DETECT2",
+      "layer": "SIG2",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "13c7ac28-15f7-5bb7-8420-e017b43cad9b",
+      "track_uuid": "30f61cfa-b00a-47af-843d-d304cf961e4f",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P3",
+      "layer": "F.Cu",
+      "width_nm": 1000000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "13c7ac28-15f7-5bb7-8420-e017b43cad9b",
+      "track_uuid": "f54a6d61-40b6-475b-9405-a06c1c0960c0",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P3",
+      "layer": "F.Cu",
+      "width_nm": 1000000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "5e10c4b3-637b-501d-a07d-d383a085a9b2",
+      "track_uuid": "8e926f6a-9979-48f6-89f0-40e3456dff99",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "37372d0c-a260-5dd7-b6d9-0302a2130ab9",
+      "track_uuid": "118245b5-ecf8-4f7a-89c9-d73ec069b0a8",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "834211c1-b578-55d7-b55d-9aea0b5f441d",
+      "track_uuid": "05564b9e-1ee4-49b4-a726-ebc878d47799",
+      "net": "/DETECT3",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "834211c1-b578-55d7-b55d-9aea0b5f441d",
+      "track_uuid": "18d1a2ad-8e9f-403a-a87b-dd1d93accf31",
+      "net": "/DETECT3",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "834211c1-b578-55d7-b55d-9aea0b5f441d",
+      "track_uuid": "120088ac-dc7e-46b1-b10b-509f0f742cbb",
+      "net": "/DETECT3",
+      "layer": "SIG2",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J4",
+      "pad_uuid": "834211c1-b578-55d7-b55d-9aea0b5f441d",
+      "track_uuid": "cbdae714-6fd3-4e82-bbe6-1fb119986369",
+      "net": "/DETECT3",
+      "layer": "SIG2",
+      "width_nm": 200000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "14ffc8bc-db0f-55a0-9ec3-fc823a1ca3b4",
+      "track_uuid": "480d2d96-401a-45e1-a744-e9e8296d021f",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4",
+      "layer": "SIG2",
+      "width_nm": 1000000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "14ffc8bc-db0f-55a0-9ec3-fc823a1ca3b4",
+      "track_uuid": "e59f6eb4-73e6-4cc6-9036-1d669c8b5565",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4",
+      "layer": "SIG2",
+      "width_nm": 1000000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "53284c5a-5d8d-5968-adb3-3e200a0c85b7",
+      "track_uuid": "1e623241-4659-4118-920f-a271d6fe7ff1",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "53284c5a-5d8d-5968-adb3-3e200a0c85b7",
+      "track_uuid": "5dffbc11-03dd-4870-ac8a-ed5710bf8b63",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_H",
+      "layer": "SIG2",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "67c66629-6bb3-59ad-a784-b2b35eeb546f",
+      "track_uuid": "9757c50c-19b4-4cd8-a28b-3b13045464ea",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+      "layer": "B.Cu",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "67c66629-6bb3-59ad-a784-b2b35eeb546f",
+      "track_uuid": "b6fe0e25-a771-46f5-a45e-add54e56ac65",
+      "net": "/CAN + FOUR MODULE PORTS + STACK/CAN_L",
+      "layer": "SIG2",
+      "width_nm": 250000
+    },
+    {
+      "ref": "J5",
+      "pad_uuid": "a4b99bd3-b7fa-52dc-b713-8a7776128e55",
+      "track_uuid": "95467060-4163-46fe-b2d0-f39d97e8beec",
+      "net": "/DETECT4",
+      "layer": "F.Cu",
+      "width_nm": 200000
+    }
+  ],
+  "before_dimensions": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        89.585,
+        91.795
+      ],
+      "size_mm": [
+        89.585,
+        93.09
+      ],
+      "bounding_area_mm2": 8339.46765
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "port_only_after_dimensions": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        88.185,
+        91.795
+      ],
+      "size_mm": [
+        88.185,
+        93.09
+      ],
+      "bounding_area_mm2": 8209.141650000001
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "paired_body_check": {
+    "ok": false,
+    "failed_checks": [
+      {
+        "kind": "opposing_bodies",
+        "refs": [
+          "J6D",
+          "F4"
+        ],
+        "margin_mm": -0.6911999999999985,
+        "ok": false,
+        "free_mm": -0.19119999999999848
+      }
+    ],
+    "missing": [],
+    "contacts": [
+      {
+        "ok": true,
+        "contacts": [
+          {
+            "id": "1",
+            "cover_in_carrier_mm": [
+              25.0,
+              37.3
+            ],
+            "carrier_mm": [
+              25.0,
+              37.3
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "1",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "2",
+            "cover_in_carrier_mm": [
+              27.54,
+              37.3
+            ],
+            "carrier_mm": [
+              27.54,
+              37.3
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "2",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "3",
+            "cover_in_carrier_mm": [
+              25.0,
+              39.84
+            ],
+            "carrier_mm": [
+              25.0,
+              39.84
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "3",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "4",
+            "cover_in_carrier_mm": [
+              27.54,
+              39.84
+            ],
+            "carrier_mm": [
+              27.54,
+              39.84
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "4",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "5",
+            "cover_in_carrier_mm": [
+              25.0,
+              42.379999999999995
+            ],
+            "carrier_mm": [
+              25.0,
+              42.38
+            ],
+            "distance_mm": 7.105427357601002e-15,
+            "role_ok": true,
+            "nearest_id": "5",
+            "nearest_mm": 7.105427357601002e-15,
+            "ok": true
+          },
+          {
+            "id": "6",
+            "cover_in_carrier_mm": [
+              27.54,
+              42.379999999999995
+            ],
+            "carrier_mm": [
+              27.54,
+              42.38
+            ],
+            "distance_mm": 7.105427357601002e-15,
+            "role_ok": true,
+            "nearest_id": "6",
+            "nearest_mm": 7.105427357601002e-15,
+            "ok": true
+          }
+        ],
+        "mismatched": 0,
+        "no_geometric_mate": 0,
+        "max_offset_mm": 7.105427357601002e-15,
+        "release_accepted": false
+      },
+      {
+        "ok": true,
+        "contacts": [
+          {
+            "id": "1",
+            "cover_in_carrier_mm": [
+              67.0,
+              20.159899000000003
+            ],
+            "carrier_mm": [
+              67.0,
+              20.159899
+            ],
+            "distance_mm": 3.552713678800501e-15,
+            "role_ok": true,
+            "nearest_id": "1",
+            "nearest_mm": 3.552713678800501e-15,
+            "ok": true
+          },
+          {
+            "id": "2",
+            "cover_in_carrier_mm": [
+              67.0,
+              22.699899000000002
+            ],
+            "carrier_mm": [
+              67.0,
+              22.699899
+            ],
+            "distance_mm": 3.552713678800501e-15,
+            "role_ok": true,
+            "nearest_id": "2",
+            "nearest_mm": 3.552713678800501e-15,
+            "ok": true
+          },
+          {
+            "id": "3",
+            "cover_in_carrier_mm": [
+              64.46000000000001,
+              20.159899000000003
+            ],
+            "carrier_mm": [
+              64.46,
+              20.159899
+            ],
+            "distance_mm": 1.464821375527116e-14,
+            "role_ok": true,
+            "nearest_id": "3",
+            "nearest_mm": 1.464821375527116e-14,
+            "ok": true
+          },
+          {
+            "id": "4",
+            "cover_in_carrier_mm": [
+              64.46000000000001,
+              22.699899000000002
+            ],
+            "carrier_mm": [
+              64.46,
+              22.699899
+            ],
+            "distance_mm": 1.464821375527116e-14,
+            "role_ok": true,
+            "nearest_id": "4",
+            "nearest_mm": 1.464821375527116e-14,
+            "ok": true
+          },
+          {
+            "id": "5",
+            "cover_in_carrier_mm": [
+              61.92,
+              20.159899000000003
+            ],
+            "carrier_mm": [
+              61.92,
+              20.159899
+            ],
+            "distance_mm": 3.552713678800501e-15,
+            "role_ok": true,
+            "nearest_id": "5",
+            "nearest_mm": 3.552713678800501e-15,
+            "ok": true
+          },
+          {
+            "id": "6",
+            "cover_in_carrier_mm": [
+              61.92,
+              22.699899000000002
+            ],
+            "carrier_mm": [
+              61.92,
+              22.699899
+            ],
+            "distance_mm": 3.552713678800501e-15,
+            "role_ok": true,
+            "nearest_id": "6",
+            "nearest_mm": 3.552713678800501e-15,
+            "ok": true
+          },
+          {
+            "id": "7",
+            "cover_in_carrier_mm": [
+              59.379999999999995,
+              20.159899000000003
+            ],
+            "carrier_mm": [
+              59.38,
+              20.159899
+            ],
+            "distance_mm": 7.944109290391274e-15,
+            "role_ok": true,
+            "nearest_id": "7",
+            "nearest_mm": 7.944109290391274e-15,
+            "ok": true
+          },
+          {
+            "id": "8",
+            "cover_in_carrier_mm": [
+              59.379999999999995,
+              22.699899000000002
+            ],
+            "carrier_mm": [
+              59.38,
+              22.699899
+            ],
+            "distance_mm": 7.944109290391274e-15,
+            "role_ok": true,
+            "nearest_id": "8",
+            "nearest_mm": 7.944109290391274e-15,
+            "ok": true
+          }
+        ],
+        "mismatched": 0,
+        "no_geometric_mate": 0,
+        "max_offset_mm": 1.464821375527116e-14,
+        "release_accepted": false
+      },
+      {
+        "ok": true,
+        "contacts": [
+          {
+            "id": "1",
+            "cover_in_carrier_mm": [
+              62.105002,
+              60.534999
+            ],
+            "carrier_mm": [
+              62.105002,
+              60.534999
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "1",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "2",
+            "cover_in_carrier_mm": [
+              62.105002,
+              57.99499900000001
+            ],
+            "carrier_mm": [
+              62.105002,
+              57.994999
+            ],
+            "distance_mm": 7.105427357601002e-15,
+            "role_ok": true,
+            "nearest_id": "2",
+            "nearest_mm": 7.105427357601002e-15,
+            "ok": true
+          },
+          {
+            "id": "3",
+            "cover_in_carrier_mm": [
+              64.645002,
+              60.534999
+            ],
+            "carrier_mm": [
+              64.645002,
+              60.534999
+            ],
+            "distance_mm": 0.0,
+            "role_ok": true,
+            "nearest_id": "3",
+            "nearest_mm": 0.0,
+            "ok": true
+          },
+          {
+            "id": "4",
+            "cover_in_carrier_mm": [
+              64.645002,
+              57.99499900000001
+            ],
+            "carrier_mm": [
+              64.645002,
+              57.994999
+            ],
+            "distance_mm": 7.105427357601002e-15,
+            "role_ok": true,
+            "nearest_id": "4",
+            "nearest_mm": 7.105427357601002e-15,
+            "ok": true
+          }
+        ],
+        "mismatched": 0,
+        "no_geometric_mate": 0,
+        "max_offset_mm": 7.105427357601002e-15,
+        "release_accepted": false
+      }
+    ],
+    "hardware": [
+      {
+        "anchor_pair": [
+          "H1",
+          "H1"
+        ],
+        "mpn": "ASB-2022E",
+        "diameter_max_mm": 5.0,
+        "af_nominal_mm": 4.0,
+        "length_mm": 22.0,
+        "length_tolerance_mm": 0.1,
+        "screw_mpn": "SSCF-M2-5-A2",
+        "head_diameter_mm": 3.8,
+        "head_height_mm": 2.0,
+        "screw_length_mm": 5.0,
+        "thread_diameter_mm": 2.0,
+        "xy": [
+          18.0,
+          20.159899
+        ],
+        "conflicts": [],
+        "ok": true
+      }
+    ]
+  },
+  "same_face": {
+    "ok": false,
+    "complete": true,
+    "conflicts": [
+      {
+        "references": [
+          "D4",
+          "R7"
+        ],
+        "overlap_area_mm2": 1.7190200000000042
+      },
+      {
+        "references": [
+          "F4",
+          "J6D"
+        ],
+        "overlap_area_mm2": 2.1349956750020067
+      },
+      {
+        "references": [
+          "D5",
+          "R8"
+        ],
+        "overlap_area_mm2": 1.6735099999999985
+      },
+      {
+        "references": [
+          "C19",
+          "D3"
+        ],
+        "overlap_area_mm2": 0.0294306551009995
+      }
+    ],
+    "missing": [],
+    "fallback_references": [],
+    "scope": "moved-owner planar envelope screening only"
+  },
+  "additional_overlap_owners": [
+    {
+      "reference": "C19",
+      "uuid": "c6f4d1c1-597c-4be2-8487-62be680bbfd2",
+      "pose_mm": [
+        17.282599,
+        31.207299,
+        90.0
+      ],
+      "footprint_library": "cec-Capacitor_SMD",
+      "footprint_name": "C_0402_1005Metric",
+      "pads": [
+        {
+          "uuid": "41cfe081-80bb-4a8a-89ed-9110c8b5498c",
+          "pin": "1",
+          "net": "/DETECT2"
+        },
+        {
+          "uuid": "ee8ff199-1a3e-4752-9f0a-b8493ab81c21",
+          "pin": "2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "D3",
+      "uuid": "5d179f76-45ee-4121-a376-5cd2d8e17b4e",
+      "pose_mm": [
+        19.31,
+        31.755,
+        0.0
+      ],
+      "footprint_library": "cec-Diode_SMD",
+      "footprint_name": "D_SOD-323",
+      "pads": [
+        {
+          "uuid": "034d01dc-95fe-5fe7-9c78-ab15c93cdedf",
+          "pin": "1",
+          "net": "/DETECT2"
+        },
+        {
+          "uuid": "a7a0c0e4-12db-5d2e-b899-f92006e1aa9d",
+          "pin": "2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "D4",
+      "uuid": "0603adfb-a6aa-4cd2-8e36-1ddeee66d1d0",
+      "pose_mm": [
+        17.6708,
+        49.38,
+        90.0
+      ],
+      "footprint_library": "cec-Diode_SMD",
+      "footprint_name": "D_SOD-323",
+      "pads": [
+        {
+          "uuid": "8ca31b66-f8b6-45f9-8378-2150b0b7a501",
+          "pin": "1",
+          "net": "/DETECT3"
+        },
+        {
+          "uuid": "c9761b48-9e0e-49d7-8a73-4e53ce23d384",
+          "pin": "2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "D5",
+      "uuid": "2c59cbbf-9e87-4250-9e1d-07db950b844b",
+      "pose_mm": [
+        18.144997,
+        56.09,
+        90.0
+      ],
+      "footprint_library": "cec-Diode_SMD",
+      "footprint_name": "D_SOD-323",
+      "pads": [
+        {
+          "uuid": "d3d0c0c8-3cf2-545a-9099-5a60ab3fa6d1",
+          "pin": "1",
+          "net": "/DETECT4"
+        },
+        {
+          "uuid": "e1c56e22-e710-535a-b719-28df7013aec4",
+          "pin": "2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "F4",
+      "uuid": "27f95507-5dba-4944-b273-4ee6b2a6c273",
+      "pose_mm": [
+        19.304997,
+        51.920001,
+        0.0
+      ],
+      "footprint_library": "cec-Resistor_SMD",
+      "footprint_name": "R_0805_2012Metric",
+      "pads": [
+        {
+          "uuid": "656d6508-2cee-4133-8b87-163866b04b6c",
+          "pin": "1",
+          "net": "/CAN + FOUR MODULE PORTS + STACK/VCC_P4"
+        },
+        {
+          "uuid": "0d7ce01c-1591-4e9f-b24c-cb127718cf69",
+          "pin": "2",
+          "net": "+5VSB"
+        }
+      ]
+    },
+    {
+      "reference": "J6D",
+      "uuid": "c2cc2180-fea3-4632-837b-0348b40d8220",
+      "pose_mm": [
+        23.894998,
+        50.734999,
+        -90.0
+      ],
+      "footprint_library": "cec-Connector_PinSocket_2.54mm",
+      "footprint_name": "PinSocket_2x02_P2.54mm_Vertical",
+      "pads": [
+        {
+          "uuid": "563a65be-57f1-4e31-8e0e-84a2695a9cde",
+          "pin": "1",
+          "net": "/DETECT1"
+        },
+        {
+          "uuid": "2645f3fe-0dad-48df-bf46-d859bb63a271",
+          "pin": "2",
+          "net": "GND"
+        },
+        {
+          "uuid": "86b111db-f6a4-40d0-b517-c398786b03c1",
+          "pin": "3",
+          "net": "unconnected-(J6D-Pin_3-Pad3)"
+        },
+        {
+          "uuid": "dbe01047-cc12-4080-88bd-ee5b455a37f5",
+          "pin": "4",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "R7",
+      "uuid": "33c1179c-411a-41b9-9ede-4150dbf51e76",
+      "pose_mm": [
+        17.19,
+        49.98,
+        90.0
+      ],
+      "footprint_library": "cec-Resistor_SMD",
+      "footprint_name": "R_0402_1005Metric",
+      "pads": [
+        {
+          "uuid": "2c05e1d2-ba05-4a88-9048-2c8c63a369ca",
+          "pin": "1",
+          "net": "+3V3"
+        },
+        {
+          "uuid": "cc09739b-2152-452f-8436-dc0ff834df17",
+          "pin": "2",
+          "net": "/DETECT3"
+        }
+      ]
+    },
+    {
+      "reference": "R8",
+      "uuid": "c9d9ef10-9bfd-40c4-8834-1ac23ea9d730",
+      "pose_mm": [
+        17.639597,
+        56.6606,
+        90.0
+      ],
+      "footprint_library": "cec-Resistor_SMD",
+      "footprint_name": "R_0402_1005Metric",
+      "pads": [
+        {
+          "uuid": "b81d1616-4dfd-4f1c-ad8a-5e3d0cd79709",
+          "pin": "1",
+          "net": "+3V3"
+        },
+        {
+          "uuid": "40f57917-2e31-4841-a45c-2ba3501bcce3",
+          "pin": "2",
+          "net": "/DETECT4"
+        }
+      ]
+    }
+  ],
+  "with_conditional_carrier_left2mm_trim": {
+    "bounds_mm": [
+      2.0,
+      -1.295,
+      88.185,
+      91.795
+    ],
+    "size_mm": [
+      86.185,
+      93.09
+    ],
+    "baseline_delta_mm": [
+      3.3999999999999915,
+      0.0
+    ]
+  },
+  "source_tracks_vias_near_new_cover_left_edge": [],
+  "edge_obligation": "Translate the receiving Hub left perimeter with the bank to preserve the existing side-entry mouth/edge relation; no new entry direction or accepted future outline is invented. Native all-layer copper, holes and paired screen required after actual construction.",
+  "source_files_unchanged": true,
+  "source_boards_modified": false,
+  "current_qualified": false,
+  "gap_changed": false,
+  "matched_headers_moved": false,
+  "KVM_moved": false,
+  "release_authority": false
+}

@@ -1,0 +1,340 @@
+{
+  "schema": 1,
+  "authority": [
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+      "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+      "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"
+    },
+    {
+      "path": "/home/codex/src/CEC-Platform/beta/assembly/hub-atx-stack.json",
+      "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+    }
+  ],
+  "scope": "FIXED_BODY_DATUM_SCREENING_UPPER_BOUND_NOT_ACHIEVED_TRIM",
+  "baseline": {
+    "schema": 1,
+    "complete": true,
+    "laminate": {
+      "bounds_mm": [
+        0.0,
+        0.0,
+        86.49,
+        87.5
+      ],
+      "size_mm": [
+        86.49,
+        87.5
+      ],
+      "bounding_area_mm2": 7567.875
+    },
+    "declared_body_plus_laminate": {
+      "bounds_mm": [
+        0.0,
+        -1.295,
+        89.585,
+        91.795
+      ],
+      "size_mm": [
+        89.585,
+        93.09
+      ],
+      "bounding_area_mm2": 8339.46765
+    },
+    "missing": [],
+    "geometry_bases": [
+      "declared_maximum_diameter",
+      "declared_post_width_at_native_pad_centres",
+      "design_allocation",
+      "native_courtyard"
+    ],
+    "exclusions": [
+      "external_cables_and_plugs",
+      "hardware_extents",
+      "tool_and_service_access"
+    ],
+    "scope": "declared-envelope sizing only; not physical-package qualification",
+    "release_authority": false
+  },
+  "limiting_objects": {
+    "left": [
+      {
+        "side": "carrier",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          0.0,
+          0.0,
+          78.0,
+          87.5
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          2.0,
+          11.0,
+          86.49,
+          82.6
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "C1",
+        "basis": "declared_maximum_diameter",
+        "bounds_mm": [
+          2.8499999999999943,
+          26.0,
+          21.349999999999994,
+          44.5
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "U3",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          2.9499990000000054,
+          19.19,
+          5.839999000000006,
+          20.740000000000002
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "C3",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          3.0949990000000014,
+          13.189999,
+          6.044999000000004,
+          14.639999
+        ]
+      }
+    ],
+    "top": [
+      {
+        "side": "carrier",
+        "ref": "TB1",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          36.62,
+          -1.295,
+          43.51,
+          8.345
+        ]
+      },
+      {
+        "side": "carrier",
+        "ref": "TB2",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          28.619999,
+          -1.295,
+          35.509999,
+          8.345
+        ]
+      },
+      {
+        "side": "carrier",
+        "ref": "TB5",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          44.62,
+          -1.295,
+          51.51,
+          8.345
+        ]
+      },
+      {
+        "side": "carrier",
+        "ref": "TB4",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          20.619999,
+          -1.295,
+          27.509999,
+          8.345
+        ]
+      },
+      {
+        "side": "carrier",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          0.0,
+          0.0,
+          78.0,
+          87.5
+        ]
+      }
+    ],
+    "right": [
+      {
+        "side": "cover",
+        "ref": "J3",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          71.095,
+          30.905,
+          89.585,
+          46.894999999999996
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "J2",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          71.095,
+          14.005,
+          89.585,
+          29.995
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "J4",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          71.095,
+          47.80500000000001,
+          89.585,
+          63.795
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "J5",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          71.095,
+          64.705,
+          89.585,
+          80.695
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          2.0,
+          11.0,
+          86.49,
+          82.6
+        ]
+      }
+    ],
+    "bottom": [
+      {
+        "side": "carrier",
+        "ref": "J3",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          5.954999,
+          69.555,
+          68.544999,
+          91.795
+        ]
+      },
+      {
+        "side": "carrier",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          0.0,
+          0.0,
+          78.0,
+          87.5
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "LAMINATE",
+        "basis": "exact_native_outline",
+        "bounds_mm": [
+          2.0,
+          11.0,
+          86.49,
+          82.6
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "J5",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          71.095,
+          64.705,
+          89.585,
+          80.695
+        ]
+      },
+      {
+        "side": "cover",
+        "ref": "SW_RESET",
+        "basis": "native_courtyard",
+        "bounds_mm": [
+          29.114998,
+          72.545,
+          35.204998,
+          75.455
+        ]
+      }
+    ]
+  },
+  "unchanged_objects_bounds_mm": [
+    2.0,
+    -1.295,
+    89.585,
+    91.795
+  ],
+  "conditional_bound": {
+    "carrier_left_removed_mm": 2.0,
+    "declared_bounds_mm": [
+      2.0,
+      -1.295,
+      89.585,
+      91.795
+    ],
+    "declared_size_mm": [
+      87.585,
+      93.09
+    ],
+    "delta_mm": [
+      2.0,
+      0.0
+    ],
+    "bounding_area_saved_mm2": 186.1800000000012,
+    "bounding_area_saved_percent": 2.2325166043422606,
+    "carrier_laminate_area_saved_mm2": 172.3287426857114,
+    "source_geometry_not_modified": true
+  },
+  "non12v_tracks_vias_with_left_bbox_under2p3_mm": [],
+  "demonstrated_new_stack_reduction_mm": [
+    0,
+    0
+  ],
+  "requirements": [
+    "Retire/reconnect the complete left12V rated bus and source terminal/Kelvin topology",
+    "Create legal actual bar lands, typed six-owner repack and rated stubs/layer transitions",
+    "Trim carrier outline/Ground fills with independent exact source receiving",
+    "Receive sourced bar and both solder joints in physical current/thermal transport; current guard deliberately refuses unknown transport",
+    "Obtain guaranteed assembled bar height/underside and full stack-Z evidence"
+  ],
+  "exclusions": [
+    "External plugs/cables",
+    "Hardware global extents",
+    "Tool/service access",
+    "Housing"
+  ],
+  "qualified_current": false,
+  "qualified_assembled_Z": false,
+  "release_authority": false
+}

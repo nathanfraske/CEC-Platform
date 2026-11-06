@@ -1,0 +1,96 @@
+{
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "barrel_uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+  "barrel_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+  "barrel_source_mm": [
+    16.103544,
+    48.903553
+  ],
+  "sourceowner": "U6.6 PR1 monitor",
+  "stationary_monitor_resistors": [
+    "R57",
+    "R58"
+  ],
+  "trials": [
+    {
+      "delta_mm": [
+        4,
+        0
+      ],
+      "courtyard_conflicts": [
+        [
+          "C54",
+          "C55"
+        ],
+        [
+          "R54",
+          "C51"
+        ],
+        [
+          "U6",
+          "C55"
+        ]
+      ],
+      "paired_ok": true,
+      "paired_violations": [],
+      "PR1_barrel_destination_mm": [
+        20.103544,
+        48.903553
+      ],
+      "PR1_destination_pad_conflicts": [
+        {
+          "ref": "C55",
+          "pad": "2",
+          "net": "GND",
+          "reason": "via and pad are not on the same assigned net"
+        }
+      ],
+      "PR1_destination_pad_blocked": true,
+      "all_copper_transport_and_boundaries_unverified": true
+    },
+    {
+      "delta_mm": [
+        4,
+        -2
+      ],
+      "courtyard_conflicts": [
+        [
+          "U6",
+          "C55"
+        ]
+      ],
+      "paired_ok": false,
+      "paired_violations": [
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C9",
+            "C1"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        },
+        {
+          "kind": "opposing_bodies",
+          "refs": [
+            "C27",
+            "C1"
+          ],
+          "margin_mm": -1.6999999999999993,
+          "ok": false,
+          "free_mm": 1.3000000000000007
+        }
+      ],
+      "PR1_barrel_destination_mm": [
+        20.103544,
+        46.903553
+      ],
+      "PR1_destination_pad_conflicts": [],
+      "PR1_destination_pad_blocked": false,
+      "all_copper_transport_and_boundaries_unverified": true
+    }
+  ],
+  "board_saved": false,
+  "accepted": false
+}

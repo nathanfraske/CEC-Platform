@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "status": "documented_component_ready_for_application_engineering_not_fab_release",
+  "part": "Keystone 5104TR / C7466142",
+  "component_drawing_verified": true,
+  "exact_JLC_Economic_and_Standard_SMT_listing_verified": true,
+  "basic_assembly_supplier_permission_needed": false,
+  "JLC_unit_price_USD_at_100_to_499": 0.3979,
+  "reserved_stock": false,
+  "all_in_assembly_quote": false,
+  "conservative_bare_height_max_mm": 1.9304,
+  "old_backside_reference_min_mm": 1.86,
+  "old_backside_no_Z_increase_guarantee_rejected": true,
+  "front_trial_height_allocation_mm": 2.5,
+  "trial_allocation_is_supplier_guarantee": false,
+  "guaranteed_constant_underbridge_tunnel": false,
+  "catalog_current_A": 20,
+  "application_conductor_screen_A": 15,
+  "catalog_screen_pass": true,
+  "application_current_and_thermal_qualified": false,
+  "native_assets": {
+    "experiments/busbars/keystone-verified-20261106/CEC_Keystone_Study.pretty/Keystone_5104TR_DrawingA_ApplicationPending.kicad_mod": "96b794b9829f5b5890ebc2532a81db5ae43df458b80621aef47099e7862e0cf6",
+    "experiments/busbars/keystone-verified-20261106/CEC_Keystone_Study.kicad_sym": "cb4d8b0d47675aa0642959dc1633d58d4e12b446339768e138803e232340934f",
+    "experiments/busbars/keystone-verified-20261106/asset-receipt.json": "13a584a86ee37c950350bb2413b517ab19d6c278a1f91e3183bcb33034ff7f76"
+  },
+  "asset_generation_byte_reproducible": true,
+  "regression": {
+    "tests": 62,
+    "failures": 0,
+    "errors": 0,
+    "report": "combined-regression.xml"
+  },
+  "independent_review": {
+    "part_geometry_no_actionable_findings": true,
+    "path_probe_false_clear_findings_repaired": [
+      "fresh edge cache and missing outline",
+      "actual ground and plane fills",
+      "missing native shape inventory",
+      "local unknown versus positive obstruction classification"
+    ],
+    "final_source_review_no_further_concrete_false_clear_finding": true,
+    "saved_fill_freshness_not_qualified": true
+  },
+  "source_boards_stack_selector_unchanged": {
+    "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+    "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "beta/assembly/hub-atx-stack.json": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "checkpoints/current.json": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484"
+  },
+  "new_product_boards_saved": 0,
+  "new_xy_compaction_demonstrated": false,
+  "native_DRC_rerun": false,
+  "retained_ATX_counts": {
+    "errors": 0,
+    "opens": 0,
+    "warnings": 94,
+    "basis": "unchanged exact prior received source; not a fresh DRC run"
+  },
+  "diagnostic_progress": {
+    "fixed_bar_front_poses_rejected": 3,
+    "copper_only_shortcut_rejected_by_full_copper": true,
+    "coordinated_mux_translation_mm": [
+      4,
+      0
+    ],
+    "mux_body_and_declared_stack_screen_pass": true,
+    "mux_copper_admitted": false,
+    "generic_compiler_limitation": "programming resistor planner requires its IC owner stationary",
+    "next_operation": "coherent owner/programming-passive source transport; then full-cut power corridor receiving"
+  },
+  "new_tool": "scripts/cec_path_probe.py",
+  "tool_scope": "read-only native path scout with foreign copper, actual saved plane fills, holes, rule areas, fresh edge geometry and unknown inventory; no ownership/current/DRC authority",
+  "release_authority": false
+}

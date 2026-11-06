@@ -1,0 +1,22 @@
+{
+  "native_refill": {
+    "algorithm": "native-priority-settle-v1",
+    "native_version": "10.0.5",
+    "zone_count": 52,
+    "ordered_passes": 2,
+    "stable": true,
+    "tolerance_nm": 0,
+    "pass_fingerprints": [
+      "1ed848d5e58ad7a6995708fbd3e35a9448cc64c9af61f656931075f3e9061447",
+      "1ed848d5e58ad7a6995708fbd3e35a9448cc64c9af61f656931075f3e9061447"
+    ],
+    "fingerprint": "1ed848d5e58ad7a6995708fbd3e35a9448cc64c9af61f656931075f3e9061447",
+    "wall_s": 1.695552
+  },
+  "candidate_sha256": "618f84df824eba5c5b16f9e805c701cb2207ab1e269ec23c0eda33ebb036a6bb",
+  "source_sha256": "4825def1abce879355b751406634f2dc5d552c207c779710b3cd6877ecf05992",
+  "global_current_qualified": false,
+  "thermal_qualified": false,
+  "admitted": false,
+  "release_authority": false
+}

@@ -1,0 +1,61 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "rows": [
+    {
+      "mode": "source",
+      "ground_width_nm": 200000,
+      "face": "F.Cu",
+      "pad_center_nm": [
+        20400000,
+        48000000
+      ],
+      "exact_aggregate_point8_result": null,
+      "passes_existing_aggregate_immediate_gate": false,
+      "diagnostic_only_point2_result": {
+        "observed_path_mm": 1.3499997813599822,
+        "via_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+        "via_at_nm": [
+          19445406,
+          48954594
+        ],
+        "pad_to_axis_centerline_mm": 1.3499997813599822,
+        "process_pad_blocked": false,
+        "process_records": []
+      },
+      "retained_axis_explicit_graph_cost_mm": 1.3499997813599822,
+      "retained_axis_straight_native_copper_cost_mm": 1.3499997813599824,
+      "retained_axis_centerline_mm": 1.3499997813599822,
+      "metric_not_replaced_by_edge_distance": true
+    },
+    {
+      "mode": "fixed_Ground_pivot",
+      "ground_width_nm": 200000,
+      "face": "F.Cu",
+      "pad_center_nm": [
+        20400000,
+        48000000
+      ],
+      "exact_aggregate_point8_result": null,
+      "passes_existing_aggregate_immediate_gate": false,
+      "diagnostic_only_point2_result": {
+        "observed_path_mm": 1.3499997813599822,
+        "via_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+        "via_at_nm": [
+          19445406,
+          48954594
+        ],
+        "pad_to_axis_centerline_mm": 1.3499997813599822,
+        "process_pad_blocked": false,
+        "process_records": []
+      },
+      "retained_axis_explicit_graph_cost_mm": 1.3499997813599822,
+      "retained_axis_straight_native_copper_cost_mm": 1.3499997813599824,
+      "retained_axis_centerline_mm": 1.3499997813599822,
+      "metric_not_replaced_by_edge_distance": true
+    }
+  ],
+  "scope": "Exact GroundView and cells._existing_return invocation from additional aggregate observe; 2mm query diagnostic only, no changed final gate or role alias",
+  "board_saved": false,
+  "release_authority": false
+}

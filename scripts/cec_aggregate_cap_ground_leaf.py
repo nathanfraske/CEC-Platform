@@ -240,10 +240,13 @@ def single_edge_ownerships(parent, proposal, track_uuids, *, deadline):
     fresh = aggregate.collect(parent, proposal['poses'], board_hint=proposal['board_hint'],
         reference_group_uuids=proposal.get('reference_group_uuids', ()),
         excluded_refs=proposal.get('additional_aggregate_excluded_refs', ()),
+        **({k: proposal[k] for k in ('allow_linear_power_stage_reconstruction', 'allow_owned_locked_escapes')
+            if k in proposal}),
         timeout_s=max(.001, deadline-time.monotonic()))
     _need(fresh and _wire(fresh) == _wire(proposal.get('additional_aggregate_capacitors')),
         'aggregate_cap_Ground_fresh_additional_role_required')
-    leaves = [p['source_Ground_leaf'] for p in fresh.values() if p.get('source_Ground_leaf')]
+    leaves = [p['source_Ground_leaf'] for p in fresh.values() if p.get('source_Ground_leaf')
+        and p['source_Ground_leaf'].get('scope') == SCOPE]
     scopes = {uid:p for p in leaves for uid in p['track_uuids']}
     _need(set(ids) <= scopes.keys(), 'aggregate_cap_Ground_only_exact_owned_leaf_edges')
     live = _objects(parent); rows = []

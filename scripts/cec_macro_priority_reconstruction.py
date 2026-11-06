@@ -81,6 +81,43 @@ def _seat(board,pad,via,tracks):
     return False
 
 
+def _supply_owner(source, candidate, proposal, pad, requests, board_hint, deadline, cache):
+    """Reprove the actual supply role without pretending every owner is a cap.
+
+    A monitor divider's upper rail land retains the complete rail contract;
+    its resistance does not grant a reduced-current launch or barrel rating.
+    """
+    selected = proposal.get('selected_programming_resistors', {})
+    matches = [item for item in selected.values()
+        if item.get('source_monitor_divider', {}).get('upper_motion') is True
+        and item['source_monitor_divider'].get('upper_power_pad_uuid') == force._uid(pad)]
+    if matches:
+        _need(len(matches) == 1, 'unique_selected_monitor_supply_owner')
+        if 'monitor_requests' not in cache:
+            import cec_programming_resistor_placement as programming
+            remaining = deadline - time.monotonic()
+            _need(remaining > 0, 'deadline')
+            cache['monitor_requests'] = programming.requests(source, candidate, proposal,
+                timeout_s=min(10., remaining))
+        key = 'monitor_divider_supply:' + force._uid(pad)
+        fresh = cache['monitor_requests'].get(key)
+        _need(fresh is not None and key in requests
+            and _stable(requests[key]) == _stable(fresh), 'fresh_complete_monitor_supply_request')
+        item = fresh['source_programming_resistor']; divider = item['source_monitor_divider']
+        _need(fresh['no_power_bypass_or_current_authority'] is True
+            and fresh['new_barrel_authority'] is False
+            and fresh['unchanged_full_rail_current_contract']
+            and divider['supply_net'] == pad.GetNetname(), 'unchanged_monitor_supply_authority')
+        role = dict(reference=divider['upper_reference'], rail=divider['supply_net'],
+            source_programming_resistor=item,
+            required_full_rail_request_id=key,
+            unchanged_full_rail_current_contract=fresh['unchanged_full_rail_current_contract'],
+            bypass_owner=False, new_current_authority=False, barrel_capacity_qualified=False)
+        return 'source_selected_monitor_divider', role, divider['upper_reference']
+    role = leaf._bypass_supply_owner(source, pad, board_hint)
+    return 'source_selected_bypass', role, role['cap_ref']
+
+
 def inspect(source,candidate,transport,packet,*,board_hint,timeout_s=10.):
     """Read-only, single <=10s observer. No supplied proof is authority."""
     _need(type(timeout_s)in(int,float)and math.isfinite(timeout_s)and 0<timeout_s<=10.,'bounded_deadline')
@@ -166,7 +203,7 @@ def inspect(source,candidate,transport,packet,*,board_hint,timeout_s=10.):
         for key,request in demands.items():
             request['unchanged_full_rail_current_contract']=contracts[request['net']]
             _need(key in requests and _stable(requests[key])==_stable(request),'every_exact_mandatory_component_request')
-        barrels=[];roles=[]
+        barrels=[];roles=[];role_cache={}
         moving=transport.get('source_process_barrel_motion')
         _need(type(moving)is list and len(moving)<=64 and len({r['uuid']for r in moving})==len(moving),'unique_owned_barrels')
         for proof in moving:
@@ -181,11 +218,12 @@ def inspect(source,candidate,transport,packet,*,board_hint,timeout_s=10.):
             owners=proof.get('source_owner_pad_uuids')
             _need(type(owners)is list and len(owners)==1 and owners[0]in pads,'one_actual_supply_pad_owner')
             pad,after=pads[owners[0]],targets[owners[0]]
-            role=leaf._bypass_supply_owner(source,pad,board_hint)
-            _need(role['rail']==a.GetNetname()and role['cap_ref']==pad.GetParentFootprint().GetReference()
+            role_key,role,owner_ref=_supply_owner(source,candidate,proposal,pad,requests,
+                board_hint,deadline,role_cache)
+            _need(role['rail']==a.GetNetname()and owner_ref==pad.GetParentFootprint().GetReference()
                 and _seat(source,pad,a,old)and _seat(candidate,after,b,new)
                 and fab.local_pofv_via_decision(source,a)[0]and fab.local_pofv_via_decision(candidate,b)[0],
-                'fresh_selected_bypass_and_native_POFV_seat')
+                'fresh_selected_supply_owner_and_native_POFV_seat')
             delta=[y-x for x,y in zip(tuple(a.GetPosition()),tuple(b.GetPosition()))]
             _need(proof.get('translation_nm')==delta and proof.get('owner_footprint_uuids')==[force._uid(pad.GetParentFootprint())],
                 'same_barrel_owner_transform')
@@ -264,7 +302,7 @@ def inspect(source,candidate,transport,packet,*,board_hint,timeout_s=10.):
                         'mandatory_same_physical_barrel_port')
                     contacts.append(dict(source_uuid=other,layer_id=face,request_ids=group[0]['request_ids']))
             _need(contacts,'nonempty_complete_old_barrel_contacts')
-            barrels.append(uid);roles.append(dict(uuid=uid,source_selected_bypass=role,complete_old_contacts=contacts))
+            barrels.append(uid);roles.append(dict(uuid=uid,complete_old_contacts=contacts,**{role_key:role}))
         return dict(complete=True,scope='fresh_pending_full_current_macro_reconstruction',
             track_uuids=sorted(rated_ids&changed.keys()),barrel_uuids=sorted(barrels),
             source_singleton_current_owners=fresh,source_components=derived_components,

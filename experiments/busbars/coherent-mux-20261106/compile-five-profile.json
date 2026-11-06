@@ -1,0 +1,70 @@
+{
+  "status": "bounded_worker_timeout",
+  "worker_limit_s": 10,
+  "board_saved": false,
+  "accepted": false,
+  "observed_phases": [
+    {
+      "event": "start",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 73650.893459455,
+      "explicit_ordered_composition": true
+    },
+    {
+      "module": "cec_cell_escape_replan",
+      "function": "_prepare_source",
+      "event": "call",
+      "elapsed_s": 0.8515071809961228
+    },
+    {
+      "module": "cec_programming_resistor_placement",
+      "function": "plan",
+      "event": "call",
+      "elapsed_s": 1.9060521259962115
+    },
+    {
+      "module": "cec_source_linear_power_stage",
+      "function": "collect",
+      "event": "call",
+      "elapsed_s": 1.9163115580013255
+    },
+    {
+      "module": "cec_source_linear_power_stage",
+      "function": "collect",
+      "event": "return",
+      "elapsed_s": 6.268845444996259
+    },
+    {
+      "module": "cec_programming_resistor_placement",
+      "function": "plan",
+      "event": "return",
+      "elapsed_s": 8.292685780994361
+    },
+    {
+      "module": "cec_additional_aggregate_macro",
+      "function": "collect",
+      "event": "call",
+      "elapsed_s": 8.547354360998725
+    },
+    {
+      "module": "cec_additional_aggregate_macro",
+      "function": "collect",
+      "event": "return",
+      "elapsed_s": 8.737934389006114
+    },
+    {
+      "module": "cec_retained_bypass_contact_frame",
+      "function": "plan",
+      "event": "call",
+      "elapsed_s": 8.738752510995255
+    },
+    {
+      "module": "cec_retained_bypass_contact_frame",
+      "function": "plan",
+      "event": "return",
+      "elapsed_s": 8.73906937299762
+    }
+  ],
+  "native_stack_sample": "./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n./kicad/include/properties/property.h(607): assert \"m_choices.GetCount() > 0\" failed in PROPERTY_ENUM(): No enum choices defined\n"
+}

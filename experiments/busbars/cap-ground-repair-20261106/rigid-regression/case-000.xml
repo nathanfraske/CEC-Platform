@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="1.300" timestamp="2026-11-06T12:31:34.327182" hostname="DESKTOP-AF2CO1R"><testcase classname="tests.test_source_cap_ground_via_repair" name="test_exact_same_barrel_reseat_preserves_all_saved_native_partitions" time="1.113" /></testsuite></testsuites>

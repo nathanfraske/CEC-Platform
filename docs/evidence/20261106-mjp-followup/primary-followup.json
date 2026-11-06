@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "checked_at_utc": "2026-11-06 07:33:48 UTC",
+  "baseline": "docs/evidence/20261106-mjp-part-qualification.json",
+  "new_primary_evidence": [
+    {
+      "topic": "Manufacturer-listed North American sample inquiry route",
+      "manufacturer_partner_url": "https://www.mac8japan.com/area/913",
+      "seller_url": "https://mac8usa.com/contact/",
+      "finding": "Mac8's world-partner page identifies Technology Trading Company and links mac8usa.com. That seller explicitly invites sample orders and quotation requests.",
+      "boundary": "This establishes an authenticated sample-request route, NOT actual MJP-1.0 sample stock, quantity, price, 100-piece/cut-tape offer, or acceptance of any order. No inquiry sent."
+    },
+    {
+      "topic": "Independent direct seller exact reel listing",
+      "url": "https://www.monotaro.com/p/4368/2206/",
+      "part": "MJP-1.0-T",
+      "seller_order_code": "43682206",
+      "pack_quantity": 700,
+      "price_jpy_ex_tax": 21980,
+      "price_jpy_including_japanese_tax": 24178,
+      "displayed_dispatch": "Within 9 days; nonreturnable",
+      "listed_material": "Copper; tin over nickel",
+      "boundary": "The directly opened page differs from the stale indexed overdue-October snapshot. Dispatch wording is not a numerical inventory guarantee or export quote. It independently corroborates copper for the exact -T listing, but does not settle purchased-lot traceability or the conflicting Marutsu material metadata. Still no smaller-than-700 verified offer."
+    }
+  ],
+  "not_actionable_as_small_quantity_offer": {
+    "url": "https://fs.e-junction.co.jp/okamotonet/goods/detail.jsp?goods_index=432831",
+    "reason": "Indexed generic MJP series page shows a price range and minimum/order-unit zero placeholders, not an exact MJP-1.0 SKU quantity offer; direct open returned HTTP503. Not counted as availability or price evidence."
+  },
+  "remaining_evidence_gaps_unchanged": [
+    "No additional released dimensional/coplanarity tolerances or guaranteed installed underside/top-height bounds located",
+    "No ambient, rise, duty, fixture, derating, resistance limit or solder-joint conditions supporting the catalog20A figure located",
+    "No manufacturer-qualified paste aperture, solder-volume/joint acceptance or exact MJP reflow-cycle profile located",
+    "No exact small-quantity purchasable listing verified"
+  ],
+  "part_model_audit": {
+    "profile": "experiments/busbars/mac8-mjp-1.0-nominal.json",
+    "footprint": "experiments/busbars/Mac8_MJP-1.0_PROVISIONAL.kicad_mod",
+    "boundary": "Profile explicitly nominal_only; footprint explicitly NOT_QUALIFIED, two distinct pads and no fake PCB copper bridge. Its full2x2mm paste apertures remain an authored provisional choice, not manufacturer-qualified stencil guidance. Neither nominal geometry nor20A metadata qualifies the two solder joints, PCB15A path, barrel transfers, or complete assembledZ."
+  },
+  "outbound_communication_or_orders": false,
+  "boards_or_shared_code_changed": false,
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "release_authority": false
+}

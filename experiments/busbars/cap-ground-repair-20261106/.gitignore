@@ -1,0 +1,7 @@
+# Exact receipts are retained durably in native-check-evidence.tar.gz.
+/checks-final/
+/sense-shards/
+# Construction scratch and the superseded pre-final-epoch DRC check.
+/native-construction.kicad_pcb
+/drc-candidate.json
+/drc-candidate-native.json

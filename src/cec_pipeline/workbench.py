@@ -335,7 +335,10 @@ class Workbench:
         offset=0,
         limit=8,
         reference_group_uuids=None,
+        allow_linear_power_stage_reconstruction=False,
     ):
+        require(type(allow_linear_power_stage_reconstruction) is bool,
+                "explicit_linear_power_stage_boolean_required")
         require(
             type(offset) is int
             and offset >= 0
@@ -352,6 +355,7 @@ class Workbench:
             allow_locked_footprint_uuids=allow_locked_footprint_uuids or [],
             allow_locked_track_uuids=allow_locked_track_uuids or [],
             reference_group_uuids=reference_group_uuids or [],
+            allow_linear_power_stage_reconstruction=allow_linear_power_stage_reconstruction,
         )
         token = self._make_job(board, dict(kind="cell_preview", operation=operation))
         record = self._run(token, "cell_preview")
@@ -670,6 +674,13 @@ class Workbench:
             all(op.get("kind") in CAPABILITIES for op in operations),
             "only_independently_received_construction_kinds_are_exposed",
         )
+        from . import cells
+        for operation in operations:
+            if operation.get("kind") == "place_cell":
+                cells.source_boundary_span_option(operation)
+            else:
+                require("max_source_boundary_span_nm" not in operation,
+                        "source_boundary_span_requires_native_macro")
         require(target_issue_ids is None or type(target_issue_ids) is list
                 and len(target_issue_ids) <= 32
                 and all(type(key) is str and len(key) == 64 for key in target_issue_ids)

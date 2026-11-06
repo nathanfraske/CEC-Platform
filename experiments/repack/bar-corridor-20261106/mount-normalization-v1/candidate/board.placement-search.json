@@ -1,0 +1,1074 @@
+{
+  "input_sha256": "a953564dd236bde8b5b503aee7cf110abce0d07c5b362b342911716569a854f0",
+  "schema": 1,
+  "scopes": {
+    "craft": {
+      "cached_admission": false,
+      "exhaustion_is_no_path_proof": false,
+      "purpose": "placement-proposal-ordering",
+      "schema": 1,
+      "visits": [
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              36.095,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.31,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              38.535000000000004,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              38.535000000000004,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              20.41,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              36.095,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              20.41,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              41.595,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.31,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              42.8543,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              44.035,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              36.095,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              36.095,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              20.41,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.1137,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              44.035,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.31,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              38.535000000000004,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.31,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              41.595,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "force_rail_blocker_group",
+          "placements": {
+            "C17": [
+              44.295,
+              22.645099000000002,
+              90.0
+            ],
+            "R4": [
+              41.595,
+              23.195099,
+              270.0
+            ],
+            "R61": [
+              44.035,
+              19.880000000000003,
+              90.0
+            ],
+            "SW1": [
+              32.415,
+              20.41,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "C17": [
+              44.8543,
+              23.6887,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "C17": [
+              45.8543,
+              21.6887,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "R4": [
+              43.1137,
+              14.3494,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "R4": [
+              44.1137,
+              23.3494,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "R61": [
+              35.765,
+              14.129100000000001,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "R61": [
+              44.765,
+              21.1291,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              29.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              29.795,
+              13.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              29.795,
+              13.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              13.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              14.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              14.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              14.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              15.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              15.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              15.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              16.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              17.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              17.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              18.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              18.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              30.795,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              13.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              14.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              14.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              15.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              16.6591,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              16.6591,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              17.6591,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              17.6591,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              18.6591,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              31.795,
+              18.6591,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              13.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              14.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              14.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              15.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              15.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              16.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              17.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              32.795,
+              18.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              13.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              14.659099999999999,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              15.659099999999999,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              16.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              17.6591,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              17.6591,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              33.795,
+              18.6591,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              34.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              34.795,
+              13.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              36.795,
+              13.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              37.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              38.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              38.795,
+              13.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              39.795,
+              13.659099999999999,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_clearance_grid",
+          "placements": {
+            "SW1": [
+              39.795,
+              13.659099999999999,
+              180.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "C17": [
+              42.8543,
+              20.78,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "R4": [
+              41.1137,
+              20.23,
+              270.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "R61": [
+              39.765,
+              20.23,
+              90.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              31.315,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              32.065,
+              19.6591,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              35.795,
+              12.690000000000001,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              35.795,
+              13.09,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              35.795,
+              20.76,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              35.795,
+              21.110000000000003,
+              0.0
+            ]
+          }
+        },
+        {
+          "count": 1,
+          "kind": "power_territory_reseat",
+          "placements": {
+            "SW1": [
+              57.285000999999994,
+              19.6591,
+              0.0
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

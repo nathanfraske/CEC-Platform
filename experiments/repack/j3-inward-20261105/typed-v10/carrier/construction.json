@@ -1,0 +1,777 @@
+{
+  "schema": 1,
+  "source": "experiments/repack/j3-inward-20261105/inward-v10/carrier/board.kicad_pcb",
+  "source_sha256": "24c944c3b862e894f82ff4068c604b5bc1250f4d3e95683487b8db04863d8812",
+  "candidate": "experiments/repack/j3-inward-20261105/typed-v10/carrier/board.kicad_pcb",
+  "candidate_sha256": "27db3ea6947ce467587f454b3b719d123306b43397cd74c9ad985fc320d9dfa4",
+  "source_scope": {
+    "schema": 1,
+    "source_sha256": "24c944c3b862e894f82ff4068c604b5bc1250f4d3e95683487b8db04863d8812",
+    "net": "+5V_SYS",
+    "group_uuid": "7ea01e1c-aab8-44a6-a75b-20e13e7e6d5c",
+    "authority_sha256": "682551a1c31841d9b88ffa2ae0b85da6e7af44c199655df9e9985dee03223868",
+    "source_group_name": "CEC_LOCAL_SUPPLY_ALLOCATION_V1|c00b0f76-2caf-47d2-8979-54cb8d5017b7|b728866f-c429-491d-9097-01d2bb43cdde|",
+    "source_group_members": [
+      "032c6f53-b649-4087-9317-01d70e5852c0",
+      "13f3cd79-710b-46ac-a0bb-eaa267fb00c2",
+      "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+      "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+      "7bab2b82-cf4c-4e80-9c81-6e89fc1774fc",
+      "a82a1ff3-27ef-4432-b265-e333876cc4fb",
+      "c3852d71-c20f-456f-819e-7d081e8f7a23",
+      "f9684df9-9180-4722-9968-32b6a2e9bf75"
+    ],
+    "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+    "anchor_uuid": "b728866f-c429-491d-9097-01d2bb43cdde",
+    "source_via_uuids": [],
+    "retired_track_uuids": [
+      "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+      "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+      "f9684df9-9180-4722-9968-32b6a2e9bf75"
+    ],
+    "source_budget": {
+      "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+      "net": "+5V_SYS",
+      "declaration": {
+        "net": "+5V_SYS",
+        "device_package": "TJA1051T/3 SO8",
+        "pin": "3",
+        "amps": 0.5,
+        "maximum_consumers": 1,
+        "basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+      },
+      "copper_profile": "jlcpcb_6l_pofv_high_current",
+      "current_authority": {
+        "amps": 0.5,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis_consumer_allocation",
+        "pattern": "+5V_SYS",
+        "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+      },
+      "aggregate_current_authority": {
+        "amps": 3.0,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "+5V_SYS"
+      },
+      "required_by_layer_mm": {
+        "F.Cu": 0.2,
+        "In1.Cu": 0.48307063288946445,
+        "In2.Cu": 0.48307063288946445,
+        "In3.Cu": 0.48307063288946445,
+        "In4.Cu": 0.48307063288946445,
+        "B.Cu": 0.2
+      },
+      "aggregate_required_by_layer_mm": {
+        "F.Cu": 0.47736927907636145,
+        "In1.Cu": 5.7190343613477115,
+        "In2.Cu": 5.7190343613477115,
+        "In3.Cu": 5.7190343613477115,
+        "In4.Cu": 5.7190343613477115,
+        "B.Cu": 0.47736927907636145
+      },
+      "ordinary_tap_geometry_mm": [
+        0.6,
+        0.3
+      ],
+      "manufacturer": {
+        "device_package": "TJA1051T/3 SO8",
+        "source": "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf",
+        "pins": {
+          "1": "signal_input",
+          "2": "ground",
+          "3": "power_input",
+          "4": "signal_output",
+          "5": "power_input",
+          "6": "signal_io",
+          "7": "signal_io",
+          "8": "control"
+        },
+        "common_domains": []
+      },
+      "consumer_static_max_a": 0.11,
+      "pass_through_input_bound": null,
+      "manufacturer_revision": "9",
+      "manufacturer_table": "7",
+      "static_conditions": "Tvj -40..150 C; VCC 4.5..5.5 V; specified CAN bus short -3..18 V",
+      "inrush_fault_barrel_and_release_qualified": false,
+      "release_authority": false
+    },
+    "actual_face_id": 6,
+    "actual_face": "In2.Cu",
+    "source_width_nm": 483071,
+    "actual_face_floor_nm": 483071,
+    "source_locked": true,
+    "source_has_solder_mask": false,
+    "required_by_layer_nm": {
+      "In2.Cu": 483071
+    },
+    "source_boundaries": [
+      {
+        "retired_uuids": [
+          "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+          "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+          "f9684df9-9180-4722-9968-32b6a2e9bf75"
+        ],
+        "net": "+5V_SYS",
+        "layer": "SIG2",
+        "width_nm": 483071,
+        "retained_qualified_signal_via_contacts": [],
+        "incoming_qualified_signal_via_contacts": [],
+        "external_boundary_count": 2,
+        "anchors_nm": [
+          [
+            29899400,
+            65491600
+          ],
+          [
+            56000000,
+            61000000
+          ]
+        ],
+        "restored": true
+      }
+    ],
+    "source_current_reduced": false,
+    "branch_sharing_assumed": false,
+    "private_intermediate_not_an_admission_baseline": true,
+    "release_authority": false
+  },
+  "replacement_points_nm": [
+    [
+      29899400,
+      65491600
+    ],
+    [
+      31184999,
+      66777199
+    ],
+    [
+      50222801,
+      66777199
+    ],
+    [
+      56000000,
+      61000000
+    ]
+  ],
+  "independently_received": {
+    "ok": true,
+    "complete": true,
+    "errors": [],
+    "source_current_reduced": false,
+    "branch_sharing_assumed": false,
+    "terminal_or_barrel_ampacity_qualified": false,
+    "release_authority": false,
+    "source_scope": {
+      "schema": 1,
+      "source_sha256": "24c944c3b862e894f82ff4068c604b5bc1250f4d3e95683487b8db04863d8812",
+      "net": "+5V_SYS",
+      "group_uuid": "7ea01e1c-aab8-44a6-a75b-20e13e7e6d5c",
+      "authority_sha256": "682551a1c31841d9b88ffa2ae0b85da6e7af44c199655df9e9985dee03223868",
+      "source_group_name": "CEC_LOCAL_SUPPLY_ALLOCATION_V1|c00b0f76-2caf-47d2-8979-54cb8d5017b7|b728866f-c429-491d-9097-01d2bb43cdde|",
+      "source_group_members": [
+        "032c6f53-b649-4087-9317-01d70e5852c0",
+        "13f3cd79-710b-46ac-a0bb-eaa267fb00c2",
+        "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+        "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+        "7bab2b82-cf4c-4e80-9c81-6e89fc1774fc",
+        "a82a1ff3-27ef-4432-b265-e333876cc4fb",
+        "c3852d71-c20f-456f-819e-7d081e8f7a23",
+        "f9684df9-9180-4722-9968-32b6a2e9bf75"
+      ],
+      "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+      "anchor_uuid": "b728866f-c429-491d-9097-01d2bb43cdde",
+      "source_via_uuids": [],
+      "retired_track_uuids": [
+        "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+        "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+        "f9684df9-9180-4722-9968-32b6a2e9bf75"
+      ],
+      "source_budget": {
+        "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+        "net": "+5V_SYS",
+        "declaration": {
+          "net": "+5V_SYS",
+          "device_package": "TJA1051T/3 SO8",
+          "pin": "3",
+          "amps": 0.5,
+          "maximum_consumers": 1,
+          "basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+        },
+        "copper_profile": "jlcpcb_6l_pofv_high_current",
+        "current_authority": {
+          "amps": 0.5,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis_consumer_allocation",
+          "pattern": "+5V_SYS",
+          "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+        },
+        "aggregate_current_authority": {
+          "amps": 3.0,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "+5V_SYS"
+        },
+        "required_by_layer_mm": {
+          "F.Cu": 0.2,
+          "In1.Cu": 0.48307063288946445,
+          "In2.Cu": 0.48307063288946445,
+          "In3.Cu": 0.48307063288946445,
+          "In4.Cu": 0.48307063288946445,
+          "B.Cu": 0.2
+        },
+        "aggregate_required_by_layer_mm": {
+          "F.Cu": 0.47736927907636145,
+          "In1.Cu": 5.7190343613477115,
+          "In2.Cu": 5.7190343613477115,
+          "In3.Cu": 5.7190343613477115,
+          "In4.Cu": 5.7190343613477115,
+          "B.Cu": 0.47736927907636145
+        },
+        "ordinary_tap_geometry_mm": [
+          0.6,
+          0.3
+        ],
+        "manufacturer": {
+          "device_package": "TJA1051T/3 SO8",
+          "source": "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf",
+          "pins": {
+            "1": "signal_input",
+            "2": "ground",
+            "3": "power_input",
+            "4": "signal_output",
+            "5": "power_input",
+            "6": "signal_io",
+            "7": "signal_io",
+            "8": "control"
+          },
+          "common_domains": []
+        },
+        "consumer_static_max_a": 0.11,
+        "pass_through_input_bound": null,
+        "manufacturer_revision": "9",
+        "manufacturer_table": "7",
+        "static_conditions": "Tvj -40..150 C; VCC 4.5..5.5 V; specified CAN bus short -3..18 V",
+        "inrush_fault_barrel_and_release_qualified": false,
+        "release_authority": false
+      },
+      "actual_face_id": 6,
+      "actual_face": "In2.Cu",
+      "source_width_nm": 483071,
+      "actual_face_floor_nm": 483071,
+      "source_locked": true,
+      "source_has_solder_mask": false,
+      "required_by_layer_nm": {
+        "In2.Cu": 483071
+      },
+      "source_boundaries": [
+        {
+          "retired_uuids": [
+            "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+            "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+            "f9684df9-9180-4722-9968-32b6a2e9bf75"
+          ],
+          "net": "+5V_SYS",
+          "layer": "SIG2",
+          "width_nm": 483071,
+          "retained_qualified_signal_via_contacts": [],
+          "incoming_qualified_signal_via_contacts": [],
+          "external_boundary_count": 2,
+          "anchors_nm": [
+            [
+              29899400,
+              65491600
+            ],
+            [
+              56000000,
+              61000000
+            ]
+          ],
+          "restored": true
+        }
+      ],
+      "source_current_reduced": false,
+      "branch_sharing_assumed": false,
+      "private_intermediate_not_an_admission_baseline": true,
+      "release_authority": false
+    },
+    "saved_source_consumer_proof": {
+      "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+      "anchor_uuid": "b728866f-c429-491d-9097-01d2bb43cdde",
+      "net": "+5V_SYS",
+      "budget": {
+        "root_pad_uuid": "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+        "net": "+5V_SYS",
+        "declaration": {
+          "net": "+5V_SYS",
+          "device_package": "TJA1051T/3 SO8",
+          "pin": "3",
+          "amps": 0.5,
+          "maximum_consumers": 1,
+          "basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+        },
+        "copper_profile": "jlcpcb_6l_pofv_high_current",
+        "current_authority": {
+          "amps": 0.5,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis_consumer_allocation",
+          "pattern": "+5V_SYS",
+          "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+        },
+        "aggregate_current_authority": {
+          "amps": 3.0,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "+5V_SYS"
+        },
+        "required_by_layer_mm": {
+          "F.Cu": 0.2,
+          "In1.Cu": 0.48307063288946445,
+          "In2.Cu": 0.48307063288946445,
+          "In3.Cu": 0.48307063288946445,
+          "In4.Cu": 0.48307063288946445,
+          "B.Cu": 0.2
+        },
+        "aggregate_required_by_layer_mm": {
+          "F.Cu": 0.47736927907636145,
+          "In1.Cu": 5.7190343613477115,
+          "In2.Cu": 5.7190343613477115,
+          "In3.Cu": 5.7190343613477115,
+          "In4.Cu": 5.7190343613477115,
+          "B.Cu": 0.47736927907636145
+        },
+        "ordinary_tap_geometry_mm": [
+          0.6,
+          0.3
+        ],
+        "manufacturer": {
+          "device_package": "TJA1051T/3 SO8",
+          "source": "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf",
+          "pins": {
+            "1": "signal_input",
+            "2": "ground",
+            "3": "power_input",
+            "4": "signal_output",
+            "5": "power_input",
+            "6": "signal_io",
+            "7": "signal_io",
+            "8": "control"
+          },
+          "common_domains": []
+        },
+        "consumer_static_max_a": 0.11,
+        "pass_through_input_bound": null,
+        "manufacturer_revision": "9",
+        "manufacturer_table": "7",
+        "static_conditions": "Tvj -40..150 C; VCC 4.5..5.5 V; specified CAN bus short -3..18 V",
+        "inrush_fault_barrel_and_release_qualified": false,
+        "release_authority": false
+      },
+      "track_requirements": {
+        "032c6f53-b649-4087-9317-01d70e5852c0": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "13f3cd79-710b-46ac-a0bb-eaa267fb00c2": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "706727d0-c37b-5841-9408-1da854be2209": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "7bab2b82-cf4c-4e80-9c81-6e89fc1774fc": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "94fb00b9-747f-5d6f-8eed-8366db387a38": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "a82a1ff3-27ef-4432-b265-e333876cc4fb": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "c3852d71-c20f-456f-819e-7d081e8f7a23": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "ea5b1fe5-3ee9-521f-8d0f-684792bdef75": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        }
+      },
+      "retained_consumer_island_uuids": [
+        "02287ba4-aba6-4b13-801b-39975c6869a7",
+        "05257d92-5db1-4d7d-b0c5-121191cbe0c2",
+        "1096ca96-3b0c-4898-bc03-76ec12f32908",
+        "11e100c5-de84-4007-a712-73dd9968da9d",
+        "20cf0f1c-c642-44fb-89aa-88bae4dd07d7",
+        "2332f1b4-a448-4471-8a8b-219411d18b76",
+        "2c487632-091e-4842-b0d7-755d644dce7c",
+        "2ee3d7ae-9759-473c-9e3b-b9e1b5953e4d",
+        "2ef01b7d-8937-4a34-bf5b-442ce19238f6",
+        "33e0598d-45b8-4fe6-b3c9-4340e8118008",
+        "3a61afab-37c8-467e-913e-335632cfc388",
+        "409a064d-728c-4227-a6e0-4cb24d65bd99",
+        "508ecb38-b2e8-4db5-956f-c3bb90df1bec",
+        "6668a625-8475-4665-b51a-6f39f9549115",
+        "6f1109af-1980-4cf9-bffe-58a0bb63b4b9",
+        "7e091060-795c-4cd2-a003-9fc4744dcdaf",
+        "99a3753d-1ab7-4947-9de3-b33d7bb1b12b",
+        "99df0982-97f2-4aa0-ba4b-ddd0e4ff6bec",
+        "b2e9b7db-a40a-4e42-99d8-ae06ecbab9cf",
+        "b56c29f2-90b9-4b6e-ab8e-b5b3daeacda7",
+        "c00b0f76-2caf-47d2-8979-54cb8d5017b7",
+        "d4e6128b-192f-4208-a670-67964d77908b",
+        "ddb92fde-3158-4979-a9b9-860498a99672",
+        "ef36ebac-a0a8-4133-afbf-20b37ff10edd",
+        "f94a272b-8540-4859-aec8-3df02aae9f44",
+        "f9a9481a-d660-485e-bb53-3fbaa48c0d34"
+      ],
+      "retained_island_track_requirements": {
+        "02287ba4-aba6-4b13-801b-39975c6869a7": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "11e100c5-de84-4007-a712-73dd9968da9d": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "20cf0f1c-c642-44fb-89aa-88bae4dd07d7": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "2332f1b4-a448-4471-8a8b-219411d18b76": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "2c487632-091e-4842-b0d7-755d644dce7c": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "2ef01b7d-8937-4a34-bf5b-442ce19238f6": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "33e0598d-45b8-4fe6-b3c9-4340e8118008": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "3a61afab-37c8-467e-913e-335632cfc388": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "409a064d-728c-4227-a6e0-4cb24d65bd99": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "508ecb38-b2e8-4db5-956f-c3bb90df1bec": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "6668a625-8475-4665-b51a-6f39f9549115": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "6f1109af-1980-4cf9-bffe-58a0bb63b4b9": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "99a3753d-1ab7-4947-9de3-b33d7bb1b12b": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "99df0982-97f2-4aa0-ba4b-ddd0e4ff6bec": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "b56c29f2-90b9-4b6e-ab8e-b5b3daeacda7": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "d4e6128b-192f-4208-a670-67964d77908b": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "ddb92fde-3158-4979-a9b9-860498a99672": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        },
+        "ef36ebac-a0a8-4133-afbf-20b37ff10edd": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "f94a272b-8540-4859-aec8-3df02aae9f44": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.2
+        },
+        "f9a9481a-d660-485e-bb53-3fbaa48c0d34": {
+          "current_authority": {
+            "amps": 0.5,
+            "margin_included": false,
+            "geometry_margin": 1.25,
+            "source": "board_design_basis_consumer_allocation",
+            "pattern": "+5V_SYS",
+            "consumer_allocation_basis": "Existing 0.5 A local conductor allowance within the unchanged 3 A shared SYS rail design basis. Applies only to the exclusive single TJA1051 VCC island, including its selected local capacitors. Not a source clamp, inrush, capacitor fault or barrel qualification; the shared Hub path remains sized for the unchanged aggregate."
+          },
+          "required_mm": 0.48307063288946445
+        }
+      },
+      "retained_island_allocation_reproved_from_native_topology": true,
+      "exact_branch_material_uuids": [
+        "032c6f53-b649-4087-9317-01d70e5852c0",
+        "13f3cd79-710b-46ac-a0bb-eaa267fb00c2",
+        "706727d0-c37b-5841-9408-1da854be2209",
+        "7bab2b82-cf4c-4e80-9c81-6e89fc1774fc",
+        "94fb00b9-747f-5d6f-8eed-8366db387a38",
+        "a82a1ff3-27ef-4432-b265-e333876cc4fb",
+        "c3852d71-c20f-456f-819e-7d081e8f7a23",
+        "ea5b1fe5-3ee9-521f-8d0f-684792bdef75"
+      ],
+      "shared_terminal_partitions_preserved": true,
+      "physical_trunk_tap_count": 1,
+      "aggregate_rail_budget_unchanged": true,
+      "tap_capture_mode": "retained_native_terminal",
+      "tap_capture_via_uuid": null,
+      "inrush_fault_barrel_and_release_qualified": false,
+      "release_authority": false
+    },
+    "incoming_track_uuids": [
+      "706727d0-c37b-5841-9408-1da854be2209",
+      "94fb00b9-747f-5d6f-8eed-8366db387a38",
+      "ea5b1fe5-3ee9-521f-8d0f-684792bdef75"
+    ],
+    "incoming_via_uuids": [],
+    "all_original_surviving_partitions_preserved": true,
+    "exact_native_ground_refill_replayed": true,
+    "restored_full_width_source_boundaries": [
+      {
+        "retired_uuids": [
+          "69e79220-ec09-4c8f-9ed3-3d404d37745a",
+          "793ec4bb-c61e-43de-9daa-b9e3f9f97811",
+          "f9684df9-9180-4722-9968-32b6a2e9bf75"
+        ],
+        "net": "+5V_SYS",
+        "layer": "SIG2",
+        "width_nm": 483071,
+        "retained_qualified_signal_via_contacts": [],
+        "incoming_qualified_signal_via_contacts": [],
+        "external_boundary_count": 2,
+        "anchors_nm": [
+          [
+            29899400,
+            65491600
+          ],
+          [
+            56000000,
+            61000000
+          ]
+        ],
+        "restored": true
+      }
+    ],
+    "source_candidate_and_code_unchanged": true,
+    "actual_face_current_floor_rederived": true,
+    "authority_sha256": "682551a1c31841d9b88ffa2ae0b85da6e7af44c199655df9e9985dee03223868"
+  },
+  "routing_admitted": false,
+  "whole_board_qualified": false,
+  "release_authority": false
+}

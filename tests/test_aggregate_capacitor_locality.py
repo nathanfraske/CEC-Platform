@@ -76,7 +76,7 @@ def test_near_pad_but_long_full_width_native_detour_is_not_local(tmp_path,monkey
     source,root,uid=fixture(tmp_path,monkeypatch);board,q=proposal(source,root,uid)
     points=[(13.5,14),(12,12.5),(12,10),(16,10)]
     for a,z in zip(points,points[1:]):track(board,'/ALPHA',a,z,width=.5)
-    track(board,'GND',(14.5,14),(15,14),width=.2)
+    track(board,'GND',(14.5,14),(15.2,14),width=.2)
     child=op.force._copy_family(source,tmp_path/'long-loop')
     op.additive._ground_refill(board);op.save_private(board,child,q)
     r=op.receive(source,child,q)

@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "source": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/loop-proof-20261105/cut/board.kicad_pcb",
+    "sha256": "418005826b30a9a8ace2ead311a271d2ac1a196b2ed4d9c51f63fa260d3925e3"
+  },
+  "candidate": {
+    "path": "/home/codex/src/CEC-Platform/experiments/repack/bar-land-clean-20261105/carrier/board.kicad_pcb",
+    "sha256": "cbacc785c55d4948f254a6f31a9c3eb15f41f0d40480d666cc5e477996b27364"
+  },
+  "retired_or_redrawn_source_uuids": [
+    "042cad00-1d84-4fe6-8568-ca0cab20bf39",
+    "16ac70be-9838-459c-af56-56a7e0240504",
+    "197d8365-0b19-423d-aad3-e7ca97adacbf",
+    "1c8a144b-2152-42ab-aa20-792f65e896f9",
+    "1f641818-cb23-468a-89c2-972ec8449b20",
+    "23835ed1-129a-47e4-9206-2ab10ae7b5e5",
+    "2a82207b-90ae-4068-a36c-78799dcc4281",
+    "50244163-2c72-4edb-b160-870be1424312",
+    "5719a5b3-896e-4005-972c-5e9310dd25d8",
+    "5fcf3de2-2240-4c0e-8238-845e82b7fbee",
+    "80dec0d3-7a30-4d07-b35c-fca4f56f0382",
+    "8189a6d8-faa1-4c70-a00a-4d8bc6741c55",
+    "b1e183df-c450-48eb-98ec-4dfc9bd5d9e2",
+    "b7649c3a-9c71-4af2-be7e-6fb0e498acd4",
+    "ce01c0ac-ec04-47df-bcec-ef51505f7397",
+    "d3292adf-764b-42e2-84de-ae1c61a6ea3a",
+    "d5186103-5ae5-4a79-bdee-23fdc360a167"
+  ],
+  "C7_pad_rebindings": [
+    {
+      "candidate_key": [
+        "pad",
+        "C7",
+        "1",
+        64500000,
+        71000000,
+        "defecadb-26fb-4a23-ab1e-131736468481"
+      ],
+      "source_key": [
+        "pad",
+        "C7",
+        "1",
+        62050000,
+        69700000,
+        "defecadb-26fb-4a23-ab1e-131736468481"
+      ]
+    },
+    {
+      "candidate_key": [
+        "pad",
+        "C7",
+        "2",
+        64500000,
+        69100000,
+        "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4"
+      ],
+      "source_key": [
+        "pad",
+        "C7",
+        "2",
+        63950000,
+        69700000,
+        "e43afeb9-bf6c-4bdf-ae50-6b2c3a0f93b4"
+      ]
+    }
+  ],
+  "retained_source_partitions": {
+    "available": true,
+    "preserved": true,
+    "demoted_parts": [],
+    "source_component_count": 89,
+    "child_component_count": 89,
+    "native_source_component_count": 89,
+    "native_child_component_count": 90,
+    "reported_parts_contain_comparison_keys_only": true,
+    "overlap_token_count": 46,
+    "intersection_pairs": 60,
+    "exact_positive_native_island_overlap": true,
+    "whole_zone_uuid_connectivity_credit": false,
+    "current_capacity_qualified": false,
+    "routing_admitted": false,
+    "release_authority": false,
+    "independent_delta_pose_current_receiving_still_required": true
+  },
+  "new_BB1_full_native_components": [
+    {
+      "index": 56,
+      "live_members": [
+        {
+          "key": [
+            "pad",
+            "BB1",
+            "1",
+            69000000,
+            64500000,
+            "c76d97df-e748-5c2e-9a95-be3d2b0c42b3"
+          ],
+          "class_name": "PAD",
+          "uuid": "c76d97df-e748-5c2e-9a95-be3d2b0c42b3",
+          "net": "/SENSE3V3_HI",
+          "owner": "BB1"
+        }
+      ],
+      "member_count": 1
+    }
+  ],
+  "BB1_is_new_isolated_pad": true,
+  "new_open_status": "One isolated BB1 pad component is present; retained-original partition preservation is NOT full connectivity.",
+  "native_DRC_independently_run": false,
+  "current_qualified": false,
+  "thermal_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "board_files_modified": false
+}

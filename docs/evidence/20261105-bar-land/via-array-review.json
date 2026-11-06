@@ -1,0 +1,71 @@
+{
+  "status": "requested_end_arrays_not_demonstrated_do_not_copy_failed_trial",
+  "authority": "private_native_geometry_experiment_only",
+  "source": "experiments/repack/bar-land-20261105/carrier/board.kicad_pcb",
+  "source_sha256": "c9cac71adb685a7f32e48af34793455927f89f9207c2af1b54577a4f95a15251",
+  "source_unchanged": true,
+  "prototype": {
+    "uuid": "505280f0-f8c4-47a2-962c-0438b631e8cf",
+    "net": "/SENSE3V3_HI",
+    "diameter_mm": 0.9,
+    "drill_mm": 0.5,
+    "locked": true,
+    "grouped": false,
+    "process": "source native through-via, six enabled copper layers; Duplicate with only UUID and position changed"
+  },
+  "failed_native_trial": {
+    "board": "experiments/repack/via-array-review-20261105/trial/board.kicad_pcb",
+    "sha256": "d54782965750d9b39146428a544278d35876aa4749cab4d3ab0d64f3137f17f7",
+    "columns_mm": [67.8, 69.0, 70.2],
+    "rows_mm": [55.4, 56.6, 70.8, 72.0],
+    "added_vias": 12,
+    "all_zones_refilled": true,
+    "native_drc": {
+      "report": "experiments/repack/via-array-review-20261105/drc.json",
+      "report_sha256": "7d799b0b51e134bbbe777babed0db965867c249750458aa7ba9f52e95b7a2308",
+      "errors": 32,
+      "opens": 0,
+      "warnings": 74,
+      "error_types": {"shorting_items": 14, "hole_clearance": 14, "clearance": 4},
+      "warning": "Zero opens does not make this shorted trial acceptable. Do not use it."
+    }
+  },
+  "blocking_objects": [
+    {
+      "uuid": "b4ce7f7e-5e4c-43fe-8dd8-7ef44240379c",
+      "net": "/ATX INTERPOSER + CONTROL SIGNALS/ATX_NEG12V",
+      "layer": "SIG2",
+      "start_mm": [69.0, 69.86709],
+      "end_mm": [69.0, 40.5],
+      "width_mm": 1.25668,
+      "effect": "Columns x67.8 and70.2 have only0.12166 mm copper clearance; required0.2 mm. Center column shorts."
+    },
+    {
+      "uuid": "16cb249c-64f8-4e44-b493-a3e29d3a69db",
+      "net": "+3V3",
+      "layer": "SIG2",
+      "start_mm": [67.9, 55.2],
+      "end_mm": [67.9, 56.643999],
+      "width_mm": 0.2,
+      "effect": "Upper-left suggested vias collide with this separate-net source branch and adjacent source segments."
+    }
+  ],
+  "bounded_alternative_scan": {
+    "method": "Native effective-shape collision on every enabled copper layer, foreign source tracks/vias/pads, conservative0.25 mm gap; excludes zones because full native refill supplies zone clearance. Not a DRC replacement.",
+    "columns_mm": [67.65, 70.35],
+    "scan_y_mm": {"first": 54.7, "last": 74.3, "step": 0.4},
+    "both_columns_clear_sampled_y_mm": [57.9,58.3,61.1,63.5,63.9,64.3,64.7,65.1,65.5,65.9,66.3,66.7,67.1,67.5,67.9,68.3,68.7,69.1,72.7,73.1,73.5,73.9,74.3],
+    "interpretation": "Offset columns clear the vertical NEG12 trunk but leave only0.05 mm annulus-to-land-edge margin. No regular upper-end three-row array was found in this bounded scan. At lower rows right-column capture also decreases as retained BCu trunk turns diagonally. This is a bounded failed search, not a proof that all possible layouts are impossible.",
+    "decision": "Do not reroute unrelated power nets for this prototype. Leave BB1 open until an explicit source-bound legal connection is constructed and received."
+  },
+  "qualification": {
+    "current_qualified": false,
+    "thermal_qualified": false,
+    "joint_qualified": false,
+    "assembly_qualified": false,
+    "production_admitted": false,
+    "existing_power_trunk_retained": true,
+    "rules_widths_and_nets_unchanged": true
+  },
+  "reproducer": "experiments/repack/via-array-review-20261105/probe.py"
+}

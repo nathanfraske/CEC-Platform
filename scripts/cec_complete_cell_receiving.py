@@ -160,7 +160,12 @@ def _stationary_bypass_return_peers(parent,child,assigned,refs):
     return result
 
 
-def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
+def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None,
+           allow_linear_power_stage_reconstruction=False):
+    if type(allow_linear_power_stage_reconstruction) is not bool:
+        raise ValueError('explicit_pose_linear_power_stage_boolean_required')
+    stage_options=(dict(allow_linear_power_stage_reconstruction=True)
+                   if allow_linear_power_stage_reconstruction else {})
     lease=_PoseSelectionLease(phase_timeouts_s)
     before={force._uid(f):f for f in parent.GetFootprints()}
     after={force._uid(f):f for f in child.GetFootprints()}
@@ -192,25 +197,35 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
         import cec_control_gate_bias_placement as gate_bias
         gate_biases=gate_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_programming_resistor_placement as programming
-        programming_resistors=programming.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
+        programming_resistors=programming.plan(parent,actual,board_hint=hint,
+            reference_group_uuids=reference_group_uuids,**stage_options)
+        programming_refs=programming.participant_refs(programming_resistors)
+        import cec_source_timing_capacitor as timing
+        timing_caps=timing.plan(parent,actual,board_hint=hint,
+            reference_group_uuids=reference_group_uuids,**stage_options)
+        import cec_source_series_link_placement as series_link
+        series_links=series_link.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_source_signal_bias_placement as signal_bias
         bias_resistors=signal_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|set(programming_resistors))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(series_links)|set(timing_caps))
         import cec_additional_aggregate_macro as aggregate_caps
         additional=aggregate_caps.collect(parent,actual,board_hint=hint,
             reference_group_uuids=reference_group_uuids,require_explicit_owner=False,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|set(programming_resistors)|set(bias_resistors))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(bias_resistors)|set(series_links)|set(timing_caps),
+            allow_owned_locked_escapes=True,**stage_options)
         # Recover the unique canonical owner from original Source intent,
         # never a constructor-provided refdes. Its saved pose must remain
         # exactly stationary; a power-stage relocation is not authorized.
         for proof in additional.values():
             ref=proof['source_locality_owner']['owner_ref']
             old=parent.FindFootprintByReference(ref);new=child.FindFootprintByReference(ref)
-            if old is None or new is None or pose(old)!=pose(new):
+            wired=proof.get('source_wired_identity')
+            motion=None if wired is None else wired.get('coherent_owner_motion')
+            if old is None or new is None or (motion is None and pose(old)!=pose(new)):
                 raise ValueError('saved_additional_capacitor_owner_must_remain_stationary')
             refs.add(ref)
             actual[ref]=[new.GetPosition().x/1e6,new.GetPosition().y/1e6,new.GetOrientationDegrees()]
-        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),set(programming_resistors),set(additional))
+        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),programming_refs,set(additional),set(series_links),set(timing_caps))
         if (sum(map(len,passive_roles))!=len(set().union(*passive_roles))
                 or set().union(*passive_roles)!=unowned):
             raise ValueError('actual_motion_not_complete_source_selected_cells')
@@ -224,15 +239,29 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
         gate_bias.requests(parent,child,dict(poses=actual,selected_control_gate_biases=gate_biases,board_hint=hint,
             reference_group_uuids=reference_group_uuids))
         programming.requests(parent,child,dict(poses=actual,selected_programming_resistors=programming_resistors,
+            board_hint=hint,reference_group_uuids=reference_group_uuids,**stage_options))
+        timing.requests(parent,child,dict(poses=actual,selected_timing_capacitors=timing_caps,
+            board_hint=hint,reference_group_uuids=reference_group_uuids,**stage_options))
+        series_link.requests(parent,child,dict(poses=actual,selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         signal_bias.requests(parent,child,dict(poses=actual,selected_signal_bias_resistors=bias_resistors,
             selected_control_shunts=selected,selected_control_pullups=pullups,
             selected_control_gate_biases=gate_biases,selected_programming_resistors=programming_resistors,
+            selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         if additional:
+            # Preflight work selection only. Missing edges are NOT ownership
+            # evidence: full-current roles are rederived here, and the later
+            # complete saved macro replay must own every literal deletion.
+            current_work={}
+            if allow_linear_power_stage_reconstruction:
+                live_ids={force._uid(t)for t in child.GetTracks()}
+                current_work['composed_current_cut_uuids']=[force._uid(t)for t in parent.GetTracks()
+                    if t.GetClass()=='PCB_TRACK'and force._uid(t)not in live_ids]
             aggregate_caps.requests(parent,child,dict(poses=actual,additional_aggregate_capacitors=additional,
-                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|set(programming_resistors)),
-                board_hint=hint,reference_group_uuids=reference_group_uuids))
+                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|programming_refs|set(series_links)|set(timing_caps)),
+                board_hint=hint,reference_group_uuids=reference_group_uuids,
+                allow_owned_locked_escapes=True,**stage_options),**current_work)
         refs|=set().union(*passive_roles)
     else:
         lease.advance('source_passive_role_requests')
@@ -480,8 +509,13 @@ def _receive_paths(parent,child,requests,incoming,hint,deadline,*,received_barre
             independent_saved_native_paths=alias_paths))
     if source_proposal is not None and source_proposal.get('additional_aggregate_capacitors'):
         import cec_additional_aggregate_macro as aggregate_caps
+        current_work={}
+        if source_proposal.get('allow_linear_power_stage_reconstruction')is True and source_macro_packet is not None:
+            current_work['composed_current_cut_uuids']=[r['change']['uuid']for r in
+                source_macro_packet['additional_source_boundary_ownership']
+                if r['authority']['kind']=='unchanged_full_current_source_edge']
         observation=aggregate_caps.observe(parent,child,source_proposal,
-            timeout_s=min(10.,max(.001,deadline-time.monotonic())))
+            timeout_s=min(10.,max(.001,deadline-time.monotonic())),**current_work)
         if not observation['complete']or not observation['ok']:
             raise ValueError('saved_Source_additional_aggregate_capacitor_paths_or_returns_refused:'+repr(observation.get('errors')))
         proofs.append(dict(kind='Source_additional_aggregate_capacitor_actual_saved_local_paths_and_returns',
@@ -547,7 +581,7 @@ def _receive_reference_transports(candidate,plan):
             raise ValueError('saved_source_reference_group_cardinal_transport_differs')
 
 
-def _save_literal_projection(source, expected, projected, plan, moved_refs):
+def _save_literal_projection(source, expected, projected, plan, moved_refs, *, source_macro_packet=None):
     """Receive native scope first, then preserve every unowned Source AST.
 
     The private expected board is not a writer-normalization waiver. Compare
@@ -568,6 +602,27 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
         raise ValueError('fresh_actual_projection_owners_required')
     owned = {by_ref[ref] for ref in moved_refs}
     retired = set(plan['retired_track_uuids'])
+    if source_macro_packet is not None:
+        packet = source_macro_packet
+        if (packet.get('scope') != 'source_typed_complete_native_macro_requests'
+                or Path(packet['source']).resolve() != source
+                or packet['source_sha256'] != force._hash(source)
+                or packet['code_identity'] != force._code_identity()
+                or syntax._freeze(packet['source_plan']) != syntax._freeze(plan)):
+            raise ValueError('fresh_source_macro_literal_projection_required')
+        retired = set(packet['retired_track_uuids'])
+        transported = set(plan.get('row_plan', {}).get('transformed_track_uuids', []))
+        for name in ('changes', 'source_process_barrel_motion',
+                     'explicit_source_typed_ordinary_barrel_motion',
+                     'explicitly_reproved_private_signal_port_reseats',
+                     'explicitly_reproved_private_signal_return_reseats'):
+            transported.update(row['uuid'] for row in packet['transport'].get(name, []))
+        transported.update(row['uuid'] for row in packet.get(
+            'source_factory_ground_pickups_carried_without_retirement', []))
+        if any(uid not in source_nodes or source_nodes[uid][0] not in ('segment', 'via')
+               for uid in transported):
+            raise ValueError('native_macro_transport_must_be_actual_source_copper')
+        owned.update(transported-retired)
     if any(uid not in source_nodes or source_nodes[uid][0] != 'segment' for uid in retired):
         raise ValueError('exact_source_projection_track_cuts_required')
     if plan.get('reference_group_uuids'):
@@ -591,6 +646,7 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
             return syntax._freeze([node for node in root if id(node) not in objects])
         if globals_only(old_root, old) != globals_only(new_root, new):
             raise ValueError('native_projection_changed_unowned_global_context')
+        pruned_groups = set()
         for uid, node in old.items():
             if uid in retired or uid in owned:
                 continue
@@ -598,8 +654,20 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
                 if additive._without(node, 'filled_polygon') != additive._without(new[uid], 'filled_polygon'):
                     raise ValueError('native_projection_changed_ground_nonfill_context')
             elif syntax._freeze(node) != syntax._freeze(new[uid]):
-                raise ValueError('native_projection_changed_unowned_source_context')
+                # Native deletion removes retired conductors from their
+                # existing groups. Only that exact subtraction is owned.
+                if (source_macro_packet is not None and node[0] == 'group'
+                        and additive._without(node, 'members') == additive._without(new[uid], 'members')
+                        and additive._members(new[uid]) == additive._members(node)-retired):
+                    pruned_groups.add(uid)
+                else:
+                    raise ValueError('native_projection_changed_unowned_source_context')
         replacements = {uid: new[uid] for uid in owned}
+        for uid in pruned_groups:
+            node = copy.deepcopy(source_nodes[uid])
+            members = next(part for part in node if isinstance(part, list) and part and part[0] == 'members')
+            members[:] = ['members', *[value for value in members[1:] if value.strip('"') not in retired]]
+            replacements[uid] = node
         for uid in ground:
             node = copy.deepcopy(source_nodes[uid])
             node = [part for part in node if not
@@ -609,7 +677,7 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
             replacements[uid] = node
         text = raw.raw_text(source)
         spans = raw.inventory(text)
-        for uid in sorted(owned | retired | ground, key=lambda value: spans[value][0], reverse=True):
+        for uid in sorted(owned | retired | ground | pruned_groups, key=lambda value: spans[value][0], reverse=True):
             start, end = spans[uid]
             text = text[:start] + ('' if uid in retired else additive._render(replacements[uid])) + text[end:]
         raw.write_raw(expected, text)
@@ -643,7 +711,9 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         families=[force._family(p,board_hint) for p in paths];epoch=force._code_identity()
         deadline=time.monotonic()+timeout_s
         parent,child=[pcbnew.LoadBoard(str(p)) for p in paths]
-        poses,moved=_poses(parent,child,board_hint,reference_group_uuids)
+        poses,moved=_poses(parent,child,board_hint,reference_group_uuids,
+            **(dict(allow_linear_power_stage_reconstruction=True)
+                if allow_linear_power_stage_reconstruction else {}))
         plan=escape.prepare(parent,poses,board_hint=board_hint,max_shift_mm=max_shift_mm,
             allow_owned_locked_escapes=allow_owned_locked_escapes,rebuild_projected_ground=rebuild_projected_ground,
             allow_octilinear_rotations=allow_octilinear_rotations,reference_group_uuids=reference_group_uuids,

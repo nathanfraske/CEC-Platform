@@ -1,0 +1,354 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+  "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "transported_source_copper_uuids": [
+    "b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+    "d48f0ac8-dc32-4959-aa78-fc9326f3e8b1"
+  ],
+  "routed": [
+    {
+      "request": "macro_boundary:80262295-4045-4dbc-a9b4-aaee9de999d5",
+      "route": {
+        "net": "+5VSB",
+        "layer": "F.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            30594990,
+            59525000
+          ],
+          [
+            30594990,
+            56994990
+          ],
+          [
+            30000000,
+            56400000
+          ],
+          [
+            30000000,
+            55500001
+          ],
+          [
+            29970000,
+            55470001
+          ],
+          [
+            26630000,
+            55470001
+          ],
+          [
+            26600000,
+            55500001
+          ],
+          [
+            26600000,
+            55600000
+          ],
+          [
+            26433120,
+            55766880
+          ],
+          [
+            26433120,
+            57180000
+          ],
+          [
+            26463120,
+            57210000
+          ],
+          [
+            27200000,
+            57210000
+          ]
+        ]
+      }
+    },
+    {
+      "request": "monitor_divider_supply:7475104c-b608-4514-9095-e89dfd7d7005",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "7475104c-b608-4514-9095-e89dfd7d7005"
+          ],
+          [
+            "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "macro_boundary:87fd7c9a-ee93-4e37-b921-18a023e13bab",
+      "route": {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "SIG2",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            24509990,
+            56190000
+          ],
+          [
+            23424990,
+            57275000
+          ]
+        ]
+      }
+    },
+    {
+      "request": "macro_boundary:d693fbdd-334d-4ac5-9a43-b8c2a814e9dc",
+      "route": {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            27200000,
+            56046844
+          ],
+          [
+            27230000,
+            56016844
+          ],
+          [
+            29070000,
+            56016844
+          ],
+          [
+            29100000,
+            56046844
+          ],
+          [
+            29100000,
+            56190000
+          ]
+        ]
+      }
+    },
+    {
+      "request": "monitor_divider_upper:6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "6743eddd-f9fb-47ba-9d76-dea7839f48a3"
+          ],
+          [
+            "b2b2b674-192b-4c55-9373-f1670b4f6f20"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "programming_resistor:6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "6743eddd-f9fb-47ba-9d76-dea7839f48a3"
+          ],
+          [
+            "ced55e46-eed5-4662-9720-b9a8db66c2fb"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    },
+    {
+      "request": "retained_barrel:b2b2b674-192b-4c55-9373-f1670b4f6f20:b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+      "existing_native_path": {
+        "source_endpoint_native_uuids": [
+          [
+            "b2b2b674-192b-4c55-9373-f1670b4f6f20"
+          ],
+          [
+            "b2a88c68-1710-405d-9c7f-6cbe5d6add5a"
+          ]
+        ],
+        "all_named_contacts_connected": true,
+        "zone_and_foreign_net_edges_excluded": true,
+        "new_copper": 0,
+        "new_holes": 0,
+        "typed_source_ground_fragment": false,
+        "physical_return_and_original_current_receiving_still_required": true,
+        "current_qualified": false,
+        "release_authority": false
+      }
+    }
+  ],
+  "unresolved": [],
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "poses": [
+      {
+        "reference": "R55",
+        "at_nm": [
+          27200000,
+          56700000
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "R56",
+        "at_nm": [
+          29100000,
+          56700000
+        ],
+        "rotation_deg": 270
+      }
+    ],
+    "routes": [
+      {
+        "net": "+5VSB",
+        "layer": "F.Cu",
+        "width_nm": 477370,
+        "points_nm": [
+          [
+            30594990,
+            59525000
+          ],
+          [
+            30594990,
+            56994990
+          ],
+          [
+            30000000,
+            56400000
+          ],
+          [
+            30000000,
+            55500001
+          ],
+          [
+            29970000,
+            55470001
+          ],
+          [
+            26630000,
+            55470001
+          ],
+          [
+            26600000,
+            55500001
+          ],
+          [
+            26600000,
+            55600000
+          ],
+          [
+            26433120,
+            55766880
+          ],
+          [
+            26433120,
+            57180000
+          ],
+          [
+            26463120,
+            57210000
+          ],
+          [
+            27200000,
+            57210000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "SIG2",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            24509990,
+            56190000
+          ],
+          [
+            23424990,
+            57275000
+          ]
+        ]
+      },
+      {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "points_nm": [
+          [
+            27200000,
+            56190000
+          ],
+          [
+            27200000,
+            56046844
+          ],
+          [
+            27230000,
+            56016844
+          ],
+          [
+            29070000,
+            56016844
+          ],
+          [
+            29100000,
+            56046844
+          ],
+          [
+            29100000,
+            56190000
+          ]
+        ]
+      }
+    ],
+    "vias": [],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [
+      "80262295-4045-4dbc-a9b4-aaee9de999d5",
+      "87fd7c9a-ee93-4e37-b921-18a023e13bab",
+      "9c23c2e6-716c-44ae-b626-4b5693bbd4f4",
+      "d693fbdd-334d-4ac5-9a43-b8c2a814e9dc",
+      "e9da9b66-ee3f-4aa1-8964-3e6f6b2e268b"
+    ],
+    "allow_locked_transport_uuids": [
+      "b2a88c68-1710-405d-9c7f-6cbe5d6add5a",
+      "d48f0ac8-dc32-4959-aa78-fc9326f3e8b1"
+    ],
+    "reference_group_uuids": [
+      "a1dea770-31b1-5e49-b8de-f601e2e38253"
+    ]
+  }
+}

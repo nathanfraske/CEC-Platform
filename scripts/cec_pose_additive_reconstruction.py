@@ -326,6 +326,13 @@ def receive(source, candidate, *, selected_footprint_uuids, board_hint,
             import cec_source_retaining_ses_import as source_text
             source_text.write_raw(projected,footprint_text.retain(source_text.raw_text(paths[0]),
                 source_text.raw_text(projected),selected_footprint_uuids))
+            # The writer can quote a previously bare group UUID. Restore
+            # untouched Source text only after exact group equality apart
+            # from that lexical permutation. The saved child gate below
+            # remains literal and still rejects real group/copper changes.
+            import cec_source_literal_group_retention as group_text
+            source_text.write_raw(projected,group_text.retain(source_text.raw_text(paths[0]),
+                source_text.raw_text(projected),reference_group_uuids))
             remaining = min(10., deadline - time.monotonic())
             if remaining <= 0:
                 raise ValueError('connected_pose_receiving_deadline')

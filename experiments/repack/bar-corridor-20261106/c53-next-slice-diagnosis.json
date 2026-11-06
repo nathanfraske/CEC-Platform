@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "source": "experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+  "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+  "status": "bounded_geometry_scout_refused_no_new_adapter_or_board_written",
+  "source_role": {
+    "reference": "C53",
+    "value": "10uF",
+    "mpn": "CL21A106KAYNNNE",
+    "lcsc": "C15850",
+    "note": "U6 IN2 (VBUS) bulk (additional to the existing C9 on the same node).",
+    "missing_local_C9_requirement_now_repaired": true,
+    "existing_additional_capacitor_locality_limit_mm": 3.5,
+    "owner_pad_nm": [14324990, 47775001]
+  },
+  "copper_ownership": {
+    "supply_pad_center_nm": [24929989, 55300000],
+    "independent_departures": 2,
+    "departure_width_mm": 0.2,
+    "supply_land_itself_bridges_the_departures": true,
+    "ground_pad_center_nm": [23029989, 55300000],
+    "ground_contact_is_existing_centered_via_not_linear_track_leaf": true,
+    "isolated_supply_or_missing_bypass_alias_valid": false,
+    "possible_zero_cut_approach": "Retain every existing track/barrel. Independently prove a full-rated bridge entirely inside the old native supply land, with both old/new capacitor lands absent from the bridge proof. Then prove a new full-rated feed, source-local placement, immediate Ground return, exact reference transport, full partitions/current/field/stack/native receiving.",
+    "new_adapter_implemented": false,
+    "reason_deferred": "No actually feasible local pocket yet; do not add unused repair machinery or weaken locality."
+  },
+  "rejected_remote_pocket": {
+    "pose_mm_deg": [25.45, 57, 90],
+    "supply_distance_mm": 15.076354,
+    "meets_existing_locality": false
+  },
+  "bounded_read_only_scout": {
+    "coarse_and_targeted_upper_right_trials": 100,
+    "coarse_locality_and_courtyard_passes": 5,
+    "coarse_native_surface_passes": 0,
+    "lower_left_distinct_trials": 46,
+    "lower_left_locality_passes": 41,
+    "lower_left_courtyard_passes": 19,
+    "lower_left_native_surface_passes": 0,
+    "lower_left_exact_guard_collision": "Both pad effective shapes collide with the actual C37 vent zone outline, not merely its bounding box.",
+    "representative_pose_mm_deg": [12.5, 51, 180],
+    "representative_supply_pad_mm": [13.45, 51],
+    "representative_ground_pad_mm": [11.55, 51],
+    "representative_supply_distance_mm": 3.34159,
+    "other_blockers": ["C9/R54 courtyards", "upper U6_ILM copper", "C1 vent and other keepouts"],
+    "exhaustive_impossibility_claimed": false,
+    "ground_or_stack_attempted_after_native_failure": false
+  },
+  "engineering_basis": {
+    "source": "https://www.ti.com/lit/ds/symlink/tps2121.pdf",
+    "revision": "SLVSEA3F",
+    "sections": ["11 Power Supply Recommendations", "12.1 Layout Guidelines"],
+    "interpretation": "TI recommends close input bypassing and nearby additional input capacitance for cable ringing. This does not independently specify the project's 3.5 mm limit, nor authorize treating any capacitor called bulk as placement-unconstrained."
+  },
+  "next": "Resolve paired placement or test a different bar corridor before implementing a new connected-capacitor operation. Keep C9 v4 as the latest routed private checkpoint.",
+  "reviewed_boards_changed": false,
+  "release_authority": false
+}

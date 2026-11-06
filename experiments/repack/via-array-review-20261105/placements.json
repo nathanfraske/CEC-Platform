@@ -1,0 +1,94 @@
+{
+  "source_sha256": "c9cac71adb685a7f32e48af34793455927f89f9207c2af1b54577a4f95a15251",
+  "prototype_uuid": "505280f0-f8c4-47a2-962c-0438b631e8cf",
+  "diameter_mm": 0.9,
+  "drill_mm": 0.5,
+  "grouped": false,
+  "placements": [
+    {
+      "uuid": "4bf04ced-64db-5018-8c24-6a4aea7f4a66",
+      "position_mm": [
+        67.8,
+        55.4
+      ]
+    },
+    {
+      "uuid": "99b155a8-8775-58ad-8d3a-beb72f71a0d3",
+      "position_mm": [
+        69.0,
+        55.4
+      ]
+    },
+    {
+      "uuid": "8e27556a-a786-5e8d-994c-9533acaed39c",
+      "position_mm": [
+        70.2,
+        55.4
+      ]
+    },
+    {
+      "uuid": "de8e4e67-52ee-5eec-94ed-d60f35d3623d",
+      "position_mm": [
+        67.8,
+        56.6
+      ]
+    },
+    {
+      "uuid": "e2acd00c-ec9e-52cb-b14b-8eb7ef4453dc",
+      "position_mm": [
+        69.0,
+        56.6
+      ]
+    },
+    {
+      "uuid": "b00ce18d-6b00-50b8-9370-b76e6d9d8635",
+      "position_mm": [
+        70.2,
+        56.6
+      ]
+    },
+    {
+      "uuid": "f26f346a-8203-5dc4-906e-f753b115895e",
+      "position_mm": [
+        67.8,
+        70.8
+      ]
+    },
+    {
+      "uuid": "b3ab9e93-8f23-5cf7-88ce-619e3b986869",
+      "position_mm": [
+        69.0,
+        70.8
+      ]
+    },
+    {
+      "uuid": "c473bec8-3178-5635-9795-04169750bda0",
+      "position_mm": [
+        70.2,
+        70.8
+      ]
+    },
+    {
+      "uuid": "167c08b1-a798-5552-85a1-7ef70575fefd",
+      "position_mm": [
+        67.8,
+        72.0
+      ]
+    },
+    {
+      "uuid": "516cae7f-7278-5282-bbb3-2fba7f6c3c3b",
+      "position_mm": [
+        69.0,
+        72.0
+      ]
+    },
+    {
+      "uuid": "ae5d0dd2-22d9-5747-a2bf-ab94de4e282c",
+      "position_mm": [
+        70.2,
+        72.0
+      ]
+    }
+  ],
+  "trial_sha256": "d54782965750d9b39146428a544278d35876aa4749cab4d3ab0d64f3137f17f7"
+}

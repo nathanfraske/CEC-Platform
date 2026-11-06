@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "status": "PRIVATE_REPACK_ROUTING_CLOSED_NOT_RELEASED",
+  "carrier": {
+    "path": "experiments/repack/paired-closed-v2-20261105/carrier/board.kicad_pcb",
+    "sha256": "b52754d95fad20386528c9b5cd9abdc44c6697032baff1d7ebaeded2f95ab8f1",
+    "native_errors": 0,
+    "opens": 0,
+    "warnings": 90,
+    "outline_before_mm": [78, 89.5],
+    "outline_after_mm": [78, 87.5],
+    "laminate_area_saved_mm2": 156
+  },
+  "cover": {
+    "path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "native_errors": 0,
+    "opens": 0,
+    "warnings": 52,
+    "outline_unchanged": true,
+    "KVM": "Existing right-angle connector moved to top edge; non-left exit."
+  },
+  "checks": {
+    "native_terminal_partition_preserved": true,
+    "paired_native_assembly_checks_passed": 391,
+    "paired_native_assembly_missing": [],
+    "current_vent_reservations_pass": true,
+    "full_C37_guard_saved_fill_intersection_empty": true,
+    "atx_current_width_fault_objects_before": 10,
+    "atx_current_width_fault_objects_after": 10,
+    "atx_current_width_new_or_worsened_faults": [],
+    "hub_existing_current_width_checker_pass": true,
+    "atx_field_policy_blockers_before": 0,
+    "atx_field_policy_blockers_after": 0,
+    "hub_field_policy_blockers_before": 0,
+    "hub_field_policy_blockers_after": 0
+  },
+  "bar_status": "No bar installed or source-qualified as a complete part-plus-layout. Bounded MJP positions collide with existing copper, component envelopes or the opposing capacitor vent; catalog-only ratings do not qualify transfers, solder joints or complete assembled Z.",
+  "next": [
+    "Repair inherited top-output conductor failures on SENSE12V_LO, SENSE3V3_LO and SENSE5VSB_LO using their real current authority. Compare terminal/bus topology, not just DRC.",
+    "Assess a legal bus-bar topology only where it demonstrates additional X/Y benefit and preserves the entire assembled Z envelope. Do not claim the current 2mm saving came from bars.",
+    "Complete affected current, thermal, critical analog/reference-return and manufacturing receiving before promotion.",
+    "Reduce route-quality and annotation warnings after electrical/physical gates, preserving routing closure.",
+    "Any native refill must reconstruct and re-receive the conservative C37 saved-fill boundary correction; do not waive nm penetration."
+  ],
+  "reviewed_incumbents_unchanged": true,
+  "checkpoint_selector_unchanged": true,
+  "assembly_sample_qualified": false,
+  "complete_assembled_z_qualified": false,
+  "current_thermal_qualified": false,
+  "release_authority": false
+}

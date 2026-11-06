@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-06T20:09:10Z",
+  "goal_status": "active",
+  "status": "generic_tooling_slice_verified_no_new_board_accepted",
+  "part_verification": "experiments/busbars/keystone-verified-20261106/verification.json",
+  "part_application_qualified": false,
+  "implemented": [
+    "Opt-in nine-phase Source compiler separates role derivation from native contact ownership, closes observation scopes at the seam, and rechecks a private type-sensitive native/files/environment handoff. Existing three/four/six/eight phase sequences remain unchanged.",
+    "Explicit native-only source-boundary work span preserves the old 8mm default and allows bounded requests up to32mm; compile and saved receiving use the same option. This is not current or cut authority.",
+    "Child Ground boundary work inherits the earlier parent/9.7s deadline instead of rejecting a valid10s parent or resetting it.",
+    "Ground-strapped manufacturer control pads retain their control role; a distinct Source-stage checker independently rederives native transport, exact lock consent and saved-class width. Complete adjacent-cut cohorts are mandatory and every surviving native port remains a routing obligation.",
+    "Endpoint-obligation derivation uses a new immutable observation scope for that invocation only, eliminating duplicate exports without carrying a producer proof into receiving.",
+    "Wired-reservoir current-contract equality compares native tuple inventories with their stable JSON representation while retaining every contract field and source hash. Actual current/margin/layer/source mutations still refuse."
+  ],
+  "regressions": {
+    "unique_cases": 433,
+    "passed": 433,
+    "each_case_external_timeout_s": 10,
+    "maximum_parallel": 2,
+    "summary": "experiments/busbars/mux-reconstruction-20261106/regression-role-contact-final-v1/summary.json",
+    "summary_sha256": "288ecf347225460c82561233b9262b57dacf7cc4466761d51f72f48557c48e51",
+    "archive": "regressions-final-v1.tar.gz",
+    "archive_sha256": "cb53540e763d3cd9739bc21bc31984d6e8869bc29e49cde510b68ffaffc368f1",
+    "contains_raw_per_case_xml": 433,
+    "native_synthetic_and_legacy_behavior_tested": true,
+    "new_cross_board_product_candidate_replay_claimed": false
+  },
+  "real_board_attempt": {
+    "report": "compile-stationary-ground-v1.json",
+    "sha256": "1d29ae4a2b0c5519ca040e6d9d054550586e4c90d8c4ca9a68f471216a641b5d",
+    "source_roles_s": 7.755785018,
+    "source_contacts_s": 5.478441946,
+    "native_frame_s": 1.698514698,
+    "boundary_ownership_s": 1.846856566,
+    "ground_cohort_s": 5.272806930,
+    "boundary_composition_s": 0.143833894,
+    "total_to_refusal_s": 29.443067508007516,
+    "no_phase_timeout": true,
+    "final_refusal": "wired_aggregate_current_boundary_co_cut_needs_separate_projection",
+    "all_compile_phases_completed": false,
+    "construction_started": false
+  },
+  "next_supply_cut_frontier": {
+    "report": "C55-current-frontier.json",
+    "sha256": "72cc6de30877f56309793ad63a6fd91db0b5529747ddb0f122e114c88fd1d751",
+    "source_track_uuids": [
+      "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+      "c42e35af-b735-4271-8006-1280f4c378cd",
+      "6cf405f4-010b-4701-a732-dea89cca3655",
+      "fadba932-2d71-466c-8fab-c01735590521"
+    ],
+    "layer": "F.Cu",
+    "net": "+5VSB",
+    "all_source_width_nm": 477370,
+    "independent_existing_full_current_plans_pass_all_four": true,
+    "existing_current_A": 3.0,
+    "existing_geometry_margin": 1.25,
+    "native_row_cut_owns_these_edges": false,
+    "ordinary_supply_leaf_or_low_power_fork_owns_these_edges": false,
+    "independent_native_component_projection_diagnostic": {
+      "complete_components": 1,
+      "surviving_native_contacts": 6,
+      "full_width_requests": 5,
+      "fresh_plans_not_recovered_failed_compile_receipt": true,
+      "integrated_macro_or_construction_accepted": false
+    },
+    "required_integration": "Complete extra-current component projection, with all original pad and retained conductor contacts restored; a completed compile phase is not a serialized cut receipt."
+  },
+  "physical_observations": {
+    "geometry_sha256": "b71a7b0828677d2e9271f10757b3885aaf70b0463ff83cd48c332d2ffbb27a76",
+    "contacts_sha256": "bd1879f83d3bd3240d3333643fd5282a7c92b3545019adfcfc01547d35b5854f",
+    "landings_sha256": "b3d6851659a1c4cdf9a2e2fec064b24e3033ddb9a4b923252e41d7cac1081d15",
+    "all_24_pad_and_14_barrel_contact_inventories_bound_to_current_parent": true,
+    "original_seven_pose_courtyard_and_paired_Hub_screen_pass": true,
+    "retained_copper_clearance_incidences": 50,
+    "six_old_barrels_short_new_foreign_pads_if_retained": true,
+    "C51_target_ground_to_retained_VBUS_via_clearance_mm": 0.052169,
+    "required_clearance_mm": 0.2,
+    "fixed_C51_variant": "C55 courtyard overlaps by0.15mm x1.45mm",
+    "bounded_alternatives": "two-C51-final-targets.json",
+    "candidate_clearance_or_physical_fit_accepted": false
+  },
+  "preserved": {
+    "ATX_path": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+    "ATX_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+    "Hub_path": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+    "Hub_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "review_selector_sha256": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+    "hashes_rechecked_this_slice": true,
+    "last_ATX_receipt_counts": {"opens": 0, "errors": 0, "warnings": 94},
+    "last_current_fault_objects": 2,
+    "fresh_DRC_run_this_tooling_slice": false,
+    "ATX_size_mm": [78.0, 87.5]
+  },
+  "next": [
+    "Compose the separately Source-proven full-current supply cuts with every actual surviving pad/barrel/track boundary; never discard a co-cut contact or infer same-net connectivity.",
+    "Resolve the exact C51/VBUS-barrel conflict as part of checked coordinated copper reconstruction, preserving the opposite Hub vent envelope.",
+    "Build and independently receive the complete mux/cohort reconstruction, including the replacement immediate C55 Ground entry and its original mesh connection.",
+    "Only then construct the bar/joints and compacted outline, route, prettify and verify unchanged assembled height and whole-path current/thermal performance."
+  ],
+  "new_board_saved": false,
+  "new_compaction_demonstrated": false,
+  "bar_installed": false,
+  "fab_ready": false,
+  "release_authority": false
+}

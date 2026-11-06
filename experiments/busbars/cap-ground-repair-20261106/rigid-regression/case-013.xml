@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.324" timestamp="2026-11-06T12:31:43.139534" hostname="DESKTOP-AF2CO1R"><testcase classname="tests.test_source_cap_ground_via_repair" name="test_source_debt_and_exclusive_positive_target_are_mandatory[no_consent]" time="0.133" /></testsuite></testsuites>

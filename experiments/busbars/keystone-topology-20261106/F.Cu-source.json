@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "source": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "layers": [
+    "F.Cu",
+    "Edge.Cuts"
+  ],
+  "refill": false,
+  "board_changed": false,
+  "annotation": "Existing source copper only; no proposed bridge drawn or installed."
+}

@@ -7,6 +7,9 @@ identity, not inferred from net names. Unknown entries remain unclaimed.
 No pose, copper cut, barrel, current, route or release authority is granted.
 """
 import copy
+import contextvars
+from contextlib import contextmanager
+import json
 import math
 from pathlib import Path
 import time
@@ -21,8 +24,10 @@ import cec_programming_resistor_placement as manufacturer
 import cec_source_ground_leaf as canonical
 import cec_source_netlist_semantics as semantic
 import cec_synth_pipeline as synth
+from cec_native_items import _native_pointer
 
 ROLE = 'source_linear_power_stage'
+_observations = contextvars.ContextVar('immutable_Source_linear_stage_observation', default=None)
 # KiCad ERC metadata is not the manufacturer's physical direction table.
 # The reviewed TPS2121 Source library deliberately uses power_in for both
 # OUT lands and adds explicit PWR_FLAGs (gen-hub-rev2 and
@@ -39,6 +44,108 @@ REVIEWED_POWER_ERC_TYPES = {
 def _need(value, reason):
     if not value:
         raise ValueError(reason)
+
+
+def _observation_key(board, poses, board_hint, references, enabled):
+    return (_native_pointer(board), str(Path(board.GetFileName()).resolve()), board_hint,
+        json.dumps(poses, sort_keys=True, allow_nan=False), tuple(references), enabled)
+
+
+def _observation_live(context):
+    """Fresh byte/native fences, including the actual hierarchy inventory."""
+    _need(time.monotonic() < context['deadline'], 'linear_stage_observation_deadline')
+    board=context['board'];source=context['source']
+    _need(str(Path(board.GetFileName()).resolve())==str(source)
+        and context['binding']==row._source_binding(board)
+        and context['family']==force._family(source,context['hint'])
+        and context['epoch']==force._code_identity(), 'immutable_linear_stage_Source_changed')
+    if context['result'] is not None:
+        root=canonical.source_nc._root(board,context['hint'])
+        _need(root is not None and Path(root).resolve()==context['root'],
+            'immutable_linear_stage_root_changed')
+        files,hashes,_=canonical._hierarchy(context['root'],context['deadline'])
+        _need({str(p)for p in files}==set(context['hierarchy'])and hashes==context['hierarchy'],
+            'immutable_linear_stage_hierarchy_changed')
+        _need(all(Path(name).is_file()and force._hash(Path(name))==digest
+            for name,digest in context['evidence'].items()),
+            'immutable_linear_stage_evidence_changed')
+    _need(time.monotonic() < context['deadline'], 'linear_stage_observation_deadline')
+
+
+@contextmanager
+def observation_scope(board, poses, *, board_hint, reference_group_uuids=(), enabled=True, timeout_s=10.):
+    """Private successful facts for ONE immutable invocation, never caller proof.
+
+    Nested scopes are independent and restore their parent even on exceptions.
+    A receiver must open its own scope; a new board/request is always a miss.
+    """
+    _need(type(enabled)is bool and type(board_hint)is str and board_hint
+        and type(poses)is dict and 1<=len(poses)<=8
+        and type(timeout_s)in(int,float)and math.isfinite(timeout_s)and 0<timeout_s<=10.,
+        'bounded_linear_stage_observation_context_required')
+    shunt._reference_group_scope(reference_group_uuids)
+    _need(all(type(ref)is str and type(p)in(list,tuple)and len(p)==3
+        and all(type(v)in(int,float)and math.isfinite(v)for v in p)for ref,p in poses.items()),
+        'finite_linear_stage_observation_poses_required')
+    deadline=time.monotonic()+timeout_s
+    source=Path(board.GetFileName()).resolve(strict=True)
+    context=dict(board=board,source=source,hint=board_hint,deadline=deadline,
+        key=_observation_key(board,poses,board_hint,reference_group_uuids,enabled),
+        binding=row._source_binding(board),family=force._family(source,board_hint),
+        epoch=force._code_identity(),result=None,hierarchy={},evidence={})
+    token=_observations.set(context)
+    try:
+        _observation_live(context)
+        yield
+    finally:
+        try:_observation_live(context)
+        finally:_observations.reset(token)
+
+
+def collect(board, poses, *, board_hint, reference_group_uuids=(), enabled=False, timeout_s=10.):
+    """Fresh first derivation; exact invocation-local reuse with live fences."""
+    _need(type(enabled)is bool,'linear_stage_explicit_boolean_opt_in_required')
+    if not enabled:return {}
+    _need(type(timeout_s)in(int,float)and math.isfinite(timeout_s)and 0<timeout_s<=10.,
+        'bounded_linear_stage_Source_context_required')
+    deadline=time.monotonic()+timeout_s
+    _need(type(board_hint)is str and board_hint and type(poses)is dict and 1<=len(poses)<=8
+        and all(type(ref)is str and type(p)in(list,tuple)and len(p)==3
+        and all(type(v)in(int,float)and math.isfinite(v)for v in p)for ref,p in poses.items()),
+        'finite_linear_stage_pose_required')
+    shunt._reference_group_scope(reference_group_uuids)
+    active=_observations.get();context=active
+    if active is not None:
+        _observation_live(active)
+        deadline=min(deadline,active['deadline'])
+    if context is not None:
+        try:key=_observation_key(board,poses,board_hint,reference_group_uuids,enabled)
+        except (TypeError,ValueError):key=None
+        if key!=context['key']:context=None
+    if context is not None:
+        if context['result'] is not None:
+            result=copy.deepcopy(context['result'])
+            _need(time.monotonic()<deadline,'linear_stage_observation_deadline')
+            return result
+    timeout_s=deadline-time.monotonic()
+    _need(timeout_s>0,'linear_stage_observation_deadline')
+    result=_collect(board,poses,board_hint=board_hint,reference_group_uuids=reference_group_uuids,
+        enabled=enabled,timeout_s=timeout_s)
+    if context is not None and result:
+        hierarchy={};evidence={};roots=set()
+        for item in result.values():
+            proof=item['source_proof'];roots.add(proof['root_schematic'])
+            for name,digest in proof['schematic_files_sha256'].items():
+                _need(name not in hierarchy or hierarchy[name]==digest,'linear_stage_observation_hierarchy_conflict')
+                hierarchy[name]=digest
+            evidence.update(proof['evidence_files_sha256'])
+            exporter=proof['exporter'];evidence[exporter['exporter']]=exporter['exporter_sha256']
+        _need(len(roots)==1,'linear_stage_observation_unique_root_required')
+        context.update(result=copy.deepcopy(result),hierarchy=hierarchy,evidence=evidence,
+            root=Path(next(iter(roots))).resolve())
+        _observation_live(context)
+    _need(time.monotonic()<deadline,'linear_stage_observation_deadline')
+    return result
 
 
 def _virtual_power_peer(ref, number, net, comps, instances, node_net, export_pins, deadline):
@@ -102,7 +209,7 @@ def _virtual_power_peer(ref, number, net, comps, instances, node_net, export_pin
         physical_footprint_absent=True,current_authority=False,routing_authority=False,release_authority=False)
 
 
-def collect(board, poses, *, board_hint, reference_group_uuids=(), enabled=False, timeout_s=10.):
+def _collect(board, poses, *, board_hint, reference_group_uuids=(), enabled=False, timeout_s=10.):
     """Return freshly observed moving stages; disabled is an unconditional no-op.
 
 Only the explicit reviewed manufacturer table below is supported. A different

@@ -1,0 +1,84 @@
+{
+  "schema":1,
+  "recorded_at_utc":"2026-11-06T11:41:30Z",
+  "scope":"Finite source-bound topology diagnosis, not a new routed candidate or a physical qualification",
+  "goal_status":"active_not_complete",
+  "previous_goal_turn":"Progress: exact stocked cut-tape sourcing and a corrected interpretation of the manufacturer land drawing changed the part shortlist.",
+  "this_goal_turn":"Progress: eight deliberately selected short-bridge placements and two in-memory counterfactual route studies failed to establish a complete full-width path; the evidence rules out treating a local C16 move alone as the demonstrated solution.",
+  "source_evidence":"docs/evidence/20261106-keystone-jumper-screen.json",
+  "source_sha256":"4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "paired_cover_sha256":"c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256":"0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "selector_sha256":"1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484",
+  "preserved_requirements": {
+    "net":"/SENSE12V_HI",
+    "continuous_current_A":12,
+    "geometry_margin":1.25,
+    "planar_feed_width_mm":3.230592,
+    "existing_route_clearance_nm":200000,
+    "provisional_land_foreign_clearance_nm":500000,
+    "bridge_center_pitch_mm":10.7,
+    "provisional_land_axial_mm":2.6,
+    "provisional_land_transverse_mm":3.5,
+    "note":"The enlarged land width is a geometry trial, not a qualified paste/joint pattern. No source current, board rule or bus outline was changed."
+  },
+  "backside": {
+    "receipt":"main-scout/receipt.json",
+    "placement_count":4,
+    "complete_paths_found":0,
+    "findings":[
+      "Three vertical crossings near the input header still have foreign-pad or existing feed/via land conflicts. Their upstream full-width feeds encounter retained 3V3 copper.",
+      "One lower PCB link was found, but its proposed land is not clear; this is not a viable assembled path.",
+      "The horizontal crossing has one clear land, but the other overlaps PR1 routes and both full feeds remain unestablished."
+    ],
+    "mechanical_or_Z_qualification":false
+  },
+  "front": {
+    "receipts":["front-0.json","front-1.json","front-2.json","front-3.json"],
+    "placement_count":4,
+    "complete_paths_found":0,
+    "land_conflict_counts":[16,15,14,16],
+    "same_face_owner":"C16",
+    "source_links_found":3,
+    "header_links_found":0,
+    "findings":"The short bridge can reach across the immediate 5V landing from existing 12V source copper in three positions, but its far foot overlaps the capacitor and associated supply/I2C routing. No complete unchanged-board path was found."
+  },
+  "counterfactuals": {
+    "receipt":"front-0-local-counterfactual.json",
+    "ram_removed_footprints":1,
+    "ram_removed_tracks":14,
+    "saved_source_changed":false,
+    "landing_after_counterfactual":{"land_conflicts":0,"same_face_body_conflicts":0,"nearby_lead_conflicts":0,"unknown_items":0},
+    "source_link_found":true,
+    "direct_header_link_found":false,
+    "manual_outer_corridor_receipt":"front-0-local-counterfactual-outer-corridor.json",
+    "manual_outer_corridor_links":{"source":true,"to_right":false,"right_corridor":false,"to_header":true},
+    "retained_power_obstacles_observed":["/SENSE5V_HI","+5VSB","+5V_MAIN"],
+    "meaning":"Even after temporarily removing the immediate landing conflicts, neither the bounded direct search nor the manually specified right-side chain established a complete path. Relocating C16 alone is not demonstrated to solve it.",
+    "limits":"Not an exhaustive path impossibility proof. Removed supply/control tracks and capacitor were never reconstructed or accepted; no counterfactual is a valid board. One initial worker failed with a SWIG object-lifetime error before producing a report; retaining native wrappers in the corrected process allowed the diagnostic to complete."
+  },
+  "verification": {
+    "rendered_saved_source_layers":["F.Cu","B.Cu"],
+    "render_sources":["F.Cu-source.json","B.Cu-source.json"],
+    "pictures_show":"Existing source copper only; no installed bridge or claimed before/after compaction",
+    "native_work_process_deadline_seconds":10,
+    "board_saved_by_any_probe":false,
+    "new_native_DRC_run":false,
+    "why_no_DRC_rerun":"No candidate board was constructed and source hashes are unchanged; old zero-error/open evidence is not attributed to these proposed bridges.",
+    "body_or_current_proof_from_guarded_links":false
+  },
+  "next_action": {
+    "type":"resolve_part_and_assembly_limits_before_another_bridge_repack",
+    "technical_inquiry":"docs/evidence/20261106-keystone-technical-inquiry.json",
+    "authorization":"The specific Keystone/JLC technical-contact question remains unanswered; no message or order sent.",
+    "replanning_boundary":"A later qualified layout may need multiple crossings or a wider functional-cell repack. Do not repeat these failed single-bridge poses or describe them as a completed replacement.",
+    "not_a_verified_wait":"No routing wave or background qualification job is running. External evidence is missing, not merely a slow local solver."
+  },
+  "new_compaction_mm":[0,0],
+  "bar_installed":false,
+  "source_boards_changed":false,
+  "current_qualified":false,
+  "assembled_Z_qualified":false,
+  "fab_ready":false,
+  "release_authority":false
+}

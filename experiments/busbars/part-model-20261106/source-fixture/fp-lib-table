@@ -1,0 +1,1 @@
+(fp_lib_table (lib (name "CEC_Busbar_Prototype") (type "KiCad") (uri "${KIPRJMOD}/../CEC_Busbar_Prototype.pretty") (options "") (descr "NOMINAL PROTOTYPE")))

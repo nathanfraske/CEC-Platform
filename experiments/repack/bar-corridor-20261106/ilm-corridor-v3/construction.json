@@ -1,0 +1,86 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c27-retained-v2/candidate/board.kicad_pcb",
+  "source_sha256": "67c1c32cfd411faab96e998b6be73bf2e065c939da9457dfe51dc75585594885",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/ilm-corridor-v3/candidate/board.kicad_pcb",
+  "candidate_sha256": "128858194962fda4b19023512efed332ac325aff74cddd6ae941e6695e9503d3",
+  "eligible_net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+  "exclusive_retired_via_proof": [
+    {
+      "via_uuid": "19b72a21-fd9a-4eca-8a49-234863e73e00",
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+      "source_contact_track_uuids": [
+        "260484da-9029-4624-bbe7-634592e0db1f",
+        "52b91698-cdb7-5b09-9443-0df514bd5415",
+        "68d5b9bc-1384-4602-b8e0-8f88943ca98e",
+        "91e5654b-6559-5f14-b242-20fc9412b04e"
+      ],
+      "contact_layers": [
+        0,
+        6
+      ],
+      "no_surviving_land_barrel_or_track_contact": true,
+      "all_departures_in_exact_typed_retirement": true,
+      "release_authority": false
+    }
+  ],
+  "retired_track_uuids": [
+    "260484da-9029-4624-bbe7-634592e0db1f",
+    "52b91698-cdb7-5b09-9443-0df514bd5415",
+    "68d5b9bc-1384-4602-b8e0-8f88943ca98e",
+    "91e5654b-6559-5f14-b242-20fc9412b04e",
+    "94c9e177-7718-547f-ba68-c53389686182"
+  ],
+  "retired_via_uuids": [
+    "19b72a21-fd9a-4eca-8a49-234863e73e00"
+  ],
+  "added_uuids": [
+    "15a43170-0a45-4792-a73e-963e5c7093da",
+    "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+    "67076073-bd5d-4048-b454-df5ca6d4fe71",
+    "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+    "c73d68b5-5c91-4704-ba04-7bae449aea42"
+  ],
+  "new_via_uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+  "new_via_at_mm": [
+    12.6,
+    48.25
+  ],
+  "routes": [
+    {
+      "layer": "F.Cu",
+      "points_nm": [
+        [
+          12800000,
+          48115000
+        ],
+        [
+          12735000,
+          48115000
+        ],
+        [
+          12600000,
+          48250000
+        ]
+      ]
+    },
+    {
+      "layer": "SIG2",
+      "points_nm": [
+        [
+          15400000,
+          45400000
+        ],
+        [
+          15400000,
+          45450000
+        ],
+        [
+          12600000,
+          48250000
+        ]
+      ]
+    }
+  ],
+  "admitted": false,
+  "current_qualified": false
+}

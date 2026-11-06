@@ -1,0 +1,965 @@
+{
+  "source": "experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "source_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "peer": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "ATX_poses": {
+    "U6": [
+      16999990,
+      47400000,
+      0.0
+    ],
+    "C9": [
+      13000000,
+      48000000,
+      -90.0
+    ],
+    "C27": [
+      14563990,
+      45800000,
+      180.0
+    ],
+    "R54": [
+      14800000,
+      48625000,
+      -90.0
+    ],
+    "C54": [
+      18924990,
+      48130000,
+      270
+    ],
+    "C55": [
+      20800000,
+      49350000,
+      270
+    ],
+    "C51": [
+      18300000,
+      50237573,
+      180
+    ]
+  },
+  "choice": "Hub +Y moves projected C37 away from C51, away from C1 above; R38 remains separated in X. One derived pose only.",
+  "continuous_positive_Y_separation_threshold_mm": 0.07580028481424961,
+  "grid_mm": 0.05,
+  "translation_nm": [
+    0,
+    100000
+  ],
+  "C37_source_pose": [
+    73500000,
+    49600000,
+    90.0
+  ],
+  "C37_proposed_pose": [
+    73500000,
+    49700000,
+    90.0
+  ],
+  "projected_C51_C37_body_distance_mm": 0.321526045678718,
+  "required_two_XY_allowance_mm": 0.3,
+  "nearest_source_neighbors": [
+    {
+      "ref": "R38",
+      "source_courtyard_distance_mm": 0.5000010000000046
+    },
+    {
+      "ref": "C1",
+      "source_courtyard_distance_mm": 0.9600000000000009
+    },
+    {
+      "ref": "J6P",
+      "source_courtyard_distance_mm": 3.7056848219998475
+    },
+    {
+      "ref": "R_ILIM3",
+      "source_courtyard_distance_mm": 4.21
+    },
+    {
+      "ref": "DL3",
+      "source_courtyard_distance_mm": 4.660000000000004
+    },
+    {
+      "ref": "FID3",
+      "source_courtyard_distance_mm": 4.741197
+    },
+    {
+      "ref": "R37",
+      "source_courtyard_distance_mm": 5.4800010000000015
+    },
+    {
+      "ref": "SW_RESET",
+      "source_courtyard_distance_mm": 6.701706791557208
+    }
+  ],
+  "C37_courtyard_clashes": [],
+  "C37_courtyard_contained_by_board": true,
+  "C37_courtyard_edge_gap_mm": 0.40500000000000114,
+  "paired_ok": true,
+  "paired_violations": [],
+  "C37_source_pad_contacts": {
+    "1": {
+      "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+      "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+      "at_nm": [
+        73500000,
+        56600000
+      ],
+      "native_contacts": [
+        {
+          "contact": {
+            "contact_kind": "native_contained_trace_boundary",
+            "contact_nm": [
+              73500000,
+              56600000
+            ],
+            "far_nm": [
+              73500000,
+              56600000
+            ],
+            "fixed_boundary": true,
+            "layer": 0,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "pad": "1",
+            "pad_center_nm": [
+              73500000,
+              56600000
+            ],
+            "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+            "ref": "C37",
+            "track_uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b"
+          },
+          "item_uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b",
+          "kind": "PCB_TRACK",
+          "material": {
+            "end_nm": [
+              73500000,
+              56600000
+            ],
+            "face": 0,
+            "groups": [],
+            "kind": "PCB_TRACK",
+            "layers": [
+              0
+            ],
+            "locked": true,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "solder_mask": false,
+            "start_nm": [
+              73800000,
+              56900000
+            ],
+            "uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b",
+            "width_nm": 1000000
+          },
+          "port": {
+            "at_nm": [
+              73500000,
+              56600000
+            ],
+            "layers": [
+              0
+            ],
+            "native_uuids": [
+              "424e3a3b-3a83-54bb-b254-b73f6de7e78b"
+            ]
+          }
+        },
+        {
+          "contact": {
+            "contact_nm": [
+              73800000,
+              56900000
+            ],
+            "far_nm": [
+              75301000,
+              56900000
+            ],
+            "layer": 0,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "pad": "1",
+            "pad_center_nm": [
+              73500000,
+              56600000
+            ],
+            "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+            "ref": "C37",
+            "track_uuid": "a02d54b2-5398-492f-8839-bb45dce5b044"
+          },
+          "item_uuid": "a02d54b2-5398-492f-8839-bb45dce5b044",
+          "kind": "PCB_TRACK",
+          "material": {
+            "end_nm": [
+              73800000,
+              56900000
+            ],
+            "face": 0,
+            "groups": [],
+            "kind": "PCB_TRACK",
+            "layers": [
+              0
+            ],
+            "locked": true,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "solder_mask": false,
+            "start_nm": [
+              75301000,
+              56900000
+            ],
+            "uuid": "a02d54b2-5398-492f-8839-bb45dce5b044",
+            "width_nm": 1000000
+          },
+          "port": {
+            "at_nm": [
+              73800000,
+              56900000
+            ],
+            "layers": [
+              0
+            ],
+            "native_uuids": [
+              "a02d54b2-5398-492f-8839-bb45dce5b044"
+            ]
+          }
+        },
+        {
+          "contact": {
+            "contact_kind": "native_direct_barrel_boundary",
+            "contact_nm": [
+              73500000,
+              56600000
+            ],
+            "fixed_boundary": true,
+            "layer": 0,
+            "layers": [
+              0,
+              4,
+              6,
+              8,
+              10,
+              2
+            ],
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "pad": "1",
+            "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+            "ref": "C37",
+            "via_uuid": "434aa75c-5627-464e-9437-06fb40f2f600"
+          },
+          "item_uuid": "434aa75c-5627-464e-9437-06fb40f2f600",
+          "kind": "PCB_VIA",
+          "material": {
+            "bottom": 2,
+            "diameter_nm": 1400000,
+            "drill_nm": 400000,
+            "groups": [
+              {
+                "locked": false,
+                "members": [
+                  "01071828-d708-446c-a7e2-b9ca52b984a7",
+                  "01087d0f-12b5-4b6b-901d-c4b229a1bb27",
+                  "021a085e-bfae-44d0-bdf0-bf7b881a0613",
+                  "02536b85-11ae-48af-84aa-ae55b5b9cf24",
+                  "062fe57a-1fd6-4408-b167-c3a3bab91f13",
+                  "07bd2775-b117-4167-be0c-8c745cc325d4",
+                  "09df9cba-dfde-416e-a8ce-c9b1dbff6781",
+                  "0b29a427-3403-4dbf-bd13-9b64480628ac",
+                  "0b906161-e21d-4d3d-a8e6-afcf9f77430c",
+                  "0c622ce1-5c5c-4eb3-9184-838ef8880cfc",
+                  "0ca4d4b4-644c-45ef-be69-570c9a59f0d3",
+                  "11b24df1-1118-4dba-801a-9ab3c1fdd602",
+                  "11cab127-e0eb-4253-8a14-cfa02c44323d",
+                  "11ecff84-fb93-430f-9674-0e38d3f3f052",
+                  "12117b2c-ad36-4b96-bac5-3345fb3907cd",
+                  "12388c71-0a51-4f16-8bca-dc922cd0be3b",
+                  "1356b549-9520-4b52-8b7f-1dea22a95920",
+                  "17345a80-e462-4229-8b90-6c528156d323",
+                  "2c15a4c6-4db8-4dda-a82b-94164df3803b",
+                  "2c671067-4aa5-4b10-9f6a-cb376bcaa8c4",
+                  "2caed158-c81d-41df-b6b9-e5e41d17a691",
+                  "2d42e54d-9786-4ffb-9f80-31a6ab4fb293",
+                  "2f7dcae2-d2c8-4a7e-9660-28b508a56ca8",
+                  "30b501d4-92ce-4ed8-b25b-013d0cf0c95f",
+                  "3143b5bd-2530-4fe6-8376-d31239c3fff2",
+                  "31efaf1a-bd26-49f1-87af-6cbd28c5db32",
+                  "3a43260a-0fd9-4438-b52f-5bb23d369090",
+                  "3d8da8f9-72c1-4a28-a2c5-8d6d3bf0a3b5",
+                  "3da4ef6c-5975-4de3-ac89-497e7eaa290f",
+                  "3eb22469-2bc8-453c-8a8c-a95f44863f12",
+                  "3f40ef86-942f-4b25-b128-c869bdd380f7",
+                  "3fd69bc2-b873-4684-b262-83d2e9be1b63",
+                  "40645cb9-5487-42c2-a524-08e7935fabeb",
+                  "40f99a07-3a3c-4110-a822-8bc1452aef63",
+                  "434aa75c-5627-464e-9437-06fb40f2f600",
+                  "44be3eef-757b-4a3a-a481-bc24c610d66b",
+                  "457c0b0f-5548-4a69-b05c-f66e755a2639",
+                  "4877222b-e667-4849-a7dd-c833001cb5fe",
+                  "4b233d6c-6ad5-4408-9126-524ec68dd80d",
+                  "4d4565a5-73a0-44bc-995e-10270cd9a750",
+                  "5479ab62-2806-4ee1-ab49-c2faadced79e",
+                  "5556d9c7-6fb0-421c-9323-1d7a3b078dd3",
+                  "55c951c8-63f2-4260-939f-7d63590db9be",
+                  "560e38c9-1e13-4bbe-ad01-40225b0934a0",
+                  "58779eac-89f3-41ee-8710-253fa036855e",
+                  "596a4212-85ef-4462-bf91-aee5dc642543",
+                  "5a1340bf-161a-4be7-a7ee-030c2a40d518",
+                  "5a1d1a8e-bb7d-441a-93bb-b68d98b536dc",
+                  "5d045dcd-dd29-492c-95a1-4bc8c0798f2e",
+                  "687823a5-0a2b-4459-b117-020280d9dffe",
+                  "68a16b13-14a0-4214-bea1-65122cf1ec12",
+                  "6989b933-4a49-435f-835d-ea6d0d9b2ad7",
+                  "6e297d98-6149-4d2e-937b-6c78aca7b4f6",
+                  "7006f528-e333-49e7-bcf0-df40acd9cb27",
+                  "70baf13c-4a46-4929-ab3a-c99a80c53521",
+                  "70fbea0b-47ad-41b8-844b-def48f88ddaf",
+                  "75cd976c-99f6-444d-ada4-61885efd6b18",
+                  "7746a54c-ebc7-4bb9-b8f7-de3f6d5ec3c7",
+                  "78f6d315-7c4c-46be-a395-838334080b76",
+                  "79d0c658-f56b-438b-a0e2-cdc3aee36f00",
+                  "7a4300e8-af4b-4fb1-ba18-5bc8af4aed41",
+                  "7b7edaf6-881a-4618-86c3-cb19c0efb18c",
+                  "7eb942c2-1d43-4bd5-9692-eaf5f217f39b",
+                  "8223a6d8-3c3f-439e-823f-a02cb4d8a1ed",
+                  "840ed852-30d3-4e52-a057-740b1288939e",
+                  "8415762e-00ca-418e-a488-3b04ef579069",
+                  "85546c4d-4970-4926-b6e5-62b00370d39d",
+                  "85c29dce-1feb-4bbd-9fda-744f4700c2ed",
+                  "863dc1f5-4344-41c5-9e80-fdfe1219ae6b",
+                  "884cdcd6-24fb-4a7a-bc4e-10988d8e5f61",
+                  "8c36cd48-9fd1-40c6-8fc0-b69e01d1354e",
+                  "8c91cc55-aaf3-489e-9f5d-3be3bc24fc21",
+                  "8c9d3e92-558d-4de6-95d0-a931985e4972",
+                  "8da432f1-ef48-4b6e-ac71-0100fe711338",
+                  "97ab0ec8-c07a-45a3-995a-8c12e9e7b274",
+                  "992ad189-bdc2-418c-8402-e493f1982aa3",
+                  "9ede5f6a-e8a5-42b6-bdb8-c64f01427b75",
+                  "a2d25fc9-8606-434d-b9d9-26dfab8935b5",
+                  "a44a8bc0-a2e6-4192-bff1-3b80e6ba718a",
+                  "a76b6031-f7dd-4d34-a4c9-8d9fca14b72b",
+                  "ab06a373-acc4-42db-9566-e8e70ebb8490",
+                  "ad08a8e4-4beb-4448-8a00-7d89719c4f07",
+                  "ad57ccc2-b129-4ad0-9d3e-23695c8d1cf0",
+                  "afe83940-6894-4202-be5b-88c9018f3f36",
+                  "b14070ab-a7df-40f2-89fa-7b526f7d6bc3",
+                  "b57dac4a-2b0d-4e3d-a5da-d4a85db2d812",
+                  "b6be722e-5b67-40ee-879e-86b527f3a8f9",
+                  "bcaf8cbc-57d0-4afc-8164-689931717840",
+                  "bda78741-43d1-4b9e-854d-26f0d6eb42b7",
+                  "bde6eb33-c896-4a09-8723-57a4bec7c8a8",
+                  "be25d09b-12b3-4cb1-9866-3b1f327c7c16",
+                  "be432a38-f3d6-4115-9f5a-f6c9363bfcef",
+                  "beb58372-848b-4885-b53b-5847793bd23c",
+                  "bf47b3b3-f6da-42d3-8b0e-cef2dff00e95",
+                  "bfa23a6f-d32a-4a61-9ff6-e53447af3185",
+                  "c02611e9-ed2f-44f5-8840-e47edab23d32",
+                  "c2533b39-68ad-4fd9-b5dc-64bacab4bf4a",
+                  "c510187c-5049-47ec-80c5-837b22e2e10b",
+                  "c843e295-ab16-4644-ac46-4a9937ad29d5",
+                  "c8613985-2b19-4283-bb47-b34448d8cc51",
+                  "ca44d5ec-19b4-426b-9e91-e20ccec2884b",
+                  "cd3b746e-e7ba-4227-bf66-d948aa97ba4e",
+                  "ce3a0034-3144-4bbf-9939-85168534f81a",
+                  "d209725e-c5fc-4c08-9f2c-0aebe29f9dab",
+                  "d42270bd-40ad-483a-8ca7-8f53a8f20db0",
+                  "d52a6523-8b53-4a63-b1dd-2d349d822a3d",
+                  "d66718b7-a58e-4ef1-b69b-57717eb7b605",
+                  "d87c6009-af2a-4d98-94d5-72198e8af598",
+                  "dc74c0fb-85c4-4bfc-9718-feb2f9e364a1",
+                  "debad1b4-0e2f-4597-b6af-5e35cae62c49",
+                  "e0a4b171-281f-46c7-8813-196e8270e3e8",
+                  "e39d8077-1158-43d8-bb09-a0f298f6e29d",
+                  "e61b6309-0d31-4d51-a76b-0ccfba289461",
+                  "e877b2b4-1551-46af-ba2e-1d3e510eabe9",
+                  "e938e3cb-eddb-47c2-b389-39f1e8132542",
+                  "e93d84d2-bd82-443d-a3f2-ff37768e20c7",
+                  "ee411ac4-1724-45d5-9064-06fef75883b7",
+                  "eebec277-ae48-4fce-ab29-f410e41fbefa",
+                  "ef74554b-b3de-4f46-ae04-bbc09a63d921",
+                  "eface3ed-8693-42c1-bead-d23fefec1062",
+                  "f1aa04e8-a3f5-4495-8ea9-acb583595050",
+                  "f512b2da-2db8-4d15-9623-8b5599675345",
+                  "f61c9829-f9b6-4f32-8755-b462fb4b266b",
+                  "f7a1d7fc-9d4c-4dea-bfae-127bcdeb8c4b",
+                  "f925f16f-98b7-4ad9-a8e4-9e445f645801",
+                  "f933b361-5918-4c5d-b803-fc139d7fb4b0",
+                  "fe6ea03a-6bc4-454e-984b-e6c2eff0b032",
+                  "fe827a90-7c67-40c8-8d7c-b600bd3b779d",
+                  "ffccc67c-346e-4400-904c-8a5bd6da6b87"
+                ],
+                "name": "CEC_LOCAL_POFV_SIGNAL_VIA",
+                "parent": null,
+                "uuid": "ebadf460-e994-4027-a4c2-6115c6217b48"
+              }
+            ],
+            "kind": "PCB_VIA",
+            "layers": [
+              0,
+              4,
+              6,
+              8,
+              10,
+              2
+            ],
+            "locked": true,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "position_nm": [
+              73500000,
+              56600000
+            ],
+            "top": 0,
+            "uuid": "434aa75c-5627-464e-9437-06fb40f2f600",
+            "via_type": 4
+          },
+          "port": {
+            "at_nm": [
+              73500000,
+              56600000
+            ],
+            "layers": [
+              0
+            ],
+            "native_uuids": [
+              "434aa75c-5627-464e-9437-06fb40f2f600"
+            ]
+          }
+        },
+        {
+          "item_uuid": "fc65fef1-239d-4859-94dd-f827621e549e",
+          "kind": "ZONE",
+          "material": {
+            "actual_pad_contact_sha256": "03fea535653c8b3d27a24abc25000d8c55479de20867419501ba8cafe6500f01",
+            "groups": [],
+            "layer": 0,
+            "locked": true,
+            "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+            "outline": "SHAPE_LINE_CHAIN poly; \n{ auto tmp = SHAPE_LINE_CHAIN( { VECTOR2I( 73691000, 33900000), VECTOR2I( 73399000, 34192000), VECTOR2I( 73399000, 34610000), VECTOR2I( 73692000, 34903000), VECTOR2I( 74800000, 34903000), VECTOR2I( 74800000, 57109000), VECTOR2I( 75092000, 57401000), VECTOR2I( 75510000, 57401000), VECTOR2I( 75802000, 57109000), VECTOR2I( 75802000, 34610000), VECTOR2I( 75802000, 34192000), VECTOR2I( 75510000, 33900000), VECTOR2I( 75092000, 33900000)}, true );;\n poly.AddOutline(tmp); } \n"
+          }
+        }
+      ]
+    },
+    "2": {
+      "pad_uuid": "d2ff8924-cb10-448b-8907-c1e0c9e4f3a9",
+      "net": "GND",
+      "at_nm": [
+        73500000,
+        42600000
+      ],
+      "native_contacts": [
+        {
+          "contact": {
+            "contact_kind": "native_direct_barrel_boundary",
+            "contact_nm": [
+              73500000,
+              42600000
+            ],
+            "fixed_boundary": true,
+            "layer": 0,
+            "layers": [
+              0,
+              4,
+              6,
+              8,
+              10,
+              2
+            ],
+            "net": "GND",
+            "pad": "2",
+            "pad_uuid": "d2ff8924-cb10-448b-8907-c1e0c9e4f3a9",
+            "ref": "C37",
+            "via_uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e"
+          },
+          "item_uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e",
+          "kind": "PCB_VIA",
+          "material": {
+            "bottom": 2,
+            "diameter_nm": 500000,
+            "drill_nm": 250000,
+            "groups": [],
+            "kind": "PCB_VIA",
+            "layers": [
+              0,
+              4,
+              6,
+              8,
+              10,
+              2
+            ],
+            "locked": true,
+            "net": "GND",
+            "position_nm": [
+              73500000,
+              42600000
+            ],
+            "top": 0,
+            "uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e",
+            "via_type": 4
+          },
+          "port": {
+            "at_nm": [
+              73500000,
+              42600000
+            ],
+            "layers": [
+              0
+            ],
+            "native_uuids": [
+              "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "C37_posed_pad_contacts": {
+    "1": [
+      {
+        "contact": {
+          "contact_kind": "native_contained_trace_boundary",
+          "contact_nm": [
+            73500000,
+            56600000
+          ],
+          "far_nm": [
+            73500000,
+            56600000
+          ],
+          "fixed_boundary": true,
+          "layer": 0,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "pad": "1",
+          "pad_center_nm": [
+            73500000,
+            56700000
+          ],
+          "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+          "ref": "C37",
+          "track_uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b"
+        },
+        "item_uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b",
+        "kind": "PCB_TRACK",
+        "material": {
+          "end_nm": [
+            73500000,
+            56600000
+          ],
+          "face": 0,
+          "groups": [],
+          "kind": "PCB_TRACK",
+          "layers": [
+            0
+          ],
+          "locked": true,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "solder_mask": false,
+          "start_nm": [
+            73800000,
+            56900000
+          ],
+          "uuid": "424e3a3b-3a83-54bb-b254-b73f6de7e78b",
+          "width_nm": 1000000
+        },
+        "port": {
+          "at_nm": [
+            73500000,
+            56600000
+          ],
+          "layers": [
+            0
+          ],
+          "native_uuids": [
+            "424e3a3b-3a83-54bb-b254-b73f6de7e78b"
+          ]
+        }
+      },
+      {
+        "contact": {
+          "contact_nm": [
+            73800000,
+            56900000
+          ],
+          "far_nm": [
+            75301000,
+            56900000
+          ],
+          "layer": 0,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "pad": "1",
+          "pad_center_nm": [
+            73500000,
+            56700000
+          ],
+          "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+          "ref": "C37",
+          "track_uuid": "a02d54b2-5398-492f-8839-bb45dce5b044"
+        },
+        "item_uuid": "a02d54b2-5398-492f-8839-bb45dce5b044",
+        "kind": "PCB_TRACK",
+        "material": {
+          "end_nm": [
+            73800000,
+            56900000
+          ],
+          "face": 0,
+          "groups": [],
+          "kind": "PCB_TRACK",
+          "layers": [
+            0
+          ],
+          "locked": true,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "solder_mask": false,
+          "start_nm": [
+            75301000,
+            56900000
+          ],
+          "uuid": "a02d54b2-5398-492f-8839-bb45dce5b044",
+          "width_nm": 1000000
+        },
+        "port": {
+          "at_nm": [
+            73800000,
+            56900000
+          ],
+          "layers": [
+            0
+          ],
+          "native_uuids": [
+            "a02d54b2-5398-492f-8839-bb45dce5b044"
+          ]
+        }
+      },
+      {
+        "contact": {
+          "contact_kind": "native_direct_barrel_boundary",
+          "contact_nm": [
+            73500000,
+            56600000
+          ],
+          "fixed_boundary": true,
+          "layer": 0,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "pad": "1",
+          "pad_uuid": "3a578986-713f-4e94-9283-d12def2f3459",
+          "ref": "C37",
+          "via_uuid": "434aa75c-5627-464e-9437-06fb40f2f600"
+        },
+        "item_uuid": "434aa75c-5627-464e-9437-06fb40f2f600",
+        "kind": "PCB_VIA",
+        "material": {
+          "bottom": 2,
+          "diameter_nm": 1400000,
+          "drill_nm": 400000,
+          "groups": [
+            {
+              "locked": false,
+              "members": [
+                "01071828-d708-446c-a7e2-b9ca52b984a7",
+                "01087d0f-12b5-4b6b-901d-c4b229a1bb27",
+                "021a085e-bfae-44d0-bdf0-bf7b881a0613",
+                "02536b85-11ae-48af-84aa-ae55b5b9cf24",
+                "062fe57a-1fd6-4408-b167-c3a3bab91f13",
+                "07bd2775-b117-4167-be0c-8c745cc325d4",
+                "09df9cba-dfde-416e-a8ce-c9b1dbff6781",
+                "0b29a427-3403-4dbf-bd13-9b64480628ac",
+                "0b906161-e21d-4d3d-a8e6-afcf9f77430c",
+                "0c622ce1-5c5c-4eb3-9184-838ef8880cfc",
+                "0ca4d4b4-644c-45ef-be69-570c9a59f0d3",
+                "11b24df1-1118-4dba-801a-9ab3c1fdd602",
+                "11cab127-e0eb-4253-8a14-cfa02c44323d",
+                "11ecff84-fb93-430f-9674-0e38d3f3f052",
+                "12117b2c-ad36-4b96-bac5-3345fb3907cd",
+                "12388c71-0a51-4f16-8bca-dc922cd0be3b",
+                "1356b549-9520-4b52-8b7f-1dea22a95920",
+                "17345a80-e462-4229-8b90-6c528156d323",
+                "2c15a4c6-4db8-4dda-a82b-94164df3803b",
+                "2c671067-4aa5-4b10-9f6a-cb376bcaa8c4",
+                "2caed158-c81d-41df-b6b9-e5e41d17a691",
+                "2d42e54d-9786-4ffb-9f80-31a6ab4fb293",
+                "2f7dcae2-d2c8-4a7e-9660-28b508a56ca8",
+                "30b501d4-92ce-4ed8-b25b-013d0cf0c95f",
+                "3143b5bd-2530-4fe6-8376-d31239c3fff2",
+                "31efaf1a-bd26-49f1-87af-6cbd28c5db32",
+                "3a43260a-0fd9-4438-b52f-5bb23d369090",
+                "3d8da8f9-72c1-4a28-a2c5-8d6d3bf0a3b5",
+                "3da4ef6c-5975-4de3-ac89-497e7eaa290f",
+                "3eb22469-2bc8-453c-8a8c-a95f44863f12",
+                "3f40ef86-942f-4b25-b128-c869bdd380f7",
+                "3fd69bc2-b873-4684-b262-83d2e9be1b63",
+                "40645cb9-5487-42c2-a524-08e7935fabeb",
+                "40f99a07-3a3c-4110-a822-8bc1452aef63",
+                "434aa75c-5627-464e-9437-06fb40f2f600",
+                "44be3eef-757b-4a3a-a481-bc24c610d66b",
+                "457c0b0f-5548-4a69-b05c-f66e755a2639",
+                "4877222b-e667-4849-a7dd-c833001cb5fe",
+                "4b233d6c-6ad5-4408-9126-524ec68dd80d",
+                "4d4565a5-73a0-44bc-995e-10270cd9a750",
+                "5479ab62-2806-4ee1-ab49-c2faadced79e",
+                "5556d9c7-6fb0-421c-9323-1d7a3b078dd3",
+                "55c951c8-63f2-4260-939f-7d63590db9be",
+                "560e38c9-1e13-4bbe-ad01-40225b0934a0",
+                "58779eac-89f3-41ee-8710-253fa036855e",
+                "596a4212-85ef-4462-bf91-aee5dc642543",
+                "5a1340bf-161a-4be7-a7ee-030c2a40d518",
+                "5a1d1a8e-bb7d-441a-93bb-b68d98b536dc",
+                "5d045dcd-dd29-492c-95a1-4bc8c0798f2e",
+                "687823a5-0a2b-4459-b117-020280d9dffe",
+                "68a16b13-14a0-4214-bea1-65122cf1ec12",
+                "6989b933-4a49-435f-835d-ea6d0d9b2ad7",
+                "6e297d98-6149-4d2e-937b-6c78aca7b4f6",
+                "7006f528-e333-49e7-bcf0-df40acd9cb27",
+                "70baf13c-4a46-4929-ab3a-c99a80c53521",
+                "70fbea0b-47ad-41b8-844b-def48f88ddaf",
+                "75cd976c-99f6-444d-ada4-61885efd6b18",
+                "7746a54c-ebc7-4bb9-b8f7-de3f6d5ec3c7",
+                "78f6d315-7c4c-46be-a395-838334080b76",
+                "79d0c658-f56b-438b-a0e2-cdc3aee36f00",
+                "7a4300e8-af4b-4fb1-ba18-5bc8af4aed41",
+                "7b7edaf6-881a-4618-86c3-cb19c0efb18c",
+                "7eb942c2-1d43-4bd5-9692-eaf5f217f39b",
+                "8223a6d8-3c3f-439e-823f-a02cb4d8a1ed",
+                "840ed852-30d3-4e52-a057-740b1288939e",
+                "8415762e-00ca-418e-a488-3b04ef579069",
+                "85546c4d-4970-4926-b6e5-62b00370d39d",
+                "85c29dce-1feb-4bbd-9fda-744f4700c2ed",
+                "863dc1f5-4344-41c5-9e80-fdfe1219ae6b",
+                "884cdcd6-24fb-4a7a-bc4e-10988d8e5f61",
+                "8c36cd48-9fd1-40c6-8fc0-b69e01d1354e",
+                "8c91cc55-aaf3-489e-9f5d-3be3bc24fc21",
+                "8c9d3e92-558d-4de6-95d0-a931985e4972",
+                "8da432f1-ef48-4b6e-ac71-0100fe711338",
+                "97ab0ec8-c07a-45a3-995a-8c12e9e7b274",
+                "992ad189-bdc2-418c-8402-e493f1982aa3",
+                "9ede5f6a-e8a5-42b6-bdb8-c64f01427b75",
+                "a2d25fc9-8606-434d-b9d9-26dfab8935b5",
+                "a44a8bc0-a2e6-4192-bff1-3b80e6ba718a",
+                "a76b6031-f7dd-4d34-a4c9-8d9fca14b72b",
+                "ab06a373-acc4-42db-9566-e8e70ebb8490",
+                "ad08a8e4-4beb-4448-8a00-7d89719c4f07",
+                "ad57ccc2-b129-4ad0-9d3e-23695c8d1cf0",
+                "afe83940-6894-4202-be5b-88c9018f3f36",
+                "b14070ab-a7df-40f2-89fa-7b526f7d6bc3",
+                "b57dac4a-2b0d-4e3d-a5da-d4a85db2d812",
+                "b6be722e-5b67-40ee-879e-86b527f3a8f9",
+                "bcaf8cbc-57d0-4afc-8164-689931717840",
+                "bda78741-43d1-4b9e-854d-26f0d6eb42b7",
+                "bde6eb33-c896-4a09-8723-57a4bec7c8a8",
+                "be25d09b-12b3-4cb1-9866-3b1f327c7c16",
+                "be432a38-f3d6-4115-9f5a-f6c9363bfcef",
+                "beb58372-848b-4885-b53b-5847793bd23c",
+                "bf47b3b3-f6da-42d3-8b0e-cef2dff00e95",
+                "bfa23a6f-d32a-4a61-9ff6-e53447af3185",
+                "c02611e9-ed2f-44f5-8840-e47edab23d32",
+                "c2533b39-68ad-4fd9-b5dc-64bacab4bf4a",
+                "c510187c-5049-47ec-80c5-837b22e2e10b",
+                "c843e295-ab16-4644-ac46-4a9937ad29d5",
+                "c8613985-2b19-4283-bb47-b34448d8cc51",
+                "ca44d5ec-19b4-426b-9e91-e20ccec2884b",
+                "cd3b746e-e7ba-4227-bf66-d948aa97ba4e",
+                "ce3a0034-3144-4bbf-9939-85168534f81a",
+                "d209725e-c5fc-4c08-9f2c-0aebe29f9dab",
+                "d42270bd-40ad-483a-8ca7-8f53a8f20db0",
+                "d52a6523-8b53-4a63-b1dd-2d349d822a3d",
+                "d66718b7-a58e-4ef1-b69b-57717eb7b605",
+                "d87c6009-af2a-4d98-94d5-72198e8af598",
+                "dc74c0fb-85c4-4bfc-9718-feb2f9e364a1",
+                "debad1b4-0e2f-4597-b6af-5e35cae62c49",
+                "e0a4b171-281f-46c7-8813-196e8270e3e8",
+                "e39d8077-1158-43d8-bb09-a0f298f6e29d",
+                "e61b6309-0d31-4d51-a76b-0ccfba289461",
+                "e877b2b4-1551-46af-ba2e-1d3e510eabe9",
+                "e938e3cb-eddb-47c2-b389-39f1e8132542",
+                "e93d84d2-bd82-443d-a3f2-ff37768e20c7",
+                "ee411ac4-1724-45d5-9064-06fef75883b7",
+                "eebec277-ae48-4fce-ab29-f410e41fbefa",
+                "ef74554b-b3de-4f46-ae04-bbc09a63d921",
+                "eface3ed-8693-42c1-bead-d23fefec1062",
+                "f1aa04e8-a3f5-4495-8ea9-acb583595050",
+                "f512b2da-2db8-4d15-9623-8b5599675345",
+                "f61c9829-f9b6-4f32-8755-b462fb4b266b",
+                "f7a1d7fc-9d4c-4dea-bfae-127bcdeb8c4b",
+                "f925f16f-98b7-4ad9-a8e4-9e445f645801",
+                "f933b361-5918-4c5d-b803-fc139d7fb4b0",
+                "fe6ea03a-6bc4-454e-984b-e6c2eff0b032",
+                "fe827a90-7c67-40c8-8d7c-b600bd3b779d",
+                "ffccc67c-346e-4400-904c-8a5bd6da6b87"
+              ],
+              "name": "CEC_LOCAL_POFV_SIGNAL_VIA",
+              "parent": null,
+              "uuid": "ebadf460-e994-4027-a4c2-6115c6217b48"
+            }
+          ],
+          "kind": "PCB_VIA",
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "locked": true,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "position_nm": [
+            73500000,
+            56600000
+          ],
+          "top": 0,
+          "uuid": "434aa75c-5627-464e-9437-06fb40f2f600",
+          "via_type": 4
+        },
+        "port": {
+          "at_nm": [
+            73500000,
+            56600000
+          ],
+          "layers": [
+            0
+          ],
+          "native_uuids": [
+            "434aa75c-5627-464e-9437-06fb40f2f600"
+          ]
+        }
+      },
+      {
+        "item_uuid": "fc65fef1-239d-4859-94dd-f827621e549e",
+        "kind": "ZONE",
+        "material": {
+          "actual_pad_contact_sha256": "0667cb478cf6bee6f8ee2b89ddc7e3c9b1802e1b999aeac1277e38f57bdf1554",
+          "groups": [],
+          "layer": 0,
+          "locked": true,
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "outline": "SHAPE_LINE_CHAIN poly; \n{ auto tmp = SHAPE_LINE_CHAIN( { VECTOR2I( 73691000, 33900000), VECTOR2I( 73399000, 34192000), VECTOR2I( 73399000, 34610000), VECTOR2I( 73692000, 34903000), VECTOR2I( 74800000, 34903000), VECTOR2I( 74800000, 57109000), VECTOR2I( 75092000, 57401000), VECTOR2I( 75510000, 57401000), VECTOR2I( 75802000, 57109000), VECTOR2I( 75802000, 34610000), VECTOR2I( 75802000, 34192000), VECTOR2I( 75510000, 33900000), VECTOR2I( 75092000, 33900000)}, true );;\n poly.AddOutline(tmp); } \n"
+        }
+      }
+    ],
+    "2": [
+      {
+        "contact": {
+          "contact_kind": "native_direct_barrel_boundary",
+          "contact_nm": [
+            73500000,
+            42600000
+          ],
+          "fixed_boundary": true,
+          "layer": 0,
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "net": "GND",
+          "pad": "2",
+          "pad_uuid": "d2ff8924-cb10-448b-8907-c1e0c9e4f3a9",
+          "ref": "C37",
+          "via_uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e"
+        },
+        "item_uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e",
+        "kind": "PCB_VIA",
+        "material": {
+          "bottom": 2,
+          "diameter_nm": 500000,
+          "drill_nm": 250000,
+          "groups": [],
+          "kind": "PCB_VIA",
+          "layers": [
+            0,
+            4,
+            6,
+            8,
+            10,
+            2
+          ],
+          "locked": true,
+          "net": "GND",
+          "position_nm": [
+            73500000,
+            42600000
+          ],
+          "top": 0,
+          "uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e",
+          "via_type": 4
+        },
+        "port": {
+          "at_nm": [
+            73500000,
+            42600000
+          ],
+          "layers": [
+            0
+          ],
+          "native_uuids": [
+            "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e"
+          ]
+        }
+      }
+    ]
+  },
+  "posed_pad_foreign_200um_conflicts": [],
+  "retained_barrel_pad_process": [
+    {
+      "via_uuid": "434aa75c-5627-464e-9437-06fb40f2f600",
+      "blocked": false,
+      "records": [
+        {
+          "ref": "C37",
+          "pad": "1",
+          "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+          "reason": "JLC06161H-3313 POFV accepted"
+        }
+      ]
+    },
+    {
+      "via_uuid": "ee3f11eb-6272-4635-b0a8-5ff97b44ce1e",
+      "blocked": false,
+      "records": [
+        {
+          "ref": "C37",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06161H-3313 POFV accepted"
+        }
+      ]
+    }
+  ],
+  "posed_pad_saved_filled_zone_200um_conflicts": [
+    {
+      "pad": "2",
+      "zone_uuid": "fc65fef1-239d-4859-94dd-f827621e549e",
+      "net": "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+      "layer": 0,
+      "clearance_mm": 0.1004999999999967
+    }
+  ],
+  "all_original_contact_ids_preserved": true,
+  "source_current_domains": {
+    "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD": null,
+    "GND": null
+  },
+  "source_width_contracts": {
+    "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD": null,
+    "GND": null
+  },
+  "connected_net_names": [
+    "/HOLD-UP + 3V3 REGULATOR/+5V_HOLD",
+    "GND"
+  ],
+  "copper_retained_unrouted": true,
+  "board_saved": false,
+  "cut_authority": false,
+  "current_qualified": false,
+  "release_authority": false,
+  "remaining_receiving_obligations": "Fresh saved/refilled receiving, current/planes/nonregression and native old-to-new C37 vent reservation replacement still required. No current authority was synthesized from the existing 1 mm strokes. Existing contacts remain, so no reroute cut is proposed."
+}

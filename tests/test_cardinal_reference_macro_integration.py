@@ -44,7 +44,7 @@ def test_row_native_transport_and_exact_saved_map(tmp_path,back,turn):
     assert result
     candidate=tmp_path/'candidate.kicad_pcb'
     packet=dict(scope='source_typed_complete_native_macro_requests',source=str(source),source_sha256=force._hash(source),
-        code_identity=force._code_identity(),source_plan=dict(poses=poses,row_plan=plan))
+        code_identity=force._code_identity(),source_plan=dict(poses=poses,row_plan=plan,max_shift_mm=16.))
     saved=macro.save_private(child,candidate,packet)
     assert saved['literal_source_reference_save']['independent_native_and_exact_writer_inventory_received']
     assert reference.verify_cardinal(source,candidate,proof,quarter_turns=turn,delta_nm=(250000,-250000))['ok']

@@ -1,0 +1,101 @@
+{
+  "status": "worker_timeout",
+  "reason": "ten_second_ordered_phase_deadline",
+  "exit_code": -9,
+  "diagnostic_output": "icate image handler for 'Windows animated cursor file'\n13:57:45: Debug: Adding duplicate image handler for 'TGA file'\n13:57:45: Debug: Adding duplicate image handler for 'XPM file'\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\n./kicad/pcbnew/pcb_track.cpp(387): assert \"\"false\"\" failed in GetWidth(): Warning: PCB_VIA::GetWidth called without a layer argument\nCEC_PHASE={\"event\": \"finish\", \"phase\": \"canonical_ground_multiport_boundary\", \"index\": 4, \"deadline_monotonic\": 84199.9400772, \"explicit_ordered_composition\": true}\nCEC_PHASE={\"event\": \"start\", \"phase\": \"canonical_boundary_composition\", \"index\": 5, \"deadline_monotonic\": 84204.991689554, \"explicit_ordered_composition\": true}\nCEC_PHASE={\"event\": \"finish\", \"phase\": \"canonical_boundary_composition\", \"index\": 5, \"deadline_monotonic\": 84204.991689554, \"explicit_ordered_composition\": true}\nCEC_PHASE={\"event\": \"start\", \"phase\": \"complete_endpoint_obligations\", \"index\": 6, \"deadline_monotonic\": 84205.13827585, \"explicit_ordered_composition\": true}\n13:57:47: Debug: Adding duplicate image handler for 'PNG file'\n13:57:47: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:47: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:47: Debug: Adding duplicate image handler for 'GIF file'\n13:57:47: Debug: Adding duplicate image handler for 'PNM file'\n13:57:47: Debug: Adding duplicate image handler for 'PCX file'\n13:57:47: Debug: Adding duplicate image handler for 'IFF file'\n13:57:47: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:47: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:47: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:47: Debug: Adding duplicate image handler for 'TGA file'\n13:57:47: Debug: Adding duplicate image handler for 'XPM file'\n13:57:50: Debug: Adding duplicate image handler for 'PNG file'\n13:57:50: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:50: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:50: Debug: Adding duplicate image handler for 'GIF file'\n13:57:50: Debug: Adding duplicate image handler for 'PNM file'\n13:57:50: Debug: Adding duplicate image handler for 'PCX file'\n13:57:50: Debug: Adding duplicate image handler for 'IFF file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:50: Debug: Adding duplicate image handler for 'TGA file'\n13:57:50: Debug: Adding duplicate image handler for 'XPM file'\n13:57:50: Debug: Adding duplicate image handler for 'PNG file'\n13:57:50: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:50: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:50: Debug: Adding duplicate image handler for 'GIF file'\n13:57:50: Debug: Adding duplicate image handler for 'PNM file'\n13:57:50: Debug: Adding duplicate image handler for 'PCX file'\n13:57:50: Debug: Adding duplicate image handler for 'IFF file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:50: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:50: Debug: Adding duplicate image handler for 'TGA file'\n13:57:50: Debug: Adding duplicate image handler for 'XPM file'\n13:57:51: Debug: Adding duplicate image handler for 'PNG file'\n13:57:51: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:51: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:51: Debug: Adding duplicate image handler for 'GIF file'\n13:57:51: Debug: Adding duplicate image handler for 'PNM file'\n13:57:51: Debug: Adding duplicate image handler for 'PCX file'\n13:57:51: Debug: Adding duplicate image handler for 'IFF file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:51: Debug: Adding duplicate image handler for 'TGA file'\n13:57:51: Debug: Adding duplicate image handler for 'XPM file'\n13:57:51: Debug: Adding duplicate image handler for 'PNG file'\n13:57:51: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:51: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:51: Debug: Adding duplicate image handler for 'GIF file'\n13:57:51: Debug: Adding duplicate image handler for 'PNM file'\n13:57:51: Debug: Adding duplicate image handler for 'PCX file'\n13:57:51: Debug: Adding duplicate image handler for 'IFF file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:51: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:51: Debug: Adding duplicate image handler for 'TGA file'\n13:57:51: Debug: Adding duplicate image handler for 'XPM file'\n13:57:53: Debug: Adding duplicate image handler for 'PNG file'\n13:57:53: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:53: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:53: Debug: Adding duplicate image handler for 'GIF file'\n13:57:53: Debug: Adding duplicate image handler for 'PNM file'\n13:57:53: Debug: Adding duplicate image handler for 'PCX file'\n13:57:53: Debug: Adding duplicate image handler for 'IFF file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:53: Debug: Adding duplicate image handler for 'TGA file'\n13:57:53: Debug: Adding duplicate image handler for 'XPM file'\n13:57:53: Debug: Adding duplicate image handler for 'PNG file'\n13:57:53: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:53: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:53: Debug: Adding duplicate image handler for 'GIF file'\n13:57:53: Debug: Adding duplicate image handler for 'PNM file'\n13:57:53: Debug: Adding duplicate image handler for 'PCX file'\n13:57:53: Debug: Adding duplicate image handler for 'IFF file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:53: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:53: Debug: Adding duplicate image handler for 'TGA file'\n13:57:53: Debug: Adding duplicate image handler for 'XPM file'\n13:57:55: Debug: Adding duplicate image handler for 'PNG file'\n13:57:55: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:55: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:55: Debug: Adding duplicate image handler for 'GIF file'\n13:57:55: Debug: Adding duplicate image handler for 'PNM file'\n13:57:55: Debug: Adding duplicate image handler for 'PCX file'\n13:57:55: Debug: Adding duplicate image handler for 'IFF file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'TGA file'\n13:57:55: Debug: Adding duplicate image handler for 'XPM file'\n13:57:55: Debug: Adding duplicate image handler for 'PNG file'\n13:57:55: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:55: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:55: Debug: Adding duplicate image handler for 'GIF file'\n13:57:55: Debug: Adding duplicate image handler for 'PNM file'\n13:57:55: Debug: Adding duplicate image handler for 'PCX file'\n13:57:55: Debug: Adding duplicate image handler for 'IFF file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'TGA file'\n13:57:55: Debug: Adding duplicate image handler for 'XPM file'\n13:57:55: Debug: Adding duplicate image handler for 'PNG file'\n13:57:55: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:55: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:55: Debug: Adding duplicate image handler for 'GIF file'\n13:57:55: Debug: Adding duplicate image handler for 'PNM file'\n13:57:55: Debug: Adding duplicate image handler for 'PCX file'\n13:57:55: Debug: Adding duplicate image handler for 'IFF file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:55: Debug: Adding duplicate image handler for 'TGA file'\n13:57:55: Debug: Adding duplicate image handler for 'XPM file'\n13:57:57: Debug: Adding duplicate image handler for 'PNG file'\n13:57:57: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:57: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:57: Debug: Adding duplicate image handler for 'GIF file'\n13:57:57: Debug: Adding duplicate image handler for 'PNM file'\n13:57:57: Debug: Adding duplicate image handler for 'PCX file'\n13:57:57: Debug: Adding duplicate image handler for 'IFF file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:57: Debug: Adding duplicate image handler for 'TGA file'\n13:57:57: Debug: Adding duplicate image handler for 'XPM file'\n13:57:57: Debug: Adding duplicate image handler for 'PNG file'\n13:57:57: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:57: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:57: Debug: Adding duplicate image handler for 'GIF file'\n13:57:57: Debug: Adding duplicate image handler for 'PNM file'\n13:57:57: Debug: Adding duplicate image handler for 'PCX file'\n13:57:57: Debug: Adding duplicate image handler for 'IFF file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:57: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:57: Debug: Adding duplicate image handler for 'TGA file'\n13:57:57: Debug: Adding duplicate image handler for 'XPM file'\n13:57:58: Debug: Adding duplicate image handler for 'PNG file'\n13:57:58: Debug: Adding duplicate image handler for 'JPEG file'\n13:57:58: Debug: Adding duplicate image handler for 'TIFF file'\n13:57:58: Debug: Adding duplicate image handler for 'GIF file'\n13:57:58: Debug: Adding duplicate image handler for 'PNM file'\n13:57:58: Debug: Adding duplicate image handler for 'PCX file'\n13:57:58: Debug: Adding duplicate image handler for 'IFF file'\n13:57:58: Debug: Adding duplicate image handler for 'Windows icon file'\n13:57:58: Debug: Adding duplicate image handler for 'Windows cursor file'\n13:57:58: Debug: Adding duplicate image handler for 'Windows animated cursor file'\n13:57:58: Debug: Adding duplicate image handler for 'TGA file'\n13:57:58: Debug: Adding duplicate image handler for 'XPM file'\n",
+  "board_saved": false,
+  "accepted": false,
+  "events": [
+    {
+      "event": "start",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 84183.357633656,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 84183.357633656,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "source_contact_ownership",
+      "index": 1,
+      "deadline_monotonic": 84191.245469153,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "source_contact_ownership",
+      "index": 1,
+      "deadline_monotonic": 84191.245469153,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "native_frame_and_cuts",
+      "index": 2,
+      "deadline_monotonic": 84196.619937764,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "native_frame_and_cuts",
+      "index": 2,
+      "deadline_monotonic": 84196.619937764,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "canonical_boundary_ownership",
+      "index": 3,
+      "deadline_monotonic": 84198.049450172,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "canonical_boundary_ownership",
+      "index": 3,
+      "deadline_monotonic": 84198.049450172,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "canonical_ground_multiport_boundary",
+      "index": 4,
+      "deadline_monotonic": 84199.9400772,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "canonical_ground_multiport_boundary",
+      "index": 4,
+      "deadline_monotonic": 84199.9400772,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "canonical_boundary_composition",
+      "index": 5,
+      "deadline_monotonic": 84204.991689554,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "canonical_boundary_composition",
+      "index": 5,
+      "deadline_monotonic": 84204.991689554,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "complete_endpoint_obligations",
+      "index": 6,
+      "deadline_monotonic": 84205.13827585,
+      "explicit_ordered_composition": true
+    }
+  ]
+}

@@ -116,7 +116,8 @@ def _selected_roots(parent, proposal):
     if proposal.get('selected_programming_resistors'):
         import cec_programming_resistor_placement as programming
         selected=programming.plan(parent,proposal['poses'],board_hint=proposal['board_hint'],
-            reference_group_uuids=proposal.get('reference_group_uuids',()))
+            reference_group_uuids=proposal.get('reference_group_uuids',()),
+            **programming.replay_options(proposal))
         if selected!=proposal['selected_programming_resistors']:
             raise ValueError('fresh_programming_resistor_Ground_continuation_Source_required')
         result.update((ref,programming.GROUND_ROLE)for ref in selected)

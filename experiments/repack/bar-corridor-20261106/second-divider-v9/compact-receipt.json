@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "status": "private_native_macro_RECEIVED_NOT_RELEASED",
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/native-pair-v20/board.kicad_pcb",
+  "source_sha256": "0bc7f970253d5c1f5246b10335034080fce1ad84ad2447c947b52b2d78bcc6d0",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/second-divider-v9/candidate/board.kicad_pcb",
+  "candidate_sha256": "0000723e9119377e88cec8281a85c3bbaa728804ec3ef19483628137f66ed7b9",
+  "board_hint": "atx-24pin-rev3",
+  "gates": {
+    "macro": true,
+    "current_nonregression": true,
+    "partitions": true,
+    "native": true,
+    "source_hash": true,
+    "non_ground_zone_ASTs": true,
+    "exact_outline": true,
+    "no_new_barrels": true,
+    "all_obligations_present_and_resolved": true,
+    "trace_craft_nonregression": true,
+    "macro_saved_hashes": true,
+    "native_saved_family": true,
+    "current_complete_stable": true
+  },
+  "failed_or_missing_gates": [],
+  "obligations": {
+    "mandatory": 11,
+    "planned_resolved": 10,
+    "unresolved": 0,
+    "independently_all_received": true
+  },
+  "native": {
+    "errors": 0,
+    "warnings": 94,
+    "opens": 0
+  },
+  "macro": {
+    "ok": true,
+    "complete": true,
+    "errors": []
+  },
+  "current": {
+    "ok": true,
+    "before_fault_objects": 2,
+    "after_fault_objects": 2,
+    "new_faults": [],
+    "worsened_faults": [],
+    "errors": []
+  },
+  "partitions": {
+    "preserved": true,
+    "ok": null,
+    "error": null,
+    "source_component_count": 90,
+    "child_component_count": 90,
+    "native_source_component_count": 90,
+    "native_child_component_count": 90,
+    "exact_positive_native_island_overlap": true
+  },
+  "trace_craft_before_after": [
+    43,
+    43
+  ],
+  "source_geometry": {
+    "non_ground_zone_count": 42,
+    "changed_non_ground_zones": [],
+    "new_barrel_uuids": [],
+    "retired_barrel_uuids": []
+  },
+  "family_manifest": {
+    "path": "family-manifest.json",
+    "sha256": "a3edb812ca15f944168d7c911943ab9ad27d89e50261848af179f11752263f2d"
+  },
+  "evidence": {
+    "route-plan.json": "78ded798fc807196efffa94f3fc369e6c3ae1fa527f5c6343cba7c6defcffbe1",
+    "packet.json": "07b7d994252feac46b002524d0f05d1b5aee5a878bbd94618506e4b9388af93b",
+    "construction.json": "e21f216f670b5059464d9799823257301df05e5fd3673f0cefddfee17dc4b897",
+    "independent-receiving.json": "3cf932707a0095b42b27137d188965d5cf4692a075531d881e33dcba938d05d4",
+    "native-drc.json": "a5fc8fb26d8b72a62e7afec3c0fc59171e96265bf5ebc1b4867b25968ed8557f"
+  },
+  "current_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false,
+  "limits": [
+    "Private evidence only; current nonregression is not current or thermal qualification.",
+    "No fabrication, bar fit, assembled-height, paired-field, or release qualification is established."
+  ]
+}

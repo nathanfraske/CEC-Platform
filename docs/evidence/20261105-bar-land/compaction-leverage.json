@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-06T04:20:31Z",
+  "method": "Read-only KiCad native outline polygons, footprint_planar_envelope native courtyards, pad/track bounding boxes; pure paired-request poses applied in memory only. No outline edits, routing, DRC, current admission or mechanical qualification.",
+  "inputs": [
+    {"path": "experiments/repack/bar-land-20261105/carrier/board.kicad_pcb", "sha256": "c9cac71adb685a7f32e48af34793455927f89f9207c2af1b54577a4f95a15251"},
+    {"path": "experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb", "sha256": "496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"},
+    {"path": "experiments/repack/j6c-connected-20261105/cover/board.kicad_pcb", "sha256": "cc864ff969103e4581fe97625d39052a1c7feb111a91cf1bf5c8c361ed911bcc"},
+    {"path": "docs/evidence/20261105-busbar-candidates/paired-request.json", "sha256": "8be39f857434776145c79eb34217c9e7e6446b0eafcd712acb257421d8480cad"},
+    {"path": "beta/assembly/hub-atx-stack.json", "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"}
+  ],
+  "conclusion": "Current BB1 is an internal land/process experiment, not demonstrated X/Y compaction. Neither native outline changes. Existing rated B.Cu trunk remains, and unrelated edge-critical owners determine achievable dimensions. Do not invest in further bar qualification solely on a claimed outline saving that has not been demonstrated.",
+  "native_laminate_bounds_mm": {
+    "atx_source_and_bar_and_corridor": [0, 0, 78, 89.5],
+    "hub": [-0.49, 1.2, 84, 72.8],
+    "hub_in_carrier_coordinates": [2, 11, 86.49, 82.6],
+    "paired_laminate_union": [0, 0, 86.49, 89.5],
+    "transform": [-1, 0, 0, 1, 86, 9.8],
+    "warning": "Laminate union is not the complete assembled product envelope. Existing edge connectors intentionally overhang outlines; do not force full connector courtyards inside laminate or infer cable/tool clearance."
+  },
+  "bar_local_leverage": {
+    "reference": "BB1",
+    "at_mm": [69, 64.5],
+    "rotation_deg": 90,
+    "actual_pad_bounds_mm": [67.15, 54.1, 70.85, 74.9],
+    "native_cached_courtyard_bounds_mm": [66.905, 53.755, 71.095, 75.245],
+    "declared_full_courtyard_bounds_mm": [66.9, 53.75, 71.1, 75.25],
+    "retained_trunk": {
+      "uuid": "07de3bfe-67b6-4852-b39c-be976c802185",
+      "net": "/SENSE3V3_HI",
+      "layer": "B.Cu",
+      "width_mm": 6.535523,
+      "native_track_bbox_mm": [65.932238, 52.732238, 72.467763, 73.567763]
+    },
+    "demonstrated_global_dimension_reduction_mm": [0, 0],
+    "warning": "Bar land narrower than this trunk is not useful freed B.Cu space while trunk remains. Retirement/replacement requires a qualified conductor/joint/current path, not single-pad connectivity or a nominal cross-section claim. This internal trunk does not set current right or bottom edge even if replaced."
+  },
+  "atx_edge_critical_native_evidence": {
+    "bottom": {
+      "J3_at_mm": [60.349999, 79.4],
+      "J3_native_courtyard_bounds_mm": [5.955, 71.555, 68.545, 93.795],
+      "J3_pad_union_bounds_mm": [8.049999, 72.05, 66.449999, 85.2],
+      "FID3_pad_union_bounds_mm": [3, 84.5, 4, 85.5],
+      "limiting_tracks": [
+        {"uuid": "274d7e27-7198-46ee-96b3-cfb0f048ad80", "net": "/SENSE12V_HI", "layer": "B.Cu", "width_mm": 3.230592, "bbox_mm": [6.984704, 85.584704, 13.015297, 88.815297]},
+        {"uuid": "55fff7c2-e41c-42b6-a3da-2bab3d319ebf", "net": "/SENSE12V_HI", "layer": "B.Cu", "width_mm": 3.230592, "bbox_mm": [6.584704, 85.184704, 10.215297, 88.815297]},
+        {"uuid": "6838fe97-289e-4967-a26f-b47df4a49f61", "net": "/SENSE12V_HI", "layer": "B.Cu", "width_mm": 3.230592, "bbox_mm": [9.784704, 78.584704, 20.015297, 88.815297]}
+      ]
+    },
+    "right": {
+      "J2_pad_union_bounds_mm": [75.35, 30.99, 77.35, 35.19],
+      "J2_courtyard_bounds_mm": [73.545, 28.895, 86.045, 37.285],
+      "J5_pad_union_bounds_mm": [71.23, 39.79, 77.48, 49.43],
+      "J5_courtyard_bounds_mm": [70.985, 39.465, 79.025, 49.755],
+      "SW2_courtyard_bounds_mm": [71.355, 25.045, 77.445, 27.955],
+      "D7_courtyard_bounds_mm": [75.56, 50.125, 77.45, 53.315],
+      "VBUS_outer_tracks_max_x_mm": 77.500001,
+      "example_VBUS_uuid": "0fd90804-783b-4812-82a6-e13f375d3c5b"
+    },
+    "top": "TB1/TB2/TB4/TB5 terminal-bank courtyards extend to y=-1.295; BB1 at y54.1..74.9 has no leverage over this interface band."
+  },
+  "pure_paired_placement_comparison": {
+    "outline_edit_present": false,
+    "bar_present": false,
+    "J3_next_pose_at_mm": [60.349999, 77.4],
+    "J3_delta_from_current_mm": [0, -2],
+    "J3_next_native_courtyard_bounds_mm": [5.954999, 69.555, 68.544999, 91.795],
+    "hub_RJ45_J2_through_J5_delta_x_mm": 1,
+    "hub_RJ45_current_local_courtyard_min_x_mm": -3.585,
+    "hub_RJ45_proposed_local_courtyard_min_x_mm": -2.585,
+    "hub_C1_current_and_proposed_native_courtyard_bounds_mm": [63.805, 13.855, 83.995, 37.045],
+    "warning": "Pure pose proposal is not routed or outline-qualified. It already offers J3 inward motion without a bar; a placement pass cannot prove that its power-route reconnection fits."
+  },
+  "concrete_next_dimension_experiments": [
+    {
+      "axis": "Y",
+      "target_atx_bottom_mm": 87.5,
+      "potential_reduction_mm": 2,
+      "coordinate_action": "Use existing pure paired J3 pose y77.4 instead of79.4. Reconnect all moved native pads. Reroute the bottom /SENSE12V_HI loop and other affected routes so its y88.815297 copper extremity moves inward by at least2mm to<=86.815297, retaining original rated width/current gates. Refill/recheck all copper and native edge clearance before changing outline.",
+      "pair_context": "Mapped Hub laminate bottom82.6 is below target87.5; cover laminate does not itself block a2mm carrier-bottom reduction. Connector body extends beyond laminate by design, so external input-plug approach still requires evaluation.",
+      "bar_required_by_this_evidence": false,
+      "feasibility_or_routing_admitted": false
+    },
+    {
+      "axis": "X",
+      "coordinate_action": "For a meaningful carrier-right reduction, move the J2/J5 edge-interface column and associated SW2/D7/D3/Q1/R9/service-VBUS copper inward together; BB1 alone cannot move their x77.3..77.5 copper. To reduce the paired laminate width, also reduce the mirrored Hub left boundary(-0.49), coupled to its RJ45 bank; paired-request already shifts RJ45 x+1 but does not trim outline or rebuild copper.",
+      "pair_context": "Carrier width78 is not paired union width86.49. Reducing carrier width alone leaves paired laminate X unchanged while mapped Hub rightedge remains86.49. Hub local right edge84 is closely approached by C1 courtyard83.995 and other components; moving the wrong Hub edge cannot be justified from bar width.",
+      "bar_required_by_this_evidence": false,
+      "feasibility_or_routing_admitted": false
+    }
+  ],
+  "decision": "Prefer bounded no-bar J3/12V-bottom-loop compaction proof and paired edge-bank/outline proof before further BB1 investment. BB1 may still have internal routing/process research value, but no verified global dimension leverage is currently established.",
+  "routing_admitted": false,
+  "current_qualified": false,
+  "mechanical_fit_qualified": false,
+  "release_authority": false
+}

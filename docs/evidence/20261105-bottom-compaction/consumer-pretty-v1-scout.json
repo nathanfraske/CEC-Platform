@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "purpose": "Independent saved-source typed local-supply reconstruction and native visual evidence; private construction only",
+  "source": {"path": "experiments/repack/top-output-current-20261106/consumer-clearance-bank060-v1/carrier/board.kicad_pcb", "sha256": "1fba73346bbe8a9a6c29d9b8c00c148b9685fc12b5b925174071495efddc51a3"},
+  "candidate": {"path": "experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb", "sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e"},
+  "geometry": {"net": "+5V_MAIN", "layer": "B.Cu", "width_nm": 477639, "points_nm": [[22770300,15077200],[22770300,14279700],[28400000,8650000],[28400000,8350000],[29250000,7500000]], "retired_tracks": 6, "new_tracks": 4, "localized_lower_jog_removed": true, "terminal_approach_retained_to_avoid_second_tap": true},
+  "proofs": {"saved_receiver": "consumer-pretty-v1/receiver.json", "saved_receiver_complete_and_ok": true, "source_boundaries_restored": true, "typed_group_identity_root_anchor_budget_and_exclusive_island_preserved": true, "unrelated_source_owners_and_TB4_bank_exact": true, "source_and_companions_unchanged": true, "native_drc_errors": 0, "native_drc_opens": 0, "current_fault_objects_source": 2, "current_fault_objects_candidate": 2, "new_or_worsened_current_faults": false},
+  "native_plot_directory": "C:/Users/Admin/Documents/CEC-Board-Reviews/outline-compaction-20261105/daughter-scout/consumer-pretty",
+  "native_plots": {"before": "before.svg", "after": "after.svg", "before_crop": "before-crop.png", "after_crop": "after-crop.png", "method": "kicad-cli native SVG export B.Cu,B.Fab,Edge.Cuts without refill; rsvg rasterization and identical image crop"},
+  "routing_admitted": false,
+  "current_qualified": false,
+  "release_authority": false,
+  "limitations": ["Remaining two current fault objects are not waived", "The retained 0.3 mm vertical at the terminal approach protects the independently validated single shared-rail tap", "No whole-board or assembled-Z qualification follows"]
+}

@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-06T11:30:06Z",
+  "status": "source_and_cost_screen_complete_application_qualification_pending",
+  "scope": "Bounded alternate family investigation for the existing ATX 12V source-to-shunt path; not a component installation, routing receipt or release",
+  "goal_turn_audit": {
+    "previous_administrative_turn": "No engineering progress: preserved the separately authorized usage-reset condition and checked its account state.",
+    "this_turn": "Progress: found stocked small-quantity alternatives with explicit catalog current conditions, independently resolved a distributor pitch ambiguity from the mounting drawing, and narrowed the remaining qualification questions.",
+    "external_blocker": "Exact installed tolerances, application joint/thermal evidence and actual JLC assembly acceptance/cost remain unavailable; no technical contact has been authorized or sent for Keystone."
+  },
+  "source_pair": {
+    "atx": {"path":"experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb", "sha256":"4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310"},
+    "hub": {"path":"experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb", "sha256":"c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db"},
+    "stack": {"path":"beta/assembly/hub-atx-stack.json", "sha256":"0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"},
+    "reviewed_selector": {"path":"checkpoints/current.json", "sha256":"1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484"}
+  },
+  "manufacturer_sources": {
+    "catalog": {
+      "url":"https://www.keyelco.com/userAssets/file/K75p60.pdf",
+      "path":"lib/datasheets/Keystone_K75p60_SMT_Jumpers.pdf",
+      "sha256":"9b16310b7a3729747b645c26de440e293eac99cb538cbf526768672ec398405c",
+      "page":60,
+      "visually_inspected":true,
+      "independent_mounting_detail_interpretation":true,
+      "basis":"Manufacturer catalog geometry, nominal unless marked otherwise; not a toleranced installation drawing"
+    },
+    "rating_url":"https://www.keyelco.com/category.cfm/Test-Points-Tips-Probes-Clips/SMT-PCB-Jumpers/id/1206",
+    "5104TR_product_url":"https://www.keyelco.com/product.cfm/product_id/14021",
+    "part_drawing_attempts": {
+      "5104":"https://www.keyelco.com/product-pdf.cfm?p=14013",
+      "5104TR":"https://www.keyelco.com/product-pdf.cfm?p=14021",
+      "result":"Web identified the PDFs but did not expose visual content through this tool; direct download returned403. No tolerance was extracted or assumed.",
+      "alternate_lcsc_pdf":"https://datasheet.lcsc.com/datasheet/pdf/07151dee0f9d0f0bdfd3fd3cd1f7f262.pdf?productCode=C7466142",
+      "alternate_result":"Downloaded and visually inspected: manufacturer M65p54 catalog from2015, not a toleranced part drawing. Current manufacturer K75p60 takes precedence."
+    }
+  },
+  "common_catalog_electrical": {
+    "material":"Copper, silver plated",
+    "stock_thickness_nominal_mm":0.51,
+    "current_A":20,
+    "rated_power_W":0.5,
+    "rating_temperature_C":70,
+    "maximum_connection_temperature_C":105,
+    "operating_temperature_range_C":[-45,85],
+    "maximum_resistance_ohm":0.0002,
+    "interpretation":"The family page states the resistance limit under its stated power/current/temperature conditions. It does not supply our complete assembly's thermal performance or solder-joint resistance.",
+    "preserved_application_current_A":12,
+    "preserved_geometry_margin":1.25,
+    "required_conductor_screen_current_A":15,
+    "catalog_current_screen_pass":true,
+    "reference_I_squared_R_W_at_15A":0.045,
+    "loss_boundary":"Reference calculation only. Do not treat it as the complete path loss, a temperature prediction or thermal qualification.",
+    "parallel_sharing_assumed":false,
+    "higher_current_rails_qualified":false
+  },
+  "parts": [
+    {
+      "mpn":"5100TR",
+      "body_length_nominal_mm":6.86,
+      "body_height_nominal_mm":2.54,
+      "screen":"Reject for the presently proposed unchanged backside envelope: even nominal body height exceeds the existing screw's1.86mm part-minimum datum. No complete installed-stack comparison is inferred."
+    },
+    {
+      "mpn":"5102TR",
+      "body_length_nominal_mm":6.85,
+      "body_height_nominal_mm":1.0,
+      "recommended_inner_land_gap_nominal_mm":2.9,
+      "recommended_outer_land_extent_nominal_mm":7.85,
+      "screen":"Reject as a crossing of the existing3.230592mm full-width bus:2.9mm between lands is narrower than the copper itself, before clearance. Do not shrink the retained bus or solder lands to force a fit."
+    },
+    {
+      "mpn":"5104TR",
+      "body_length_nominal_mm":12.3,
+      "body_width_maximum_nominal_mm":2.3,
+      "body_neck_width_nominal_mm":1.8,
+      "body_height_nominal_mm":1.8,
+      "raised_flat_length_nominal_mm":5.5,
+      "recommended_land_width_nominal_mm":2.8,
+      "recommended_inner_land_gap_nominal_mm":8.1,
+      "recommended_outer_land_extent_nominal_mm":13.3,
+      "derived_symmetric_land_length_nominal_mm":2.6,
+      "derived_symmetric_land_center_pitch_nominal_mm":10.7,
+      "dimension_derivation":"Land length=(13.3-8.1)/2; symmetric center pitch=8.1+2.6. The drawing's8.1 dimension is between inner land edges, NOT pad centers.",
+      "diagram_minimum_lateral_spacing_mm":0.5,
+      "diagram_spacing_interpretation":"The0.50 MIN arrow is in the plan-view mounting detail, not a minimum vertical standoff. Preserve it as a lateral spacing constraint pending exact manufacturer guidance.",
+      "derived_flat_underside_nominal_mm":1.29,
+      "underside_derivation":"1.80-0.51 nominal values; this is NOT a minimum clearance and does not apply unchanged throughout the bends.",
+      "guaranteed_installed_maximum_height_mm":null,
+      "guaranteed_minimum_underside_mm":null,
+      "guaranteed_dimensional_tolerances_mm":null,
+      "backside_height_decision":"Only0.06mm separates1.8 nominal body height from the selected screw's1.86mm part-minimum head height. That is not a solder/tolerance/assembly budget or a proven whole-stack height guarantee.",
+      "crossing_decision":"Shortlist only. The wider land gap does not make the full8.1mm span a constant-height bridge. The full3D bend envelope and foreign-net clearance must be checked.",
+      "full_current_land_decision":"The nominal2.8mm land width is narrower than the retained3.230592mm planar feed. Do not narrow the feed by using catalog current alone; a qualified taper/enlarged-land and solder-joint model is required.",
+      "native_footprint_installed":false,
+      "nominal_only_profile_installed":false
+    }
+  ],
+  "procurement": {
+    "observed_date":"2026-11-06",
+    "source":"Freshly opened direct DigiKey product pages; not the older search-index price snippets",
+    "authorized_distributor_source":"https://www.keyelco.com/distributors.cfm/content.cfm/keyelco/Distributor-Locator/category.cfm/keyelco/distributors.cfm?state_id=30",
+    "currency":"USD",
+    "package":"Cut tape; no full-reel purchase required at100pieces",
+    "quotes":[
+      {"mpn":"5100TR", "url":"https://www.digikey.com/en/products/detail/keystone-electronics/5100TR/4759687", "displayed_stock":108907, "unit_prices_by_quantity":{"1":0.37,"10":0.275,"25":0.2464,"100":0.2086}, "quantity_100_total":20.86, "standard_reel_quantity":500},
+      {"mpn":"5102TR", "url":"https://www.digikey.com/en/products/detail/keystone-electronics/5102TR/4759688", "displayed_stock":117138, "unit_prices_by_quantity":{"1":0.28,"10":0.214,"25":0.1908,"100":0.1616}, "quantity_100_total":16.16, "standard_reel_quantity":500},
+      {"mpn":"5104TR", "url":"https://www.digikey.com/en/products/detail/keystone-electronics/5104TR/4759689", "displayed_stock":175851, "unit_prices_by_quantity":{"1":0.36,"10":0.272,"25":0.2432,"100":0.206}, "quantity_100_total":20.6, "standard_reel_quantity":2500}
+    ],
+    "optional_reeling_fee_USD":7,
+    "price_exclusions":["Shipping","Tax/tariff","Optional Digi-Reel","Assembler overage/handling/setup/placement/inspection"],
+    "inventory_reserved":false,
+    "lcsc_exact_identity":{"mpn":"5104TR","part":"C7466142","url":"https://www.lcsc.com/product-detail/C7466142.html","stock_verified":false,"price_verified":false},
+    "jlc_exact_process_acceptance_verified":false,
+    "jlc_assembly_fees_verified":false,
+    "other_family_lcsc_jlc_exact_listing_confirmed":false,
+    "order_placed":false
+  },
+  "next_action": {
+    "shortlisted_part":"5104TR for short bridge crossings, not a drop-in25.4mm MJP replacement",
+    "technical_inquiry":"docs/evidence/20261106-keystone-technical-inquiry.json",
+    "requires_external_evidence":["Released part tolerances, bend envelope, minimum underside and maximum installed height","Land/taper, joint and application current/temperature guidance","Exact JLC sourcing/placement acceptance and itemized assembly costs"],
+    "no_further_equivalent_sweeps":"Do not repeat MJP routing or create a fake conductive body to turn nominal geometry into zero native opens. Resume construction when a part/process has adequate bounds or a genuinely different authorized topology removes the relevant unknown."
+  },
+  "new_xy_compaction_mm":[0,0],
+  "boards_changed":false,
+  "selector_changed":false,
+  "current_qualified":false,
+  "assembled_Z_qualified":false,
+  "fab_ready":false,
+  "release_authority":false
+}

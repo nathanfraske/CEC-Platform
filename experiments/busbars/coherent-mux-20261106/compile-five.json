@@ -1,0 +1,90 @@
+{
+  "source": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "mode": "five",
+  "operation": {
+    "kind": "place_cell",
+    "native_macro": true,
+    "allow_linear_power_stage_reconstruction": true,
+    "poses": [
+      {
+        "reference": "C27",
+        "at_nm": [
+          16563990,
+          45800000
+        ],
+        "rotation_deg": 180
+      },
+      {
+        "reference": "C54",
+        "at_nm": [
+          20924990,
+          47245001
+        ],
+        "rotation_deg": 90
+      },
+      {
+        "reference": "C9",
+        "at_nm": [
+          15000000,
+          48000000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "R54",
+        "at_nm": [
+          16800000,
+          48625000
+        ],
+        "rotation_deg": 270
+      },
+      {
+        "reference": "U6",
+        "at_nm": [
+          18999990,
+          47400000
+        ],
+        "rotation_deg": 0
+      }
+    ],
+    "allow_locked_footprint_uuids": [],
+    "allow_locked_track_uuids": [],
+    "allow_locked_transport_uuids": [],
+    "reference_group_uuids": [],
+    "routes": [],
+    "vias": [],
+    "max_shift_nm": 4000000
+  },
+  "board_saved": false,
+  "accepted": false,
+  "status": "compile_refused",
+  "error_type": "ValueError",
+  "error": "native_smd_macro_barrel_has_no_movable_source_process_owner:15a43170-0a45-4792-a73e-963e5c7093da:full via land is not contained by the SMD pad",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/scout.py\", line 53, in worker\n    projected,packet,transported=cells.compile_macro(b,op,'atx-24pin-rev3',enforce_locks=False)\n                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/src/cec_pipeline/cells.py\", line 361, in compile_macro\n    projected, packet = compiler.compile(\n                        ^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 1118, in compile\n    private,transport=_frame(parent,source,proposal,reuse_ground_barrels=reuse_ground_barrels,\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_cell_macro_requests.py\", line 341, in _frame\n    transport=macro.apply(parent,private,**seating,maximum_shift_mm=shift_bound,\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/codex/src/CEC-Platform/scripts/cec_smd_macro_transport.py\", line 376, in apply\n    raise ValueError('native_smd_macro_barrel_has_no_movable_source_process_owner:'+uid+':'+reason)\nValueError: native_smd_macro_barrel_has_no_movable_source_process_owner:15a43170-0a45-4792-a73e-963e5c7093da:full via land is not contained by the SMD pad\n",
+  "elapsed_s": 8.911340352002298,
+  "events": [
+    {
+      "event": "start",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 73690.728504415,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "finish",
+      "phase": "source_ownership",
+      "index": 0,
+      "deadline_monotonic": 73690.728504415,
+      "explicit_ordered_composition": true
+    },
+    {
+      "event": "start",
+      "phase": "native_frame_and_cuts",
+      "index": 1,
+      "deadline_monotonic": 73698.952732256,
+      "explicit_ordered_composition": true
+    }
+  ],
+  "python_profiling_enabled": false
+}

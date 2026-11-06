@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+  "source_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/native-pair-v20/board.kicad_pcb",
+  "candidate_sha256": "0bc7f970253d5c1f5246b10335034080fce1ad84ad2447c947b52b2d78bcc6d0",
+  "source_sidecars": {
+    ".authored-prefix.json": null,
+    ".cellreport.json": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+    ".kicad_dru": "54c48539595395ac888f49d1dfe6ca7e0c594031503c8e77de9f8e20ddee5e12",
+    ".kicad_prl": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+    ".kicad_pro": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+    ".placement-search.json": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+    ".pourfirst-skeleton.kicad_pcb": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+    ".pourfirst-state.json": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+    ".pourplan.json": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+    ".power-prefix.json": null,
+    ".priority-replacements.json": null,
+    ".railreport.json": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+    ".route-lineage.json": null
+  },
+  "candidate_sidecars": {
+    ".authored-prefix.json": null,
+    ".cellreport.json": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+    ".kicad_dru": "e8308795da1432ce62ddedab04005311d382ea6a558cd99475afb01a9fe0c645",
+    ".kicad_prl": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+    ".kicad_pro": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+    ".placement-search.json": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+    ".pourfirst-skeleton.kicad_pcb": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+    ".pourfirst-state.json": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+    ".pourplan.json": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+    ".power-prefix.json": null,
+    ".priority-replacements.json": null,
+    ".railreport.json": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+    ".route-lineage.json": null
+  },
+  "board_family_files": [
+    {
+      "name": "board.cellreport.json",
+      "sha256": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+      "bytes": 298,
+      "source_sha256": "180aa879d6775221364874497e89ec469de53a7346db6cfd3037d47b5cbaa0a2",
+      "source_exact": true
+    },
+    {
+      "name": "board.kicad_dru",
+      "sha256": "e8308795da1432ce62ddedab04005311d382ea6a558cd99475afb01a9fe0c645",
+      "bytes": 680,
+      "source_sha256": "54c48539595395ac888f49d1dfe6ca7e0c594031503c8e77de9f8e20ddee5e12",
+      "source_exact": false
+    },
+    {
+      "name": "board.kicad_pcb",
+      "sha256": "0bc7f970253d5c1f5246b10335034080fce1ad84ad2447c947b52b2d78bcc6d0",
+      "bytes": 1624155,
+      "source_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+      "source_exact": false
+    },
+    {
+      "name": "board.kicad_prl",
+      "sha256": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+      "bytes": 2292,
+      "source_sha256": "17fd2530bde826c57486affa122d0a9446a8a4fe73175fb09efea655f55b1903",
+      "source_exact": true
+    },
+    {
+      "name": "board.kicad_pro",
+      "sha256": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+      "bytes": 12881,
+      "source_sha256": "1741448bd47b8db391a151cc598c1cc847efbf93939b0ca4e462251f29dfd9c1",
+      "source_exact": true
+    },
+    {
+      "name": "board.placement-search.json",
+      "sha256": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+      "bytes": 23039,
+      "source_sha256": "6e79879eeb1beefefa860b8cb09d782c7ff36b4adc414fc40eb13a4ad26f3820",
+      "source_exact": true
+    },
+    {
+      "name": "board.pourfirst-skeleton.kicad_pcb",
+      "sha256": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+      "bytes": 702248,
+      "source_sha256": "3feb0ef0b71b71df0cfaf3f771ad99ff074cf683ad491713a7b4dfa4f23ff442",
+      "source_exact": true
+    },
+    {
+      "name": "board.pourfirst-state.json",
+      "sha256": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+      "bytes": 211185,
+      "source_sha256": "b54cca479ac8972bdfabf5274a4683013dd597ac658096367d3f31b85f93e486",
+      "source_exact": true
+    },
+    {
+      "name": "board.pourplan.json",
+      "sha256": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+      "bytes": 10717,
+      "source_sha256": "7153913449ba9dab42959b5379997bc4ed41f37c3c7755bcad134bfa0025bb99",
+      "source_exact": true
+    },
+    {
+      "name": "board.railreport.json",
+      "sha256": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+      "bytes": 50184,
+      "source_sha256": "a784312c1ad34a3478e67f8a9fad2b817908b328b87d73451d86e070aa49a52e",
+      "source_exact": true
+    }
+  ],
+  "canonical_rule_delta": "Native macro exact saved endpoint-group rule; no other companion changes authorized.",
+  "temporary_native_construction_excluded": true,
+  "release_authority": false
+}

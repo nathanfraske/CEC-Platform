@@ -1,0 +1,181 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/candidate/board.kicad_pcb",
+  "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+  "proposal": {
+    "schema": 1,
+    "scope": "exact_bounded_whole_current_planar_reflow",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+    "layer": "B.Cu",
+    "layer_id": 2,
+    "width_nm": 477370,
+    "full_current_floor_nm": 477370,
+    "contract": {
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+      "current_authority": {
+        "amps": 3.0,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "/5VSB_MUX"
+      },
+      "profile": "jlcpcb_6l_pofv_high_current",
+      "rise_c": 30.0,
+      "role": "all_terminal_conservative_aggregate",
+      "ipc_by_layer_mm": {
+        "F.Cu": 0.47736927907636145,
+        "In1.Cu": 5.7190343613477115,
+        "In2.Cu": 5.7190343613477115,
+        "In3.Cu": 5.7190343613477115,
+        "In4.Cu": 5.7190343613477115,
+        "B.Cu": 0.47736927907636145
+      },
+      "required_by_layer_mm": {
+        "F.Cu": 0.47736927907636145,
+        "In1.Cu": 5.7190343613477115,
+        "In2.Cu": 5.7190343613477115,
+        "In3.Cu": 5.7190343613477115,
+        "In4.Cu": 5.7190343613477115,
+        "B.Cu": 0.47736927907636145
+      },
+      "process_by_layer": {
+        "F.Cu": {
+          "track_width_mm": 0.2,
+          "clearance_mm": 0.2
+        },
+        "In1.Cu": {
+          "track_width_mm": 0.127,
+          "clearance_mm": 0.127
+        },
+        "In2.Cu": {
+          "track_width_mm": 0.127,
+          "clearance_mm": 0.127
+        },
+        "In3.Cu": {
+          "track_width_mm": 0.127,
+          "clearance_mm": 0.127
+        },
+        "In4.Cu": {
+          "track_width_mm": 0.127,
+          "clearance_mm": 0.127
+        },
+        "B.Cu": {
+          "track_width_mm": 0.2,
+          "clearance_mm": 0.2
+        }
+      },
+      "routing_layers": [
+        "F.Cu",
+        "In2.Cu",
+        "In3.Cu",
+        "B.Cu"
+      ],
+      "clearance_mm": 0.2,
+      "source_sink_inferred": false,
+      "branch_sharing_assumed": false,
+      "terminal_barrel_zone_rating_qualified": false
+    },
+    "domain": null,
+    "current_domain_kind": "explicit_all_terminal_distributed_supply",
+    "source_sha256": "1512d4f046daebaba629ac29db4bc5caf2d53bc6ccf370e44deb903c4259b045",
+    "retired_track_uuids": [
+      "25bba609-ee8a-4547-9df7-c906cfc0979c",
+      "57598e07-197c-412f-89d0-b07235644a5b",
+      "ce87700c-30d7-439e-b3db-eba7d0ab58d1"
+    ],
+    "original_length_nm": 14593968.374238571,
+    "max_source_track_mm": 9.0,
+    "max_source_cut_mm": 32.0,
+    "source_boundaries": [
+      {
+        "retired_uuids": [
+          "25bba609-ee8a-4547-9df7-c906cfc0979c",
+          "57598e07-197c-412f-89d0-b07235644a5b",
+          "ce87700c-30d7-439e-b3db-eba7d0ab58d1"
+        ],
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "layer": "B.Cu",
+        "width_nm": 477370,
+        "retained_qualified_signal_via_contacts": [],
+        "incoming_qualified_signal_via_contacts": [],
+        "external_boundary_count": 2,
+        "anchors_nm": [
+          [
+            13208988,
+            47000000
+          ],
+          [
+            25317675,
+            53000000
+          ]
+        ],
+        "restored": true
+      }
+    ],
+    "current_sharing_inferred": false,
+    "source_current_reduced": false,
+    "vias_or_pours_authorized": false,
+    "release_authority": false
+  },
+  "legs": [
+    {
+      "start_mm": [
+        13.208988,
+        47.0
+      ],
+      "end_mm": [
+        15.9,
+        47.0
+      ],
+      "foreign_clear": true,
+      "blockers": [],
+      "edge_clear": true,
+      "rules": []
+    },
+    {
+      "start_mm": [
+        15.9,
+        47.0
+      ],
+      "end_mm": [
+        21.9,
+        53.0
+      ],
+      "foreign_clear": true,
+      "blockers": [],
+      "edge_clear": true,
+      "rules": []
+    },
+    {
+      "start_mm": [
+        21.9,
+        53.0
+      ],
+      "end_mm": [
+        25.317675,
+        53.0
+      ],
+      "foreign_clear": true,
+      "blockers": [],
+      "edge_clear": true,
+      "rules": []
+    }
+  ],
+  "width_nm": 477370,
+  "old_length_mm": 14.593968374238571,
+  "new_length_mm": 14.593968374238573,
+  "saved": true,
+  "accepted": false,
+  "candidate": "/home/codex/src/CEC-Platform/experiments/busbars/mux-reconstruction-20261106/output-prefix-v1/candidate/board.kicad_pcb",
+  "candidate_sha256": "c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88",
+  "added_track_uuids": [
+    "aa27ae55-481b-489a-969d-d8cca41906df",
+    "04149599-7f30-4653-a351-9d5f2eb6a1e9",
+    "13a922b3-fde7-47f1-8d8c-c39045af485e"
+  ],
+  "retired_track_uuids": [
+    "25bba609-ee8a-4547-9df7-c906cfc0979c",
+    "ce87700c-30d7-439e-b3db-eba7d0ab58d1",
+    "57598e07-197c-412f-89d0-b07235644a5b"
+  ],
+  "elapsed_s": 5.254162507990259
+}

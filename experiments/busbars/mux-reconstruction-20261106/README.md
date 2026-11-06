@@ -1,0 +1,25 @@
+# Actual mux copper reconstruction diagnostics
+
+The original diagnostics bind native ATX1512d4f, unchanged Hub c611b8ab and unchanged stack contract. The seven requested physical poses remain a study, not an accepted repack.
+
+## Received private prefix
+
+`output_prefix.py` subsequently constructed `output-prefix-v1/candidate/board.kicad_pcb` (SHA256 `c4c92165a0e8efec60458b91af80807233033bb5668ade92f171cdacb4ce0b88`). It translates one B.Cu OUT diagonal 0.10 mm left and compensates its two horizontal legs. Exactly three source tracks are replaced by three tracks; width remains 0.477370 mm and total length remains 14.593968374 mm. All other native nodes and project sidecars are literal unchanged, including all component poses, barrels, power fills and outline.
+
+`slice-closeout-final-v2.json` joins ten fresh independent checks and all 16 clipped force/sense legs in one code/source epoch. Native counts remain 0 opens, 0 errors, 94 warnings; field blockers remain zero. Current, Ground, pairs and route-quality checks do not regress. This clears the proposed C55 Ground seat without diagnostic omission of old copper. **That seat and the seven-component move are not installed.** Board size remains 78 x 87.5 mm; no new compaction, busbar installation, physical fit or application-current qualification is claimed.
+
+## Generic role and restoration corrections
+
+The compiler now distinguishes manufacturer-proven SS timing capacitors from supply decouplers, and wired additional reservoir capacitors from isolated ones. Every incident full-current cut receives a mandatory full-width restoration request for every surviving literal native contact. Ground leaves have separate ownership labels, exact lock consent and mandatory immediate returns; no current or new-barrel authority is inferred. Source endpoint geometry recognizes actual annular contact at an exact through-via endpoint without confusing the drill void with absence of copper.
+
+Invocation-local stage and canonical-export observation scopes reuse only private successful derivations. Source/native/family/code/hierarchy/exporter fences remain live, and independent receiving starts fresh. `profile-scoped-v3.json` demonstrates seven export requests reduced to one actual CLI invocation and three stage requests to one full derivation. This is **not yet a successful full compile**: role collection finishes near eight seconds, then contact inventory exceeds the existing ten-second phase. The next substantive change is splitting role derivation and literal contact ownership into separate bounded phases with an immutable internal handoff, not increasing deadlines or adding another cache.
+
+The diagnostic scripts below remain read-only; their obstacle lists do not authorize cuts.
+
+Regression closeout: 549 distinct tests pass (227 integration, 283 role/observation/dead-end, 39 Ground tee). Each subprocess is externally limited to ten seconds. An eager optimization originally rejected opt-in ordinary cells with no canonical stage; this was corrected without changing the positive-role Source requirement, and all 17 related integration cases pass. The compact raw-evidence archive is hash-verified on readback; `evidence-manifest.json` names every file. All original local diagnostic/rejected results remain available, but they are not substituted for final receiving.
+
+`output_route_scout.py` inventories all24 original cohort pin terminals and their direct native contacts, records complete source terminal membership and unmoved control anchors, then checks one full-width OUT reconstruction topology against original copper plus explicit projected barrel obstacles. Width0.477370mm, source current3A with1.25 geometry margin, and clearance0.2mm remain unchanged. It preserves the source22,53 boundary and original downstream track57598e07 to C21-side via15ba127e, then C20/U5. The original output barrel6cd5980a would need positively received transport; no barrel ampacity or exclusive transport authority is inferred.
+
+`fixed_barrel_pose_collisions.py` answers the simpler direct-additive alternative. Keeping every old barrel fixed produces physical different-net pad–barrel overlaps at six distinct old barrels and two further same-net partial-pad process conflicts. Adding tracks cannot remove those shorts. It also enumerates the irreducible union of28 old tracks that violate moved-pad clearance in this exact pose; this list is an obstacle inventory, NOT a permitted cut list.
+
+Generic receiver routing remains separated: private eligible signals through `cec_ordinary_route_receiving.receive`; full-current power conductors through `cec_full_current_planar_reflow.plan/receive`; accepted saved phases through `cec_source_cut_chain.receive`. These do not import pose changes or grant power/Ground barrel retirement by alias. Every cut needs its actual original contact, current, full-width boundary, terminal partition and explicit lock authority, followed by complete original-parent saved receiving. A direct-additive plan retaining all old source barrels is impossible for these fixed poses.

@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-06T04:09:34.004847Z",
+  "source_url": "https://jlcpcb.com/partdetail/XFCN-T200030_20R/C55380739",
+  "source_method": "Direct HTTPS GET using Python urllib; parsed server-rendered HTML and JSON records in self.__next_f.push scripts. No account, cart or order interaction.",
+  "identity": {
+    "componentBrandEn": "XFCN",
+    "componentModelEn": "T200030-20-R",
+    "componentCode": "C55380739",
+    "lcscComponentId": 59335918
+  },
+  "visible_page_fields": {
+    "library": "Extended",
+    "Source": "JLCPCB",
+    "Assembly Type": "Wave Soldering",
+    "PCBA Type": "Economic and Standard"
+  },
+  "embedded_source_fields": {
+    "componentLibraryType": "expand",
+    "assemblyMode": "manualWeld",
+    "assemblyComponentFlag": false,
+    "specialComponentFee": 0,
+    "overseasSpecialComponentFee": "undefined",
+    "needAuditFlag": false,
+    "overseasStockCount": 2000,
+    "canPresaleNumber": 2000,
+    "encapsulationNumber": 2000,
+    "preMinPurchaseNum": 41,
+    "leastPatchNumber": 2,
+    "initialPrice": 0.2237
+  },
+  "pricing": {
+    "currency": "USD",
+    "initial_price": 0.2237,
+    "initial_price_quantity_range": null,
+    "verified_embedded_tiers": [
+      {"startNumber": 50, "endNumber": 149, "productPrice": 0.1754},
+      {"startNumber": 150, "endNumber": 499, "productPrice": 0.1546},
+      {"startNumber": 500, "endNumber": 1999, "productPrice": 0.1289},
+      {"startNumber": 2000, "endNumber": 3999, "productPrice": 0.1173},
+      {"startNumber": 4000, "endNumber": -1, "productPrice": 0.1104}
+    ],
+    "order_quote_verified": false,
+    "stock_reserved": false,
+    "actual_part_specific_assembly_fees_usd": null,
+    "warning": "specialComponentFee=0 does not establish zero assembly, loading, setup, stencil, manual labor or other order fees. Catalog availability is time-sensitive. preMinPurchaseNum is retained literally, not interpreted as an assembly MOQ."
+  },
+  "assembly_interpretation": {
+    "automated_smt_reflow_confirmed": false,
+    "process_qualified": false,
+    "warning": "Despite the SMT copper sheet category and flat SMT drawing geometry, the global page labels this part Wave Soldering and its backend says manualWeld. Do not assume automated SMT assembly or a qualified paste/land/reflow process.",
+    "official_process_explanation_url": "https://jlcpcb.com/help/article/pcb-assembly-faqs",
+    "official_general_fee_url": "https://jlcpcb.com/help/article/pcb-assembly-price"
+  },
+  "manufacturer_drawing": {
+    "url": "https://atta.szlcsc.com/upload/public/pdf/source/20260817/7901499E264CB461C1F9CC4DEB2E95EE.pdf",
+    "sha256": "f26bd5a4b8534233d14380f03e99137ba792984bb2a0aa5fd7b542d891b92a47",
+    "material_callout": "T2(Y2) red copper, tin plated",
+    "numeric_resistivity_or_tcr_guarantee_found": false,
+    "numeric_current_rating_found": false,
+    "recommended_land_paste_or_reflow_profile_found": false
+  },
+  "qualification": {
+    "qualified_for_25_a": false,
+    "reason": "Geometry and global catalog listing do not establish allowable current, assembled-joint resistance, thermal rise or assembly reliability. No guaranteed T2(Y2) conductivity/TCR or part-specific current test context was obtained. Pure-copper constants must not be substituted as guaranteed part properties.",
+    "indispensable_evidence": [
+      "Manufacturer guaranteed electrical and process specification, or measured lot-specific conductor resistance with a justified temperature dependence bound",
+      "Qualified land, paste/solder quantity and assembly process with joint acceptance criteria",
+      "Assembled-joint resistance and thermal-rise validation at 25 A in the actual board/enclosure path",
+      "Actual JLC global order quotation confirming assembly method, stock allocation and complete fees"
+    ]
+  }
+}

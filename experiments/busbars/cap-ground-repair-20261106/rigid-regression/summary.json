@@ -1,0 +1,213 @@
+{
+  "tests": 34,
+  "passed": 34,
+  "external_timeout_s": 10,
+  "max_workers": 2,
+  "max_wall_s": 1.6188533029926475,
+  "results": [
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_exact_same_barrel_reseat_preserves_all_saved_native_partitions",
+      "exit_code": 0,
+      "elapsed_s": 1.484865485006594,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-000.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[width]",
+      "exit_code": 0,
+      "elapsed_s": 1.3267869950068416,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-001.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[drill]",
+      "exit_code": 0,
+      "elapsed_s": 1.419323248002911,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-002.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[lock]",
+      "exit_code": 0,
+      "elapsed_s": 1.4503511200018693,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-003.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[uuid]",
+      "exit_code": 0,
+      "elapsed_s": 1.3895640670089051,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-004.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[position]",
+      "exit_code": 0,
+      "elapsed_s": 1.4723275220021605,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-005.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[footprint]",
+      "exit_code": 0,
+      "elapsed_s": 1.486307035011123,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-006.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[extra_track]",
+      "exit_code": 0,
+      "elapsed_s": 1.5562991530023282,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-007.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[lost_plane]",
+      "exit_code": 0,
+      "elapsed_s": 1.3590392229962163,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-008.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[unrelated_width]",
+      "exit_code": 0,
+      "elapsed_s": 1.429950250996626,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-009.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[setup]",
+      "exit_code": 0,
+      "elapsed_s": 1.3932120430108625,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-010.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[unrelated_net]",
+      "exit_code": 0,
+      "elapsed_s": 1.4221830049937125,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-011.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_candidate_changes_or_missing_returns_refused[sidecar]",
+      "exit_code": 0,
+      "elapsed_s": 1.383472929999698,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-012.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[no_consent]",
+      "exit_code": 0,
+      "elapsed_s": 0.49684396499651484,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-013.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[wrong_consent]",
+      "exit_code": 0,
+      "elapsed_s": 0.49521103099687025,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-014.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[already_contained]",
+      "exit_code": 0,
+      "elapsed_s": 0.90535174201068,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-015.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[other_track]",
+      "exit_code": 0,
+      "elapsed_s": 0.8967322620010236,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-016.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[foreign_plane]",
+      "exit_code": 0,
+      "elapsed_s": 0.9038805909949588,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-017.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[no_contact]",
+      "exit_code": 0,
+      "elapsed_s": 0.9599461089965189,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-018.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[target_partial]",
+      "exit_code": 0,
+      "elapsed_s": 0.9699224719952326,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-019.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[target_bool]",
+      "exit_code": 0,
+      "elapsed_s": 0.473768925992772,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-020.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_source_debt_and_exclusive_positive_target_are_mandatory[timeout_bool]",
+      "exit_code": 0,
+      "elapsed_s": 0.47541669000929687,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-021.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_relevant_unfilled_zone_is_unknown_not_absent_copper[False]",
+      "exit_code": 0,
+      "elapsed_s": 0.8767320780025329,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-022.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_relevant_unfilled_zone_is_unknown_not_absent_copper[True]",
+      "exit_code": 0,
+      "elapsed_s": 1.4306175809906563,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-023.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_unrelated_opaque_text_missing_zero_angle_remains_exact[False]",
+      "exit_code": 0,
+      "elapsed_s": 1.6188533029926475,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-024.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_unrelated_opaque_text_missing_zero_angle_remains_exact[True]",
+      "exit_code": 0,
+      "elapsed_s": 1.5545542820036644,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-025.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_full_root_token_comparison_ignores_only_real_comments_and_whitespace",
+      "exit_code": 0,
+      "elapsed_s": 0.36460233000980224,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-026.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_native_fixture_rigid_transform_retains_same_repair_and_partitions[0]",
+      "exit_code": 0,
+      "elapsed_s": 1.595651719995658,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-027.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_native_fixture_rigid_transform_retains_same_repair_and_partitions[90]",
+      "exit_code": 0,
+      "elapsed_s": 1.560666253004456,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-028.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_native_fixture_rigid_transform_retains_same_repair_and_partitions[180]",
+      "exit_code": 0,
+      "elapsed_s": 1.5484418519918108,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-029.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_native_fixture_rigid_transform_retains_same_repair_and_partitions[270]",
+      "exit_code": 0,
+      "elapsed_s": 1.5377962599886814,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-030.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_candidate_tokens_cannot_hide_junk_or_escaped_string_changes[trailing_junk]",
+      "exit_code": 0,
+      "elapsed_s": 1.4867358379997313,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-031.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_complete_candidate_tokens_cannot_hide_junk_or_escaped_string_changes[escaped_quote_change]",
+      "exit_code": 0,
+      "elapsed_s": 1.5590804750099778,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-032.xml"
+    },
+    {
+      "node": "tests/test_source_cap_ground_via_repair.py::test_exact_tokens_keep_escaped_quote_and_semicolon_inside_strings",
+      "exit_code": 0,
+      "elapsed_s": 0.3695610279974062,
+      "xml": "/home/codex/src/CEC-Platform/experiments/busbars/cap-ground-repair-20261106/rigid-regression/case-033.xml"
+    }
+  ]
+}

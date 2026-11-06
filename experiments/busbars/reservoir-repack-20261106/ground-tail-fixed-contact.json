@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "source": "/home/codex/src/CEC-Platform/experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "C55_target_nm_deg": [
+    20400000,
+    47050000,
+    -90.0
+  ],
+  "pad_uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+  "pad_net": "GND",
+  "source_pad_center_nm": [
+    20400000,
+    48000000
+  ],
+  "proposed_pad_center_nm": [
+    20400000,
+    48000000
+  ],
+  "ground_pad_center_exactly_unchanged": true,
+  "source_tail_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+  "source_tail_start_nm": [
+    20400000,
+    48000000
+  ],
+  "source_tail_end_nm": [
+    19445406,
+    48954594
+  ],
+  "source_tail_width_nm": 200000,
+  "source_tail_locked": true,
+  "source_tail_native_pad_contact": true,
+  "proposed_tail_native_pad_contact": true,
+  "tail_endpoint_still_in_actual_rotated_pad": true,
+  "tail_native_via_contact": true,
+  "retained_via_uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+  "retained_via_at_nm": [
+    19445406,
+    48954594
+  ],
+  "retained_via_diameter_nm": 500000,
+  "retained_via_drill_nm": 300000,
+  "new_holes": 0,
+  "ground_branch_translation_nm": [
+    0,
+    0
+  ],
+  "all_layer_reservation_guard_waived": false,
+  "copper_route_qualified": false,
+  "local_owner_surface_max_mm": 3.5,
+  "local_full_current_owner_surface_construction_pending": true,
+  "board_saved": false,
+  "release_authority": false
+}

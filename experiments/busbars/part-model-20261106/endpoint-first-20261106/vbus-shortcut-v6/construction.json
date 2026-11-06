@@ -1,0 +1,222 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+  "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "candidate_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "retired_track_uuids": [
+    "0fd90804-783b-4812-82a6-e13f375d3c5b",
+    "3a9c7bab-efb6-5496-8d7b-23ded11b3e34",
+    "95f87615-b822-460c-b944-e07c223873d7",
+    "9fd9a83f-0abb-4262-b709-962889bb3cce"
+  ],
+  "added_track_uuids": [
+    "4484fbff-5d3e-4609-96ba-3ebf2de09ddb",
+    "5814a0ba-03d1-4a48-9a4a-341b117db723",
+    "7d30f9be-860b-4e9b-bed1-e13c1e08bd4b",
+    "f0d8d399-a20e-4717-98e7-fdaa64cc9b2c",
+    "f786887f-21c2-426d-91fb-ad5dc6868ca8"
+  ],
+  "source_proposal": {
+    "schema": 1,
+    "scope": "exact_bounded_whole_current_planar_reflow",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+    "layer": "F.Cu",
+    "layer_id": 0,
+    "width_nm": 200000,
+    "full_current_floor_nm": 200000,
+    "contract": {
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "amps": 0.75,
+      "profile": "jlcpcb_6l_pofv_high_current",
+      "rise_c": 30.0,
+      "geometry_margin": 1.25,
+      "current_authority": {
+        "amps": 0.75,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "/VBUS"
+      },
+      "required_by_layer_mm": {
+        "F.Cu": 0.07053860919543789,
+        "In1.Cu": 0.8450747617670971,
+        "In2.Cu": 0.8450747617670971,
+        "In3.Cu": 0.8450747617670971,
+        "In4.Cu": 0.8450747617670971,
+        "B.Cu": 0.07053860919543789
+      },
+      "routing_layers": [
+        "F.Cu",
+        "In2.Cu",
+        "B.Cu"
+      ],
+      "minimum_track_width_mm": 0.8450747617670971,
+      "authority_refs": [
+        "FB1",
+        "U6"
+      ],
+      "source": "current_domain_ipc2221_worst_routing_layer"
+    },
+    "domain": {
+      "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+      "configured_net": "/VBUS",
+      "amps": 0.75,
+      "source_refs": [
+        "FB1"
+      ],
+      "sink_refs": [
+        "U6"
+      ],
+      "authority_refs": [
+        "FB1",
+        "U6"
+      ],
+      "missing_refs": [],
+      "complete": true,
+      "source": "board_policy_existing_current_endpoints",
+      "current_contract": {
+        "amps": 0.75,
+        "margin_included": false,
+        "geometry_margin": 1.25,
+        "source": "board_design_basis",
+        "pattern": "/VBUS"
+      },
+      "declared_endpoint_witness": {
+        "declaration": {
+          "net": "/VBUS",
+          "sources": [
+            {
+              "ref": "FB1",
+              "pins": [
+                "2"
+              ],
+              "mpn": "MPZ2012S601AT000",
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric"
+            }
+          ],
+          "sinks": [
+            {
+              "ref": "U6",
+              "pins": [
+                "2"
+              ],
+              "mpn": "TPS2121RUXR",
+              "footprint": "cec-Package_DFN_QFN:RUX0012A"
+            }
+          ],
+          "basis": "Current hierarchical 02-power-usb schematic and saved-board native pins: FB1 output to U6 IN2 (pin 2), with existing C9/C52/C53 bypass leaves. The unchanged 0.75 A conductor basis applies to the aggregate path, not separately to each capacitor or USB-C pin. No mux clamp, inrush, barrel or release qualification follows."
+        },
+        "native_endpoints": {
+          "sources": [
+            {
+              "ref": "FB1",
+              "mpn": "MPZ2012S601AT000",
+              "footprint": "cec-Capacitor_SMD:C_0805_2012Metric",
+              "pins": [
+                "2"
+              ],
+              "footprint_uuid": "becb2c8b-34d9-42e3-bbb7-a3dbba80694f",
+              "pad_uuids": [
+                "a41e9ae9-7e80-4a8b-9ab3-d67280583df5"
+              ]
+            }
+          ],
+          "sinks": [
+            {
+              "ref": "U6",
+              "mpn": "TPS2121RUXR",
+              "footprint": "cec-Package_DFN_QFN:RUX0012A",
+              "pins": [
+                "2"
+              ],
+              "footprint_uuid": "dded9240-df64-4347-b612-4934ea4cae3a",
+              "pad_uuids": [
+                "e7ea3c3c-ba56-4a61-bc6b-57eb9f630a25"
+              ]
+            }
+          ]
+        },
+        "existing_current_contract": {
+          "amps": 0.75,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "/VBUS"
+        },
+        "new_budget_or_pin_sharing_inferred": false
+      }
+    },
+    "current_domain_kind": "aggregate_source_sink",
+    "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+    "retired_track_uuids": [
+      "0fd90804-783b-4812-82a6-e13f375d3c5b",
+      "3a9c7bab-efb6-5496-8d7b-23ded11b3e34",
+      "95f87615-b822-460c-b944-e07c223873d7",
+      "9fd9a83f-0abb-4262-b709-962889bb3cce"
+    ],
+    "original_length_nm": 16236753.236814715,
+    "max_source_track_mm": 8.0,
+    "max_source_cut_mm": 32.0,
+    "source_boundaries": [
+      {
+        "retired_uuids": [
+          "0fd90804-783b-4812-82a6-e13f375d3c5b",
+          "3a9c7bab-efb6-5496-8d7b-23ded11b3e34",
+          "95f87615-b822-460c-b944-e07c223873d7",
+          "9fd9a83f-0abb-4262-b709-962889bb3cce"
+        ],
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+        "layer": "F.Cu",
+        "width_nm": 200000,
+        "retained_qualified_signal_via_contacts": [],
+        "incoming_qualified_signal_via_contacts": [],
+        "external_boundary_count": 2,
+        "anchors_nm": [
+          [
+            71400000,
+            54200000
+          ],
+          [
+            77400000,
+            53200000
+          ]
+        ],
+        "restored": true
+      }
+    ],
+    "current_sharing_inferred": false,
+    "source_current_reduced": false,
+    "vias_or_pours_authorized": false,
+    "release_authority": false
+  },
+  "path_nm": [
+    [
+      71400000,
+      54200000
+    ],
+    [
+      73800000,
+      54200000
+    ],
+    [
+      74600000,
+      55000000
+    ],
+    [
+      76900000,
+      55000000
+    ],
+    [
+      77400000,
+      54500000
+    ],
+    [
+      77400000,
+      53200000
+    ]
+  ],
+  "method": "explicit_native_guarded_whole_chain_45_degree_shortcut",
+  "bar_installed": false,
+  "routing_admitted": false,
+  "current_qualified": false
+}

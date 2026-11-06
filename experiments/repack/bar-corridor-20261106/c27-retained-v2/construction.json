@@ -1,0 +1,63 @@
+{
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c25-reference-repair-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d7966c02f6472b64d3b8dfcd6ef4d048fa9f873878636cd0a3bf61b08510dc91",
+  "candidate": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c27-retained-v2/candidate/board.kicad_pcb",
+  "candidate_sha256": "67c1c32cfd411faab96e998b6be73bf2e065c939da9457dfe51dc75585594885",
+  "reference": "C27",
+  "xy": [
+    12.56399,
+    45.8
+  ],
+  "no_copper_cuts": true,
+  "added_track_uuids": [
+    "5c8ea661-aa1f-5e9f-9c72-a1002a97d0d7",
+    "f5f88540-c47a-4ddc-9539-d0f0e3ddbb0f"
+  ],
+  "contact_construction": {
+    "supply": {
+      "route": {
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+        "width_nm": 477370,
+        "layer": "F.Cu",
+        "points_nm": [
+          [
+            13043990,
+            45800000
+          ],
+          [
+            13043990,
+            46355002
+          ]
+        ]
+      },
+      "unchanged_current": {
+        "current_authority": {
+          "amps": 3.0,
+          "margin_included": false,
+          "geometry_margin": 1.25,
+          "source": "board_design_basis",
+          "pattern": "/5VSB_MUX"
+        },
+        "profile": "jlcpcb_6l_pofv_high_current",
+        "required_by_layer_nm": {
+          "0": 477370,
+          "4": 5719035,
+          "6": 5719035,
+          "8": 5719035,
+          "10": 5719035,
+          "2": 477370
+        },
+        "release_authority": false,
+        "barrel_capacity_qualified": false
+      }
+    },
+    "Ground": {
+      "status": "reused-ground-barrel",
+      "distance_mm": 0.605002,
+      "via_uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+      "existing_barrel_unchanged": true
+    }
+  },
+  "full_saved_receiving_still_required": true,
+  "release_authority": false
+}

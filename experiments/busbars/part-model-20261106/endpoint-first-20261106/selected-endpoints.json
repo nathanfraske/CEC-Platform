@@ -1,0 +1,943 @@
+{
+  "schema": 1,
+  "target_native_net": "/SENSE12V_HI",
+  "amps": 12,
+  "geometry_margin": 1.25,
+  "width_nm": 3230592,
+  "source": "/home/codex/src/CEC-Platform/experiments/repack/bar-corridor-20261106/c9-corrective-v4/candidate/board.kicad_pcb",
+  "source_sha256": "b118546af6665d77b190a9ac8ce3132cde413d607cdb3d9b28ba620a3857be24",
+  "cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "poses": [
+    {
+      "part": "1.0",
+      "pose_mm": [
+        71,
+        72.5,
+        90
+      ],
+      "native_courtyard_mm": [
+        69.755,
+        58.555,
+        72.245,
+        86.445
+      ],
+      "larger_land_courtyard_mm": [
+        69.134704,
+        57.934703999999996,
+        72.865296,
+        87.065296
+      ],
+      "nominal_body_mm": [
+        70.1,
+        59.1,
+        71.9,
+        85.9
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            71.0,
+            85.2
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": []
+        },
+        {
+          "at_mm": [
+            71.0,
+            59.8
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "3a9c7bab-efb6-5496-8d7b-23ded11b3e34",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "95f87615-b822-460c-b944-e07c223873d7",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "9fd9a83f-0abb-4262-b709-962889bb3cce",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [],
+      "larger_land_courtyard_owners": [],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "part": "1.0",
+      "pose_mm": [
+        71,
+        69.3,
+        90
+      ],
+      "native_courtyard_mm": [
+        69.755,
+        55.355,
+        72.245,
+        83.245
+      ],
+      "larger_land_courtyard_mm": [
+        69.134704,
+        54.734704,
+        72.865296,
+        83.865296
+      ],
+      "nominal_body_mm": [
+        70.1,
+        55.9,
+        71.9,
+        82.7
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            71.0,
+            82.0
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": []
+        },
+        {
+          "at_mm": [
+            71.0,
+            56.6
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "3a9c7bab-efb6-5496-8d7b-23ded11b3e34",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/VBUS",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [],
+      "larger_land_courtyard_owners": [],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "part": "0.7",
+      "pose_mm": [
+        30.9,
+        43.89,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.655,
+        33.755,
+        32.145,
+        54.025
+      ],
+      "larger_land_courtyard_mm": [
+        29.034703999999998,
+        33.134704,
+        32.765296,
+        54.645296
+      ],
+      "nominal_body_mm": [
+        30.0,
+        34.3,
+        31.799999999999997,
+        53.480000000000004
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.9,
+            52.78
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "a1cf4953-a304-4cfb-b1db-afb189a7166f",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "2c638be6-895d-4b31-ace7-6d608428d6f9",
+              "net": "+5V_MAIN",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "08e4a78a-6ad9-4278-bdb8-bdeb4ba833fa",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "0aca7fe3-f2e5-43f5-858d-222ca2fda0be",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "11180e64-e07b-45a0-92a0-86a630475751",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "a684ce18-8974-40f8-b2a3-c6571df6b717",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.9,
+            35.0
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "f76a18a2-7f85-4cce-b00d-a139b0ed81ee",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "294e46f3-f398-4b97-9240-863a55a79051",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [],
+      "larger_land_courtyard_owners": [
+        {
+          "ref": "C3",
+          "uuid": "426b1a2f-d4cb-4b9a-bdc7-9305f925815c",
+          "area_mm2": 0.14370676000000504
+        },
+        {
+          "ref": "J6P",
+          "uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "area_mm2": 0.37287664761600575
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "part": "0.8",
+      "pose_mm": [
+        30.9,
+        48.86,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.655,
+        37.455,
+        32.145,
+        60.265
+      ],
+      "larger_land_courtyard_mm": [
+        29.034703999999998,
+        36.834704,
+        32.765296,
+        60.885296000000004
+      ],
+      "nominal_body_mm": [
+        30.0,
+        38.0,
+        31.799999999999997,
+        59.72
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.9,
+            59.02
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "d48f0ac8-dc32-4959-aa78-fc9326f3e8b1",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "3d9e192f-ecfa-4f5f-ac8e-0f3fc89962fd",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "43cab509-7a04-4b9e-bf7b-5d3f0a828760",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "55e82923-43a8-4b89-b20a-c33b201dc69b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "6185c50e-8d5b-4cd7-a683-9befa38fce39",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "73f6f3bc-f537-4a51-b0ee-8a680570afdd",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "9527f19f-2cd6-5e5d-916f-c1779d8ec48b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "1b04b43b-9af0-5083-bc51-8c73d2068509",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "6cb524d7-562d-51e5-86f1-235d35cf133c",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "879d8b6f-25e6-5dd8-9fe1-a08ea89c8a4b",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "e4b8dc76-829e-5368-81f1-50d6d3ed5c95",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "3cb0af72-7e34-48e3-80e6-dbaaab2cf497",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+              "kind": "PAD",
+              "ref": "R58",
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "1fcfb2a7-956d-4a87-8a40-387b4997b373",
+              "net": "GND",
+              "kind": "PAD",
+              "ref": "R56",
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "b66c09eb-5f03-4d70-b1d9-f4cf4690b580",
+              "net": "+5VSB",
+              "kind": "PAD",
+              "ref": "R57",
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "fe8e3b00-f1fa-4066-936d-0da576c599fc",
+              "net": "+5V_SYS",
+              "kind": "PAD",
+              "ref": "FB2",
+              "eligible_ordinary_route": false
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.9,
+            38.7
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "4b537c56-3b2b-4a10-8487-cf819032e80a",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "b8c32938-66ec-4542-8df4-4c02a7fd8601",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "c5e83b14-9f07-4294-8096-9da7217bbe7c",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "f76a18a2-7f85-4cce-b00d-a139b0ed81ee",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "915d4372-80b6-4bf5-b04b-d3aef403d1aa",
+              "net": "+5V_MAIN",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "4a86e62b-5f15-4e30-b981-cdc44c6660ef",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "907b27b8-2225-47db-91ab-93d691e15292",
+              "net": "/HUB LINK + CAN + STACK/DETECT",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "294e46f3-f398-4b97-9240-863a55a79051",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "78ece46e-d267-4854-add9-55fc5d4aef14",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "fd39b854-2ad1-4248-abea-1646c9c03f0a",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [],
+      "larger_land_courtyard_owners": [
+        {
+          "ref": "R58",
+          "uuid": "621a30b4-dc9b-4a7d-b845-b6af5cb10d98",
+          "area_mm2": 0.45597528000000054
+        },
+        {
+          "ref": "J6P",
+          "uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "area_mm2": 1.0456700152320133
+        },
+        {
+          "ref": "R56",
+          "uuid": "b45c902f-366c-4b85-af5b-ddc66e53de4e",
+          "area_mm2": 0.24939608761600035
+        },
+        {
+          "ref": "R57",
+          "uuid": "d0181fa5-a6a8-4522-8a04-3a73f08a4dfd",
+          "area_mm2": 0.45597528000000054
+        },
+        {
+          "ref": "FB2",
+          "uuid": "e2732f80-d1f2-4add-9a97-77c00ad0a66d",
+          "area_mm2": 0.8640041073200047
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "part": "1.0",
+      "pose_mm": [
+        24.1,
+        64.7,
+        90
+      ],
+      "native_courtyard_mm": [
+        22.855,
+        50.755,
+        25.345,
+        78.645
+      ],
+      "larger_land_courtyard_mm": [
+        22.234704,
+        50.134704,
+        25.965296000000002,
+        79.265296
+      ],
+      "nominal_body_mm": [
+        23.200000000000003,
+        51.300000000000004,
+        25.0,
+        78.10000000000001
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            24.1,
+            77.4
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "4850e156-499f-45cd-be22-b68163040c98",
+              "net": "+5VSB",
+              "kind": "PAD",
+              "ref": "J3",
+              "eligible_ordinary_route": false
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            24.1,
+            52.0
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "3c727d42-09c5-4472-bc34-3db5bae025f8",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "be2bc496-6db7-40e3-babd-e593734b2a9e",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "15ba127e-b3a7-4bfe-aabd-0d615a43a89a",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/5VSB_MUX",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "2298b048-015d-44d8-8bc1-8c23a2c7389e",
+              "net": "/HUB LINK + CAN + STACK/+5V_SYS_PORT",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "3e971352-53e6-4f3a-984d-f7114935c619",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "094f8d74-39cf-469b-909a-7b38e82679da",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_SS",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": true
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [
+        {
+          "ref": "J3",
+          "uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+          "area_mm2": 22.634099999999957
+        },
+        {
+          "ref": "C25",
+          "uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "area_mm2": 5.491799999999981
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "area_mm2": 4.855499999999986
+        }
+      ],
+      "larger_land_courtyard_owners": [
+        {
+          "ref": "J3",
+          "uuid": "134845e4-db61-4dab-a8c5-8513b9174f54",
+          "area_mm2": 28.806779630463993
+        },
+        {
+          "ref": "C25",
+          "uuid": "25c7af4c-a1b0-42bd-9282-27758964bcc8",
+          "area_mm2": 5.491799999999981
+        },
+        {
+          "ref": "C21",
+          "uuid": "78bd2114-eba2-4c9d-9247-affbd6419206",
+          "area_mm2": 0.28205630996400527
+        },
+        {
+          "ref": "C53",
+          "uuid": "b9162945-e856-4020-a666-e1e4fdffd7df",
+          "area_mm2": 4.855499999999986
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    },
+    {
+      "part": "0.7",
+      "pose_mm": [
+        30.6,
+        45.59,
+        90
+      ],
+      "native_courtyard_mm": [
+        29.355,
+        35.455,
+        31.845,
+        55.725
+      ],
+      "larger_land_courtyard_mm": [
+        28.734704,
+        34.834704,
+        32.465296,
+        56.345296
+      ],
+      "nominal_body_mm": [
+        29.700000000000003,
+        36.0,
+        31.5,
+        55.18000000000001
+      ],
+      "feet": [
+        {
+          "at_mm": [
+            30.6,
+            54.48
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "1076641b-2a27-468c-9995-9d74a0e78441",
+              "net": "GND",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "2e0d4820-7277-4813-8923-62d70578c5b4",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "336abde7-0cbb-4024-8924-bc62365f6e97",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "3fafc484-a1b7-47c5-9df3-44e6443ab764",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "4f00faed-b4d0-4981-af01-c1fa70011b40",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "7cb32499-f200-4e00-8122-4e5e31b4ca1a",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "85ba29e5-2a45-437e-b8c4-aee1f68f8148",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "8bad8513-c483-4f85-88b3-b646671bdffd",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "a24bc32b-c0c4-450d-b15f-3c0820015191",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "aa22d066-4e54-4523-94b7-8ef529e9ce8b",
+              "net": "+5VSB",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "a1cf4953-a304-4cfb-b1db-afb189a7166f",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "2c638be6-895d-4b31-ace7-6d608428d6f9",
+              "net": "+5V_MAIN",
+              "kind": "PCB_VIA",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "17a838f2-098f-5ae4-8e52-fc436db61899",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "71abe491-ddce-51bc-ad26-7d09a4f91b78",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "9186b3d8-831d-58d5-a424-857f7174fe2a",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "9527f19f-2cd6-5e5d-916f-c1779d8ec48b",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "a2579207-8837-575a-b28d-b30339dcc96d",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "ae1535d8-d7af-500b-904e-cd79832e9a43",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": true
+            },
+            {
+              "uuid": "ba8d425b-bd3c-5828-a52c-892aedecd6b1",
+              "net": "+5VSB",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "6743eddd-f9fb-47ba-9d76-dea7839f48a3",
+              "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+              "kind": "PAD",
+              "ref": "R56",
+              "eligible_ordinary_route": false
+            }
+          ]
+        },
+        {
+          "at_mm": [
+            30.6,
+            36.7
+          ],
+          "enlarged_square_land_mm": 3.230592,
+          "foreign_clearance_hits": [
+            {
+              "uuid": "eb38ecca-7fd9-4557-befa-a6d9febfe672",
+              "net": "+3V3",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "b8c32938-66ec-4542-8df4-4c02a7fd8601",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "f76a18a2-7f85-4cce-b00d-a139b0ed81ee",
+              "net": "+5V_MAIN",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "294e46f3-f398-4b97-9240-863a55a79051",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            },
+            {
+              "uuid": "fd39b854-2ad1-4248-abea-1646c9c03f0a",
+              "net": "/NEG12V_ADC",
+              "kind": "PCB_TRACK",
+              "ref": null,
+              "eligible_ordinary_route": false
+            }
+          ]
+        }
+      ],
+      "native_courtyard_owners": [],
+      "larger_land_courtyard_owners": [
+        {
+          "ref": "J6P",
+          "uuid": "9158de84-3623-49a7-af3c-7bbf3742857c",
+          "area_mm2": 1.7584686476160059
+        },
+        {
+          "ref": "R56",
+          "uuid": "b45c902f-366c-4b85-af5b-ddc66e53de4e",
+          "area_mm2": 0.4735144876159995
+        }
+      ],
+      "vent_intersections": [
+        {
+          "ref": "C37",
+          "area_mm2": 0.0
+        },
+        {
+          "ref": "C1",
+          "area_mm2": 0.0
+        }
+      ]
+    }
+  ],
+  "scope": "Six manually selected constraint-event poses; endpoint-first native FCu clearances then actual cached court plus enlarged-land margin. No board save, current/joint/assembly/route qualification.",
+  "no_qualified_pad_neckdown": true,
+  "larger_land_geometry_is_provisional": true
+}

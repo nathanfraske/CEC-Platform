@@ -1,0 +1,226 @@
+(footprint "Mac8_MJP_1p0_NOMINAL_PROTOTYPE"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "PROVISIONAL nominal Mac8 MJP-1.0 raised conductor. Internal component connection ONLY; no PCB span copper. No guaranteed tolerances/current/joint/Z qualification.")
+	(property "Reference" "BB**"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "e072c261-0f68-491e-a63a-bf89a6f39013")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Value" "Mac8_MJP_1p0_NOMINAL_PROTOTYPE"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "e841f56e-9afa-4b0d-b946-6bc140c7c28c")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Datasheet" "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a7dab58d-b715-405f-9c1a-729a23a51428")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "899563d9-cea7-4b20-b97f-c2ebf6f18b89")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Manufacturer" "Mac8"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "d5fd32a5-0e59-4c29-8f1f-c23d0631aab3")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "MPN" "MJP-1.0"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "89886007-5577-42c2-ad41-7683303c94f6")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Qualification" "NOMINAL_PROTOTYPE_NOT_RELEASED"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "596a1d75-2749-4115-9a32-cfa4d5968491")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Height_nominal_mm" "2.3"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "f71ab345-5c14-4388-a278-fee086f500f9")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Underside_nominal_mm" "1.8"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "8ba4a482-e1eb-4281-ad24-b3d967eaecab")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Catalog_current_A" "20_NOT_APPLICATION_QUALIFIED"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "e9e0af9d-8a5a-4673-b728-756b94f355bc")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Source_profile_sha256" "5ab087a19cd95f4cde3f2f74fa19aaecfb66247d93d95f3925ca4fabd00c5349"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "7a9cfdff-15b1-4ba7-9021-ab1e9041b6af")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Electrical_model" "ONE_CONTINUOUS_CONDUCTOR_TWO_SOLDER_JOINTS"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(uuid "fc2efb7b-ccca-4b61-91f6-4212208aec20")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers yes)
+	(fp_line
+		(start -13.95 -1.25)
+		(end 13.95 -1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "3c11b3f0-89a2-4b5a-9d6c-76b1a7177d92")
+	)
+	(fp_line
+		(start -13.95 1.25)
+		(end -13.95 -1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "5b76ca98-6d13-476b-9832-4f00d214452c")
+	)
+	(fp_line
+		(start 13.95 -1.25)
+		(end 13.95 1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "bc0ab9df-7521-4183-a4ba-18c3d560229c")
+	)
+	(fp_line
+		(start 13.95 1.25)
+		(end -13.95 1.25)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(layer "F.CrtYd")
+		(uuid "9d8c60e9-b353-44a4-96cc-668161cc4df2")
+	)
+	(fp_line
+		(start -13.4 -0.9)
+		(end 13.4 -0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "80329e9a-b4bb-4ecc-982d-c10c4f1306dd")
+	)
+	(fp_line
+		(start -13.4 0.9)
+		(end -13.4 -0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "d72a38ea-fd61-4a93-8f79-20f8fc4c853f")
+	)
+	(fp_line
+		(start 13.4 -0.9)
+		(end 13.4 0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "2132db9b-b587-48d5-870b-b90b26aa861b")
+	)
+	(fp_line
+		(start 13.4 0.9)
+		(end -13.4 0.9)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(layer "F.Fab")
+		(uuid "9b8564f0-3b96-4824-b777-12e5753bce92")
+	)
+	(pad "1" smd rect
+		(at -12.7 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "4e6e06eb-2be0-462e-8d60-5b68f7d636a7")
+	)
+	(pad "1" smd rect
+		(at 12.7 0)
+		(size 2 2)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(thermal_bridge_angle 45)
+		(uuid "71d24545-5e67-47cc-ad36-783e8dd1b237")
+	)
+	(embedded_fonts no)
+)

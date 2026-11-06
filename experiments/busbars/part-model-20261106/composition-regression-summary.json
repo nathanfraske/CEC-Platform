@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "Read-only regression for programming-node base-boundary composition; no new placement/routing claims",
+  "historical_receipt": "experiments/repack/bar-corridor-20261106/cross-board-replay.json",
+  "historical_receipt_limits": "Existing receipt proves old lower-only role equality and complete-pair role compilation, not native placement, routing or current acceptance. Four boards compiled a pair; Hub refused missing closed court; PCIe2 had no positive role; three daughterboards had no applicable pair.",
+  "fresh_cross_board_replay": "experiments/busbars/part-model-20261106/composition-source-noop-receipt.json",
+  "fresh_probe": "experiments/busbars/part-model-20261106/composition_source_noop_replay.py",
+  "native_sources_hash_verified": 9,
+  "sources_with_native_thin_track_packets": 7,
+  "sources_with_no_native_thin_tracks": 2,
+  "native_derived_boundary_packets": 5069,
+  "bounded_batches_max64": 82,
+  "identity_result": "All native-derived boundary requests were returned exactly unchanged with no extras/proofs when retired_track_uuids was empty. Packet inputs, source RAM native binding, source PCB SHA and historical receipt SHA remained unchanged.",
+  "limitation": "This is no-cut packet identity, not a new source-owned ordinary-role or placement proof. It deliberately avoids new selected poses, high-cost source export scans and DRC/refills.",
+  "focused_tests": {
+    "command": "/usr/bin/python3 -m pytest -q tests/test_macro_programming_boundary_composition.py tests/test_macro_boundary_composition.py tests/test_macro_terminal_contact_composition.py",
+    "passed": 160,
+    "duration_s": 9.16,
+    "positive_programming_matrix": "4 quarter turns x2 board faces x3 retained-port cases (none, via, third trace) =24 positive cases, including reversed demand endpoint order; every actual surviving native component port remains required.",
+    "negative_coverage": "Source selection forgery, missing role, supply/Ground pad substitution, narrow/wider demand, changed native width/contact, stale source binding, incomplete ownership, distinct joins, Ground and already-extra composition remain refused or unchanged as specified."
+  },
+  "source_boards_modified": false,
+  "selector_modified": false,
+  "shared_code_modified_by_this_review": false,
+  "routing_or_placement_accepted": false,
+  "current_or_release_qualified": false
+}

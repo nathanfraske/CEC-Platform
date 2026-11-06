@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "status": "NO_FEASIBLE_ADDITIONAL_CONTRACTION_DEMONSTRATED",
+  "evidence": "paired-left-contraction-inventory.json",
+  "scope": "One inventory and one in-memory C1-only preview; no boards saved or routing/outline admission claimed.",
+  "source_carrier_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "source_cover_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "contract_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "transform": "carrier_x = 86 - cover_x",
+  "conditional_envelopes_mm": {
+    "baseline": [89.585, 93.09],
+    "carrier_left_trim_2_only": [87.585, 93.09],
+    "desired_coordinated_left_3_not_proven": [86.585, 93.09],
+    "desired_coordinated_left_4_not_proven": [85.585, 93.09]
+  },
+  "three_mm_blockers": [
+    "Cover right edge must reach at most X83; U3 feedback copper currently reaches X83.455002, independently of C1.",
+    "C1 native X73.9 to X72.9 preview overlaps R26/R27 and fails opposing ATX U1 body clearance: margin -0.1845783689059926 mm.",
+    "Moved C1 vent loses reservation coverage and intersects ATX objects e3991be9-9fcd-4662-aeab-b71e7e5c6e5c, 0318e59e-3e60-4adb-9594-3edd58a3acf5, de8d643b-943d-4a09-9fe0-cdaa540fbd43.",
+    "ATX FID3 copper begins X3 and its courtyard X2.252494: explicit fiducial relocation and edge-clearance receiving needed."
+  ],
+  "four_mm_additional_blockers": [
+    "Cover right edge X82 intersects U3/C3/R39/RJ_HOLD region and C37 declared body reaches X82.75, so C37 also needs repack and vent coordination.",
+    "ATX retained 3V3 saved fill starts X4.198 and rated tracks X4.204886, leaving only 0.198 mm nominal edge gap after X4 trim; no legal clearance demonstrated.",
+    "ATX FID1 courtyard starts X3.752494 and FID3 copper is cut."
+  ],
+  "mounting_and_interface_note": "Inventory found no drilled pads/holes in cover X>81 or carrier X<4.5. This is not a whole-board hole proof; matched headers were not moved.",
+  "limits": "Inventory includes native pads/tracks/courtyards, not exhaustive saved-zone geometry; no refill, native DRC or receiving for a trimmed candidate was performed.",
+  "decision": "Do not treat C1-only as a cheaper demonstrated alternative to the port bank. Three mm requires a new local regulator/control plus opposing-U1/vent study; four mm expands into C37 and ATX rated 3V3 work. Keep the prior conditional 2 mm bound until an actual closed coordinated candidate exists."
+}

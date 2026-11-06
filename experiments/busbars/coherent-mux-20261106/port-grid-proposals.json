@@ -1,0 +1,1031 @@
+{
+  "source": "experiments/busbars/part-model-20261106/endpoint-first-20261106/vbus-shortcut-v6/candidate/board.kicad_pcb",
+  "source_sha256": "4b7457bd28a1a798b6c851b354a2807d02472b8c85b6f583ec48833dce616310",
+  "source_proposal": {
+    "schema": 1,
+    "via_uuid": "15a43170-0a45-4792-a73e-963e5c7093da",
+    "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_ILM",
+    "board_hint": "atx-24pin-rev3",
+    "allow_owned_locked": true,
+    "max_additional_path_mm": 4.0,
+    "max_source_leg_mm": 8.0,
+    "retired_track_uuids": [
+      "1d74896d-41f9-4b91-8f3a-0e490698b3cd",
+      "ab5da1f0-afd1-451a-b9b9-540015f880ee",
+      "c73d68b5-5c91-4704-ba04-7bae449aea42"
+    ],
+    "source_points_nm": [
+      {
+        "layer": 0,
+        "width_nm": 200000,
+        "far_nm": [
+          12800000,
+          48115000
+        ]
+      },
+      {
+        "layer": 6,
+        "width_nm": 200000,
+        "far_nm": [
+          15400000,
+          45450000
+        ]
+      }
+    ],
+    "root_nm": [
+      12600000,
+      48250000
+    ],
+    "root_drill_nm": 300000,
+    "root_width_by_layer_nm": {
+      "0": 600000,
+      "4": 600000,
+      "6": 600000,
+      "8": 600000,
+      "10": 600000,
+      "2": 600000
+    },
+    "root_layers": [
+      0,
+      2
+    ],
+    "source_path_mm": 4.215716805565034,
+    "release_authority": false,
+    "current_authority": false,
+    "repair_source_pad_overlap": true,
+    "mandatory_source_pad_uuid": "aae66316-dfdf-4650-973e-68a837184b16",
+    "mandatory_source_pad_reference": "R54",
+    "mandatory_source_pad_number": "1"
+  },
+  "source_binding_omitted_from_diagnostic": true,
+  "fresh_source_plan_required_for_construction": true,
+  "trials": [
+    {
+      "at_nm": [
+        12500000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12400000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12800000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48450000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12200000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        47850000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12600000,
+        48650000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "existing via violates drill spacing": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        13000000,
+        48250000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12200000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12200000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        47850000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12500000,
+        48650000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        47850000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12700000,
+        48650000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "existing via violates drill spacing": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        13000000,
+        48150000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        13000000,
+        48350000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12300000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "foreign copper excludes via land": {
+          "count": 1,
+          "layers": {
+            "F.Cu": 1
+          }
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        47950000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12900000,
+        48550000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12200000,
+        48050000
+      ],
+      "via_clear": false,
+      "refusals": {
+        "pad or hole excludes via land": {
+          "count": 1,
+          "layers": {}
+        }
+      },
+      "routes": [],
+      "complete": false
+    },
+    {
+      "at_nm": [
+        12200000,
+        48450000
+      ],
+      "via_clear": true,
+      "refusals": {},
+      "routes": [
+        {
+          "layer": "F.Cu",
+          "width_nm": 200000,
+          "points_nm": [
+            [
+              12200000,
+              48450000
+            ],
+            [
+              12465000,
+              48450000
+            ],
+            [
+              12800000,
+              48115000
+            ]
+          ]
+        },
+        {
+          "layer": "SIG2",
+          "width_nm": 200000,
+          "points_nm": [
+            [
+              12200000,
+              48450000
+            ],
+            [
+              12400000,
+              48450000
+            ],
+            [
+              15400000,
+              45450000
+            ]
+          ]
+        }
+      ],
+      "complete": true
+    }
+  ],
+  "board_saved": false,
+  "accepted": false,
+  "elapsed_s": 1.4771231939957943
+}

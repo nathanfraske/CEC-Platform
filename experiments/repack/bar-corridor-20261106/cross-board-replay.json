@@ -1,0 +1,87 @@
+{
+  "rows": [
+    {
+      "board": "12vhpwr-standard",
+      "source_sha256": "92c6924b69b93b1280128d3e551e9a244f9c13a75bae73fc61221abc680cf631",
+      "source_unchanged": true,
+      "lower_only_exact_parity": true,
+      "pair_compiled": true,
+      "refs": [
+        "R26",
+        "R27"
+      ],
+      "routing_or_placement_accepted": false
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "source_sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+      "source_unchanged": true,
+      "lower_only_exact_parity": true,
+      "pair_compiled": true,
+      "refs": [
+        "R59",
+        "R69"
+      ],
+      "routing_or_placement_accepted": false
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "source_sha256": "949f6204126b25902553d5558702292f345ed68a6135a65ab61e63e2a315de30",
+      "source_unchanged": true,
+      "lower_only_exact_parity": true,
+      "pair_compiled": true,
+      "refs": [
+        "R15",
+        "R16"
+      ],
+      "routing_or_placement_accepted": false
+    },
+    {
+      "board": "hub-standard-rev2",
+      "source_sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+      "source_unchanged": true,
+      "pair_compiled": false,
+      "refusal": "one_footprint_text_and_closed_court_only_required",
+      "routing_or_placement_accepted": false
+    },
+    {
+      "board": "output-daughterboards--atx24-out-db",
+      "source_sha256": "97f78fdd4039c6b3c2f2c801d1affed86be80bce1d73f641591b507f93c36204",
+      "source_unchanged": true,
+      "applicable_pair": false
+    },
+    {
+      "board": "output-daughterboards--eps-out-db",
+      "source_sha256": "a6cee74a84dcd493fec62cd9791ca35fb330be92f26a155af70b625838a4fc78",
+      "source_unchanged": true,
+      "applicable_pair": false
+    },
+    {
+      "board": "output-daughterboards--pcie-out-db",
+      "source_sha256": "ea12d133262dfd18551d38a5e31a9551de11026b904937c9f396871573247ea1",
+      "source_unchanged": true,
+      "applicable_pair": false
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "source_sha256": "cfb92ab09702a5999846de3eb2f25624c4090092f6b75602fb86138c09648595",
+      "source_unchanged": true,
+      "lower_only_exact_parity": true,
+      "positive_role_present": false
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "source_sha256": "7b237c22df8f4e5f43c53061447a2d804d7d4bf911b6ab11c5b67c78b51c5767",
+      "source_unchanged": true,
+      "lower_only_exact_parity": true,
+      "pair_compiled": true,
+      "refs": [
+        "R15",
+        "R16"
+      ],
+      "routing_or_placement_accepted": false
+    }
+  ],
+  "source_boards_mutated": false,
+  "scope": "role compilation only; not placement, routing, current or fab qualification"
+}

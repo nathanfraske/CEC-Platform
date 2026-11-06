@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "checked_date": "2026-11-06",
+  "scope": "Direct seller and manufacturer screen for the short nominal bar candidate; not a purchase quote or assembly acceptance",
+  "manufacturer": {
+    "mpns": ["MJP-0.7", "MJP-0.7-T"],
+    "product_url": "https://www.mac8japan.com/products/406",
+    "drawing_url": "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+    "drawing_sha256": "c36c7df239585ae253183bb457c8d6cd24610c395ab2b82475334250e99a7e9b",
+    "material": "Phosphor bronze, tin over nickel; do not borrow copper properties from MJP-1.0",
+    "nominal_foot_center_pitch_mm": 17.78,
+    "minimum_recommended_land_mm": [2.0, 2.0],
+    "reel_quantity": 700,
+    "tape_width_mm": 32,
+    "catalog_current_a": 20,
+    "catalog_current_test_conditions_verified": false,
+    "guaranteed_installed_height_or_underside_verified": false
+  },
+  "seller_snapshots": [
+    {
+      "seller": "Marutsu",
+      "url": "https://www.marutsu.co.jp/GoodsDetail.jsp?salesGoodsCode=91072",
+      "exact_mpn": "MJP-0.7-T",
+      "pack_quantity": 700,
+      "currency": "JPY",
+      "pack_ex_tax": 16340,
+      "pack_including_Japanese_tax": 17974,
+      "arithmetic_ex_tax_per_part": 23.34285714285714,
+      "availability": "Manufacturer order; live estimated dispatch 2026-11-16, not guaranteed inventory or delivery",
+      "minimum_observed_offer": "One 700-piece set",
+      "reserved_stock": false
+    },
+    {
+      "seller": "Monotaro",
+      "url": "https://www.monotaro.com/p/4368/2163/",
+      "exact_mpn": "MJP-0.7-T",
+      "pack_quantity": 700,
+      "currency": "JPY",
+      "pack_ex_tax": 18980,
+      "pack_including_Japanese_tax": 20878,
+      "arithmetic_ex_tax_per_part": 27.114285714285714,
+      "availability": "Page advertises dispatch within nine days; no inventory reservation or export eligibility established"
+    }
+  ],
+  "quantity100_example": {
+    "assumed_boards": 100,
+    "bars_per_board": 1,
+    "Marutsu_component_only_cash_outlay_JPY_ex_tax": 16340,
+    "parts_remaining_before_assembly_attrition": 600,
+    "interpretation": "The arithmetic per-piece price is not an available 100-piece purchase. A cut-tape/sample quote could change this, but none was verified."
+  },
+  "assembly": {
+    "JLC_LCSC_exact_part_native_code_verified": false,
+    "meaning": "No exact native listing was verified; this is not proof that none exists.",
+    "exact_32mm_feeder_nozzle_process_accepted": false,
+    "quote_or_approval_received": false,
+    "reference_prior_consignment_screen": "docs/evidence/20261106-mjp-part-qualification.json",
+    "qualification": "The prior screen's generic consignment routes and conflicting fee schedules are not a quote for MJP-0.7-T; its 32mm tape is different from MJP-1.0-T's 44mm tape."
+  },
+  "excluded_costs": ["Shipping and destination taxes", "Currency conversion", "Cut tape or repacking", "Consignment and customs", "Setup, nozzle, placement, solder and inspection", "Attrition and residual inventory terms"],
+  "required_external_evidence": [
+    "Released part tolerances, coplanarity, maximum installed top and minimum underside with the specified solder process",
+    "Catalog current conditions, resistance limits and derating sufficient to evaluate the existing 12A continuous rail and retained 1.25 routing margin; no equal sharing or heatless joint assumptions",
+    "Exact part and packaging acceptance, paste/stencil/reflow, inspection and installed dimensional limits from the assembler",
+    "A low-volume or reel quote with all assembly and delivery charges separated"
+  ],
+  "no_order_or_outbound_contact": true,
+  "no_board_change": true,
+  "source_qualified": false,
+  "assembly_qualified": false,
+  "current_qualified": false,
+  "landed_cost_qualified": false,
+  "release_authority": false
+}

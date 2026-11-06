@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "carrier": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/atx-24pin-rev3/board.kicad_pcb",
+    "sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+    "poses": [{"reference": "J6C", "at_nm": [67000000, 20159899], "rotation_deg": 270}]
+  },
+  "cover": {
+    "path": "checkpoints/review-20261105-outline-compaction/boards/hub-standard-rev2/board.kicad_pcb",
+    "sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+    "poses": [{"reference": "J6C", "at_nm": [19000000, 10359899], "rotation_deg": 90}]
+  },
+  "contract": {
+    "path": "beta/assembly/hub-atx-stack.json",
+    "sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a"
+  }
+}

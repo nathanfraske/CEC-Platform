@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-06T05:24:06.875764Z",
+  "scope": "Independent read-only verification of exact private trim; no general outline gate changes or release authority",
+  "source": {"path":"experiments/repack/atx-small-cell-20261105/native-v5/carrier/board.kicad_pcb","sha256":"dcc749c6d75bac04675ec7260f8709ee78ff798fd6d18a618f9819c56cdd7688"},
+  "candidate": {"path":"experiments/repack/j3-inward-20261105/trim-v2/carrier/board.kicad_pcb","sha256":"a2fcfe9b147877bf72b5d2badb0cb841e44d7a8f565605dd01b759d2992e0a16"},
+  "original_edge_port_baseline": {"path":"experiments/repack/bar-corridor-20261105/carrier/board.kicad_pcb","sha256":"496e90672ac0eb24920bccde582661b895ebebb88aaca5bb46ee32db86216749"},
+  "construction_reviewed": "experiments/repack/j3-inward-20261105/trim_closed.py",
+  "native_outline": {
+    "source_bounds_nm":[0,0,78000000,89500000],
+    "candidate_bounds_nm":[0,0,78000000,87500000],
+    "source_dimensions_mm":[78,89.5],"candidate_dimensions_mm":[78,87.5],
+    "source_native_polygon_area_mm2":6975.623177789648,
+    "candidate_native_polygon_area_mm2":6819.623177789648,
+    "actual_native_area_reduction_mm2":156,
+    "note":"Native rounded outlines, not nominal bar width. This is carrier laminate reduction only; not complete assembled envelope or Z qualification."
+  },
+  "exact_native_ast_delta": {
+    "source_owner_count":2826,"candidate_owner_count":2826,"owner_identity_sets_identical":true,
+    "changed_owner_count":7,
+    "changed_edge_uuids":["10b7d3a6-f885-4535-915f-d8495dac0c2a","9b27d385-bc7c-47c4-b19f-9ab7b16feeb0","6f4ab618-0fcf-40ed-9b87-961ceab9cf33","382f5016-684d-48ec-896b-6db599909faa","6d17e25e-c106-4314-bb2a-9ddb5fd0f451"],
+    "changed_ground_zone_uuids":["28fb1d19-c582-4c57-aaf1-e0c9341b8a02","d973fe53-5c88-47cd-9e60-63dafba1de54"],
+    "edge_changes_only_start_mid_end":true,
+    "all_zone_settings_and_outlines_exact_excluding_filled_polygon":true,
+    "all_other_native_owner_nodes_exact":true,
+    "global_ast_metadata_exact":true,
+    "all_tracks_pads_footprints_and_non_ground_copper_unchanged":true
+  },
+  "ground_fill_native_boolean_delta": [
+    {"uuid":"28fb1d19-c582-4c57-aaf1-e0c9341b8a02","net":"GND","layer":"GND","added_native_polygon_count":0,"removed_area_mm2":154.741212795181},
+    {"uuid":"d973fe53-5c88-47cd-9e60-63dafba1de54","net":"GND","layer":"GND2","added_native_polygon_count":0,"removed_area_mm2":154.741212795181}
+  ],
+  "independent_native_partition_receiving": {
+    "entrypoint":"cec_native_partition_pair.compare(source_board,candidate_board,retired_uuids=(),timeout_s=10.)",
+    "available":true,"preserved":true,
+    "source_component_count":90,"child_component_count":90,
+    "native_source_component_count":90,"native_child_component_count":90,
+    "overlap_token_count":47,"intersection_pairs":63,
+    "exact_positive_native_island_overlap":true,
+    "whole_zone_uuid_connectivity_credit":false,
+    "current_capacity_qualified":false,"routing_admitted":false,"release_authority":false
+  },
+  "J3_relative_edge_proof": {
+    "J3_native_AST_source_to_trim_exact":true,
+    "J3_original_AST_translated_minus_2mm_y_equals_closed_source_exact":true,
+    "original_at_nm":[60349999,79400000],"closed_and_trim_at_nm":[60349999,77400000],
+    "original_bottom_edge_nm":89500000,"trim_bottom_edge_nm":87500000,
+    "original_native_courtyard_BBox_bottom_nm":93845000,
+    "trim_native_courtyard_BBox_bottom_nm":91845000,
+    "native_courtyard_BBox_overhang_nm_original_and_trim":4345000,
+    "all_pin_UUID_net_geometry_drill_and_local_positions_preserved":true,
+    "all_pin_bottom_edge_relative_coordinates_preserved":true,
+    "meaning":"Exact existing connector overhang preserved relative to shifted edge, including footprint contents; not permission for arbitrary overhang and not mating-plug/tool/retention/solder qualification."
+  },
+  "existing_native_DRC_report_independently_read": {
+    "path":"experiments/repack/j3-inward-20261105/trim-v2/native-drc.json",
+    "sha256":"ee2ee5a784c81e0aba4b0771233bdac8230bb058ff96eecc3c996488c884b905",
+    "errors":0,"unconnected_items":0,"warnings":90,
+    "fresh_DRC_rerun_by_this_audit":false
+  },
+  "conclusion":"Verified actual private carrier laminate78x87.5mm versus78x89.5mm closed source. Exact delta is five perimeter primitives and removal-only clipping of two GND saved fills. Native terminal/conductor partitions preserved. J3 is unchanged from closed-v5 and retains its exact original496e relative-edge geometry after the coordinated2mm shift. This independently supports the narrow construction claim only.",
+  "general_outline_gate_changed":false,"boards_modified_by_audit":false,
+  "routing_admitted":false,"current_qualified":false,"assembly_qualified":false,
+  "complete_assembled_z_qualified":false,"release_authority":false
+}
