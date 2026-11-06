@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "status": "physical_busbar_trials_completed_no_board_promoted",
+  "reviewed_PCBs_changed": false,
+  "BOM_changed": false,
+  "new_verified_board_or_assembly_size_reduction_mm": 0,
+  "paired_placement_status": {
+    "request": "docs/evidence/20261105-costed-repack/top-edge-request.json",
+    "existing_study_Y_saving_mm": 2,
+    "new_saving_claimed_this_pilot": false,
+    "status": "Unchanged source-bound study: top-edge right-angle KVM and matched repack, not yet routed or admitted. The mechanical preview is not a new reviewed PCB.",
+    "constraints": "Preserve fixed mating registration, 22 mm nominal gap, reservoir vent allocations, pinouts and current margins. No left-edge Hub KVM exit."
+  },
+  "implemented": [
+    "Generic bounded read-only raised-SMT bridge probe; model-authored poses, no placement search or native board save.",
+    "Actual pad/track copper edges, saved filled zones, drill envelopes, component reservations, external outline, component keepouts and source netclass/base clearances.",
+    "Current requirement rederived from the unchanged source current authority, including its conductor margin; catalog rating does not grant thermal or joint qualification.",
+    "Input/family/output-alias protection, including bound policy JSON and future saved-family namespace.",
+    "Explicit provisional two-land native KiCad footprint; no fictitious PCB copper across the real off-board metal span.",
+    "Visual inspection preserves saved copper holes and actual drills rather than painting across them."
+  ],
+  "native_trials": {
+    "12V": {
+      "request": "atx-request.json",
+      "result": "atx-result.json",
+      "required_current_including_margin_A": 15,
+      "part_catalog_A": 20,
+      "direct_trial": "Rejected: two upper-land VBUS copper conflicts and lower SMT land over an input through-hole. Span crosses different-net J3.23.",
+      "offset_trial": "No land copper/drill conflicts, but four nearby input holes leave approximately 0.3 mm nominal body-to-hole clearance against the retained 0.5 mm mechanical allocation. Neither foot is connected to the existing force path."
+    },
+    "3V3": {
+      "request": "atx-3v3-request.json",
+      "result": "atx-3v3-result.json",
+      "required_current_including_margin_A": 25,
+      "part_catalog_A": 20,
+      "status": "Rejected on catalog rating; no reduced current requirement or parallel-sharing assumption."
+    }
+  },
+  "primary_drawing_findings": {
+    "MJP": {
+      "part": "Mac8 MJP-1.0 / -T",
+      "drawing": "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+      "material": "Copper for MJP-1.0 specifically; not the shorter phosphor-bronze family members.",
+      "pitch_mm": 25.4,
+      "recommended_minimum_land_mm": [2, 2],
+      "nominal_width_mm": 1.8,
+      "nominal_underside_mm": 1.8,
+      "nominal_total_height_mm": 2.3,
+      "catalog_current_A": 20,
+      "qualified_temperature_conditions_or_joint_current": false,
+      "assembled_price_or_JLC_native_availability_verified": false
+    },
+    "actual_ATX_J3": {
+      "part": "Molex 39291247 / 39-29-1247 / 5569-24A1-210",
+      "drawing": "https://www.molex.com/content/dam/molex/molex-dot-com/products/automated/en-us/salesdrawingpdf/556/5569/039291107_sd.pdf",
+      "drawing_identity": "SD-5569-002 rev M4, page 2 part table includes 39-29-1247; manufacturer-authored mirrored copy inspected when official local download timed out.",
+      "tail_from_seating_plane_nominal_mm": 3.5,
+      "tail_tolerance_plus_minus_mm": 0.7,
+      "extension_for_exact_1p6mm_PCB_and_full_seating_mm": [1.2, 2.6],
+      "extension_nominal_under_those_assumptions_mm": 1.9,
+      "conclusion": "The bar's 1.8 mm nominal lift does not guarantee clearance over the input pin. Range excludes solder, board thickness and assembly tolerances; shorter actual pins may fit. No trimming process has been approved or qualified."
+    }
+  },
+  "narrow_flat_bar_followup": {
+    "manufacturer_source": "https://www.rhythm-precision.jp/products/smd_busbar/60a_smt/",
+    "candidate_family": "Rhythm/Kyoshin 1.5 mm square tinned-copper SMD bars; SD02112-2K 20 mm, SD02113-2K heading states 30 mm.",
+    "published_current_reference_A": 60,
+    "published_current_is_explicitly_reference_only": true,
+    "source_discrepancy": "Current SD02113 page heading says 30 mm, but its detail row says 10 mm; obtain the dimensioned drawing before footprint/adoption. Old kyoshin-k PDF links now return 404.",
+    "advantage_to_test": "Narrow reinforcement of existing 6.535523 mm force corridors without the raised-bridge pin crossing; potential freed corridor is not a measured package-size reduction.",
+    "limitations": "Flat bars cannot be treated as route-under bridges. Land pattern, solder, thermal/current qualification, source graph and assembled cost remain open. No part is ordered or added to the production BOM."
+  },
+  "native_connectivity_experiment": {
+    "same_footprint_same_pad_number_same_net_opens": 1,
+    "same_footprint_distinct_pad_numbers_same_net_opens": 1,
+    "distinct_nets_opens": 0,
+    "conclusion": "KiCad does not credit a real off-board bridge automatically. Separate nets can show zero opens without proving assembly conduction. A real two-terminal schematic component and explicit assembly conductor/current model are mandatory; never add fake PCB copper or a net-tie shortcut."
+  },
+  "validation": {
+    "model_directed_and_selected_simulation_tests_passed": 709,
+    "focused_bridge_and_paired_repack_tests_passed_after_final_broadphase_and_plot_fixes": 60,
+    "whole_suite_hardware_qualified": false
+  },
+  "next_required": [
+    "Continue the source-bound matched placement repack and reconstruct changed real routes before any promotion; no automatic propagation from preview to review.",
+    "Check the narrow flat-bar drawing, price and assembly capability against a measured complete-package saving before selecting the BOM.",
+    "Implement actual off-board conductor/current and thermal receiving before removing native high-current copper."
+  ],
+  "release_authority": false
+}

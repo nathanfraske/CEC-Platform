@@ -344,6 +344,33 @@ The publisher also accepts `--checkpoint` with `--checkpoint-sha256` for an
 explicit matching legacy intake. These options cannot rebase an existing
 bound campaign or waive any candidate/visual/physical check.
 
+Read-only placement studies are separate from construction/admission:
+
+```sh
+PYTHONPATH=src:scripts python3 -m cec_pipeline.repack \
+  --request docs/evidence/20261105-costed-repack/top-edge-request.json \
+  --output /outside/repo/paired-preview.json --plot /outside/repo/paired-preview.png
+PYTHONPATH=src:scripts python3 -m cec_pipeline.bridges \
+  --request docs/evidence/20261105-busbar-pilot/atx-request.json \
+  --output /outside/repo/bridge-preview.json --plot /outside/repo/bridge-preview.png
+```
+
+The frontier supplies each pose; neither tool searches placements or saves a
+modified PCB. Paired repack checks the declared body/vent/mating envelopes and
+evidence-defined connector exit mouths. Bridge trials bind actual saved copper,
+lands, holes, component reservations and source conductor-current margins.
+They report nominal mechanical rejection and base/netclass land-clearance
+screens, not custom-rule DRC, complete connections or thermal qualification.
+A hole is a conservative potential lead envelope, not a known solder/lead
+height. The stack's overall gap cannot clear a local collision automatically.
+
+A real metal bridge is a two-terminal assembly component, **not a PCB copper
+zone or a net-tie fiction**. Adoption needs its real schematic/BOM, explicit
+assembly-level conductor model, source-owned current paths, Kelvin isolation,
+joint/thermal proof, toleranced fit and measured package benefit. Two separate
+nets can have zero native opens while that assembly obligation remains missing.
+The provisional footprint has only its two real solder lands; no copper span.
+
 ## Layout and qualification policy
 
 Ordinary signals use purposeful 0/45/90 headings with 45-degree transitions,
