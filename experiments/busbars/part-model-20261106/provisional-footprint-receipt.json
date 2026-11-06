@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "scope": "PROVISIONAL_NATIVE_COMPONENT_ONLY_NOT_CURRENT_OR_RELEASE",
+  "source_profile": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/mac8-mjp-1.0-nominal.json",
+    "sha256": "5ab087a19cd95f4cde3f2f74fa19aaecfb66247d93d95f3925ca4fabd00c5349"
+  },
+  "footprint": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/CEC_Busbar_Prototype.pretty/Mac8_MJP_1p0_NOMINAL_PROTOTYPE.kicad_mod",
+    "sha256": "238bcc1767a40ba51240fdf482a35e2dfd0d1d13afaad64f82a0e8b20dada719"
+  },
+  "pads_numbered_one": true,
+  "explicit_internal_jumper": true,
+  "land_positions_nm": [
+    [
+      -12700000,
+      0
+    ],
+    [
+      12700000,
+      0
+    ]
+  ],
+  "land_size_nm": [
+    2000000,
+    2000000
+  ],
+  "pitch_nm": 25400000,
+  "nominal_body_bounds_nm": [
+    -13400000,
+    -900000,
+    13400000,
+    900000
+  ],
+  "engineering_courtyard_centerline_bounds_nm": [
+    -13950000,
+    -1250000,
+    13950000,
+    1250000
+  ],
+  "native_cached_courtyard_bounds_mm": [
+    -13.945,
+    -1.245,
+    13.945,
+    1.245
+  ],
+  "nominal_height_nm": 2300000,
+  "nominal_underside_nm": 1800000,
+  "guaranteed_tolerances_known": false,
+  "span_PCB_copper_present": false,
+  "actual_fixture": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/actual_provisional_footprint/board.kicad_pcb",
+    "sha256": "77e62c2a8fe092696657453b43d46f053fe7d43b2f4846205bd7f4064883bf56",
+    "native_opens": 0,
+    "native_errors": []
+  },
+  "schematic_integrated": false,
+  "current_qualified": false,
+  "assembled_Z_qualified": false,
+  "release_authority": false
+}

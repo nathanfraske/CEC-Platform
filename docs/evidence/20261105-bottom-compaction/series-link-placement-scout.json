@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "source": "experiments/repack/top-output-current-20261106/consumer-pretty-v1/carrier/board.kicad_pcb",
+  "source_sha256": "7908e5c235157f5456d5a06a45c3df8c05bbbc30b6cec48629e0f727d8416d3e",
+  "scope": "read-only source-series-link plan and projected-pose request tests",
+  "selected_reference": "FB2",
+  "selected_part": {"manufacturer": "UNI-ROYAL", "mpn": "0805W8F0000T5E", "lcsc": "C17477", "value": "0R (FB position, populate on EMC evidence)"},
+  "projected_pose_mm_deg": [27.7, 62.2, 180],
+  "source_contact_counts_by_pin": {"1": 2, "2": 1},
+  "mandatory_request_count": 3,
+  "request_widths_nm_sorted": [371227, 477370, 477370],
+  "independent_existing_current_authorities_a_by_pin": {"1": 3.0, "2": 2.5},
+  "tests": {"file": "tests/test_source_series_link_placement.py", "passed": 20, "skipped": 0, "elapsed_s": 19.60},
+  "negative_coverage": ["invalid current authority and width contract", "unknown role", "nonzero passive", "lost retained contact", "changed original width", "nonrigid pad mutation", "forged source proposal", "unsaved native source", "invalid deadline", "literal resistor net membership mismatch", "literal resistor LCSC mismatch"],
+  "freshness": "Existing full-export-tree-except-generated-date semantic identity retained; volatile raw generated-netlist hash excluded from replay equality",
+  "source_or_board_modified": false,
+  "saved_candidate_constructed": false,
+  "current_transfer_authority": false,
+  "component_current_rating_qualified": false,
+  "routing_admitted": false,
+  "release_authority": false
+}

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "checked_date": "2026-11-06",
+  "scope": "Fresh primary manufacturer drawing and direct seller/assembler evidence for prospective vertical MJP-1.0; no procurement, supplier contact, or board mutation",
+  "manufacturer": {
+    "product_url": "https://www.mac8japan.com/products/406",
+    "drawing_url": "https://www.mac8japan.com/uploads/entry_meta/file_value/2890/en_2022a_mjp.pdf",
+    "drawing_local": "experiments/repack/top-output-current-20261106/tmp/pdfs/mac8-mjp.pdf",
+    "drawing_sha256": "c36c7df239585ae253183bb457c8d6cd24610c395ab2b82475334250e99a7e9b",
+    "drawing_review": "Rendered pages1 and3 visually reviewed. Product drawingRev44526A,p242; MJP-1.0-T tape drawingp244.",
+    "nominal_part_mm": {"A_inner_span": 23.4, "B_overall_length": 26.8, "width": 1.8, "metal_thickness": 0.5, "underside": 1.8, "overall_height": 2.3, "C_foot_length": 1.7},
+    "recommended_land_mm": {"minimum_length": 2.0, "minimum_width": 2.0, "center_pitch_formula": "A+2.0", "MJP1_center_pitch": 25.4},
+    "material_finish": "Manufacturer: copper for MJP-1.0; tin over nickel. Other MJP lengths use phosphor bronze.",
+    "catalog_rating_a": 20,
+    "rating_conditions_not_found": ["Ambient or allowable temperature rise", "PCB copper/land/solder/test fixture and cooling", "Continuous-current duty or derating curve", "Resistance limit, joint resistance, thermal-cycle life"],
+    "guaranteed_part_geometry_not_found": ["Body tolerance and coplanarity", "Minimum installed underside and maximum installed height", "Plating/bend radii and seating/solder variation"],
+    "tape_not_part_tolerance": "The +/- values on p244 describe tape/reel dimensions; do not apply them to the conductive part.",
+    "body_model": "2D formed-metal sketch and photograph available; no manufacturer-qualified STEP/3D or tolerance-enveloped model verified. Existing pipeline rectangular box is a nominal conservative projection, not guaranteed installed geometry.",
+    "profile_check": "Existing experiments/busbars/mac8-mjp-1.0-nominal.json matches these nominal dimensions and minimum recommended land/pitch. No profile or authority changed."
+  },
+  "package_comparison": {
+    "bulk": {"mpn": "MJP-1.0", "manufacturer_pack_quantity": 1000},
+    "reel": {"mpn": "MJP-1.0-T", "manufacturer_reel_quantity": 700, "tape_width_mm": 44, "reel_outer_diameter_nominal_mm": 178},
+    "inference": "The manufacturer lists the same A/B geometry for both, with -T denoting reel packaging. Confirm material and drawing revision for purchased lot because seller material metadata conflicts.",
+    "seller_conflict": "Marutsu bulk listing says copper but its -T listing says phosphor bronze. Manufacturer drawing takes precedence for modeling; lot-level equivalence is not independently confirmed."
+  },
+  "direct_seller_snapshot": {
+    "currency": "JPY",
+    "bulk_url": "https://www.marutsu.co.jp/GoodsDetail.jsp?salesGoodsCode=87457",
+    "reel_url": "https://www.marutsu.co.jp/GoodsDetail.jsp?salesGoodsCode=91074",
+    "bulk": {"minimum_listed_order_pack": 1000, "pack_ex_tax": 21000, "pack_including_japanese_tax": 23100, "arithmetic_ex_tax_per_part": 21},
+    "reel": {"minimum_listed_order_pack": 700, "pack_ex_tax": 20650, "pack_including_japanese_tax": 22715, "arithmetic_ex_tax_per_part": 29.5},
+    "availability": "Both live pages say manufacturer order and no store stock. Live displayed estimated dispatch2026-11-13; not inventory reservation or guaranteed lead time. Search-index dates differed, so indexed dates were not used.",
+    "quantity100_offer_verified": false,
+    "low_volume": "No direct100-piece or cut-tape offer established in bounded search. At100 boards/one bar each, buying a full700 reel requires20650JPY ex-tax cash outlay with600 unused before attrition; not a2950JPY100-piece purchase. Bulk requires21000JPY and900 unused. These are component-only listings, not landed quotes.",
+    "not_included": ["Shipping/export eligibility", "Taxes/duties in destination", "Repacking/cut-tape fee", "Assembly and losses", "Currency conversion"]
+  },
+  "JLC_route": {
+    "mainland_guide": "https://jlcpcb.com/help/article/how-to-consign-parts-to-jlcpcb-from-mainland-china",
+    "overseas_guide": "https://jlcpcb.com/help/article/how-to-consign-parts-to-jlcpcb",
+    "generic_terms": "https://jlcpcb.com/help/article/consignment-part-terms-conditions",
+    "verified_route": "Customer-supplied parts can be registered in Parts Manager. Exact MPN/package must be accepted; receipt does not establish part/process qualification. Mainland-origin and overseas-origin workflows differ; overseas route requires approval before dispatch and Hong Kong receiving address from the approved order.",
+    "reel_implication": "A44mm reel may avoid loose-part handling, but feeder, nozzle, pickup surface, reflow and exact MJP acceptance remain unconfirmed. Do not assume a normal resistor placement fee.",
+    "generic_terms_fees_usd": {"loose_component_fee_per_piece": 0.142, "manual_service_per_pin_up_to5pins": 0.017, "overseas_1to50partnumbers_service_and_handling": 85},
+    "overseas_guide_fee": "New overseas guide separately states2% of declared value, minimumUSD10 handling; duty/VAT deposits and purchase/sale documentation also apply. This differs from generic85USD wording. Neither fee schedule is treated as a binding quote; ask which applies and whether charges accumulate.",
+    "exact_part_accepted": false,
+    "global_stock_or_JLC_C_code_verified": false,
+    "consigned_part_quality_function_test_promised": false,
+    "landed_100board_assembly_cost_known": false
+  },
+  "questions_for_manufacturer_or_authorized_supplier": [
+    "Provide exact MJP-1.0 and MJP-1.0-T released mechanical drawing/revision, material/lot equivalence and dimensional/coplanarity tolerances; explain the seller bronze/copper discrepancy.",
+    "Provide guaranteed minimum underside and maximum top height after specified soldering/seating, plus allowable solder thickness/fillet and foot flatness. Supply STEP or controlled profile including bend radii.",
+    "State20A test conditions, ambient and allowed rise, duty, PCB copper/land fixture, solder alloy/process, DC resistance limit and current/temperature derating. Is12A continuous with15A geometry-margin target supported in this enclosed stack?",
+    "Provide approved paste/stencil, reflow peak/time/cycles and land guidance beyond minimum planar size, and solder-joint thermal-cycle evidence.",
+    "Quote100 units/cut tape or sample quantity, authenticated lot traceability, lead time, shipment to chosen assembler, and exact reel/cut-tape leader/trailer requirements. No request sent."
+  ],
+  "questions_for_assembler": [
+    "Can you accept and place the exact44mm-tape MJP-1.0-T, or must bulk be manually handled? Confirm nozzle/pickup, feeder and placement accuracy for this long formed conductor.",
+    "Confirm paste/stencil, reflow compatibility, solder fillet/void inspection and guaranteed installed height/underside including board bow; quote any special process or inspection.",
+    "For100 boards, specify overage, setup/placement/loose-part/consignment/customs fees, applicable conflicting overseas fee schedule, and residual inventory terms. No order or communication sent."
+  ],
+  "qualification_boundary": "Nominal manufacturer geometry supports private construction/rejection screening only. Neither20A catalog wording nor an assembler's ability to place the part establishes two solder joints, PCB land access, new layer transitions, enclosed-stack thermal behavior, or unchanged complete assembled Z. These need vendor limits and source-bound physical/current receiving, followed by appropriate sample/application validation.",
+  "boards_changed": false,
+  "procurement_or_outbound_communication": false,
+  "current_qualified": false,
+  "complete_Z_unchanged_proven": false,
+  "release_authority": false
+}

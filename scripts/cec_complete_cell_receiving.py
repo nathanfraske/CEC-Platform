@@ -193,13 +193,16 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
         gate_biases=gate_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_programming_resistor_placement as programming
         programming_resistors=programming.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
+        programming_refs=programming.participant_refs(programming_resistors)
+        import cec_source_series_link_placement as series_link
+        series_links=series_link.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids)
         import cec_source_signal_bias_placement as signal_bias
         bias_resistors=signal_bias.plan(parent,actual,board_hint=hint,reference_group_uuids=reference_group_uuids,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|set(programming_resistors))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(series_links))
         import cec_additional_aggregate_macro as aggregate_caps
         additional=aggregate_caps.collect(parent,actual,board_hint=hint,
             reference_group_uuids=reference_group_uuids,require_explicit_owner=False,
-            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|set(programming_resistors)|set(bias_resistors))
+            excluded_refs=set(selected)|set(pullups)|set(gate_biases)|programming_refs|set(bias_resistors)|set(series_links))
         # Recover the unique canonical owner from original Source intent,
         # never a constructor-provided refdes. Its saved pose must remain
         # exactly stationary; a power-stage relocation is not authorized.
@@ -210,7 +213,7 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
                 raise ValueError('saved_additional_capacitor_owner_must_remain_stationary')
             refs.add(ref)
             actual[ref]=[new.GetPosition().x/1e6,new.GetPosition().y/1e6,new.GetOrientationDegrees()]
-        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),set(programming_resistors),set(additional))
+        passive_roles=(set(selected),set(pullups),set(gate_biases),set(bias_resistors),programming_refs,set(additional),set(series_links))
         if (sum(map(len,passive_roles))!=len(set().union(*passive_roles))
                 or set().union(*passive_roles)!=unowned):
             raise ValueError('actual_motion_not_complete_source_selected_cells')
@@ -225,13 +228,16 @@ def _poses(parent,child,hint,reference_group_uuids=(),*,phase_timeouts_s=None):
             reference_group_uuids=reference_group_uuids))
         programming.requests(parent,child,dict(poses=actual,selected_programming_resistors=programming_resistors,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
+        series_link.requests(parent,child,dict(poses=actual,selected_source_series_links=series_links,
+            board_hint=hint,reference_group_uuids=reference_group_uuids))
         signal_bias.requests(parent,child,dict(poses=actual,selected_signal_bias_resistors=bias_resistors,
             selected_control_shunts=selected,selected_control_pullups=pullups,
             selected_control_gate_biases=gate_biases,selected_programming_resistors=programming_resistors,
+            selected_source_series_links=series_links,
             board_hint=hint,reference_group_uuids=reference_group_uuids))
         if additional:
             aggregate_caps.requests(parent,child,dict(poses=actual,additional_aggregate_capacitors=additional,
-                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|set(programming_resistors)),
+                additional_aggregate_excluded_refs=sorted(set(selected)|set(pullups)|set(gate_biases)|set(bias_resistors)|programming_refs|set(series_links)),
                 board_hint=hint,reference_group_uuids=reference_group_uuids))
         refs|=set().union(*passive_roles)
     else:

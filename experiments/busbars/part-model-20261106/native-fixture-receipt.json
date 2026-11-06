@@ -1,0 +1,324 @@
+{
+  "native_version": "10.0.5",
+  "scope": "synthetic native electrical semantics ONLY, no current/part/release qualification",
+  "same_net": "PWR",
+  "physical_copper_gap_mm": 23.4,
+  "bar_metal_not_drawn_as_PCB_copper": true,
+  "reports": [
+    {
+      "variant": "one_pin_two_feet",
+      "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/one_pin_two_feet/board.kicad_pcb",
+      "sha256": "afe6f466c72b2c057ac3c0119998ceefe5760b66694a8e10cb7124720203b8ed",
+      "unconnected_count": 1,
+      "unconnected": [
+        {
+          "description": "Missing connection between items",
+          "items": [
+            {
+              "description": "Pad 1 [PWR] of BB1 on F.Cu",
+              "pos": {
+                "x": 10.0,
+                "y": 10.0
+              },
+              "uuid": "5ace8a54-0c51-4fba-bae8-dd84d4431528"
+            },
+            {
+              "description": "Track [PWR] on F.Cu, length 5.0000 mm",
+              "pos": {
+                "x": 35.4,
+                "y": 10.0
+              },
+              "uuid": "c34f829c-02ca-4cc2-a6e6-26ab011bf1b7"
+            }
+          ],
+          "severity": "error",
+          "type": "unconnected_items"
+        }
+      ],
+      "violations": [
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J2",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "9e4ced4d-60a5-4666-be62-090f7fd3dfcf"
+            },
+            {
+              "description": "Pad 1 [PWR] of J2 on F.Cu",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "c6bfa029-1128-47c7-98f5-bc578ea3028d"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J1",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "7eec4d8e-c951-4439-9a15-767461fef162"
+            },
+            {
+              "description": "Pad 1 [PWR] of J1 on F.Cu",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "814b9867-ea93-4542-b406-87b2cbe8b67d"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        }
+      ]
+    },
+    {
+      "variant": "two_pins_same_net",
+      "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/two_pins_same_net/board.kicad_pcb",
+      "sha256": "9c26bab9924818883d953c63c60d7473df46d43b8cb8ae8cc8de09642dbd0e9c",
+      "unconnected_count": 1,
+      "unconnected": [
+        {
+          "description": "Missing connection between items",
+          "items": [
+            {
+              "description": "Pad 1 [PWR] of BB1 on F.Cu",
+              "pos": {
+                "x": 10.0,
+                "y": 10.0
+              },
+              "uuid": "5a7bcc38-5e7e-4896-8387-9c541292a0f8"
+            },
+            {
+              "description": "Pad 2 [PWR] of BB1 on F.Cu",
+              "pos": {
+                "x": 35.4,
+                "y": 10.0
+              },
+              "uuid": "5ad0e702-f8c3-4a6d-a1fb-4eed21e982e5"
+            }
+          ],
+          "severity": "error",
+          "type": "unconnected_items"
+        }
+      ],
+      "violations": [
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J1",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "186ddb1f-d2bb-4583-acb3-4dc7617316d2"
+            },
+            {
+              "description": "Pad 1 [PWR] of J1 on F.Cu",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "3a17d6e4-d5a7-408e-ad4e-740cb845155c"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J2",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "006f803f-a7ab-499c-aefc-28be065f0de9"
+            },
+            {
+              "description": "Pad 1 [PWR] of J2 on F.Cu",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "6f136ad2-c741-485e-b28d-fff6d1db7384"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        }
+      ]
+    },
+    {
+      "variant": "separate_parts_same_net",
+      "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/separate_parts_same_net/board.kicad_pcb",
+      "sha256": "62a0c8bd5d3f0aeed47d1f4394bcda722cd086a68884ce50bf28c6835927b30b",
+      "unconnected_count": 1,
+      "unconnected": [
+        {
+          "description": "Missing connection between items",
+          "items": [
+            {
+              "description": "Track [PWR] on F.Cu, length 5.0000 mm",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "621bb9cb-5de2-4f81-ab71-8725d639adf0"
+            },
+            {
+              "description": "Track [PWR] on F.Cu, length 5.0000 mm",
+              "pos": {
+                "x": 35.4,
+                "y": 10.0
+              },
+              "uuid": "6859c5ef-9c9e-4ad1-a057-f5fe1145f724"
+            }
+          ],
+          "severity": "error",
+          "type": "unconnected_items"
+        }
+      ],
+      "violations": [
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J2",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "5c8e16d6-46d1-48d9-84bb-47bc06047513"
+            },
+            {
+              "description": "Pad 1 [PWR] of J2 on F.Cu",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "b8eb2045-aee9-4824-9d69-b259d80129c5"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of BB2",
+              "pos": {
+                "x": 35.4,
+                "y": 10.0
+              },
+              "uuid": "2f380e98-889f-4014-bdfc-27ca22ab2cb0"
+            },
+            {
+              "description": "Pad 1 [PWR] of BB2 on F.Cu",
+              "pos": {
+                "x": 35.4,
+                "y": 10.0
+              },
+              "uuid": "cb37c895-9fc1-46bd-b8c9-6db3aa1cc746"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J1",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "5e7ce9a7-250b-4eac-90c7-b14d2842affc"
+            },
+            {
+              "description": "Pad 1 [PWR] of J1 on F.Cu",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "8efc4a9d-3b8d-4360-9ed6-3094d194ed78"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        }
+      ]
+    },
+    {
+      "variant": "one_pin_declared_internal_jumper",
+      "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/one_pin_declared_internal_jumper/board.kicad_pcb",
+      "sha256": "c74998bbb72436551e3ccbbc55875a18c4e2b7129e001eb2f8874d96042ca810",
+      "unconnected_count": 0,
+      "unconnected": [],
+      "violations": [
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J2",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "4fc70b45-aff8-42bf-8b2f-354255fae0a5"
+            },
+            {
+              "description": "Pad 1 [PWR] of J2 on F.Cu",
+              "pos": {
+                "x": 40.4,
+                "y": 10.0
+              },
+              "uuid": "a3b7c291-cf8c-4a69-8dc3-2bb59fe41b3d"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        },
+        {
+          "description": "Silkscreen clipped by solder mask",
+          "items": [
+            {
+              "description": "Reference field of J1",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "f361ff0b-85e7-4a4c-a5f1-4fe0556a79bf"
+            },
+            {
+              "description": "Pad 1 [PWR] of J1 on F.Cu",
+              "pos": {
+                "x": 5.0,
+                "y": 10.0
+              },
+              "uuid": "0ae22383-cc68-4186-b696-36cfcea4fa09"
+            }
+          ],
+          "severity": "warning",
+          "type": "silk_over_copper"
+        }
+      ]
+    }
+  ]
+}

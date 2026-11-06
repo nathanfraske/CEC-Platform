@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "source": {
+    "path": "/home/codex/src/CEC-Platform/experiments/busbars/part-model-20261106/actual_provisional_footprint/board.kicad_pcb",
+    "sha256": "77e62c2a8fe092696657453b43d46f053fe7d43b2f4846205bd7f4064883bf56"
+  },
+  "native_assembled_fixture_opens": 0,
+  "physical_partitions": {
+    "count": 2,
+    "source_component": 1,
+    "sink_component": 0,
+    "connected": false
+  },
+  "current_receiver": {
+    "available": true,
+    "connected": true,
+    "net": "PWR",
+    "reason": null,
+    "domain": {
+      "complete": true,
+      "authority_refs": [
+        "J1",
+        "J2"
+      ],
+      "basis": "SYNTHETIC_FIXTURE_TERMINAL_SCOPE_ONLY_NOT_SOURCE_RATING"
+    },
+    "components": [
+      [
+        [
+          "J1",
+          "1",
+          5000000,
+          10000000
+        ],
+        [
+          "J2",
+          "1",
+          40400000,
+          10000000
+        ]
+      ]
+    ],
+    "authority_pad_count": 2
+  },
+  "fem": {
+    "nets_requested": {
+      "PWR": 1.0
+    },
+    "nets_dropped": {
+      "PWR": "native_terminal_disconnected:PWR"
+    },
+    "nets_absent": {},
+    "total_joule_W": 0.0,
+    "meta": {
+      "operation_complete": false,
+      "budget_exhausted": false,
+      "budget_phase": "raster_topology",
+      "thermal_iterations_completed": 0,
+      "operation_refusal": "native_terminal_disconnected:PWR",
+      "field_computed": false,
+      "numerical_qualification": false,
+      "raster_topology": {
+        "schema": 1,
+        "complete": false,
+        "requested_pitch_mm": 0.5,
+        "selected_pitch_mm": null,
+        "attempts": [],
+        "limits": {
+          "max_attempts": 3,
+          "min_pitch_mm": 0.05,
+          "max_grid_cells": 600000,
+          "max_net_nodes": 1500000,
+          "max_total_nodes": 5000000,
+          "max_estimated_bytes": 2147483648,
+          "max_native_items": 50000,
+          "max_terminal_pads": 4096,
+          "max_contact_pairs": 4096,
+          "max_drills": 10000,
+          "preflight_seconds": 30.0
+        },
+        "refinement_changed_copper": false,
+        "added_graph_shortcuts": false,
+        "native_scope": "declared terminal component parity only",
+        "local_material_conductance_qualified": false,
+        "grid_convergence_verified": false,
+        "numerical_qualification": false,
+        "inherited_deadline_monotonic": 36926.198773649,
+        "preflight_deadline_monotonic": 36926.198773649,
+        "native_board_sha256": "6c6d3e8ed1dbbc760359212472905460729bfedcc7afcd8667384e0e48b8f8c6",
+        "status": "unknown",
+        "refusal": "native_terminal_disconnected:PWR",
+        "elapsed_s": 0.0013460440022754483
+      },
+      "current_binding": {
+        "bindings": {
+          "PWR": {
+            "configured_net": "PWR",
+            "amps": 1.0,
+            "actual_net": "PWR",
+            "override_keys": [
+              "PWR"
+            ],
+            "design_current_net": "PWR",
+            "missing_refs": [],
+            "duplicate_refs": [],
+            "source_refs": [
+              "J1"
+            ],
+            "sink_refs": [
+              "J2"
+            ],
+            "off_net_required_refs": [],
+            "resolution": "exact_name"
+          }
+        },
+        "issues": [],
+        "ok": true,
+        "copper_connectivity_proved": false
+      },
+      "stackup_oz": {
+        "F.Cu": 1.0,
+        "B.Cu": 1.0
+      }
+    }
+  },
+  "meaning": "Native component jumper closes assembled ratsnest, not geometric PCB islands. authority_connectivity uses whole-board native jumper-aware connectivity and reports connected; it is NOT rated bar/joint transport proof. The independent physical partition remains disconnected. No off-board bar/joint impedance or heat was modeled; the requested synthetic1A FEM current is refused/dropped, never a thermal pass.",
+  "current_qualified": false,
+  "release_authority": false
+}

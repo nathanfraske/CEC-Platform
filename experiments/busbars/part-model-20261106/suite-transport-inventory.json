@@ -1,0 +1,287 @@
+{
+  "rows": [
+    {
+      "board": "12vhpwr-standard",
+      "sha256": "92c6924b69b93b1280128d3e551e9a244f9c13a75bae73fc61221abc680cf631",
+      "unmodelled_jumper_nets": {
+        "/USB_DM": [
+          {
+            "footprint_uuid": "ee25b645-057e-4da6-af3c-a1ad86f8900f",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "59dc235b-0705-411e-b3d9-a38d01944ca1",
+              "7299e849-2c54-4f34-8f69-f436d9fa970f"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/USB_DP": [
+          {
+            "footprint_uuid": "ee25b645-057e-4da6-af3c-a1ad86f8900f",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "a0ea1ce0-7190-45e2-8f0c-c3df6451b93a",
+              "b4f7edd1-5b4d-4b3a-8144-e0993654d135"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.397,
+      "unchanged": true
+    },
+    {
+      "board": "atx-24pin-rev3",
+      "sha256": "6b300cd1cde67c91bf61ed3c0ddbada7a20a07a9897f1d8576b870a36769ba60",
+      "unmodelled_jumper_nets": {
+        "/USB_D_N": [
+          {
+            "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+            "reference": "D_USB1",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "59dc235b-0705-411e-b3d9-a38d01944ca1",
+              "7299e849-2c54-4f34-8f69-f436d9fa970f"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/USB_D_P": [
+          {
+            "footprint_uuid": "0cd0928a-4a4c-412c-8c1c-155685bf7684",
+            "reference": "D_USB1",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "a0ea1ce0-7190-45e2-8f0c-c3df6451b93a",
+              "b4f7edd1-5b4d-4b3a-8144-e0993654d135"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.244,
+      "unchanged": true
+    },
+    {
+      "board": "eps-8pin-rev3",
+      "sha256": "949f6204126b25902553d5558702292f345ed68a6135a65ab61e63e2a315de30",
+      "unmodelled_jumper_nets": {
+        "/USB_D_N": [
+          {
+            "footprint_uuid": "c5cfd53c-7817-46d0-8b08-12be89faf87d",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "60ff05d5-0841-5a83-b862-eb3c75b05f62",
+              "ba69d49f-0904-50c2-9a72-828b09c52f63"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/USB_D_P": [
+          {
+            "footprint_uuid": "c5cfd53c-7817-46d0-8b08-12be89faf87d",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "6e4146e0-e699-547a-bdfa-bf2622eb3bfb",
+              "fb37b0fb-e8f9-5435-bef9-b51d85f4f7a2"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.102,
+      "unchanged": true
+    },
+    {
+      "board": "hub-standard-rev2",
+      "sha256": "ffeed1bd662243181d2af2b57ce07e9e9a8c16ea019ec8234cd9bb943f96e168",
+      "unmodelled_jumper_nets": {
+        "/MCU + USB SERVICE PORT/USB_D_N": [
+          {
+            "footprint_uuid": "89b89243-24e3-4f80-ada7-05a4715d41db",
+            "reference": "D6",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "59dc235b-0705-411e-b3d9-a38d01944ca1",
+              "7299e849-2c54-4f34-8f69-f436d9fa970f"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/MCU + USB SERVICE PORT/USB_D_P": [
+          {
+            "footprint_uuid": "89b89243-24e3-4f80-ada7-05a4715d41db",
+            "reference": "D6",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "a0ea1ce0-7190-45e2-8f0c-c3df6451b93a",
+              "b4f7edd1-5b4d-4b3a-8144-e0993654d135"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.137,
+      "unchanged": true
+    },
+    {
+      "board": "output-daughterboards--atx24-out-db",
+      "sha256": "97f78fdd4039c6b3c2f2c801d1affed86be80bce1d73f641591b507f93c36204",
+      "unmodelled_jumper_nets": {},
+      "rated_transports": {},
+      "elapsed_s": 0.021,
+      "unchanged": true
+    },
+    {
+      "board": "output-daughterboards--eps-out-db",
+      "sha256": "a6cee74a84dcd493fec62cd9791ca35fb330be92f26a155af70b625838a4fc78",
+      "unmodelled_jumper_nets": {},
+      "rated_transports": {},
+      "elapsed_s": 0.063,
+      "unchanged": true
+    },
+    {
+      "board": "output-daughterboards--pcie-out-db",
+      "sha256": "ea12d133262dfd18551d38a5e31a9551de11026b904937c9f396871573247ea1",
+      "unmodelled_jumper_nets": {},
+      "rated_transports": {},
+      "elapsed_s": 0.007,
+      "unchanged": true
+    },
+    {
+      "board": "pcie-8pin-2port",
+      "sha256": "cfb92ab09702a5999846de3eb2f25624c4090092f6b75602fb86138c09648595",
+      "unmodelled_jumper_nets": {
+        "/USB_D_N": [
+          {
+            "footprint_uuid": "9f099966-e109-47d2-89a0-294dec8988f2",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "24c11023-c9dc-5d1c-9d2f-ffc95056ab69",
+              "d06920b5-ed60-5362-b868-33433dc62ce4"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/USB_D_P": [
+          {
+            "footprint_uuid": "9f099966-e109-47d2-89a0-294dec8988f2",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "a675a27c-991b-578e-9f7c-e501baecbe39",
+              "e6ebfc6e-73e5-5305-92ae-756d5c1ca9b4"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.122,
+      "unchanged": true
+    },
+    {
+      "board": "pcie-8pin-3port",
+      "sha256": "7b237c22df8f4e5f43c53061447a2d804d7d4bf911b6ab11c5b67c78b51c5767",
+      "unmodelled_jumper_nets": {
+        "/USB_D_N": [
+          {
+            "footprint_uuid": "c7a53738-14c9-48cd-bc22-577bcd16e2cf",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "24c11023-c9dc-5d1c-9d2f-ffc95056ab69",
+              "d06920b5-ed60-5362-b868-33433dc62ce4"
+            ],
+            "pad_numbers": [
+              "3",
+              "4"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ],
+        "/USB_D_P": [
+          {
+            "footprint_uuid": "c7a53738-14c9-48cd-bc22-577bcd16e2cf",
+            "reference": "D3",
+            "mode": "explicit_jumper_pad_group",
+            "pad_uuids": [
+              "a675a27c-991b-578e-9f7c-e501baecbe39",
+              "e6ebfc6e-73e5-5305-92ae-756d5c1ca9b4"
+            ],
+            "pad_numbers": [
+              "1",
+              "6"
+            ],
+            "reason": "component_internal_transport_model_required",
+            "current_qualified": false
+          }
+        ]
+      },
+      "rated_transports": {},
+      "elapsed_s": 0.155,
+      "unchanged": true
+    }
+  ],
+  "scope": "native metadata inventory only; no rating or release"
+}

@@ -637,14 +637,76 @@ def _pad_key(pad):
     return ref, str(pad.GetNumber()), int(point.x), int(point.y)
 
 
+def unmodelled_internal_transports(board, nets):
+    """Inventory native component bridges, never confer conductor capacity.
+
+    KiCad's jumper metadata legitimately closes assembled electrical opens,
+    but its connectivity graph does not know the bar, bond, or solder-joint
+    cross-section. Neither implicit duplicate numbers nor explicit pin groups
+    may stand in for physical current transport. Inspect the actual RAM board
+    (including DNP parts, whose jumper metadata may still affect that graph),
+    not a possibly stale saved path. No caller-provided rating bypass exists.
+    """
+    import cec_component_jumper_metadata as metadata
+
+    wanted = {str(net) for net in nets if str(net)}
+    candidates = []
+    for fp in board.GetFootprints():
+        by_net = {}
+        for pad in fp.Pads():
+            net = str(pad.GetNetname() or "")
+            if net in wanted and pad.GetNumber() and tuple(pad.GetLayerSet().CuStack()):
+                by_net.setdefault(net, []).append(pad)
+        by_net = {net: pads for net, pads in by_net.items() if len(pads) > 1}
+        if by_net:
+            candidates.append((fp, by_net))
+    if not candidates:
+        return {}
+    native = metadata.read_native(board, refs=[fp.GetReference() for fp, _ in candidates])
+    result = {}
+    for fp, by_net in candidates:
+        record = native[str(fp.GetReference())]
+        for net, pads in by_net.items():
+            groups = []
+            if record['implicit']:
+                for number in sorted({str(p.GetNumber()) for p in pads}):
+                    members = [p for p in pads if str(p.GetNumber()) == number]
+                    if len(members) > 1:
+                        groups.append(('duplicate_pad_numbers', members))
+            for group in record['groups']:
+                members = [p for p in pads if str(p.GetNumber()) in group]
+                if len(members) > 1:
+                    groups.append(('explicit_jumper_pad_group', members))
+            for mode, members in groups:
+                result.setdefault(net, []).append(dict(
+                    footprint_uuid=str(fp.m_Uuid.AsString()),
+                    reference=str(fp.GetReference()), mode=mode,
+                    pad_uuids=sorted(str(p.m_Uuid.AsString()) for p in members),
+                    pad_numbers=sorted(str(p.GetNumber()) for p in members),
+                    reason='component_internal_transport_model_required',
+                    current_qualified=False))
+    return {net: sorted(rows, key=lambda row: (row['footprint_uuid'], row['pad_uuids']))
+            for net, rows in sorted(result.items())}
+
+
 def authority_connectivity(board, net, board_hint=None):
-    """Prove all configured source/sink pads are in one KiCad component."""
+    """Prove native source/sink continuity without unmodelled internal bridges.
+
+    Even a positive result is topology evidence, not ampacity qualification.
+    """
     domain = current_domain(board, net, board_hint=board_hint)
     if not domain or not domain.get("complete"):
         return {
             "available": False, "connected": False, "net": str(net),
             "reason": "current_domain_authority_unavailable",
             "domain": domain,
+        }
+    transports = unmodelled_internal_transports(board, (net,)).get(str(net), [])
+    if transports:
+        return {
+            "available": False, "connected": False, "net": str(net),
+            "reason": "component_internal_transport_model_required", "domain": domain,
+            "unmodelled_component_transports": transports,
         }
     refs = set(domain["authority_refs"])
     pads = []

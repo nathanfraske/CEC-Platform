@@ -211,6 +211,9 @@ def requests(source, board, proposal, *, timeout_s=10.):
     deadline = time.monotonic()+timeout_s
     excluded = set().union(*(set(proposal.get(key, {})) for key in
         ('selected_control_shunts', 'selected_control_pullups', 'selected_control_gate_biases', 'selected_programming_resistors')))
+    import cec_programming_resistor_placement as programming
+    excluded.update(programming.participant_refs(proposal.get('selected_programming_resistors',{})))
+    excluded.update(proposal.get('selected_source_series_links',{}))
     fresh = plan(source, proposal['poses'], board_hint=proposal['board_hint'], timeout_s=_remaining(deadline),
         reference_group_uuids=proposal.get('reference_group_uuids', ()), excluded_refs=excluded)
     _need(fresh == selected, 'fresh_source_signal_bias_proof_required')

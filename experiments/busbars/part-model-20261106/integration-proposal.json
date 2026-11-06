@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "scope": "Native component semantics and bounded synthetic current/FEM investigation; NOT actual-board routing or admission",
+  "native_version_tested": "10.0.5",
+  "primary_documentation": "https://docs.kicad.org/10.0/en/pcbnew/pcbnew.html#_jumper_pads",
+  "native_result": {
+    "same_number_pads_without_jumper_setting_opens": 1,
+    "different_number_pads_same_net_without_jumper_setting_opens": 1,
+    "separate_footprints_same_net_opens": 1,
+    "one_pin_two_same_number_feet_explicit_jumper_opens": 0,
+    "actual_generated_footprint_fixture_opens": 0,
+    "actual_generated_footprint_fixture_DRC_errors": 0,
+    "meaning": "Same pad numbers alone are insufficient. The explicit native internal-jumper property represents real component metal outside the PCB; no fabricated PCB copper is required. Two nets are not necessary for one continuous conductor.",
+    "footprint_native_setting": "(duplicate_pad_numbers_are_jumpers yes)",
+    "native_API": "FOOTPRINT.SetDuplicatePadNumbersAreJumpers(True)",
+    "symbol_obligation": "The future source-owned one-passive-pin symbol must also set duplicate_pin_numbers_are_jumpers=yes; KiCad transfers jumper settings from symbol to footprint. No source schematic is integrated in this task. An explicit two-pin jumper group is another supported representation but was not independently tested here.",
+    "XFCN_comparison": "Existing XFCN_T34069 footprint has four pads1 but duplicate_pad_numbers_are_jumpers=no. Do not infer its off-board connectivity from matching numbers or silently change released terminals."
+  },
+  "generated_assets": {
+    "footprint": "experiments/busbars/part-model-20261106/CEC_Busbar_Prototype.pretty/Mac8_MJP_1p0_NOMINAL_PROTOTYPE.kicad_mod",
+    "footprint_sha256": "238bcc1767a40ba51240fdf482a35e2dfd0d1d13afaad64f82a0e8b20dada719",
+    "generation_script": "experiments/busbars/part-model-20261106/build_part.py",
+    "receipt": "experiments/busbars/part-model-20261106/provisional-footprint-receipt.json",
+    "geometry": "Two2x2mm rectangular SMD lands at(-12.7,0)/(12.7,0),25.4mm pitch. Full26.8x1.8mm nominal body onF.Fab; engineering courtyard encloses body AND lands. Native cached courtyard bounds[-13.945,-1.245,13.945,1.245]mm are recorded separately from centerline bounds. Nominal2.3mm top/1.8mm underside fields, no guaranteed tolerance labels.",
+    "real_PCB_copper": "Only the two SMT lands; no span copper shape, route or zone. Paste/mask only on lands. Internal conductor exists as a component property, not Gerber metal.",
+    "symbol_library": "Not delivered; source schematic integration intentionally deferred. Native footprint and actual-footprint fixture validated."
+  },
+  "independent_receiver_behavior": {
+    "fixture": "experiments/busbars/part-model-20261106/actual_provisional_footprint/board.kicad_pcb",
+    "fixture_sha256": "77e62c2a8fe092696657453b43d46f053fe7d43b2f4846205bd7f4064883bf56",
+    "physical_graph_receipt": "experiments/busbars/part-model-20261106/physical-graph-receipt.json",
+    "transport_receipt": "experiments/busbars/part-model-20261106/transport-receipt.json",
+    "cec_native_partition_pair": "Physical pad/track CONNECTIVITY_DATA still has2components; sourceJ1 and sinkJ2 remain physically separate. No implicit off-board component metal is added.",
+    "cec_current_topology_authority_connectivity": "With a locally declared synthetic J1/J2 terminal scope, returns available=True,connected=True because board.GetConnectivity includes native jumper semantics. This is assembled connectivity, NOT rated bar or solder-joint capacity. No production current authority was fabricated or changed.",
+    "current_width_integration_gap": "cec_constraints.py current-domain rated-subgraph receiving calls the jumper-aware authority_connectivity. It has no independently sourced bar/joint transport rating check. Native current-width success must not qualify a new unsupported jumper component. A fail-closed unknown-component-transport check or complete bound transport receiver is mandatory before current admission.",
+    "cec_thermal2d": "Fresh bounded1A synthetic end-to-end request explicitly dropsPWR:native_terminal_disconnected:PWR; operation_complete=False,field_computed=False,numerical_qualification=False,totalJoule0. This is refused/unknown, NOT a cool thermal success. Raster copper and per-pad-index contact patches do not create a bar shortcut."
+  },
+  "minimal_next_integration": [
+    "Integrate the exact MPN-specific nominal symbol/footprint as a real BOM component with native internal-jumper semantics, source schematic identity, pose/body/paste/courtyard records and explicit prototype status. Do not add a net tie, copper span or production waiver.",
+    "Preserve separate physical PCB-island evidence. Add a separately named assembled-conductor graph linking the two actual land UUIDs/positions through this exact part. Same pin number must never collapse distinct contact patches.",
+    "Until transport is qualified, explicitly refuse current admission for jumper-bearing rated domains. Do not treat whole-board native connected=True or zero DRC opens as a rated PCB path.",
+    "Reuse cec_pipeline.conductors.solve for a diagnostic network of PCB branch→solder joint→formed bar→solder joint→PCB branch. Require sourced positive joint/bar resistances, temperature ranges and thermal boundaries; no zero-ohm heatless default or equal-sharing assumption. The formed path length is not automatically the26.8mm planar extent.",
+    "A physical FEM integration needs explicit land-cell-to-bar electrical and thermal branches and consistent heat deposition; existing cec_thermal2d._solve_net_electrical accepts only raster copper/barrels, not off-board component branches. Until this exists, preserve its native_terminal_disconnected refusal.",
+    "Receive source current/width, contact webs, terminal partitions, Kelvin/clipped-copper topology, native DRC and paired assembly on the actual saved candidate. Off-board connectivity must also be checked for measurement bypasses; no inferred barrel/joint current or complete-Z guarantee."
+  ],
+  "qualification": {
+    "native_electrical_component_semantics_demonstrated": true,
+    "bar_current_transport_supported_by_existing_admission": false,
+    "bar_FEM_model_implemented": false,
+    "nominal_part_only": true,
+    "source_qualification_known": false,
+    "reviewed_or_shared_files_changed": false,
+    "release_authority": false
+  }
+}

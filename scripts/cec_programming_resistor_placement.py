@@ -3,6 +3,8 @@
 The catalog distinguishes the TPS2121 RUX ILIM-to-Ground resistor from a
 closed selected monitor divider's lower resistor. The latter retains its
 upper resistor, associated input rail and third native/canonical terminal;
+an explicitly posed upper resistor may move with the lower as a complete
+source-verified pair, without moving the owner or reducing the rail budget.
 it is never relabelled as ILIM or as an unqualified two-terminal pull-down.
 Its selected part/value and BOTH original native terminal components remain
 mandatory. Owner motion, copper retirement, a smaller width, programmed
@@ -44,6 +46,15 @@ def _left(deadline):
 
 
 def _wire(value):return json.loads(json.dumps(value,sort_keys=True,allow_nan=False))
+
+
+def participant_refs(selected):
+    """Enumerate a freshly compiled role's posed participants, not authority."""
+    result=set(selected)
+    for item in selected.values():
+        divider=item.get('source_monitor_divider',{})
+        if divider.get('upper_motion') is True:result.add(divider['upper_reference'])
+    return result
 
 
 def manufacturer_contract(fp):
@@ -233,7 +244,15 @@ def plan(board,poses,*,board_hint,timeout_s=10.,reference_group_uuids=()):
         expected={(ref,signal.GetNumber()),(owner.GetReference(),control.GetNumber())}
         if divider is not None:
             uppernode,upperpower=divider[2:4];upper=uppernode.GetParentFootprint()
-            native._smd(upper,2);native._stationary(upper,poses)
+            native._smd(upper,2)
+            upper_motion=upper.GetReference() in poses
+            if upper_motion:
+                native._pose(upper,poses)
+                _need(not upper.IsLocked()and not upper.IsDNP()
+                    and (not upper.GetParentGroup()and force._uid(upper)not in grouped or force._uid(upper)in authorized)
+                    and all(not p.IsLocked()and force._uid(p)not in grouped for p in upper.Pads()),
+                    'unlocked_populated_Source_monitor_upper_required')
+            else:native._stationary(upper,poses)
             expected.add((upper.GetReference(),uppernode.GetNumber()))
         _need(members==expected and nets.get(signal.GetNetname())==expected,'complete_unique_canonical_programming_net_required')
         identities={ref:_identity(board,fp,comps,instances,node_net,export_pins,deadline),
@@ -262,6 +281,15 @@ def plan(board,poses,*,board_hint,timeout_s=10.,reference_group_uuids=()):
                 closed_node_members=sorted([list(v)for v in expected]),
                 source_stationary_upper_identity=native._footprint(board,upper),
                 every_closed_node_member_mandatory=True,voltage_transfer_or_operating_qualified=False)
+            if upper_motion:
+                record=item['source_monitor_divider']
+                record['source_moving_upper_identity']=record.pop('source_stationary_upper_identity')
+                record.update(upper_motion=True,supply_net=upperpower.GetNetname(),
+                    source_terminal_contacts={force._uid(p):native._direct_contacts(board,p,deadline)for p in upper.Pads()},
+                    all_source_contacts_are_mandatory=True,unchanged_full_rail_current_required=True,
+                    current_authority=False,new_barrel_authority=False,source_trace_retirement_authority=False)
+                if force._uid(upper)in authorized:
+                    record['source_reference_group_authorization']=authorized[force._uid(upper)]
         if force._uid(fp)in authorized:item['source_reference_group_authorization']=authorized[force._uid(fp)]
         result[ref]=item
     _left(deadline)
@@ -300,8 +328,37 @@ def requests(source,board,proposal,*,timeout_s=10.):
         divider=item.get('source_monitor_divider')
         if divider is not None:
             upper=board.FindFootprintByReference(divider['upper_reference'])
-            _need(upper is not None and native._footprint(board,upper)==divider['source_stationary_upper_identity'],
-                'complete_stationary_upper_divider_identity_changed')
+            _need(upper is not None,'complete_upper_divider_required')
+            if divider.get('upper_motion') is True:
+                rigid._rigid_part(source.FindFootprintByReference(divider['upper_reference']),upper,proposal['poses'])
+                supply=pads[divider['upper_power_pad_uuid']];anchor=pads[divider['associated_supply_pad_uuid']]
+                _need(supply.GetNetname()==anchor.GetNetname()==divider['supply_net'],
+                    'monitor_upper_associated_supply_identity_changed')
+                with force._thermal_hint(proposal['board_hint']):
+                    rail=cells._supply_current_widths(source,divider['supply_net'])
+                widths=rail.get('required_by_layer_nm')if type(rail)is dict else None
+                _need(type(widths)is dict and widths and set(widths)==set(map(int,source.GetEnabledLayers().CuStack()))
+                    and all(type(v)is int and v>0 for v in widths.values())
+                    and type(rail.get('current_authority'))is dict,
+                    'unchanged_complete_monitor_upper_supply_current_contract_required')
+                # A same-surface supply obligation has an actual native
+                # access face. Do not leak a thin-inner-layer floor into its
+                # scalar width. Saved receiving still enforces the complete
+                # per-layer contract on every leg, and original contacts
+                # separately retain their literal Source widths.
+                common=set(map(int,supply.GetLayerSet().CuStack()))&set(map(int,anchor.GetLayerSet().CuStack()))
+                supply_width=max(int(source.GetDesignSettings().m_TrackMinWidth),
+                    int(cells._netclass(source,divider['supply_net'])['width']),
+                    min(widths[face]for face in common)if common else max(widths.values()))
+                result['monitor_divider_supply:'+divider['upper_power_pad_uuid']]=dict(
+                    kind='source_boundary',net=divider['supply_net'],role='manufacturer_monitor_divider_supply',
+                    a=endpoint(supply),b=endpoint(anchor),width_nm=supply_width,
+                    unchanged_full_rail_current_contract=rail,source_programming_resistor=item,
+                    no_power_bypass_or_current_authority=True,new_barrel_authority=False,
+                    class_only_supply_prefix_authority=False,every_original_contact_and_immediate_Ground_return_still_required=True)
+            else:
+                _need(native._footprint(board,upper)==divider['source_stationary_upper_identity'],
+                    'complete_stationary_upper_divider_identity_changed')
             result['monitor_divider_upper:'+item['signal_pad_uuid']]=dict(kind='source_boundary',net=item['net'],
                 role='manufacturer_closed_monitor_divider_third_terminal',a=endpoint(signal),
                 b=endpoint(pads[divider['upper_node_pad_uuid']]),width_nm=width,

@@ -176,11 +176,14 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
     import cec_programming_resistor_placement as programming
     programming_resistors=programming.plan(board,poses,board_hint=board_hint,
         reference_group_uuids=reference_group_uuids)
+    programming_refs=programming.participant_refs(programming_resistors)
+    import cec_source_series_link_placement as series_link
+    series_links=series_link.plan(board,poses,board_hint=board_hint,reference_group_uuids=reference_group_uuids)
     import cec_source_signal_bias_placement as signal_bias
     signal_biases=signal_bias.plan(board,poses,board_hint=board_hint,
         reference_group_uuids=reference_group_uuids,
-        excluded_refs=set(control_shunts)|set(control_pullups)|set(control_gate_biases)|set(programming_resistors))
-    passive_roles=(set(control_shunts),set(control_pullups),set(control_gate_biases),set(signal_biases),set(programming_resistors))
+        excluded_refs=set(control_shunts)|set(control_pullups)|set(control_gate_biases)|programming_refs|set(series_links))
+    passive_roles=(set(control_shunts),set(control_pullups),set(control_gate_biases),set(signal_biases),programming_refs,set(series_links))
     if sum(map(len,passive_roles))!=len(set().union(*passive_roles)):
         raise ValueError('disjoint_source_control_passive_roles_required')
     with force._thermal_hint(board_hint):
@@ -262,8 +265,11 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
         if ref in signal_biases:
             if reqs:raise ValueError('signal_bias_resistor_cannot_alias_power_bypass')
             continue
-        if ref in programming_resistors:
+        if ref in programming_refs:
             if reqs:raise ValueError('programming_resistor_cannot_alias_power_bypass')
+            continue
+        if ref in series_links:
+            if reqs:raise ValueError('source_series_link_cannot_alias_power_bypass')
             continue
         if reqs:
             if (len(reqs) != 1 or len(list(fp.Pads())) != 2
@@ -580,6 +586,7 @@ def _prepare_source(board, poses, *, board_hint, max_shift_mm=6.,allow_owned_loc
     if control_gate_biases:result['selected_control_gate_biases']=control_gate_biases
     if signal_biases:result['selected_signal_bias_resistors']=signal_biases
     if programming_resistors:result['selected_programming_resistors']=programming_resistors
+    if series_links:result['selected_source_series_links']=series_links
     if allow_linear_power_stage_reconstruction:
         result['allow_linear_power_stage_reconstruction']=True
     if linear_stages:result['source_linear_power_stages']=linear_stages
@@ -1286,6 +1293,8 @@ def _obligations(source,board,proposal,*,composed_supply_fork_tracks=()):
     requests.update(control_gate_bias.requests(source,board,proposal))
     import cec_programming_resistor_placement as programming
     requests.update(programming.requests(source,board,proposal))
+    import cec_source_series_link_placement as series_link
+    requests.update(series_link.requests(source,board,proposal))
     import cec_source_signal_bias_placement as signal_bias
     requests.update(signal_bias.requests(source,board,proposal))
     if proposal.get('additional_aggregate_capacitors'):
