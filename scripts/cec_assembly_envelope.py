@@ -92,6 +92,63 @@ def same_net_terminal_gap_mm(leaf, owners, *, layer_id):
     return min(shapes[0].distance(s) for s in shapes[1:])
 
 
+def projected_dimensions(carrier, cover, transform):
+    """Separate laminate savings from the declared installed-body XY envelope.
+
+    Uses the fixed assembly datum, including reflections, never resized board
+    centres. This is a sizing observation, not a collision or release gate.
+    Native courtyards/design allocations are not supplier body guarantees;
+    cables, plugs, hardware and access clearances are NOT included here.
+    Unknown bodies retain laminate dimensions but suppress the body result.
+    """
+    from shapely.geometry import shape
+    from shapely import affinity
+    from cec_stack_fit_screen import contact_registration
+    contact_registration([dict(id='datum',xy=[0,0],role='datum')],
+                         [dict(id='datum',xy=[0,0],role='datum')],transform)
+    def bounds(geometries):
+        if not geometries or any(g.is_empty or not g.is_valid or not math.isfinite(g.area) or g.area<=0
+                or not all(math.isfinite(v) for v in g.bounds) for g in geometries):
+            raise ValueError('finite_valid_projected_envelope_required')
+        boxes=[g.bounds for g in geometries]
+        low=[min(b[i] for b in boxes) for i in (0,1)]
+        high=[max(b[i] for b in boxes) for i in (2,3)]
+        size=[hi-lo for lo,hi in zip(low,high)]
+        area=size[0]*size[1]
+        if min(size)<=0 or not all(math.isfinite(v) for v in (*size,area)):
+            raise ValueError('finite_positive_projected_envelope_required')
+        return dict(bounds_mm=low+high,size_mm=size,bounding_area_mm2=area)
+    laminate=[];bodies=[];missing=[];basis=set()
+    for side,data in (('carrier',carrier),('cover',cover)):
+        if (not isinstance(data,dict) or not isinstance(data.get('bodies'),list)
+                or not isinstance(data.get('missing'),list)
+                or len(data['bodies'])>8192):
+            raise ValueError('complete_bounded_projected_population_required')
+        def posed(geometry):
+            native=shape(geometry)
+            return affinity.affine_transform(native,transform) if side=='cover' else native
+        laminate.append(posed(data['outline']))
+        missing.extend(dict(side=side,**row) for row in data['missing'])
+        seen=set()
+        for row in data['bodies']:
+            ref=row.get('ref');height=row.get('height_max_mm')
+            if (type(ref) is not str or not ref or ref in seen
+                    or type(height) not in (int,float) or not math.isfinite(height) or height<0):
+                raise ValueError('unique_finite_projected_body_inventory_required')
+            seen.add(ref)
+            if height:
+                bodies.append(posed(row['xy']))
+                basis.add(str(row.get('geometry_source',row.get('basis','unspecified'))))
+    # Validate visible bodies even when other bodies are unknown.
+    known=bounds(laminate+bodies)
+    return dict(schema=1,complete=not missing,laminate=bounds(laminate),
+        declared_body_plus_laminate=known if not missing else None,
+        missing=missing,geometry_bases=sorted(basis),
+        exclusions=['external_cables_and_plugs','hardware_extents','tool_and_service_access'],
+        scope='declared-envelope sizing only; not physical-package qualification',
+        release_authority=False)
+
+
 def extract(board, specification):
     """Complete native population; conservative courtyard prisms by default."""
     import pcbnew
@@ -293,6 +350,7 @@ def evaluate_boards(carrier,cover,contract):
         hardware.append(dict(**row,xy=[anchors[0].x,anchors[0].y],conflicts=conflicts,ok=not conflicts))
     result['hardware']=hardware
     result['ok'] &= all(r['ok'] for r in hardware)
+    result['projected_dimensions']=projected_dimensions(*data,contract['transform'])
     return result,data
 
 
@@ -363,6 +421,8 @@ def native_translation_check(board, peer, contract, translations, *,
         reason='native_assembly_translation_deadline' if expired else
                None if result['ok'] is True else 'native_paired_assembly_refused',
         violations=result['violations'],missing=result['missing'],
+        contacts=result.get('contacts',[]),hardware=result.get('hardware',[]),
+        projected_dimensions=result.get('projected_dimensions'),
         source_and_peer_unchanged=True,scope='paired-native-translation-feasibility',
         routing_admitted=False,release_authority=False)
 
