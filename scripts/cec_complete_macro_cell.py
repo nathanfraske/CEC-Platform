@@ -147,6 +147,19 @@ def save_private(board,candidate,packet):
         raise ValueError('fresh_source_macro_save_packet_required')
     field._save_field_snapshot(board,candidate)
     result=dict(saved_candidate_authorized=False,routing_admitted=False,release_authority=False)
+    result.update(_preserve_literal_reference_nodes(candidate, packet))
+    # Materialized fine-pitch launches can introduce the first actual
+    # endpoint group in a Source family. The independent exact replay emits
+    # its literal rule too; omitting it here made a valid new device stub
+    # depend on whether an unrelated older Source already had that rule.
+    # Emission is not qualification: incoming members still owe every
+    # bounded endpoint/current/native and saved-replay gate.
+    result['local_endpoint_rule']=additive.bind_local_endpoint_rule(board,candidate)
+    return result
+
+
+def _preserve_literal_reference_nodes(candidate, packet):
+    result = {}
     proposal=packet['source_plan'];contracts=proposal['row_plan'].get('source_reference_group_transports',{})
     if contracts:
         import cec_source_reference_group_transport as reference
@@ -156,13 +169,6 @@ def save_private(board,candidate,packet):
                 maximum_translation_mm=escape.complete_transport_shift_bound(proposal))
         else:result['literal_source_reference_save']=reference.preserve_literal_hidden_field_order(candidate,
             [(proof,delta)for proof,turn,delta in requests],maximum_translation_mm=escape.complete_transport_shift_bound(proposal))
-    # Materialized fine-pitch launches can introduce the first actual
-    # endpoint group in a Source family. The independent exact replay emits
-    # its literal rule too; omitting it here made a valid new device stub
-    # depend on whether an unrelated older Source already had that rule.
-    # Emission is not qualification: incoming members still owe every
-    # bounded endpoint/current/native and saved-replay gate.
-    result['local_endpoint_rule']=additive.bind_local_endpoint_rule(board,candidate)
     return result
 
 
@@ -383,6 +389,10 @@ def receive(source,candidate,*,board_hint,timeout_s=10.,max_shift_mm=6.,
         with tempfile.TemporaryDirectory(prefix='cec-complete-saved-macro-') as work:
             expected=force._copy_family(paths[0],Path(work)/'expected')
             save_private(projected,expected,packet)
+            result['literal_source_macro_projection_context'] = cell._save_literal_projection(
+                paths[0], expected, projected, packet['source_plan'], packet['source_plan']['poses'],
+                source_macro_packet=packet)
+            _preserve_literal_reference_nodes(expected, packet)
             replay=additive.receive(expected,paths[1],timeout_s=remaining('exact_delta'),board_hint=board_hint,
                 allow_endpoint_neckdown_additions=True)
             result['independent_exact_source_cut_transform_and_additions']=replay

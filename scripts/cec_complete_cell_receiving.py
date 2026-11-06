@@ -553,7 +553,7 @@ def _receive_reference_transports(candidate,plan):
             raise ValueError('saved_source_reference_group_cardinal_transport_differs')
 
 
-def _save_literal_projection(source, expected, projected, plan, moved_refs):
+def _save_literal_projection(source, expected, projected, plan, moved_refs, *, source_macro_packet=None):
     """Receive native scope first, then preserve every unowned Source AST.
 
     The private expected board is not a writer-normalization waiver. Compare
@@ -574,6 +574,27 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
         raise ValueError('fresh_actual_projection_owners_required')
     owned = {by_ref[ref] for ref in moved_refs}
     retired = set(plan['retired_track_uuids'])
+    if source_macro_packet is not None:
+        packet = source_macro_packet
+        if (packet.get('scope') != 'source_typed_complete_native_macro_requests'
+                or Path(packet['source']).resolve() != source
+                or packet['source_sha256'] != force._hash(source)
+                or packet['code_identity'] != force._code_identity()
+                or syntax._freeze(packet['source_plan']) != syntax._freeze(plan)):
+            raise ValueError('fresh_source_macro_literal_projection_required')
+        retired = set(packet['retired_track_uuids'])
+        transported = set(plan.get('row_plan', {}).get('transformed_track_uuids', []))
+        for name in ('changes', 'source_process_barrel_motion',
+                     'explicit_source_typed_ordinary_barrel_motion',
+                     'explicitly_reproved_private_signal_port_reseats',
+                     'explicitly_reproved_private_signal_return_reseats'):
+            transported.update(row['uuid'] for row in packet['transport'].get(name, []))
+        transported.update(row['uuid'] for row in packet.get(
+            'source_factory_ground_pickups_carried_without_retirement', []))
+        if any(uid not in source_nodes or source_nodes[uid][0] not in ('segment', 'via')
+               for uid in transported):
+            raise ValueError('native_macro_transport_must_be_actual_source_copper')
+        owned.update(transported-retired)
     if any(uid not in source_nodes or source_nodes[uid][0] != 'segment' for uid in retired):
         raise ValueError('exact_source_projection_track_cuts_required')
     if plan.get('reference_group_uuids'):
@@ -597,6 +618,7 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
             return syntax._freeze([node for node in root if id(node) not in objects])
         if globals_only(old_root, old) != globals_only(new_root, new):
             raise ValueError('native_projection_changed_unowned_global_context')
+        pruned_groups = set()
         for uid, node in old.items():
             if uid in retired or uid in owned:
                 continue
@@ -604,8 +626,20 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
                 if additive._without(node, 'filled_polygon') != additive._without(new[uid], 'filled_polygon'):
                     raise ValueError('native_projection_changed_ground_nonfill_context')
             elif syntax._freeze(node) != syntax._freeze(new[uid]):
-                raise ValueError('native_projection_changed_unowned_source_context')
+                # Native deletion removes retired conductors from their
+                # existing groups. Only that exact subtraction is owned.
+                if (source_macro_packet is not None and node[0] == 'group'
+                        and additive._without(node, 'members') == additive._without(new[uid], 'members')
+                        and additive._members(new[uid]) == additive._members(node)-retired):
+                    pruned_groups.add(uid)
+                else:
+                    raise ValueError('native_projection_changed_unowned_source_context')
         replacements = {uid: new[uid] for uid in owned}
+        for uid in pruned_groups:
+            node = copy.deepcopy(source_nodes[uid])
+            members = next(part for part in node if isinstance(part, list) and part and part[0] == 'members')
+            members[:] = ['members', *[value for value in members[1:] if value.strip('"') not in retired]]
+            replacements[uid] = node
         for uid in ground:
             node = copy.deepcopy(source_nodes[uid])
             node = [part for part in node if not
@@ -615,7 +649,7 @@ def _save_literal_projection(source, expected, projected, plan, moved_refs):
             replacements[uid] = node
         text = raw.raw_text(source)
         spans = raw.inventory(text)
-        for uid in sorted(owned | retired | ground, key=lambda value: spans[value][0], reverse=True):
+        for uid in sorted(owned | retired | ground | pruned_groups, key=lambda value: spans[value][0], reverse=True):
             start, end = spans[uid]
             text = text[:start] + ('' if uid in retired else additive._render(replacements[uid])) + text[end:]
         raw.write_raw(expected, text)
