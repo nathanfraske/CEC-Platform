@@ -1,0 +1,654 @@
+{
+  "source": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "moves": {
+    "U6": [
+      1,
+      0
+    ],
+    "C9": [
+      1,
+      0
+    ],
+    "C27": [
+      1,
+      0
+    ],
+    "R54": [
+      1,
+      0
+    ]
+  },
+  "courtyard_collisions": [
+    {
+      "refs": [
+        "U6",
+        "C54"
+      ],
+      "intersection_area_mm2": 1.6471000000000022,
+      "bounds": [
+        [
+          14.55499,
+          45.705,
+          17.44499,
+          49.095
+        ],
+        [
+          16.46999,
+          46.340001,
+          17.37999,
+          48.150001
+        ]
+      ]
+    }
+  ],
+  "paired_ok": true,
+  "paired_violations": [],
+  "C55_contacts": [
+    {
+      "pad": "1",
+      "net": "+5VSB",
+      "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+      "native_copper_contacts": [
+        {
+          "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            16824990,
+            47725001
+          ],
+          "end_nm": [
+            18225001,
+            47725001
+          ],
+          "locked": true,
+          "width_nm": 477370
+        },
+        {
+          "uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "kind": "PCB_TRACK",
+          "net": "+5VSB",
+          "layer": "F.Cu",
+          "start_nm": [
+            18225001,
+            47725001
+          ],
+          "end_nm": [
+            18500000,
+            48000000
+          ],
+          "locked": true,
+          "width_nm": 477370
+        }
+      ],
+      "native_filled_zone_contacts": [],
+      "branch_native_neighbors": [
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "383c2b53-8347-4f82-90bc-b92925c37fe0",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              17057490,
+              48057490
+            ],
+            "end_nm": [
+              17000000,
+              48000000
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "3b8c8393-c787-4e92-a4a5-0fcf232c3f18",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              17057490,
+              47900001
+            ],
+            "end_nm": [
+              17057490,
+              48057490
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "6cf405f4-010b-4701-a732-dea89cca3655",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              15674990,
+              47775001
+            ],
+            "end_nm": [
+              16774990,
+              47775001
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              18225001,
+              47725001
+            ],
+            "end_nm": [
+              18500000,
+              48000000
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "e3b3a00a-9091-444a-a36e-16333aacac9b",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              17000000,
+              48000000
+            ],
+            "end_nm": [
+              18500000,
+              46500000
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "neighbor": {
+            "uuid": "fadba932-2d71-466c-8fab-c01735590521",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              16774990,
+              47775001
+            ],
+            "end_nm": [
+              16824990,
+              47725001
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "pad_owner": "C55",
+          "pad": "1",
+          "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "net": "+5VSB"
+        },
+        {
+          "branch_uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+          "pad_owner": "C54",
+          "pad": "1",
+          "pad_uuid": "4c19101a-0580-4ef1-b1ed-337484922e80",
+          "net": "+5VSB"
+        },
+        {
+          "branch_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "neighbor": {
+            "uuid": "3dc003d6-1b44-417c-b577-d2f07c6b019c",
+            "kind": "PCB_TRACK",
+            "net": "+5VSB",
+            "layer": "F.Cu",
+            "start_nm": [
+              16824990,
+              47725001
+            ],
+            "end_nm": [
+              18225001,
+              47725001
+            ],
+            "locked": true,
+            "width_nm": 477370
+          }
+        },
+        {
+          "branch_uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+          "pad_owner": "C55",
+          "pad": "1",
+          "pad_uuid": "6c3be1bf-4fa9-404f-8a38-f38647d11b22",
+          "net": "+5VSB"
+        }
+      ]
+    },
+    {
+      "pad": "2",
+      "net": "GND",
+      "pad_uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+      "native_copper_contacts": [
+        {
+          "uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "kind": "PCB_TRACK",
+          "net": "GND",
+          "layer": "F.Cu",
+          "start_nm": [
+            20400000,
+            48000000
+          ],
+          "end_nm": [
+            19445406,
+            48954594
+          ],
+          "locked": true,
+          "width_nm": 200000
+        }
+      ],
+      "native_filled_zone_contacts": [],
+      "branch_native_neighbors": [
+        {
+          "branch_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "neighbor": {
+            "uuid": "8fcb6331-0f3f-403a-ba73-e7a6da00710b",
+            "kind": "PCB_VIA",
+            "net": "GND",
+            "layer": "F.Cu",
+            "start_nm": [
+              19445406,
+              48954594
+            ],
+            "end_nm": [
+              19445406,
+              48954594
+            ],
+            "locked": true,
+            "width_nm": 500000
+          }
+        },
+        {
+          "branch_uuid": "e0bcdb19-670a-4869-af0b-0f1f62de92f0",
+          "pad_owner": "C55",
+          "pad": "2",
+          "pad_uuid": "3dec1a7e-8855-432c-85a9-43bdfbf7fc93",
+          "net": "GND"
+        }
+      ]
+    }
+  ],
+  "source_native_pad_or_dogbone_barrels": [
+    {
+      "source": {
+        "uuid": "6e5c4098-f8f8-49d6-a9d0-5545a563f8d1",
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "layer": "F.Cu",
+        "start_nm": [
+          12083990,
+          46405002
+        ],
+        "end_nm": [
+          12083990,
+          46405002
+        ],
+        "locked": true,
+        "width_nm": 500000
+      },
+      "owners": [
+        {
+          "ref": "C27",
+          "pad": "2",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "f5f88540-c47a-4ddc-9539-d0f0e3ddbb0f"
+          ]
+        }
+      ],
+      "active": [
+        {
+          "ref": "C27",
+          "pad": "2",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "f5f88540-c47a-4ddc-9539-d0f0e3ddbb0f"
+          ]
+        }
+      ],
+      "process": [
+        true,
+        "bounded same-layer SMD dogbone"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        13.08399,
+        46.405002
+      ],
+      "pad_blocked": false,
+      "pad_records": []
+    },
+    {
+      "source": {
+        "uuid": "8a1767d2-a3d7-4f14-a2d3-e9d98dd99eb8",
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "layer": "F.Cu",
+        "start_nm": [
+          12800000,
+          49135000
+        ],
+        "end_nm": [
+          12800000,
+          49135000
+        ],
+        "locked": true,
+        "width_nm": 350000
+      },
+      "owners": [
+        {
+          "ref": "R54",
+          "pad": "2",
+          "basis": "contained",
+          "tails": []
+        }
+      ],
+      "active": [
+        {
+          "ref": "R54",
+          "pad": "2",
+          "basis": "contained",
+          "tails": []
+        }
+      ],
+      "process": [
+        true,
+        "fully contained same-net SMD POFV"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        13.8,
+        49.135
+      ],
+      "pad_blocked": false,
+      "pad_records": [
+        {
+          "ref": "R54",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ]
+    },
+    {
+      "source": {
+        "uuid": "c37ec792-b1a4-49b0-a937-7aee674d5d28",
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "layer": "F.Cu",
+        "start_nm": [
+          13861080,
+          45861093
+        ],
+        "end_nm": [
+          13861080,
+          45861093
+        ],
+        "locked": true,
+        "width_nm": 500000
+      },
+      "owners": [
+        {
+          "ref": "U6",
+          "pad": "12",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "b3634c11-95f9-46f5-bbda-540a1c919c03"
+          ]
+        }
+      ],
+      "active": [
+        {
+          "ref": "U6",
+          "pad": "12",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "b3634c11-95f9-46f5-bbda-540a1c919c03"
+          ]
+        }
+      ],
+      "process": [
+        true,
+        "bounded same-layer SMD dogbone"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        14.86108,
+        45.861093
+      ],
+      "pad_blocked": false,
+      "pad_records": []
+    },
+    {
+      "source": {
+        "uuid": "29c6dd22-a1da-4ce9-9a58-b645a9a40da0",
+        "kind": "PCB_VIA",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_PR1",
+        "layer": "F.Cu",
+        "start_nm": [
+          16103544,
+          48903553
+        ],
+        "end_nm": [
+          16103544,
+          48903553
+        ],
+        "locked": true,
+        "width_nm": 500000
+      },
+      "owners": [
+        {
+          "ref": "U6",
+          "pad": "6",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "daa85c51-cee0-4e9e-bb8b-b663fb577828"
+          ]
+        }
+      ],
+      "active": [
+        {
+          "ref": "U6",
+          "pad": "6",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "daa85c51-cee0-4e9e-bb8b-b663fb577828"
+          ]
+        }
+      ],
+      "process": [
+        true,
+        "bounded same-layer SMD dogbone"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        17.103544,
+        48.903553
+      ],
+      "pad_blocked": false,
+      "pad_records": []
+    },
+    {
+      "source": {
+        "uuid": "022ac0d2-6911-4ef4-8230-4dec46464df7",
+        "kind": "PCB_VIA",
+        "net": "/5V SOURCE MUX + USB SERVICE INGRESS/U6_OV1",
+        "layer": "F.Cu",
+        "start_nm": [
+          15249990,
+          49100000
+        ],
+        "end_nm": [
+          15249990,
+          49100000
+        ],
+        "locked": true,
+        "width_nm": 500000
+      },
+      "owners": [
+        {
+          "ref": "U6",
+          "pad": "5",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "60d43bcc-0c9a-40f7-b9bc-37ff547de09f"
+          ]
+        }
+      ],
+      "active": [
+        {
+          "ref": "U6",
+          "pad": "5",
+          "basis": "native_short_dogbone",
+          "tails": [
+            "60d43bcc-0c9a-40f7-b9bc-37ff547de09f"
+          ]
+        }
+      ],
+      "process": [
+        true,
+        "bounded same-layer SMD dogbone"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        16.24999,
+        49.1
+      ],
+      "pad_blocked": false,
+      "pad_records": []
+    },
+    {
+      "source": {
+        "uuid": "6ac2229b-badd-4f1a-a128-a2632b8dc90a",
+        "kind": "PCB_VIA",
+        "net": "GND",
+        "layer": "F.Cu",
+        "start_nm": [
+          11245000,
+          48705000
+        ],
+        "end_nm": [
+          11245000,
+          48705000
+        ],
+        "locked": true,
+        "width_nm": 500000
+      },
+      "owners": [
+        {
+          "ref": "C9",
+          "pad": "2",
+          "basis": "contained",
+          "tails": []
+        }
+      ],
+      "active": [
+        {
+          "ref": "C9",
+          "pad": "2",
+          "basis": "contained",
+          "tails": []
+        }
+      ],
+      "process": [
+        true,
+        "fully contained same-net SMD POFV"
+      ],
+      "unique_rigid_delta": true,
+      "destination_mm": [
+        12.245,
+        48.705
+      ],
+      "pad_blocked": false,
+      "pad_records": [
+        {
+          "ref": "C9",
+          "pad": "2",
+          "net": "GND",
+          "reason": "JLC06162H-3313 POFV accepted"
+        }
+      ]
+    }
+  ],
+  "C55_horizontal_delta_to_clear_C54_courtyard_mm": 1.6249900000000004,
+  "scope": "Source native pad/dogbone and body diagnostic only; ownership compiler, source-track-body barrels, complete copper/zone/body guards and restoration not waived",
+  "board_saved": false,
+  "accepted": false,
+  "peer_source": "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_path": "beta/assembly/hub-atx-stack.json",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "clearance_floor_mm": 0.2,
+  "new_xy_compaction_mm": [
+    0,
+    0
+  ],
+  "placement_targets": {
+    "C55": {
+      "x_mm": 19.45,
+      "y_mm": 48.0,
+      "rotation_deg": 0.0
+    },
+    "C9": {
+      "x_mm": 12.0,
+      "y_mm": 48.0,
+      "rotation_deg": -90.0
+    },
+    "R54": {
+      "x_mm": 13.8,
+      "y_mm": 48.625,
+      "rotation_deg": -90.0
+    },
+    "C54": {
+      "x_mm": 16.92499,
+      "y_mm": 47.245001,
+      "rotation_deg": 90.0
+    },
+    "U6": {
+      "x_mm": 15.99999,
+      "y_mm": 47.4,
+      "rotation_deg": 0.0
+    },
+    "C27": {
+      "x_mm": 13.56399,
+      "y_mm": 45.8,
+      "rotation_deg": 180.0
+    },
+    "C51": {
+      "x_mm": 18.5,
+      "y_mm": 50.125,
+      "rotation_deg": 180.0
+    }
+  },
+  "named_rejections": {
+    "C9_GND_via_vertical_bus_signed_gap_mm": -0.4727615,
+    "C27_GND_via_diagonal_bus_signed_gap_mm": -0.131432781751871,
+    "minimum_C9_total_x_move_for_point2mm_clearance_mm": 1.6727615
+  }
+}

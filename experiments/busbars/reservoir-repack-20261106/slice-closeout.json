@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "status": "source_identity_and_contextual_geometry_diagnosis_not_routed_repack",
+  "goal_status": "active",
+  "new_shared_helper": {
+    "path": "scripts/cec_wired_aggregate_capacitor.py",
+    "sha256": "6cd4c1b8c89e1163141e102208b39ed452f821016fd716c5716d25a4bdd332df",
+    "read_only": true,
+    "copper_transport_or_retirement_authority": false,
+    "live_role_proof": "wired-source-identity.json",
+    "live_runtime_s": 3.848793861005106,
+    "unsupported_contacting_copper_artwork_refused": true
+  },
+  "regression": {
+    "report": "regression-final.xml",
+    "sha256": "12e5a2a8932011708a2f8fa99f4cae83c98f7919c2a9baee9dc65cf796ecd719",
+    "passed": 184,
+    "failures": 0,
+    "new_helper_cases": 26,
+    "old_partial_overlap_fixture_retained_as_negative": true,
+    "production_guards_weakened": false
+  },
+  "accepted_source": {
+    "path": "experiments/busbars/coherent-mux-20261106/port-repaired-v1/candidate/board.kicad_pcb",
+    "sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+    "nominal_board_size_mm": [78.0, 87.5],
+    "fresh_native_check": "incumbent-final-check.json",
+    "opens": 0,
+    "drc_errors": 0,
+    "warnings": 94,
+    "unchanged": true,
+    "newly_identified_process_debt": "C54 via c25714c1 partial SMD overlap is not detected by native DRC; process containment still refuses it."
+  },
+  "latest_geometry": {
+    "report": "geometry-flipped-C54-up0p25-centered-via.json",
+    "courtyard_and_declared_pair_screen_pass": true,
+    "centered_same_size_C54_via_process_screen_pass": true,
+    "retained_BCu_track_gap_mm": 0.23698328627515952,
+    "required_gap_mm": 0.2,
+    "supply_path_mm": 3.418818131188496,
+    "supply_path_limit_mm": 3.5,
+    "supply_width_mm": 0.477370,
+    "old_FCu_branch_requires_positive_reconstruction": true,
+    "all_layer_guard_pass": false,
+    "routed_or_accepted": false
+  },
+  "preserved_files": {
+    "experiments/repack/paired-closed-v2-20261105/cover/board.kicad_pcb": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+    "beta/assembly/hub-atx-stack.json": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+    "checkpoints/current.json": "1798d2a9b8bfef323c08a5a1aa25ba9872333657a7234e4f8a0d1c9859c82484"
+  },
+  "part_verification": "experiments/busbars/keystone-verified-20261106/verification.json",
+  "new_product_boards_saved": 0,
+  "new_xy_compaction_mm": [0, 0],
+  "bar_installed": false,
+  "current_and_thermal_qualified": false,
+  "assembled_z_qualified": false,
+  "release_authority": false
+}

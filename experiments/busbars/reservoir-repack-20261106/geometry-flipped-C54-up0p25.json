@@ -1,0 +1,202 @@
+{
+  "source_sha256": "d4cf0b22f92526b6bdca0ae7cfa09af02217647db984577064ce91bfc177958a",
+  "peer_sha256": "c611b8ab0a066dd2bca1d0c6ea6bc9fb665decdc4389b085c30010900fba34db",
+  "stack_sha256": "0ebac5220a5082a85e4ba431ca56152cbc5153a3e0ae67c8eb7d74970188ac1a",
+  "C54_target": [
+    18924990,
+    47955001,
+    -90.0
+  ],
+  "C54_pad_positions": [
+    {
+      "pin": "1",
+      "net": "+5VSB",
+      "at_nm": [
+        18924990,
+        47475001
+      ]
+    },
+    {
+      "pin": "2",
+      "net": "GND",
+      "at_nm": [
+        18924990,
+        48435001
+      ]
+    }
+  ],
+  "source_via_uuid": "c25714c1-f2d8-4e0e-9711-7d208ce1da97",
+  "source_via_at_nm": [
+    16824990,
+    46765001
+  ],
+  "source_via_process": [
+    false,
+    "full via land is not contained by the SMD pad"
+  ],
+  "proposed_via_at_nm": [
+    19024990,
+    48435001
+  ],
+  "proposed_via_geometry_nm": [
+    500000,
+    300000
+  ],
+  "destination_pad_blocked": true,
+  "destination_pad_records": [
+    {
+      "ref": "C54",
+      "pad": "2",
+      "net": "GND",
+      "reason": "full via land is not contained by the SMD pad"
+    }
+  ],
+  "all_layer_clear": false,
+  "all_layer_guard": {
+    "ok": false,
+    "reason": "pad or hole excludes via land",
+    "at_mm": [
+      19.02499,
+      48.435001
+    ],
+    "diameter_mm": 0.5,
+    "clearance_mm": 0.2,
+    "layer": null,
+    "blockers": [
+      {
+        "kind": "pad",
+        "ref": "C54",
+        "pad": "2",
+        "net": "GND",
+        "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+        "footprint_uuid": "af401585-d917-461c-9ea2-f78cf5578c8f",
+        "layers": [
+          "F.Cu"
+        ],
+        "contact": "via_land_exclusion"
+      }
+    ]
+  },
+  "actual_foreign_track_conflicts": [
+    {
+      "uuid": "c42e35af-b735-4271-8006-1280f4c378cd",
+      "net": "+5VSB",
+      "layer": "F.Cu",
+      "start_nm": [
+        18225001,
+        47725001
+      ],
+      "end_nm": [
+        18500000,
+        48000000
+      ]
+    },
+    {
+      "uuid": "344a69bb-cc2d-4535-af62-f48abd141ee9",
+      "net": "/SENSE3V3_HI",
+      "layer": "B.Cu",
+      "start_nm": [
+        19750000,
+        43950000
+      ],
+      "end_nm": [
+        23000000,
+        47200000
+      ]
+    }
+  ],
+  "courtyard_collisions": [],
+  "paired_ok": true,
+  "paired_violations": [],
+  "full_width_local_path_legs": [
+    {
+      "start_mm": [
+        17.67499,
+        47.775001
+      ],
+      "end_mm": [
+        18.62499,
+        47.775001
+      ],
+      "foreign_clear": false,
+      "blockers": [
+        {
+          "kind": "pad",
+          "ref": "C54",
+          "pad": "2",
+          "net": "GND",
+          "layer": "F.Cu",
+          "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+          "footprint_uuid": "af401585-d917-461c-9ea2-f78cf5578c8f",
+          "contact": "clearance"
+        }
+      ]
+    },
+    {
+      "start_mm": [
+        18.62499,
+        47.775001
+      ],
+      "end_mm": [
+        18.92499,
+        47.475001
+      ],
+      "foreign_clear": false,
+      "blockers": [
+        {
+          "kind": "pad",
+          "ref": "C54",
+          "pad": "2",
+          "net": "GND",
+          "layer": "F.Cu",
+          "uuid": "b02322a5-3ab5-4710-8996-cd61b8e81c82",
+          "footprint_uuid": "af401585-d917-461c-9ea2-f78cf5578c8f",
+          "contact": "clearance"
+        }
+      ]
+    },
+    {
+      "start_mm": [
+        18.92499,
+        47.475001
+      ],
+      "end_mm": [
+        19.024999,
+        47.475001
+      ],
+      "foreign_clear": true,
+      "blockers": []
+    },
+    {
+      "start_mm": [
+        19.024999,
+        47.475001
+      ],
+      "end_mm": [
+        20.4,
+        46.1
+      ],
+      "foreign_clear": true,
+      "blockers": []
+    }
+  ],
+  "path_width_nm": 477370,
+  "path_length_mm": 3.418818131188496,
+  "locality_limit_mm": 3.5,
+  "net_correction": "C54/C55 supply is +5VSB at U6.IN1 pin7, NOT U6.OUT pin1(5VSB_MUX).",
+  "board_saved": false,
+  "accepted": false,
+  "retained_B3V3_diagonal_signed_copper_gap_mm": 0.16627260815650624,
+  "canonical_owner_endpoint": {
+    "reference": "U6",
+    "pin": "7",
+    "role": "IN1",
+    "pad_uuid": "b7f83a9b-fcdb-47ff-9829-b6bba23efd1c",
+    "net": "+5VSB",
+    "at_nm": [
+      17674990,
+      47775001
+    ]
+  },
+  "rigid_source_pad_partial_overlap_bound_mm": 0.03999999999999998
+}
